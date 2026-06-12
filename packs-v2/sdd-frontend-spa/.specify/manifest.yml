@@ -1,0 +1,11 @@
+# SDD Manifest — fill these 4 fields, everything else from context.md
+
+project:
+  name: ""           # REQUIRED
+  scope: "pilot"     # pilot | mvp | full  DEFAULT:pilot
+  feature: ""        # REQUIRED — output folder name
+  context_file: ""   # REQUIRED — file in .specify/contexts/
+
+pr_rules:
+  max_lines_per_pr: 400   # DEFAULT:400
+  max_files_per_pr: 5     # DEFAULT:5
