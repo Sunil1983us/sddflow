@@ -7,9 +7,15 @@ description: ANALYZE — Risk, dependency, and complexity analysis
 Read .specify/manifest.yml
 Read .specify/memory/constitution.md
 Read .specify/memory/summary-rules.md
+Read .specify/features/{manifest.project.feature}/validate.summary.md
 Read .specify/features/{manifest.project.feature}/srd.summary.md
 Read .specify/features/{manifest.project.feature}/brd.summary.md
 Read .specify/templates/analyze-template.md
+
+## Verify Gate
+validate.summary.md must exist and state "VALIDATE complete".
+If missing or incomplete — STOP. State: "ANALYZE blocked — run /validate
+first (business sign-off required)."
 
 ## Your Task
 Produce a full analysis covering:

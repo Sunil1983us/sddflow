@@ -12,15 +12,20 @@ Overall Complexity: LOW | MEDIUM | HIGH
 
 ## 2. Risk Register
 
-| ID | Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|---|
-| R-001 | {risk} | Low/Med/High | Low/Med/High/Critical | {action} |
+| ID | Risk | Likelihood | Impact | Linked FR/NFR (AR-3) | Mitigation |
+|---|---|---|---|---|---|
+| R-001 | {risk} | Low/Med/High | Low/Med/High/Critical | FR-{NNN} / NFR-{NNN} | {action} |
+
+Every risk must link to at least one FR-NNN or NFR-NNN it threatens — if
+none applies, link to the relevant Domain Rule from constitution Part 2.
+Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 
 ### High/Critical Risks — Detail
 
 #### R-{NNN}: {Risk Title}
 **Description:** {what could go wrong}
 **Trigger:** {what causes this}
+**Linked FR/NFR:** FR-{NNN} / NFR-{NNN}
 **Impact on design:** {architectural consequence}
 **Mitigation:** {concrete action}
 
