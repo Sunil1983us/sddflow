@@ -6,6 +6,7 @@
 1. Read .specify/manifest.yml
 2. Read .specify/memory/constitution.md
 3. Read .specify/memory/summary-rules.md
+4. Read .specify/memory/change-rules.md
 4. Confirm: project.name, scope, feature, context_file
 
 ## SPECIFY — Two Actions in Order

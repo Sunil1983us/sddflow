@@ -1,148 +1,125 @@
 # API Specification
 # Feature: {Feature Name}
-
-> Version: 1.0 | Status: Draft | Date: {date}
-> Input: arch.summary.md + srd.summary.md
+> Version: 1.0 | Date: {date} | Input: srd.summary.md + arch.summary.md
 
 ---
 
-## 1. Overview
-Base URL: `/instant-core-service/v1`
-Content-Type: `application/xml` (request bodies) / `application/json` (responses)
+## 1. Base URL
+```
+{protocol}://{host}/api/v1
+```
 
----
-
-## 2. ICS Inbound Endpoints
-
-### POST /instant-core-service/v1/instant-credit-transfer
-**Purpose:** Leg 1 — receive outbound pacs.008 from Gateway
-**Caller:** Instant Gateway Service
-
-**Request Headers:**
-| Header | Mandatory | Value |
+## 2. Authentication
+| Method | Header | Notes |
 |---|---|---|
-| X-Correlation-Id | Yes | YYYYMMDD-OB-NNNNNN |
-| X-Tracking-Id | No | Absent on first call |
-| X-Source-System | Yes | Originating system ID |
-| X-Payment-Direction | Yes | OUTBOUND |
-| X-Message-Type | Yes | pacs.008 |
-| X-Scheme | Yes | SCT_INST |
-| Content-Type | Yes | application/xml |
+| {Bearer/API Key/mTLS} | {header name} | {requirements} |
 
-**Request Body:** pacs.008.001.08 XML
+## 3. Common Headers
+| Header | Mandatory | Description |
+|---|---|---|
+| X-Correlation-Id | Yes | UUID v4 — trace across services |
+| X-Source-System | Yes | Caller system name |
+| Content-Type | Yes | application/json |
+| Idempotency-Key | Yes (mutations) | UUID v4 — dedup key |
 
-**Response: HTTP 202 Accepted**
+## 4. Endpoints
+
+### POST /api/v1/{resource}
+**Purpose:** {what this creates or triggers}
+**Caller:** {upstream service or actor}
+
+**Request:**
 ```json
 {
-  "paymentId": "a1b2c3d4-0001-0001-0001-000000000001",
-  "correlationId": "20260609-OB-000001",
-  "status": "RECEIVED",
-  "timestamp": "2026-06-09T10:15:30.265Z"
+  "{field1}": "{type — description}",
+  "{field2}": "{type — description}",
+  "{amount}": "number — decimal, 4dp",
+  "{currency}": "string — ISO 4217"
 }
 ```
 
-**Error Responses:**
-| HTTP | Code | Condition |
-|---|---|---|
-| 400 | ICS-400 | Missing mandatory header |
-| 400 | ICS-401 | Invalid XML — cannot parse |
-| 500 | ICS-500 | Internal server error |
-
----
-
-### POST /instant-core-service/v1/payment-status-report
-**Purpose:** Leg 2 — receive pacs.002 ACCP from CSM Service
-**Caller:** CSM Service
-
-**Request Headers:**
-| Header | Mandatory | Value |
-|---|---|---|
-| X-Correlation-Id | Yes | YYYYMMDD-OB-NNNNNN |
-| X-Tracking-Id | Yes | payment_id from ICS |
-| X-Source-System | Yes | CSM |
-| X-Payment-Direction | Yes | OUTBOUND |
-| X-Message-Type | Yes | pacs.002 |
-| X-Scheme | Yes | SCT_INST |
-| Content-Type | Yes | application/xml |
-
-**Request Body:** pacs.002.001.10 XML
-
-**Response: HTTP 200 OK**
+**Response 202 Accepted:**
 ```json
 {
-  "acknowledgementId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "trackingId": "a1b2c3d4-0001-0001-0001-000000000001",
-  "correlationId": "20260609-OB-000001",
-  "status": "RECEIVED",
-  "timestamp": "2026-06-09T10:15:30.265Z"
+  "{resourceId}": "string — UUID",
+  "status": "string — initial status",
+  "receivedAt": "string — ISO 8601 UTC"
+}
+```
+
+**Response 400 Bad Request:**
+```json
+{
+  "errorCode": "VALIDATION_ERROR",
+  "message": "{description}",
+  "field": "{field that failed}"
+}
+```
+
+**Response 409 Conflict:**
+```json
+{
+  "errorCode": "DUPLICATE_REQUEST",
+  "message": "Duplicate Idempotency-Key"
 }
 ```
 
 ---
 
-## 3. ICS Outbound Calls (Mocked in Pilot)
+### GET /api/v1/{resource}/{id}
+**Purpose:** {what this retrieves}
 
-### POST /validation/v1 — BVS
-**Request:** pacs.008 XML + headers
-**Happy Path Response:**
+**Response 200 OK:**
 ```json
-{ "result": "OK", "status": "VALID",
-  "trackingId": "...", "correlationId": "..." }
+{
+  "{resourceId}": "string — UUID",
+  "status": "string",
+  "createdAt": "string — ISO 8601 UTC",
+  "updatedAt": "string — ISO 8601 UTC"
+}
 ```
 
-### POST /framl/v1 — FRAML
-**Request:** pacs.008 XML + headers
-**Happy Path Response:**
+**Response 404 Not Found:**
 ```json
-{ "result": "NO_HIT", "status": "NO_HIT",
-  "trackingId": "...", "correlationId": "..." }
-```
-
-### POST /booking/v1 — PBS EVT_001
-**Request Body:**
-```json
-{ "payload": "<pacs.008 xml>", "eventId": "EVT_001",
-  "typeOfBooking": "R", "amount": 250.00, "currency": "EUR",
-  "debtorBIC": "TESTBICXXX", "creditorBIC": "DESTBICXXX" }
-```
-**Happy Path Response:**
-```json
-{ "result": "OK", "status": "RESERVED", "eventId": "EVT_001",
-  "trackingId": "...", "correlationId": "..." }
-```
-
-### POST /booking/v1 — PBS EVT_002
-**Request Body:** same as EVT_001 with `"eventId": "EVT_002"`, `"typeOfBooking": "B"`
-**Happy Path Response:**
-```json
-{ "result": "OK", "status": "BOOKED", "eventId": "EVT_002",
-  "trackingId": "...", "correlationId": "..." }
-```
-
-### POST /clearing-settlement-service/v1 — CSM
-**Request:** pacs.008 XML + headers
-**Happy Path Response:**
-```json
-{ "status": "SUBMITTED", "clearingRef": "RT1-2026-000001",
-  "trackingId": "...", "correlationId": "..." }
-```
-
-### POST /instant-gateway/v1/payment-status-notification — Gateway Callback
-**Request:** pacs.002 XML + headers
-**Mock URL:** `http://mock-gateway-service:8080/instant-gateway/v1/payment-status-notification`
-**Expected Acknowledgement:**
-```json
-{ "status": "RECEIVED", "trackingId": "...", "correlationId": "..." }
+{
+  "errorCode": "NOT_FOUND",
+  "message": "{resource} not found"
+}
 ```
 
 ---
 
-## 4. Error Catalog
+## 5. Status Codes
+| HTTP | Meaning | When |
+|---|---|---|
+| 200 | OK | GET success |
+| 201 | Created | Resource created |
+| 202 | Accepted | Async accepted |
+| 400 | Bad Request | Validation failed |
+| 401 | Unauthorized | Auth missing or invalid |
+| 404 | Not Found | Resource not found |
+| 409 | Conflict | Duplicate request |
+| 500 | Internal Error | Unexpected failure |
+
+## 6. Error Response Format
+```json
+{
+  "errorCode": "string — unique code",
+  "message": "string — human readable",
+  "timestamp": "string — ISO 8601",
+  "traceId": "string — correlation ID"
+}
+```
+
+## 7. Error Codes
 | Code | HTTP | Meaning |
 |---|---|---|
-| ICS-400 | 400 | Missing mandatory header |
-| ICS-401 | 400 | Invalid XML body |
-| ICS-500 | 500 | Internal processing error |
+| VALIDATION_ERROR | 400 | Request failed validation |
+| DUPLICATE_REQUEST | 409 | Duplicate Idempotency-Key |
+| NOT_FOUND | 404 | Resource does not exist |
+| UNAUTHORIZED | 401 | Auth missing or invalid |
+| INTERNAL_ERROR | 500 | Unexpected system failure |
+| {DOMAIN_ERROR} | 422 | {domain-specific error} |
 
 ---
-*Generated from: arch.summary.md + srd.summary.md*
+*Generated from: srd.summary.md + arch.summary.md*

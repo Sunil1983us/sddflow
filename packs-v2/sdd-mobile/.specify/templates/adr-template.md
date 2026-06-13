@@ -1,45 +1,57 @@
-# ADR-{NNN} — {Title}
-
-> Status: Proposed | Accepted | Deprecated | Superseded
-> Date: {date}
-> Supersedes: ADR-{NNN} (if applicable)
+# Architecture Decision Record — ADR-{NNN}
+# {Decision Title}
+> Status: Proposed | Date: {date} | Author: {author}
+> Scope: MVP+ only
 
 ---
 
 ## Context
-{What is the situation and problem that led to this decision?
-What forces are at play — technical, business, or operational?}
-
-## Decision
-{What was decided? Be direct and specific.}
+{Why was this decision needed?
+What forces were at play?
+What problem needed solving?}
 
 ## Options Considered
 
-### Option A — {Name}
-{Description}
-- ✅ {Pro}
-- ❌ {Con}
+### Option A: {Option Name}
+**Pros:**
+- {pro}
+- {pro}
 
-### Option B — {Name}
-{Description}
-- ✅ {Pro}
-- ❌ {Con}
+**Cons:**
+- {con}
+- {con}
 
-### Option C — {Name} (chosen)
-{Description}
-- ✅ {Pro}
-- ❌ {Con}
+### Option B: {Option Name}
+**Pros:**
+- {pro}
+
+**Cons:**
+- {con}
+
+### Option C: {Option Name} (if applicable)
+**Pros/Cons:** {brief}
+
+## Decision
+**Chosen:** Option {A|B|C} — {name}
+
+**Rationale:**
+{Why this option was chosen over the others.
+Key factors that led to this decision.}
 
 ## Consequences
 
 **Positive:**
-- {outcome}
+- {benefit}
+- {benefit}
 
-**Negative / Trade-offs:**
-- {trade-off}
+**Negative:**
+- {tradeoff}
 
 **Risks:**
-- {risk and mitigation}
+- {risk + mitigation}
 
-## References
-- {Link to relevant spec, document, or standard}
+## Review Date
+{When should this decision be revisited? e.g. "After pilot — reassess for MVP"}
+
+---
+*ADR Index: docs/architecture/decisions.md*

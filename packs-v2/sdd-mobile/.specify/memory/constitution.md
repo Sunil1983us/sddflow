@@ -121,3 +121,14 @@
 | Skip paired test | quality gate |
 | PR over limit without split | reviewability |
 | Code before context update | traceability |
+
+## IF framework=react-native OR flutter (auto-applied)
+| Rule | Value |
+|---|---|
+| Screens | Single responsibility — split > 200 lines |
+| Navigation | Abstract — never inline platform checks |
+| State | Global for app state — local for screen UI |
+| API calls | Service layer — never directly in screens |
+| Offline | Assume offline first — sync when connected |
+| Permissions | Request at point of use — never on startup |
+| Platform | iOS + Android tested always |

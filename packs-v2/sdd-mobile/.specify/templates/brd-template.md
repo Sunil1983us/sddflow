@@ -1,7 +1,6 @@
 # Business Requirements Document (BRD)
 # Feature: {Feature Name}
-
-> Version: 1.0 | Status: Draft | Date: {date}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ---
 
@@ -9,46 +8,45 @@
 {2-3 sentences: what is being built, why, and for whom.}
 
 ## 2. Business Objectives
-| ID | Objective |
-|---|---|
-| BO-001 | {objective} |
+| ID | Objective | Success Metric |
+|---|---|---|
+| BO-001 | {objective} | {how measured} |
 
 ## 3. Stakeholders
-| Role | Responsibility |
-|---|---|
-| {role} | {responsibility} |
+| Role | Team | Responsibility |
+|---|---|---|
+| Product Owner | {team} | Approves requirements |
+| Tech Lead | {team} | Reviews architecture |
+| Developer | {team} | Implements |
 
 ## 4. Business Context
-### 4.1 Problem Statement
-{What problem does this solve today?}
+### Problem Statement
+{What problem does this solve? What happens today without this?}
 
-### 4.2 Scope
-**In Scope:**
+### Scope
+In Scope:
 - {item}
 
-**Out of Scope (Pilot):**
+Out of Scope:
 - {item}
 
 ## 5. Business Requirements
 | ID | Requirement | Priority |
 |---|---|---|
 | BR-001 | {description} | Must Have |
+| BR-002 | {description} | Should Have |
 
-## 6. Payment Scheme Context
-| Property | Value |
-|---|---|
-| Scheme | EPC SCT Inst |
-| Currency | EUR |
-| Availability | 24/7/365 |
-| End-to-end SLA | 7,000 ms |
+## 6. Regulatory and Compliance
+| Regulation | Requirement | Impact |
+|---|---|---|
+| {regulation} | {requirement} | {design impact} |
 
-## 7. Regulatory Requirements
-| Regulation | Requirement |
-|---|---|
-| {regulation} | {requirement} |
+## 7. Assumptions
+- [ASSUMPTION-001] {assumption made due to gap in context}
 
 ## 8. Success Criteria
-- [ ] {criterion}
+- [ ] {verifiable end-to-end criterion}
+- [ ] {verifiable criterion}
 
 ---
-*Generated from: .specify/contexts/instant-credit-transfer.summary.md*
+*Generated from: .specify/contexts/{feature}.md*

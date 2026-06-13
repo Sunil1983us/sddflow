@@ -6,404 +6,228 @@
 ## The Fundamental Rule
 
 > Never change code directly.
-> Change the context first.
+> Update context.md first.
 > Let the pipeline propagate.
 
-This keeps every document, every class, and every test
-in sync with each other — permanently.
-
 ---
 
-## Why This Matters
-
-```
-Without this rule:
-  Code v1.2  ←──── out of sync
-  Spec v1.0  ←──── stale
-  Tests v1.1 ←──── partial
-
-  Result: nobody knows what the system actually does.
-  AI in next session: generates wrong code because it reads stale docs.
-
-With this rule:
-  Code v1.2  ←──┐
-  Spec v1.2  ←──┤ always in sync
-  Tests v1.2 ←──┘
-
-  Result: AI always has accurate context.
-  Onboarding: read context.md — understand the whole system.
-```
-
----
-
-## The Three Types of Change
+## The 3 Types of Change
 
 ### Type 1 — Additive (new field, new rule, new endpoint)
-Something new is added. Existing behaviour unchanged.
+Something new added. Existing behaviour unchanged.
 ```
-Example: Add X-Priority header support
-Example: Add clearing_ref to response
-Example: Add new GET /payments/{id}/status endpoint
+Example: Add new field to response
+Example: Add new endpoint
+Example: Add new status/state
 ```
 
 ### Type 2 — Modification (change existing behaviour)
-Existing behaviour changes. May break consumers.
+Existing behaviour changes. May affect consumers.
 ```
-Example: Change payment status REJECTED → DECLINED
-Example: Change timeout from 1,000ms to 2,000ms
-Example: Change reconciliation from 3 fields to 4 fields
-```
-
-### Type 3 — Scope Upgrade (new capability cluster)
-A new area of functionality is added. Multiple documents affected.
-```
-Example: Add retry + circuit breaker (pilot → mvp)
-Example: Add inbound payment flow
-Example: Add investigation case workflow
+Example: Change timeout value
+Example: Change business rule logic
+Example: Rename a status
 ```
 
----
-
-## The Change Workflow — Step by Step
-
-### STEP C1 — Write the Change in Context
-
-Open `.specify/contexts/{feature}.md`
-
-Add to the CHANGELOG section at the bottom:
-
-```markdown
-### v1.1 — 2026-06-15 — {your name}
-- Added: X-Priority header support on all inbound requests
-- Changed: nothing
-- Removed: nothing
-- Impact: api-spec.md, srd.md (FR-016 added)
+### Type 3 — Scope Upgrade
+New capability cluster added.
 ```
-
-Also update the relevant section of the context:
-
-```markdown
-## HTTP Headers
-
-### Before (v1.0)
-| Header | Mandatory |
-|---|---|
-| X-Correlation-Id | Yes |
-
-### After (v1.1) — added X-Priority
-| Header | Mandatory |
-|---|---|
-| X-Correlation-Id | Yes |
-| X-Priority | No — HIGH, NORMAL, LOW |
+Example: pilot → mvp (add resilience, LLD, ADRs)
+Example: Add investigation cases
+Example: Add new integration
 ```
 
 ---
 
-### STEP C2 — Run Impact Analysis
+## The Change Workflow
 
-**Claude Code:**
+```
+C1  Update context.md + CHANGELOG entry
+        ↓
+C2  Impact analysis (which docs affected?)
+        ↓
+C3  Review gate — YOU approve impact list
+        ↓
+C4  Update ONLY affected documents
+        ↓
+C5  Append CHG-NNN tasks to tasks.md
+        ↓
+C6  Implement CHG tasks (same PR rules)
+```
+
+---
+
+## C1 — Update Context First
+
+```markdown
+## CHANGELOG
+
+### v1.1 — {date} — {author}
+- Added: {new capability}
+- Changed: {what changed and why}
+- Removed: {what removed}
+- Impact: {which documents need updating}
+```
+
+Also update the relevant section of context.md.
+
+---
+
+## C2 — Impact Analysis
+
+### Claude Code
 ```
 Read .specify/memory/change-rules.md
-Read .specify/contexts/{feature}.md — focus on latest CHANGELOG entry
+Read .specify/contexts/{feature}.md — focus on latest CHANGELOG
 
-Perform impact analysis for the change in v{N.N}:
-  1. List every document that needs updating
-  2. List every document that is NOT affected
-  3. Estimate new tasks needed
-  4. Estimate total lines and PRs
+Perform impact analysis:
+  List documents to UPDATE (with reason)
+  List documents to SKIP
+  List new CHG-NNN tasks needed
+  Estimate total lines + PRs
 
-Use the impact matrix from change-rules.md.
-Do NOT update anything yet — analysis only.
-Show results in the impact analysis format.
+Do NOT change anything yet — analysis only.
 ```
 
-**GitHub Copilot:**
+### Copilot
 ```
-@workspace Read .specify/memory/change-rules.md
-Read .specify/contexts/{feature}.md changelog v{N.N}
-
-Perform impact analysis only — do not change anything.
-Show: documents to update, documents to skip, new tasks needed.
+@workspace Read change-rules.md + contexts/{f}.md changelog
+Impact analysis only — list update/skip/tasks.
 ```
 
-**Example Output:**
+**Example output:**
 ```
 CHANGE: Add X-Priority header support
 VERSION: v1.1
 
-CONTEXT UPDATED: ✅
-
-DOCUMENTS TO UPDATE:
-  ✅ srd.md          — add FR-016: X-Priority header support
-  ✅ api-spec.md     — add X-Priority to header tables
-  ✅ srd.summary.md  — regenerate
-  ✅ api-spec.summary.md — regenerate
-  ⏭ arch.md         — not affected
-  ⏭ data-model.md   — not affected
-  ⏭ hld.md          — not affected
-  ⏭ lld.md          — not affected
-  ⏭ plan.md         — not affected
+DOCS TO UPDATE:
+  ✅ srd.md       — add FR-016
+  ✅ api-spec.md  — add header to all endpoints
+  ⏭ arch.md      — not affected
+  ⏭ hld.md       — not affected
+  ⏭ data-model   — not affected
 
 NEW TASKS:
-  CHG-001: Add X-Priority to IcsHeaders record — est. 20 lines — 1 PR
-  CHG-002: Update controllers to read X-Priority — est. 40 lines — 1 PR
-  CHG-003: Update mock adapters to propagate X-Priority — est. 30 lines — 1 PR
-  CHG-004: Update integration tests — est. 60 lines — 1 PR
+  CHG-001: Add X-Priority to request record — est 20 lines
+  CHG-002: Update service to propagate header — est 40 lines
+  CHG-003: Update integration tests — est 60 lines
 
-TOTAL: 2 documents, 4 tasks, ~150 lines, 4 PRs
+TOTAL: 2 docs, 3 tasks, ~120 lines, 3 PRs
 ```
 
 ---
 
-### STEP C3 — Review Gate (You)
+## C3 — Review Gate
 
-Before the agent touches anything:
+Review impact list before agent touches anything:
+- Right documents selected?
+- Correct tasks identified?
+- Estimate reasonable?
+
+Type "go" to proceed. Type "adjust: {what}" to correct.
+
+---
+
+## C4 — Update Documents
+
+### Claude Code
 ```
-Review the impact analysis.
-
-Questions to ask:
-  □ Are the right documents listed for update?
-  □ Are any documents incorrectly included?
-  □ Do the new tasks make sense?
-  □ Is the estimate reasonable?
-
-Type "go" to proceed.
-Type "adjust: {what to change}" to correct the analysis.
+Read change-rules.md + contexts/{f}.md (v{N.N} changes only)
+Update ONLY: {list from impact analysis}
+Preserve all existing content
+Mark each change: <!-- v{N.N} -->
+Regenerate .summary.md for each updated doc
+Show diff summary: "{doc}.md — {N} lines added in section {X}"
 ```
 
 ---
 
-### STEP C4 — Update Documents
+## C5 — Add Change Tasks
 
-**Claude Code:**
 ```
-Read .specify/memory/change-rules.md
-Read .specify/contexts/{feature}.md — v{N.N} changes only
-Read the current version of each affected document
+Read tasks.md
+Append at bottom:
 
-Update ONLY these documents:
-  - srd.md  (add FR-016)
-  - api-spec.md (add X-Priority to header tables)
+## Change Set: v{N.N} — {date} — {description}
 
-Rules:
-  - Preserve all existing content
-  - Add new content in the correct section
-  - Mark new content with a version comment: <!-- v1.1 -->
-  - Do NOT rewrite existing sections
-  - Regenerate .summary.md for each updated document
-
-Show a diff summary after each update:
-  "srd.md: added FR-016 in Section 3.1 — 8 lines added"
-```
-
-**GitHub Copilot:**
-```
-@workspace Read .specify/memory/change-rules.md
-Read current srd.md and api-spec.md
-
-Update srd.md: add FR-016 for X-Priority header support.
-Update api-spec.md: add X-Priority to all header tables.
-Preserve all existing content.
-Regenerate both .summary.md files.
-```
-
----
-
-### STEP C5 — Add Change Tasks to tasks.md
-
-**Claude Code:**
-```
-Read .specify/features/{feature}/tasks.md
-
-Append a new change set section at the bottom:
-
-## Change Set: v1.1 — {date} — X-Priority header support
-
-### CHG-001 — Add X-Priority to IcsHeaders record
-Dependencies: none
-Estimated lines: 20 | PR: single
-Files: IcsHeaders.java
+### CHG-001: {title}
+Satisfies: FR-{NNN} (updated)
+Estimated lines: {N} | PR: single
 Acceptance criteria:
-  - [ ] X-Priority field added to IcsHeaders record
-  - [ ] Optional — defaults to NORMAL if absent
-  - [ ] Unit test: IcsHeaders created with and without X-Priority
-
-### CHG-002 — Update controllers to read X-Priority
-...
-
-Save updated tasks.md. List all CHG tasks added.
+  - [ ] {criterion}
 ```
 
 ---
 
-### STEP C6 — Implement Change Tasks
+## C6 — Implement CHG Tasks
 
-Same as normal implementation — one task at a time.
-PR rules still apply — max 400 lines per PR.
+Same as normal /implement — one task at a time.
+PR rules enforced. Max 400 lines per PR.
 
-**Claude Code:**
+---
+
+## Which Commands to Re-Run Per Change Type
+
+| Change | Re-run Commands |
+|---|---|
+| New field in request/response | /specify (api-spec only) → /task |
+| New endpoint | /specify (srd + api-spec) → /plan-arch (if structural) → /task |
+| New status/state | /specify (srd + api-spec + data-model) → /plan-hld (update diagram) → /task |
+| New business rule | /specify (srd) → /task |
+| Architecture change | /specify + /plan-arch + /plan-hld → /task |
+| New integration | /specify + /analyze (re-run) + /plan-arch → /task |
+| Scope upgrade | See scope upgrade section below |
+
+---
+
+## Scope Upgrade
+
 ```
-Read .specify/memory/constitution.md
-Read .specify/features/{feature}/tasks.md
+Edit manifest.yml: scope: "pilot" → "mvp"
 
-Execute CHG-001: Add X-Priority to IcsHeaders record.
-Estimate lines — state PR strategy.
-Write implementation + paired test.
-Confirm acceptance criteria met.
-Wait for go before CHG-002.
+Tell agent:
+"Scope upgraded to mvp. Re-read manifest.yml.
+ Run /specify for newly enabled docs only: lld, api_spec
+ Run /plan-lld (now enabled)
+ Run /plan-adr (now enabled)
+ Update /task with new tasks"
 ```
 
 ---
 
 ## Change Impact By Document
 
-Use this as a quick reference to know what needs updating:
-
-### Changed: Business Rule
-```
-Update: context.md → srd.md → arch.md (if structural)
-Skip:   brd.md, hld.md, data-model.md, api-spec.md
-Tasks:  1-3 CHG tasks
-```
-
-### Added: New Field to Request/Response
-```
-Update: context.md → api-spec.md
-Skip:   brd.md, srd.md, arch.md, data-model.md, hld.md
-Tasks:  1-2 CHG tasks
-```
-
-### Added: New Endpoint
-```
-Update: context.md → srd.md (new FR) → api-spec.md → lld.md
-Skip:   brd.md, arch.md, data-model.md, hld.md
-Tasks:  3-5 CHG tasks
-```
-
-### Added: New Status
-```
-Update: context.md → srd.md → api-spec.md → data-model.md → hld.md (diagram)
-Skip:   brd.md, arch.md
-Tasks:  3-5 CHG tasks
-```
-
-### Added: New DB Table
-```
-Update: context.md → data-model.md → arch.md → lld.md
-Skip:   brd.md, srd.md, api-spec.md, hld.md
-Tasks:  2-3 CHG tasks (Flyway + adapter + tests)
-```
-
-### Changed: NFR (timeout, SLA, TPS)
-```
-Update: context.md → srd.md (NFR section) → resilience.md
-Skip:   brd.md, arch.md, data-model.md, api-spec.md, hld.md
-Tasks:  1-3 CHG tasks (config changes)
-```
-
-### Scope Upgrade (pilot → mvp)
-```
-Update: context.md → manifest.yml → new documents (lld, resilience, adr...)
-New documents generated: only the newly enabled ones
-Tasks:  many CHG tasks
-```
+| Change Type | Update | Skip |
+|---|---|---|
+| New field | api-spec | srd, arch, hld, data-model |
+| New endpoint | srd + api-spec + lld | arch, hld, data-model |
+| New status | srd + api-spec + data-model + hld | arch, lld |
+| New business rule | srd | all others |
+| New DB table | data-model + arch + lld | srd, api-spec, hld |
+| NFR change | srd + resilience | all others |
+| New integration | srd + arch + api-spec + lld + analyze | hld, data-model |
+| Bug fix / refactor | none | all (code only) |
 
 ---
 
-## Version Control Conventions
+## Git Conventions for Changes
 
-### Context File Versioning
-```
-# In context.md header:
-# Version: 1.2
-
-# In CHANGELOG:
-### v1.2 — 2026-06-20 — Sunil
-- Added: retry config per downstream service
-- Impact: srd.md (NFR-008), resilience.md
-```
-
-### Document Versioning
-Each updated document gets a version comment on changed sections:
-```markdown
-<!-- Updated: v1.1 — added X-Priority header -->
-| X-Priority | No | HIGH, NORMAL, LOW |
-```
-
-### Task Versioning
-```markdown
-## Change Set: v1.1 — 2026-06-15 — X-Priority
-CHG-001 ...
-
-## Change Set: v1.2 — 2026-06-20 — Retry config
-CHG-005 ...
-```
-
-### Git Commit Conventions for Changes
 ```bash
 # Document updates
-git commit -m "docs(v1.1): update srd + api-spec for X-Priority header"
+git commit -m "docs(v1.1): update srd + api-spec for X-Priority"
 
-# Implementation changes
-git commit -m "feat(CHG-001): add X-Priority to IcsHeaders record"
-git commit -m "feat(CHG-002): update controllers to read X-Priority"
-git commit -m "test(CHG-004): update integration tests for X-Priority"
+# Change implementation
+git commit -m "feat(CHG-001): add X-Priority to request record"
+git commit -m "feat(CHG-002): propagate X-Priority through service"
+git commit -m "test(CHG-003): update integration tests for X-Priority"
 ```
 
 ---
 
-## What Happens If Code Changes Without Context Update
+## What NEVER Changes on a Change Request
 
-If someone changes code without updating context.md:
-
-```
-Next AI session:
-  Agent reads stale context.md
-  Agent generates code based on stale context
-  New code contradicts existing change
-  Regression introduced
-
-Fix protocol:
-  1. Revert the direct code change
-  2. Update context.md with what changed and why
-  3. Run impact analysis
-  4. Let the pipeline generate the correct change
-```
-
-This is why `constitution.md` has the rule:
-**"Never change code without updating context first."**
-
----
-
-## Change Prompts — Quick Reference
-
-### Impact Analysis
-```
-Read change-rules.md + contexts/{f}.md (latest changelog)
-Perform impact analysis only — do not change anything.
-Show: update/skip list + new tasks + total estimate.
-```
-
-### Update Documents
-```
-Read change-rules.md + contexts/{f}.md (v{N.N} only)
-Update ONLY: {list from impact analysis}
-Preserve all existing content.
-Regenerate summaries for updated docs.
-Show diff summary after each.
-```
-
-### Add Change Tasks
-```
-Read tasks.md
-Append Change Set v{N.N} section with CHG-NNN tasks.
-Each task: description, dependencies, estimated lines, acceptance criteria.
-```
-
-### Implement Change Task
-```
-Read constitution.md + tasks.md
-Execute CHG-{NNN}: {title}
-Estimate lines, split if needed, implement + test, confirm criteria.
-```
-
+- constitution.md Part 1
+- All templates
+- CLAUDE.md + copilot-instructions.md
+- Documents NOT in the impact chain
+- Summary-rules.md (unless limit needs adjusting)

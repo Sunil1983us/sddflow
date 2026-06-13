@@ -1,187 +1,100 @@
 # High Level Design (HLD)
-# Instant Core Service (ICS) — Pilot
-
-> Version: 1.0 | Status: Draft | Date: {date}
-> Input: arch.summary.md + srd.summary.md
+# Feature: {Feature Name}
+> Version: 1.0 | Date: {date} | Input: arch.summary.md + srd.summary.md
 
 ---
 
-## 1. Purpose
-{One paragraph — what ICS does, why it exists, pilot scope.}
-
----
-
-## 2. System Context (C4 Level 1)
-
+## 1. System Context (C4 Level 1)
 ```mermaid
 graph TD
-    Channel([Customer / Channel])
-    Gateway[Instant Gateway Service]
-    ICS[Instant Core Service **ICS**]
-    BVS[Business Validation Service]
-    FRAML[Fraud & AML Service]
-    PBS[Payment Booking Service]
-    CSM[CSM Service]
-    CBS([Core Banking System])
-    RT1([RT1 — EBA Clearing])
+    Actor([{Actor / User}])
+    Caller[{Upstream Service}]
+    ThisService[{This Service}]
+    IntA[{Integration A}]
+    IntB[{Integration B}]
+    DB[({Database})]
 
-    Channel -->|pain.001| Gateway
-    Gateway -->|pacs.008 XML| ICS
-    ICS -->|validate| BVS
-    ICS -->|screen| FRAML
-    ICS -->|EVT_001 / EVT_002| PBS
-    PBS -->|fund events| CBS
-    ICS -->|pacs.008| CSM
-    CSM -->|Swift AGI| RT1
-    RT1 -->|pacs.002| CSM
-    CSM -->|pacs.002| ICS
-    ICS -->|pacs.002 callback| Gateway
+    Actor -->|{action}| Caller
+    Caller -->|{request}| ThisService
+    ThisService -->|{call}| IntA
+    ThisService -->|{call}| IntB
+    ThisService -->|reads/writes| DB
 ```
 
-> **Pilot:** BVS, FRAML, PBS, CSM, Gateway callback are all mocked.
-
----
-
-## 3. Container Diagram (C4 Level 2)
-
+## 2. Container Diagram (C4 Level 2)
 ```mermaid
 graph TD
-    subgraph Docker Compose Network
-        GW[Mock Gateway\nport 8081]
-        ICS[ICS App\nSpring Boot 3\nport 8080]
-        PG[(PostgreSQL 15\nport 5432)]
-        RD[(Redis 7\nport 6379)]
-        MOCK[Mock Services\nBVS / FRAML / PBS / CSM]
+    subgraph {Environment}
+        App[{Service} App]
+        DB[({Database})]
+        Cache[({Cache})]
+        MQ[{Message Broker}]
     end
-
-    GW -->|POST pacs.008| ICS
-    ICS -->|JPA / Flyway| PG
-    ICS -->|idempotency keys| RD
-    ICS -->|HTTP mocked calls| MOCK
-    MOCK -->|pacs.002 push| ICS
-    ICS -->|pacs.002 callback| GW
+    Caller -->|{protocol}| App
+    App -->|ORM| DB
+    App -->|cache| Cache
+    App -->|publish/subscribe| MQ
 ```
 
----
-
-## 4. Technology Stack
-
-| Layer | Technology | Version |
-|---|---|---|
-| Language | Java | 21 |
-| Framework | Spring Boot | 3.x |
-| Build | Maven | 3.9+ |
-| Database | PostgreSQL | 15 |
-| Cache | Redis | 7 |
-| ORM | Spring Data JPA + Hibernate | 6 |
-| DB Migration | Flyway | Latest |
-| Testing | JUnit 5 + Mockito + Testcontainers | — |
-| Containerisation | Docker + Docker Compose | Latest |
-| API Style | REST — OpenAPI 3.0 | — |
-| Deployment | On-premise | Docker only |
-
----
-
-## 5. Payment Flow — Happy Path
-
+## 3. Happy Path Sequence
 ```mermaid
 sequenceDiagram
-    participant GW as Gateway
-    participant ICS as ICS
-    participant BVS as BVS (Mock)
-    participant FRAML as FRAML (Mock)
-    participant PBS as PBS (Mock)
-    participant CSM as CSM (Mock)
+    participant C as {Caller}
+    participant S as {This Service}
+    participant I1 as {Integration 1}
+    participant I2 as {Integration 2}
+    participant DB as {Database}
 
-    GW->>ICS: POST /instant-credit-transfer (pacs.008)
-    ICS-->>GW: 202 Accepted {paymentId}
-    Note over ICS: status = RECEIVED
+    C->>S: {request}
+    S->>DB: persist {initial state}
+    S-->>C: {immediate response}
 
-    ICS->>BVS: POST /validation/v1
-    BVS-->>ICS: result=OK, status=VALID
-    Note over ICS: status = VALIDATION
+    S->>I1: {call}
+    I1-->>S: {result}
+    S->>DB: persist {updated state}
 
-    ICS->>FRAML: POST /framl/v1
-    FRAML-->>ICS: result=NO_HIT
-    Note over ICS: status = FRAML_CHECK
-
-    ICS->>PBS: POST /booking/v1 (EVT_001)
-    PBS-->>ICS: result=OK, status=RESERVED
-    Note over ICS: status = FUNDS_RESERVED
-
-    ICS->>CSM: POST /clearing-settlement-service/v1
-    CSM-->>ICS: status=SUBMITTED, clearingRef=RT1-xxx
-    Note over ICS: status = AWAITING_RECEIPT
-
-    CSM->>ICS: POST /payment-status-report (pacs.002 ACCP)
-    ICS-->>CSM: 200 Acknowledged
-    Note over ICS: status = RECONCILING
-
-    ICS->>PBS: POST /booking/v1 (EVT_002)
-    PBS-->>ICS: result=OK, status=BOOKED
-    Note over ICS: status = SETTLED
-
-    ICS->>GW: POST /payment-status-notification (pacs.002)
-    GW-->>ICS: 200 Acknowledged
+    S->>I2: {call}
+    I2-->>S: {result}
+    S->>DB: persist {final state}
 ```
 
----
-
-## 6. Payment Status Machine
-
+## 4. Status / State Machine
 ```mermaid
 stateDiagram-v2
-    [*] --> RECEIVED
-    RECEIVED --> VALIDATION
-    VALIDATION --> FRAML_CHECK
-    FRAML_CHECK --> FUNDS_RESERVED
-    FUNDS_RESERVED --> AWAITING_RECEIPT
-    AWAITING_RECEIPT --> RECONCILING
-    RECONCILING --> SETTLED
-    SETTLED --> [*]
+    [*] --> {STATE_1}
+    {STATE_1} --> {STATE_2}
+    {STATE_2} --> {STATE_3}
+    {STATE_3} --> {TERMINAL_SUCCESS}
+    {STATE_2} --> {TERMINAL_FAILURE}
+    {TERMINAL_SUCCESS} --> [*]
+    {TERMINAL_FAILURE} --> [*]
 ```
 
-> Pilot has one terminal status only: SETTLED
+## 5. Technology Stack
+| Layer | Technology | Version |
+|---|---|---|
+| Language | {from constitution} | {version} |
+| Framework | {from constitution} | {version} |
+| Database | {from constitution} | {version} |
+| Cache | {from constitution} | {version} |
+| Messaging | {from constitution} | {version} |
+| Deployment | {from constitution} | |
 
----
-
-## 7. Key Design Principles
-
+## 6. Key Design Principles
 | Principle | Applied As |
 |---|---|
-| Hexagonal Architecture | Ports & Adapters — domain isolated from infrastructure |
-| Mock-First | All 5 downstream services mocked via @Profile("mock") |
-| Persist Before Proceed | Status written to DB before each downstream call |
-| Zero PII in Logs | IBAN masked — payment_id + correlation_id only |
-| Pilot Simplicity | No retry, no circuit breaker, no compensation |
+| {from constitution core principles} | {how applied} |
 
----
-
-## 8. Non-Functional Summary
-
+## 7. Non-Functional Summary
 | Category | Target |
 |---|---|
-| End-to-end SLA | 7,000 ms |
-| Leg 1 ICS budget | 4,000 ms |
-| Availability | 99.99% (production target) |
-| Throughput | 500 TPS peak (production target) |
-| Data Retention | 7 years (payments) |
-| Deployment | Docker Compose — on-premise |
+| Response time | {from NFR-NNN} |
+| Availability | {from NFR-NNN} |
+| Throughput | {from NFR-NNN} |
 
----
-
-## 9. Out of Scope — Pilot
-
-```
-Retry / circuit breaker / compensation
-Unhappy path handling
-Investigation cases
-mTLS / HMAC signatures
-Inbound payment flow
-pacs.004 payment return
-Runtime config server
-```
+## 8. Out of Scope
+- {item from context out of scope section}
 
 ---
 *Generated from: arch.summary.md + srd.summary.md*
-*Diagrams: Mermaid — renders in GitHub, VS Code, and Claude*
+*All diagrams: Mermaid — renders in GitHub, VS Code, Claude*

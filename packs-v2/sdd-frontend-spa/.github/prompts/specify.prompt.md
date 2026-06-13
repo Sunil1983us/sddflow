@@ -1,6 +1,6 @@
 ---
 mode: agent
-description: SPECIFY — Generate constitution Part 2 then all spec documents
+description: SPECIFY — Generate constitution Part 2 then all spec documents (Frontend SPA)
 ---
 
 ## Before Starting
@@ -9,64 +9,54 @@ Read .specify/memory/constitution.md
 Read .specify/memory/summary-rules.md
 Read .specify/contexts/{manifest.project.context_file}
 
-## Action 1 — Generate Constitution Part 2
+## ACTION 1 — Generate constitution.md Part 2
 
-Extract from context and fill constitution.md Part 2:
+Extract from context and fill Tech Stack table:
+| Concern | Look for in context |
+|---|---|
+| Language | typescript / javascript |
+| Framework | react / vue / angular / svelte |
+| Build Tool | vite / webpack / next / nuxt |
+| API Style | REST calls / GraphQL / none (static) |
+| Messaging/Async | none (SPA has no messaging) |
+| Serialisation | JSON always |
+| Schema | OpenAPI from backend / none |
+| Data Store | none (frontend has no DB) |
+| Data Cache | none / localStorage / redux-persist |
+| DB Migration | none |
+| Configuration | env vars (.env files) |
+| Secrets | env vars — never in bundle |
+| Resilience | none / retry on fetch |
+| Observability | error tracking (Sentry etc) / none |
+| Logging | console structured / error boundary |
+| Testing | jest / vitest + Testing Library |
+| Coverage Gate | extract from context or default 80% |
+| Quality/Security | eslint + SAST / none |
+| Orchestration | vercel / netlify / docker/nginx / s3 |
+| CI/CD | github-actions / gitlab-ci / jenkins / none |
 
-Tech Stack table — extract every concern:
-| Concern | Look for in context | If not found |
-|---|---|---|
-| Language | explicit mention | ask |
-| Framework | explicit mention | ask |
-| Build Tool | derive from language | Maven(java)/npm(ts)/pip(py) |
-| API Style | endpoint formats mentioned | REST if not stated |
-| Messaging/Async | integration section | none if not stated |
-| Serialisation | message formats | JSON if not stated |
-| Schema | ISO/OpenAPI/Proto refs | derive from API style |
-| Data Store | database mentioned | ask if not found |
-| Data Cache | cache mentioned | none if not stated |
-| DB Migration | derive from framework | Flyway(spring)/Alembic(py) |
-| Configuration | config server mentioned | env vars if not stated |
-| Secrets | secrets approach mentioned | env vars if not stated |
-| Resilience | retry/CB mentioned | none (pilot) if not stated |
-| Observability | metrics/tracing mentioned | structured logs minimum |
-| Logging | log format mentioned | structured JSON |
-| Testing | test framework mentioned | derive from language |
-| Coverage Gate | NFR section | 80% if not stated |
-| Quality/Security | pipeline section | SAST+SCA if not stated |
-| Orchestration | deployment mentioned | derive from deployment |
-| CI/CD | pipeline mentioned | none if not stated |
+Core Principles → derive from domain:
+  Component-First, Accessible, Performant
+  + Specification First, Test First, Traceability
 
-Core Principles — derive from domain:
-- If payments domain → "Idempotency First"
-- If regulated domain → "Compliance First"
-- If real-time domain → "Latency Budget"
-- Always add: Specification First, Test First, Traceability
+Domain Rules → from UX/business rules in context
+Never Do → from constraints + add: API calls in components,
+           inline styles, console.log in prod, any type
 
-Domain Rules — extract from:
-- Business rules section
-- Constraints section
-- Integration contracts
+Save constitution.md (Part 1 unchanged)
+Report: "Constitution Part 2 generated — review Tech Stack table"
 
-Never Do — extract from:
-- Explicit constraints
-- Regulatory requirements
-- Add standard rules: logic in controller, hardcode values, skip tests
+## ACTION 2 — Generate spec documents per scope
 
-Save updated constitution.md (Part 1 unchanged, Part 2 filled).
-Confirm: "Constitution Part 2 generated from context"
+pilot:  brd → srd → analyze → hld (component diagram) → ux-flow
+mvp+:   + lld → component-spec → accessibility
 
-## Action 2 — Generate Spec Documents
+For each: read matching template → derive from context
+Save: {doc}.md + {doc}.summary.md
+Templates to use:
+  hld → hld-template.md (use component diagram, NOT sequence diagram)
+  ux-flow → ux-flow-template.md
+  component-spec → component-spec-template.md
+  Do NOT use: api-spec-template, data-model-template, resilience-template
 
-Read updated constitution.md
-Generate documents per manifest.scope:
-
-pilot:  brd → srd → analyze → hld → plan → tasks → stories
-mvp:    + lld → adr → qa_cases
-full:   + resilience → investigation → security_design
-
-For each: read template → derive from context → save .md + .summary.md
-Mark all assumptions: [ASSUMPTION: ...]
-Every FR: FR-NNN | Every NFR: NFR-NNN
-
-List generated + skipped. State: ready for ANALYZE.
+List generated + skipped. State: ready for /analyze
