@@ -1,85 +1,78 @@
-# Architecture Design Document
+# Architecture Design
 # Feature: {Feature Name}
-
-> Version: 1.0 | Status: Draft | Date: {date}
-> Input: srd.summary.md
+> Version: 1.0 | Date: {date} | Input: srd.summary.md
 
 ---
 
 ## 1. Architecture Overview
-{One paragraph — hexagonal, ports and adapters, mock-first.}
+{One paragraph — pattern chosen, key decisions, why.}
 
 ## 2. Component Diagram
 ```
-[Gateway] ──POST pacs.008──► [InstantCreditTransferController]
-                                        │
-                                        ▼
-                             [ProcessCreditTransferUseCase] ← port/in
-                                        │
-                                        ▼
-                         [InstantCreditTransferService]
-                                        │
-              ┌─────────────────────────┼──────────────────────┐
-              ▼                         ▼                       ▼
-          [BvsPort]               [FramlPort]             [PbsPort]
-          MockBvsAdapter          MockFramlAdapter        MockPbsAdapter
-              │                         │                       │
-              ▼                         ▼                       ▼
-          [CsmPort]          [GatewayCallbackPort]     [PaymentRepositoryPort]
-          MockCsmAdapter     MockGatewayCallbackAdapter JpaPaymentAdapter
+[Caller / Actor]
+      │
+      ▼
+[{Feature}Controller]          ← adapter/in/
+      │
+      ▼
+[{Feature}UseCase]             ← port/in/ (interface)
+      │
+      ▼
+[{Feature}Service]             ← service/
+      │
+      ├──▶ [{Integration}Port]  ← port/out/ (interface)
+      │         │
+      │         ▼
+      │    [Mock{Integration}Adapter]  ← mock/ @Profile(mock)
+      │    [Real{Integration}Adapter]  ← adapter/out/ @Profile(prod)
+      │
+      └──▶ [{Repository}Port]   ← port/out/
+                │
+                ▼
+           [Jpa{Entity}Adapter] ← adapter/out/
 ```
 
 ## 3. Layer Responsibilities
 | Layer | Package | Responsibility |
 |---|---|---|
-| Controller | controller/ | Receive HTTP, delegate to inbound port, return response |
+| Controller | controller/ | Receive request, delegate, return response |
 | Inbound Port | port/in/ | Use case interface |
-| Service | service/ | Orchestrate 9-step payment flow |
-| Outbound Port | port/out/ | Interface per downstream system |
-| Mock Adapter | mock/ | @Profile("mock") happy path responses |
-| Domain | domain/ | PaymentEntity, PaymentStatus enum |
-| Repository | repository/ | Spring Data JPA |
-| DTO | dto/ | Java records for request/response |
+| Service | service/ | Business logic |
+| Outbound Port | port/out/ | Integration interface |
+| Mock Adapter | mock/ | @Profile("mock") test implementation |
+| Real Adapter | adapter/out/ | @Profile("prod") real implementation |
+| Domain | domain/ | Entities, value objects, enums |
+| DTO | dto/ | Request/response records |
 
 ## 4. Key Design Decisions
 | ID | Decision | Rationale |
 |---|---|---|
-| ADR-001 | Hexagonal architecture | Isolate domain from infrastructure |
-| ADR-002 | Mock-first all downstream | Pilot — no real integrations |
-| ADR-003 | Synchronous REST for all calls | Simplest for pilot demo |
-| ADR-004 | Status persisted before each step | RPO = zero |
-| ADR-005 | Java records for DTOs | Java 21 idiomatic |
+| ADR-001 | {decision} | {why} |
+| ADR-002 | {decision} | {why} |
 
-## 5. Payment Orchestration Flow
+## 5. Flow — Happy Path
 ```
-receive pacs.008
-    → persist RECEIVED
-    → call BVS → persist VALIDATION
-    → call FRAML → persist FRAML_CHECK
-    → call PBS EVT_001 → persist FUNDS_RESERVED
-    → call CSM → store clearing_ref → persist AWAITING_RECEIPT
-    [async: receive pacs.002 via POST]
-    → reconcile 3 fields → persist RECONCILING
-    → call PBS EVT_002 → persist SETTLED
-    → callback Gateway
+{Step 1: receive request}
+→ persist initial state
+→ call {integration 1}
+→ persist updated state
+→ call {integration 2}
+→ persist final state
+→ return response
 ```
 
 ## 6. Data Architecture
-| Table | Purpose |
+| Table/Collection | Purpose |
 |---|---|
-| payments | One row per payment — full lifecycle state |
-| payment_status_history | Audit trail — one row per status change |
+| {name} | {what it stores} |
 
-## 7. Security (Pilot)
-- No mTLS in pilot — plain HTTP between Docker containers
-- No HMAC signature validation in pilot
-- All services on Docker Compose internal network
-
-## 8. Observability
-- Structured JSON logs
-- Every log line: payment_id + correlation_id
-- Log events: PAYMENT_RECEIVED, STATUS_TRANSITION, DOWNSTREAM_REQUEST,
-  DOWNSTREAM_RESPONSE, PAYMENT_SETTLED
+## 7. Cross-Cutting Concerns
+| Concern | Approach |
+|---|---|
+| Auth | {approach} |
+| Logging | Structured JSON + trace ID on every line |
+| Error Handling | Global handler + structured error response |
+| Idempotency | {approach if applicable} |
 
 ---
 *Generated from: srd.summary.md*

@@ -1,6 +1,6 @@
 ---
 mode: agent
-description: PLAN-ARCH — Architecture decisions and implementation plan
+description: PLAN-ARCH — Screen architecture + implementation plan (Mobile)
 ---
 
 ## Before Starting
@@ -9,41 +9,40 @@ Read .specify/memory/constitution.md
 Read .specify/memory/summary-rules.md
 Read .specify/features/{manifest.project.feature}/clarify.summary.md
 Read .specify/features/{manifest.project.feature}/analyze.summary.md
-Read all spec .summary.md files
+Read all spec summaries
 Read .specify/templates/arch-template.md
 Read .specify/templates/plan-template.md
 
 ## Verify Gate
 clarify.summary.md must exist with all items RESOLVED.
-If missing — STOP. Ask for CLARIFY to complete first.
+If missing — STOP. Ask for /clarify to complete first.
 
 ## Your Task
 
-### Architecture Document
+### Screen Architecture (NOT hexagonal — mobile pattern)
 From context + constitution Part 2 + analyze.md:
-- Choose architecture pattern (derived from tech stack)
-- Define layers and responsibilities
-- Define all ports and adapters
-- Map integrations to outbound ports
-- List key design decisions with rationale
-- Identify cross-cutting concerns (auth, logging, error handling)
-- Risk mitigations from analyze.md applied to design
+- Screen hierarchy and ownership
+- Navigation structure (stack / tab / drawer)
+- State architecture (global vs local per screen)
+- Service layer (API calls + offline sync)
+- Offline strategy (queue / cache / conflict resolution)
+- Permission request flow
+- Platform abstraction layer (iOS vs Android differences)
+- Push notification handling
 
-Save: .specify/features/{manifest.project.feature}/arch.md
-Save: .specify/features/{manifest.project.feature}/arch.summary.md
+Save: arch.md + arch.summary.md
 
 ### Implementation Plan
 From arch.md:
-- Layer by layer breakdown
-- Class/component names per layer
-- Key method signatures
-- Implementation order
-- Test strategy per layer
-- DB migration plan (if applicable)
+- Feature folder structure
+- Screen naming conventions
+- Navigation setup
+- API service functions
+- Offline storage design
+- Test strategy (unit → screen → E2E with Detox/integration_test)
+- Platform-specific implementation plan
 
-Save: .specify/features/{manifest.project.feature}/plan.md
-Save: .specify/features/{manifest.project.feature}/plan.summary.md
+Save: plan.md + plan.summary.md
 
-After both saved:
-State: "PLAN-ARCH complete — review arch.md + plan.md before PLAN-HLD"
+State: "PLAN-ARCH complete — review arch.md + plan.md before /plan-hld"
 Wait for review.

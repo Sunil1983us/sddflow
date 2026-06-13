@@ -182,7 +182,7 @@ networks:
 
 ```bash
 # Application
-APP_NAME=instant-core-service
+APP_NAME=your-service-name
 APP_PORT=8080
 SPRING_PROFILE=mock
 

@@ -1,296 +1,431 @@
-# SDD Prompt Guide — 6 Verbs
-# Claude Code + GitHub Copilot
+# SDD Prompt Guide — 9 Commands
+# Claude Code Desktop + GitHub Copilot
+
+---
+
+## Command Overview
+
+| Command | Claude Code | Copilot | Does |
+|---|---|---|---|
+| Startup | Paste Step 0 | Step 0 | Read files + confirm |
+| `/specify` | Paste prompt | `/specify` | Constitution + spec docs |
+| `/analyze` | Paste prompt | `/analyze` | Risks + complexity |
+| `/clarify` | Paste prompt | `/clarify` | Questions → you answer |
+| `/plan-arch` | Paste prompt | `/plan-arch` | Architecture + plan |
+| `/plan-hld` | Paste prompt | `/plan-hld` | HLD + diagrams |
+| `/plan-lld` | Paste prompt | `/plan-lld` | LLD (mvp+ only) |
+| `/plan-adr` | Paste prompt | `/plan-adr` | ADRs (mvp+ only) |
+| `/task` | Paste prompt | `/task` | Stories + Tasks + Jira |
+| `/implement` | Paste prompt | `/implement TASK-NNN` | Code one task |
+
+---
 
 ## STEP 0 — Startup (Every Session)
+
 ```
-Read CLAUDE.md + .specify/manifest.yml + constitution.md + summary-rules.md
-Confirm: project name, scope, feature, context file
-Report: constitution Part 2 generated? yes/no
-State which verb ready to execute.
+Read CLAUDE.md
+Read .specify/manifest.yml
+Read .specify/memory/constitution.md
+Read .specify/memory/summary-rules.md
+
+Confirm:
+  Project name: {value}
+  Scope: {pilot | mvp | full}
+  Feature: {value}
+  Context file: {value}
+  Constitution Part 2: generated? yes / no
+  Commands for this scope: {list}
+  PR rules: max {N} lines, {N} files
+
+State which command ready to run.
 ```
 
-## VERB 1 — SPECIFY
-### Claude Code
+---
+
+## /specify — Constitution + Spec Docs
+
 ```
 Read .specify/manifest.yml
-Read .specify/contexts/{context_file}
 Read .specify/memory/constitution.md + summary-rules.md
-
-Execute SPECIFY — two actions:
+Read .specify/contexts/{manifest.project.context_file}
+Read all templates needed per scope
 
 ACTION 1 — Generate constitution.md Part 2:
-  Extract tech stack from context → fill Tech Stack table (20 concerns)
-  Extract principles → fill Core Principles
-  Extract business rules → fill Domain Rules
-  Extract constraints → fill Never Do
-  Save constitution.md (Part 1 unchanged)
-  Report: "Constitution Part 2 generated"
+  Extract from context and fill:
 
-ACTION 2 — Generate spec documents:
-  Read updated constitution.md
-  Read each template before generating its document
-  Generate per scope (pilot/mvp/full)
-  Save each: {doc}.md + {doc}.summary.md
+  Tech Stack (extract each concern):
+  Language, Framework, Build Tool, API Style,
+  Messaging/Async, Serialisation, Schema,
+  Data Store, Data Cache, DB Migration,
+  Configuration, Secrets, Resilience,
+  Observability, Logging, Testing,
+  Coverage Gate, Quality/Security,
+  Orchestration, CI/CD
+
+  If concern not in context → use sensible default
+  If critical concern missing → mark [MISSING — ask user]
+
+  Core Principles → derive from domain type
+  Domain Rules → extract from business rules section
+  Never Do → extract from constraints section
+
+  Save constitution.md (Part 1 unchanged, Part 2 filled)
+  Report: "Constitution Part 2 generated — review Tech Stack table"
+
+ACTION 2 — Generate spec documents per scope:
+  pilot: brd → srd → analyze → hld
+  mvp+:  + lld + api_spec + data_model
+  full:  + resilience + investigation + security_design
+
+  For each: read template → derive from context
+  Save: {doc}.md + {doc}.summary.md
   Mark assumptions: [ASSUMPTION: ...]
+  FR IDs: FR-NNN | NFR IDs: NFR-NNN
 
-List generated + skipped. State: ready for ANALYZE.
+List generated + skipped.
+State: "SPECIFY complete — ready for /analyze"
 ```
-### Copilot: `/specify #file:.specify/contexts/{feature}.md`
 
 ---
 
-## VERB 2 — ANALYZE
-### Claude Code
+## /analyze — Risk + Complexity
+
 ```
 Read constitution.md + summary-rules.md
-Read .specify/features/{f}/srd.summary.md + brd.summary.md
-Read .specify/templates/analyze-template.md
+Read .specify/features/{feature}/srd.summary.md
+Read .specify/features/{feature}/brd.summary.md
+Read analyze-template.md
 
-Produce analysis:
-  RISKS: likelihood + impact + mitigation
+Produce:
+  RISKS: every integration + flow + NFR
+    Each: likelihood (L/M/H) + impact (L/M/H/Critical) + mitigation
+
   DEPENDENCIES: internal + external + timeline
+    Each: blocking/non-blocking + owner + risk
+
   COMPLEXITY: by feature area + by FR
-  NFR IMPACT: design constraints
-  UNKNOWNS: items needing spike
+    Each: LOW/MEDIUM/HIGH + reason
+    Flag HIGH → these need SPLIT tasks later
+
+  NFR IMPACT: design constraints from NFRs
+    Which NFRs force architectural decisions?
+
+  UNKNOWNS: items needing spike before design
+
+  RECOMMENDATION:
+    Suggested approach
+    Items to raise in /clarify
+    Tasks likely needing SPLIT
 
 Save: analyze.md + analyze.summary.md
-Wait for review before CLARIFY.
+Wait for review before /clarify.
 ```
-### Copilot: `@workspace /analyze`
 
 ---
 
-## VERB 3 — CLARIFY
-### Claude Code — Generate Questions
+## /clarify — Surface + Resolve Ambiguities
+
+### Step A — Generate Questions
 ```
 Read constitution.md + all spec summaries + analyze.md
 Read clarify-template.md
 
-Find: AMB (ambiguities) GAP (missing info) CON (conflicts)
-      ASM (assumptions) OQ (open questions) HR (high risks)
+Find and document:
+  AMB-NNN: two valid interpretations
+  GAP-NNN: needed info missing from context
+  CON-NNN: contradicting requirements
+  ASM-NNN: agent assumed — needs confirmation
+  OQ-NNN:  human decision needed
+  HR-NNN:  high risk from analyze.md needing clarity
 
-Save: .specify/features/{f}/clarify.md
-Wait for your answers. Do NOT proceed to PLAN.
+Each item: unique ID + where found + why it matters
+Prioritise HIGH risk items from analyze.md
+
+Save: .specify/features/{feature}/clarify.md
+Present report. WAIT for answers. Do NOT proceed.
 ```
-### You — Fill Answers
+
+### Step B — You Fill the Answers
 ```
-Open clarify.md → fill every answer → update STATUS to RESOLVED
-Tell agent: "clarify.md answered — update spec and write summary"
+Open clarify.md
+Fill every "Your answer" field
+Update STATUS TABLE to RESOLVED / CONFIRMED / DECIDED
+Tell agent: "clarify.md answered"
 ```
-### Claude Code — After Answers
+
+### Step C — Update Spec
 ```
 Read clarify.md with answers
 Update affected spec docs → mark: <!-- Clarified: {ID} -->
+Regenerate .summary.md for each updated doc
 Write clarify.summary.md — all items RESOLVED
-State: ready for PLAN
-```
-### Copilot: `@workspace /clarify` then fill answers then `@workspace update spec`
-
----
-
-## VERB 4 — PLAN
-### Claude Code
-```
-Read constitution.md + clarify.summary.md + all spec summaries
-
-Confirm clarify.summary.md exists — stop if missing.
-
-Generate per scope (skip where false):
-  arch → arch.md + summary
-  hld  → hld.md + summary (Mermaid diagrams)
-  lld  → lld.md + summary (mvp+)
-  plan → plan.md + summary
-
-State: ready for TASK after your review.
-```
-### Copilot: `@workspace /plan`
-
----
-
-## VERB 5 — TASK
-### Claude Code
-```
-Read constitution.md + plan.summary.md + analyze.summary.md
-
-Generate:
-1. Feature → Story → Task hierarchy
-   As {actor} I want {X} so that {Y}
-   Acceptance criteria linked to FRs
-   Story points (1/2/3/5/8) + Sprint assignment
-   → stories.md + stories.summary.md
-
-2. Task list
-   Each task: estimated lines + PR strategy + acceptance criteria
-   Auto-split any task > max_lines_per_pr
-   → tasks.md
-
-3. Jira CSV
-   Epic → Story → Task hierarchy with all fields
-   → docs/jira/stories.md + jira-import.csv
-
-List all tasks + PR strategy. Wait for approval of both
-stories.md AND tasks.md before IMPLEMENT.
-```
-### Copilot: `@workspace /task`
-
----
-
-## VERB 6 — IMPLEMENT (per task)
-### Claude Code
-```
-Read constitution.md + tasks.md
-
-Execute TASK-{NNN}: {title}
-
-Before writing:
-  State estimated lines
-  If > max_lines_per_pr → show SPLIT plan → wait for go
-
-While writing:
-  Follow constitution Part 1 + Part 2
-  Write paired test alongside — never after
-
-After writing:
-  List files + lines
-  Confirm each criterion: ✅ {criterion}
-  State: "PR ready — {N} lines, {N} files"
-  Wait for go before next task
-```
-### Copilot: `@workspace /implement TASK-{NNN}`
-
----
-
-## DELIVERY — After All Tasks
-```
-Read constitution.md + all summaries
-Generate per scope:
-  openapi → docs/openapi.yaml
-  qa_cases → docs/qa/functional-test-cases.md
-  runbook → docs/runbook/local-setup.md
+State: "CLARIFY complete — ready for /plan-arch"
 ```
 
 ---
 
-## CHANGE MANAGEMENT
+## /plan-arch — Architecture + Plan
+
 ```
-SPECIFY: update context.md + CHANGELOG → re-run SPECIFY for affected docs
-ANALYZE: re-run if risk profile changed
-CLARIFY: re-run for new ambiguities
-PLAN:    update if structural change
-TASK:    append CHG-NNN tasks
-IMPLEMENT: execute CHG tasks (same PR rules)
+Read constitution.md + summary-rules.md
+Read clarify.summary.md (MUST exist — stop if missing)
+Read analyze.summary.md + all spec summaries
+Read arch-template.md + plan-template.md
+
+ARCHITECTURE:
+  Pattern from constitution tech stack
+  Layers + responsibilities
+  All ports + adapters
+  Integration mapping
+  Cross-cutting concerns (auth, logging, error handling)
+  Risk mitigations from analyze.md applied
+
+IMPLEMENTATION PLAN:
+  Layer-by-layer breakdown
+  Class/component names per layer
+  Key method signatures
+  Implementation order
+  Test strategy per layer
+  DB migration plan (if applicable)
+
+Save: arch.md + arch.summary.md
+Save: plan.md + plan.summary.md
+
+State: "PLAN-ARCH complete — review arch.md + plan.md"
+Wait for approval before /plan-hld.
 ```
 
 ---
 
-## RECOVERY
+## /plan-hld — High Level Design + Diagrams
+
 ```
-Lost context:
-  Re-read CLAUDE.md + manifest.yml + constitution.md
-  Project: {name} | Feature: {feature} | Current: {verb/task}
-  Continue from here.
-
-Regenerate doc:
-  Discard {doc}.md
-  Re-read template + context
-  Regenerate → save same path + summary
-
-Fix test:
-  {paste error}
-  Fix → re-run → confirm green before next task.
-```
-
-## PLAN — 4 Sub-Commands
-
-PLAN is split into 4 sub-commands.
-Each has its own review gate. Run in order.
-Pilot scope: only PLAN-ARCH and PLAN-HLD required.
-
----
-
-### /plan-arch — Architecture + Implementation Plan
-#### Claude Code
-```
-Read .specify/manifest.yml + constitution.md + summary-rules.md
-Read .specify/features/{feature}/clarify.summary.md (must exist)
-Read .specify/features/{feature}/analyze.summary.md
-Read all spec summaries
-
-Execute PLAN-ARCH:
-  1. Generate arch.md — architecture decisions, layers,
-     ports/adapters, integrations, cross-cutting concerns
-     Apply risk mitigations from analyze.md
-     Save: arch.md + arch.summary.md
-
-  2. Generate plan.md — layer breakdown, class names,
-     method signatures, implementation order, test strategy
-     Save: plan.md + plan.summary.md
-
-Review arch.md + plan.md before running PLAN-HLD.
-```
-#### Copilot: `/plan-arch`
-
----
-
-### /plan-hld — High Level Design + Diagrams
-#### Claude Code
-```
+Read constitution.md + summary-rules.md
 Read arch.summary.md + analyze.summary.md
 Read hld-template.md
 
-Execute PLAN-HLD (all diagrams in Mermaid):
-  - System context diagram (C4 Level 1)
-  - Container/component diagram (C4 Level 2)
-  - Happy path sequence diagram
-  - Status/state machine (if applicable)
-  - Screen flow (mobile) / Component tree (frontend)
+VERIFY: arch.md exists and reviewed. Stop if not.
+
+Generate HLD — ALL diagrams in Mermaid:
+
+  ALWAYS:
+    System context (C4 L1) — graph TD
+    Container/component (C4 L2) — graph TD
+    Happy path sequence — sequenceDiagram
+    State machine (if states exist) — stateDiagram-v2
+
+  IF APPLICABLE:
+    Screen flow (mobile) — graph TD
+    Component tree (frontend) — graph TD
+    Event flow (messaging) — sequenceDiagram
+    Deployment diagram — graph TD
+
+  SCOPE RULES:
+    pilot: happy path only
+    mvp+:  all flows including unhappy paths
 
 Save: docs/hld/hld.md + hld.summary.md
 
-If scope = pilot → state: "Skip PLAN-LLD + PLAN-ADR → ready for TASK"
+If scope = pilot:
+  State: "PLAN-HLD complete — SKIP /plan-lld and /plan-adr
+          Scope is pilot. Ready for /task after review."
+Else:
+  State: "PLAN-HLD complete — review hld.md
+          Run /plan-lld next."
+Wait for review.
 ```
-#### Copilot: `/plan-hld`
 
 ---
 
-### /plan-lld — Low Level Design (mvp+ only)
-#### Claude Code
+## /plan-lld — Low Level Design (mvp+ only)
+
 ```
+Read constitution.md + summary-rules.md
 Read plan.summary.md + arch.summary.md
 Read lld-template.md
 
-If scope = pilot → STOP: "Skipped — pilot scope. Proceed to PLAN-ADR or TASK."
+SCOPE CHECK:
+  If scope = pilot → STOP.
+  State: "/plan-lld skipped — pilot scope.
+          Run /plan-adr or proceed to /task."
 
-Execute PLAN-LLD:
-  - Package/folder structure
-  - Class diagram (backend) or Component diagram (frontend)
-  - Detailed sequence diagrams per key flow
-  - ERD (if database)
-  - Key method signatures
-  - DTO/record definitions
+VERIFY: arch.md + hld.md exist. Stop if not.
+
+Generate LLD — all diagrams in Mermaid:
+
+  Package/folder structure — full tree
+  Class diagram (backend) — classDiagram
+  Component diagram (frontend) — graph TD or classDiagram
+  Detailed sequence per key flow — sequenceDiagram
+    Include error handling paths
+  ERD (if database) — erDiagram
+  Key method signatures — per layer
+  DTO/record definitions
 
 Save: docs/lld/lld.md + lld.summary.md
+State: "PLAN-LLD complete — review lld.md"
+Wait for review.
 ```
-#### Copilot: `/plan-lld`
 
 ---
 
-### /plan-adr — Architecture Decision Records (mvp+ only)
-#### Claude Code
+## /plan-adr — Architecture Decision Records (mvp+ only)
+
 ```
+Read constitution.md
 Read arch.summary.md + analyze.summary.md
 Read adr-template.md
 
-If scope = pilot → STOP: "Skipped — pilot scope. Proceed to TASK."
+SCOPE CHECK:
+  If scope = pilot → STOP.
+  State: "/plan-adr skipped — pilot scope. Proceed to /task."
 
-Execute PLAN-ADR:
-  One ADR per key decision:
-  - Pattern choice, tech choice, integration approach
-  - Data store, deployment, security, HIGH risk items from analyze
-  Each ADR: Context → Options → Decision → Consequences
+VERIFY: arch.md exists. Stop if not.
+
+One ADR per key decision:
+  Pattern choice (hexagonal, layered, event-driven)
+  Technology choice where alternatives existed
+  Integration approach (sync vs async)
+  Data store choice
+  Deployment + security approach
+  Any HIGH risk item from analyze.md
+
+Each ADR format:
+  Context → Options Considered → Decision → Consequences
 
 Save: docs/architecture/adr/ADR-{NNN}-{title}.md
 Save: docs/architecture/decisions.md (index)
+State: "/plan-adr complete — {N} ADRs. Ready for /task."
 ```
-#### Copilot: `/plan-adr`
 
+---
+
+## /task — Feature → Story → Task + Jira
+
+```
+Read constitution.md + summary-rules.md
+Read plan.summary.md + analyze.summary.md + clarify.summary.md
+Read feature-story-template.md + tasks-template.md + jira-export-template.md
+
+VERIFY: hld.md exists and reviewed. Stop if not.
+
+1. FEATURE + STORIES:
+   FEATURE: business capability from BRD
+   Each story: As {actor} I want {X} so that {Y}
+   Linked to FR-NNN from SRD
+   Story points: 1/2/3/5/8
+   Sprint assignment
+   Acceptance criteria (testable)
+   HIGH complexity from analyze.md → higher story points
+
+   Save: stories.md + stories.summary.md
+
+2. TASK LIST:
+   Each task mapped to a story (STORY-NNN)
+   Estimated lines
+   PR strategy: single or SPLIT A/B/C
+   Files that change
+   Acceptance criteria linked to FR/NFR
+   Auto-split any task > max_lines_per_pr
+   Pre-flag HIGH complexity items from analyze.md
+
+   Save: tasks.md
+
+3. JIRA CSV:
+   Epic → Story → Task hierarchy
+   Story points, sprint, acceptance criteria
+   Save: docs/jira/stories.md + docs/jira/jira-import.csv
+
+List all stories + tasks + PR strategy.
+State: "TASK complete — review stories.md AND tasks.md
+        BOTH must be approved before /implement"
+Wait for approval of both.
+```
+
+---
+
+## /implement — Code One Task at a Time
+
+```
+Read constitution.md
+Read .specify/features/{feature}/tasks.md
+
+VERIFY: tasks.md approved. Stop if not.
+
+For TASK-{NNN}: {title}
+
+BEFORE CODING:
+  1. State task details
+  2. Estimate total lines
+  3. If > max_lines_per_pr:
+     Show SPLIT: TASK-{NNN}-A, B, C...
+     Each sub-task: what it covers + estimated lines
+     WAIT for confirmation
+  4. If within limit:
+     State: "Estimated {N} lines — proceeding"
+
+WHILE CODING:
+  Follow constitution Part 1 universal rules
+  Follow constitution Part 2 tech stack + domain rules
+  Write paired test alongside — never after
+  No class/component over constitution size limit
+
+AFTER CODING:
+  List every file changed
+  State total lines added
+  Confirm each criterion: ✅ {criterion}
+  State: "PR ready — {N} lines, {N} files"
+  WAIT for "go" before next task
+
+AFTER ALL TASKS:
+  Generate delivery per scope:
+    openapi   → docs/openapi.yaml
+    qa_cases  → docs/qa/functional-test-cases.md
+    runbook   → docs/runbook/local-setup.md
+```
+
+---
+
+## Recovery Prompts
+
+### Lost Context
+```
+Re-read CLAUDE.md + manifest.yml + constitution.md
+Project: {name} | Feature: {feature} | Last command: /{cmd}
+Continue from here.
+```
+
+### Regenerate a Document
+```
+Discard .specify/features/{feature}/{doc}.md
+Re-read template + context
+Regenerate → save same path + summary
+```
+
+### Fix Failing Test
+```
+Failing test: {paste error}
+Read failing class. Fix → re-run → confirm green.
+Do not move to next task until passing.
+```
+
+### PR Too Large
+```
+TASK-{NNN} produced {N} lines — exceeds limit.
+Split before committing. Show plan. Wait for confirmation.
+```
+
+### Change Summary Limit
+```
+summary-rules.md updated: SUMMARY_MAX_LINES = {N}
+Re-read .specify/memory/summary-rules.md.
+Apply to all future summaries.
+```
+
+### Scope Upgrade
+```
+manifest.yml updated: scope = {new}
+Re-read manifest.yml.
+Run /plan-lld and /plan-adr (now enabled).
+Then update /task with new tasks.
+```

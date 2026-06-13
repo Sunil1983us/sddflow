@@ -121,3 +121,13 @@
 | Skip paired test | quality gate |
 | PR over limit without split | reviewability |
 | Code before context update | traceability |
+
+## IF framework=react OR vue OR angular (auto-applied)
+| Rule | Value |
+|---|---|
+| Components | Single responsibility — split > 150 lines |
+| State | Global store for shared — local useState for UI only |
+| API calls | Service layer — never directly in components |
+| Styling | Project styling solution — no inline styles |
+| A11y | axe-core on every component test |
+| Testing | Testing Library — no implementation details |

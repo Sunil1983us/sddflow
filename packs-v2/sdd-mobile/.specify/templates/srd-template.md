@@ -1,77 +1,57 @@
 # System Requirements Document (SRD)
 # Feature: {Feature Name}
-
-> Version: 1.0 | Status: Draft | Date: {date}
-> Input: brd.summary.md
+> Version: 1.0 | Date: {date} | Input: brd.summary.md
 
 ---
 
 ## 1. System Overview
-{One paragraph — what ICS does technically.}
+{One paragraph — what this system does technically.}
 
 ## 2. Functional Requirements
-| ID | Requirement | Source |
-|---|---|---|
-| FR-001 | {description} | BR-{NNN} |
+| ID | Requirement | Source | Priority |
+|---|---|---|---|
+| FR-001 | {description} | BR-{NNN} | Must Have |
+| FR-002 | {description} | BR-{NNN} | Should Have |
 
 ## 3. Non-Functional Requirements
 | ID | Category | Requirement |
 |---|---|---|
-| NFR-001 | Performance | Leg 1 P99 ≤ 4,000 ms |
-| NFR-002 | Availability | 99.99% uptime |
-| NFR-003 | Throughput | 500 TPS peak |
-| NFR-004 | Persistence | All state transitions persisted before next step |
-| NFR-005 | Data Retention | Payments: 7 years |
+| NFR-001 | Performance | {e.g. P99 response ≤ 500ms} |
+| NFR-002 | Availability | {e.g. 99.9% uptime} |
+| NFR-003 | Throughput | {e.g. 100 TPS peak} |
+| NFR-004 | Security | {e.g. all endpoints require auth} |
+| NFR-005 | Data Retention | {e.g. 7 years} |
 
 ## 4. Use Cases
 
-### UC-001: Process Outbound Credit Transfer (Happy Path)
-- **Actor:** Instant Gateway Service
-- **Trigger:** POST /instant-core-service/v1/instant-credit-transfer
-- **Precondition:** Valid pacs.008 XML received
-- **Steps:** {list steps}
-- **Outcome:** Payment SETTLED, pacs.002 ACCP sent to Gateway
+### UC-001: {Use Case Name} — Happy Path
+- **Actor:** {who triggers this}
+- **Trigger:** {what starts the flow}
+- **Precondition:** {what must be true}
+- **Steps:**
+  1. {step}
+  2. {step}
+- **Outcome:** {successful result}
 
-### UC-002: Receive CSM Payment Status Report
-- **Actor:** CSM Service
-- **Trigger:** POST /instant-core-service/v1/payment-status-report
-- **Steps:** {list steps}
-- **Outcome:** EVT_002 triggered, status SETTLED
+### UC-002: {Use Case Name} — Unhappy Path
+- **Trigger:** {what causes this path}
+- **Steps:** {what happens}
+- **Outcome:** {error result + recovery}
 
-## 5. ISO 20022 Message Scope
-| Message | Type | Direction |
-|---|---|---|
-| Credit Transfer | pacs.008.001.08 | Inbound from Gateway |
-| Payment Status Report | pacs.002.001.10 | Inbound from CSM |
-| Status Notification | pacs.002.001.10 | Outbound to Gateway |
-
-## 6. Integration Points
-| Service | Endpoint | Direction | Phase 1 |
+## 5. Integrations
+| System | Endpoint | Direction | Phase 1 |
 |---|---|---|---|
-| BVS | POST /validation/v1 | Outbound | Mock |
-| FRAML | POST /framl/v1 | Outbound | Mock |
-| PBS | POST /booking/v1 | Outbound | Mock |
-| CSM | POST /clearing-settlement-service/v1 | Outbound | Mock |
-| Gateway Callback | POST /instant-gateway/v1/payment-status-notification | Outbound | Mock |
+| {name} | {path} | Inbound/Outbound | Mock/Real |
 
-## 7. Payment Status Flow
-```
-RECEIVED → VALIDATION → FRAML_CHECK → FUNDS_RESERVED
-→ AWAITING_RECEIPT → RECONCILING → SETTLED
-```
-
-## 8. Header Requirements
-| Header | Mandatory | Description |
+## 6. Data Requirements
+| Entity | Description | New/Existing |
 |---|---|---|
-| X-Correlation-Id | Yes | End-to-end tracing key |
-| X-Tracking-Id | No (absent first call) | payment_id from ICS |
-| X-Source-System | Yes | Originating system |
-| X-Payment-Direction | Yes | OUTBOUND |
-| X-Message-Type | Yes | pacs.008 or pacs.002 |
-| X-Scheme | Yes | SCT_INST |
+| {name} | {what it represents} | New |
 
-## 9. Constraints
-{List known technical or business constraints.}
+## 7. Constraints
+- {technical constraint}
+- {regulatory constraint}
+- {business constraint}
 
 ---
-*Generated from: brd.summary.md*
+*Generated from: brd.summary.md + .specify/contexts/{feature}.md*
