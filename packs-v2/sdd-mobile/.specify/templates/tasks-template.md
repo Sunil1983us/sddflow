@@ -4,6 +4,16 @@
 
 ---
 
+## Task Field Reference
+Every task includes:
+- `Satisfies:` — FR-NNN / NFR-NNN / architectural rule this task delivers
+- `Verifies:` — TC-NNN (mvp+, from qa-testcases.md) this task's paired
+  test covers. If qa-testcases.md not yet generated (pilot, or before
+  /implement), write `Verifies: TBD — link at /implement`.
+- `Dependencies:`, `Estimated lines:`, `PR:`, `Files:`, `Acceptance criteria:`
+
+---
+
 ## Phase A — Foundation
 
 ### TASK-001 — Project Scaffold + Dependencies
@@ -19,6 +29,7 @@ Acceptance criteria:
 
 ### TASK-002 — Domain Entity + Enum
 Satisfies: FR-{NNN}
+Verifies: TC-{NNN} (unit — entity creation + state transitions)
 Dependencies: TASK-001
 Estimated lines: ~60 | PR: single
 Files: {Entity}.java, {EntityStatus}.java, {Entity}Test.java
@@ -91,6 +102,7 @@ Acceptance criteria:
 
 ### TASK-008 — Service Implementation
 Satisfies: FR-{NNN}, FR-{NNN}
+Verifies: TC-{NNN}, TC-{NNN} (unit — service happy path + failure paths)
 Dependencies: TASK-003, TASK-006, TASK-007
 Estimated lines: ~150 | PR: SPLIT (A: steps 1-3, B: steps 4-6)
 Files: {Feature}Service.java, {Feature}ServiceTest.java
@@ -116,6 +128,7 @@ Acceptance criteria:
 
 ### TASK-010 — Controller
 Satisfies: FR-{NNN}
+Verifies: TC-{NNN} (controller — request/response contract)
 Dependencies: TASK-003, TASK-009
 Estimated lines: ~60 | PR: single
 Files: {Feature}Controller.java, {Feature}ControllerTest.java
@@ -137,6 +150,7 @@ Acceptance criteria:
 
 ### TASK-012 — Integration Test
 Satisfies: All FRs — end-to-end verification
+Verifies: TC-{NNN} (integration — full request→DB→response path)
 Dependencies: TASK-007, TASK-008, TASK-010
 Estimated lines: ~120 | PR: single
 Files: {Feature}IntegrationTest.java
