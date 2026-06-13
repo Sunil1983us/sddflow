@@ -199,6 +199,12 @@ Tell agent:
  Update /task with new tasks"
 ```
 
+Optional: if `.specify/contexts/{feature}.raw.md` exists (saved by an
+earlier `/create-context` run) and the new scope needs information that
+was previously marked `[MISSING — ask user]`, re-run `/create-context` —
+it will re-read context.md + the raw notes and re-prompt only for the
+gaps relevant to the new scope.
+
 ---
 
 ## Change Impact By Document

@@ -14,6 +14,7 @@
 
 | Command | Claude Code | Copilot | Does |
 |---|---|---|---|
+| `/create-context` (optional) | `/create-context` | `/create-context` | Turn informal notes into context.md |
 | Startup | `/start` | Step 0 | Read files + confirm |
 | `/specify` | `/specify` | `/specify` | Constitution Part 2 (DRAFT) + spec docs |
 | — GATE-1 — | Manual | Manual | You review + finalize constitution Part 2 |
@@ -33,10 +34,10 @@
 ## Claude Code Native Slash Commands (setup, once)
 
 This pack ships a `.claude/commands/` directory with one Markdown file per
-command (`start.md`, `specify.md`, `validate.md`, `analyze.md`, `clarify.md`,
-`plan-arch.md`, `plan-hld.md`, `plan-lld.md`, `plan-adr.md`, `task.md`,
-`implement.md`, `release.md`). Claude Code auto-discovers these — nothing to
-install or configure.
+command (`create-context.md`, `start.md`, `specify.md`, `validate.md`,
+`analyze.md`, `clarify.md`, `plan-arch.md`, `plan-hld.md`, `plan-lld.md`,
+`plan-adr.md`, `task.md`, `implement.md`, `release.md`). Claude Code
+auto-discovers these — nothing to install or configure.
 
 - Type `/start` at the beginning of every session — equivalent to STEP 0
   below (reads CLAUDE.md, manifest, constitution, summary-rules,
@@ -49,6 +50,37 @@ install or configure.
 - Editing a `.github/prompts/<name>.prompt.md` file (as described in
   CHANGE-GUIDE.md) automatically updates the matching slash command — the
   command files only delegate, they don't duplicate instructions.
+
+---
+
+## /create-context — Optional Pre-Phase (before SPECIFY)
+
+Skip this if you already have a structured `.specify/contexts/{feature}.md`
+written per `.specify/contexts/CONTEXT-GUIDE.md` — go straight to STEP 0.
+
+If you don't (or aren't sure how to write one), run `/create-context`:
+
+```
+Paste whatever you have — rough notes, an email, a requirements doc, bullet
+points, even half-formed thoughts. Any format.
+```
+
+The agent:
+1. Maps your input onto context-template.md's sections (What This Does,
+   Actors, Key Flows, Endpoints, Integrations, Business Rules, NFRs,
+   Constraints, Out of Scope, Open Questions, Tech Stack).
+2. Fills in what it can infer, marks the rest `[MISSING — ask user]`.
+3. Gives you a plain-language "Missing Information" checklist.
+4. You answer what you can — "not sure" is fine for technical questions
+   (the architect decides later at /plan-arch).
+5. Repeat until you say "good enough, proceed" or nothing is missing.
+6. Saves `.specify/contexts/{feature}.md` — the file /specify reads.
+
+Optionally keeps your original notes at
+`.specify/contexts/{feature}.raw.md` (reference only, never read by any
+other command) so you can re-run `/create-context` later with more detail —
+e.g. when scope upgrades from pilot to mvp/full and new sections need
+filling in.
 
 ---
 

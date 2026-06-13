@@ -5,6 +5,15 @@
 # → PLAN-ARCH → PLAN-HLD → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK
 # → IMPLEMENT → RELEASE
 
+## CREATE-CONTEXT — Optional Pre-Phase (before SPECIFY)
+If `.specify/contexts/{feature}.md` does not exist yet, or is empty/a
+placeholder, offer `/create-context`: the user pastes informal notes (any
+format), the agent drafts context.md against context-template.md, lists a
+plain-language "Missing Information" checklist, and iterates with the user
+until it's ready. See .github/prompts/create-context.prompt.md and
+.specify/contexts/CONTEXT-GUIDE.md. Skip this entirely if the user already
+has a structured context.md.
+
 ## Startup (every session)
 1. Read .specify/manifest.yml
 2. Read .specify/memory/constitution.md
