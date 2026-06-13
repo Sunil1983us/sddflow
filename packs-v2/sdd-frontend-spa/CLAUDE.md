@@ -1,63 +1,135 @@
 # CLAUDE.md — Frontend SPA Pack
 # React / Vue / Angular — Single Page Applications
-# 6-Verb: SPECIFY→ANALYZE→CLARIFY→PLAN→TASK→IMPLEMENT
+# 11-Command flow:
+# SPECIFY → [GATE-1: constitution finalized] → VALIDATE → ANALYZE → CLARIFY
+# → PLAN-ARCH → PLAN-HLD → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK
+# → IMPLEMENT → RELEASE
 
-## Startup
+## Startup (every session)
 1. Read .specify/manifest.yml
 2. Read .specify/memory/constitution.md
 3. Read .specify/memory/summary-rules.md
 4. Read .specify/memory/change-rules.md
-4. Confirm: project.name, scope, feature, context_file
-5. If constitution Part 2 not generated → remind user to run SPECIFY first
+5. Read .specify/memory/roles.yml
+6. Read .github/instructions/*.instructions.md — apply each file's
+   `applyTo` glob to any file you create or edit that matches it,
+   exactly as GitHub Copilot does (AI-7: Claude Code ≡ Copilot parity)
+7. Confirm: project.name, scope, feature, context_file
+8. If constitution Part 2 not generated → remind user to run /specify first
+9. If constitution Part 2 generated but NOT finalized (GATE-1 open) →
+   remind user to review + finalize it before /validate can run
+
+## AI-2 — Summary-First Rule (token economy)
+For every command AFTER /specify, read ONLY `.summary.md` files for prior
+documents — never re-read full `.md` docs. The one exception is
+/implement, which reads `tasks.md` (current task only) + `constitution.md`
+in full. See .specify/memory/summary-rules.md.
 
 ## SPECIFY — Two Actions in Order
 
-Action 1 — Generate constitution.md Part 2 from context:
-  Extract tech stack (Language, Framework, Build Tool,
-  Styling, State Management, Testing, E2E, Deployment, CI/CD)
-  Note: API Style = component events, Messaging = none,
-  Data Store = none (frontend), DB Migration = none
-  Extract Core Principles (component-first, accessible, performant)
-  Extract Domain Rules from UX/business rules in context
-  Save updated constitution.md
+Action 1 — Generate constitution.md Part 2 from context (DRAFT):
+  Read context file → extract all tech decisions
+  Fill Tech Stack table (Language/Framework, Build Tool, State Management,
+  Component Library/Design System, Routing, API Client, Bundler, Testing,
+  Coverage Gate, Linting/Formatting, Accessibility, CI/CD, Hosting/CDN,
+  and remaining concerns adapted from the 20-concern backend list —
+  Messaging/Async=none, Data Store=none/local-storage, Observability,
+  Logging, Quality/Security, Configuration, Secrets)
+  Extract Core Principles from domain constraints
+  (Component-First, Accessible, Performant + Specification First,
+  Test First, Traceability)
+  Extract Domain Rules from UX/business rules
+  Extract Never Do from stated constraints
+  Save updated constitution.md — Part 1 unchanged, Part 2 is a DRAFT
+  State: "Constitution Part 2 generated — DRAFT. Review and finalize
+  every row (GATE-1) before running /validate."
 
 Action 2 — Generate spec documents per scope:
-  pilot:  brd, srd, analyze, hld, ux-flow, plan, tasks, stories, jira
-  mvp:    + lld, component-spec, accessibility, adr, qa_cases
-  full:   + storybook-spec, openapi (if BFF)
+  pilot:  brd, srd, security-design (§1 — pilot checklist only)
+  mvp:    + component-spec, ux-flow, api-spec (Backend API Contract —
+          consumer), security-design (§1-2)
+  full:   + data-model (Frontend State & Storage Model), resilience
+          (Frontend Resilience), investigation (Production Debugging &
+          Error Tracking), security-design (§1-4 — STRIDE + DAST)
 
-## Component Rules (always applied)
-Max component lines: 150
-No API calls in components — service layer only
-No inline styles — use project styling solution
-Every component has paired test
+## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
+After Action 1, constitution.md Part 2 is a DRAFT.
+STOP — the user reviews every row (Tech Stack, Core Principles, Domain
+Rules, Never Do), resolves any `[MISSING — ask user]` markers, and may
+edit directly. Manual edits are AUTHORITATIVE. The user then tells the
+agent: "Constitution Part 2 finalized."
+A later /specify re-run must propose changes for review — never silently
+overwrite a finalized Part 2.
+No /validate, /analyze, or any later command may run until this gate passes.
 
-## 6-Verb Gates + PR Contract
-Same as all packs — see PROMPT-GUIDE.md
+## 11-Command Gates
+SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
+→ PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+Each gate requires the previous step complete and reviewed.
+
+## PR Contract
+Estimate before every task.
+If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
+After task: state files + lines + "PR ready" → wait for go.
+
+## Summary
+After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
+
+## Never Do
+Never run /validate before constitution Part 2 finalized (GATE-1)
+Never run /analyze without validate.summary.md
+Never run /plan-arch without clarify.summary.md
+Never run /plan-arch while any spec doc has an unresolved
+  `[ASSUMPTION-NNN]` marker (AI-8)
+Never run /implement without TASK (stories.md + tasks.md) approved
+Never run /release before all tasks are "PR ready" and merged
+Never code before context.md updated
+Never hardcode any value
+Never skip paired test
+Never call an API directly from a component — service layer only
+Never use inline styles — use the project styling solution
+Never ship a component without an axe-core accessibility check
 
 ## PLAN Sub-Commands
 
 PLAN is split into 4 sub-commands — each has its own review gate:
 
-/plan-arch  → Architecture decisions + plan.md
-              Gate: clarify.summary.md must exist
+/plan-arch  → Component architecture + plan.md
+              Gate: clarify.summary.md exists, all RESOLVED
+              Gate: no unresolved [ASSUMPTION-NNN] in any spec doc (AI-8)
+              Also refines (now that arch.md exists): component-spec.md,
+              ux-flow.md, api-spec.md (mvp+), data-model.md (full),
+              security-design.md refinement, resilience.md +
+              investigation.md (full)
               Review: tech lead approves arch + plan
 
-/plan-hld   → HLD + all Mermaid diagrams
+/plan-hld   → HLD + all Mermaid diagrams (component diagram, not sequence)
               Gate: arch.md reviewed
               Review: stakeholders + tech lead
               Pilot: always run | MVP+: always run
 
-/plan-lld   → LLD + class/sequence diagrams
+/plan-lld   → LLD + component/class diagrams
               Gate: hld.md reviewed
               Scope check: SKIP if pilot — state skip reason
-              Review: senior developer
+              Review: senior developer (frontend)
 
 /plan-adr   → Architecture Decision Records
               Gate: arch.md reviewed
               Scope check: SKIP if pilot — state skip reason
               Review: architect
 
+## VALIDATE and RELEASE — Bookends
+
+/validate   → Business sign-off on brd.md + srd.md
+              Gate: GATE-1 (constitution Part 2 finalized)
+              Review: product owner + business analyst
+              Run after: /specify (Action 2) | Gate before: /analyze
+
+/release    → UAT plan, deployment plan, go-live gate, BO closure
+              Gate: all tasks "PR ready" and merged
+              Review: qa lead, product owner, tech lead, devops/sre
+              Run after: /implement (all tasks) | Gate before: go-live
+
 ## Command Order
-SPECIFY → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
-→ PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT
+SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
+→ PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE

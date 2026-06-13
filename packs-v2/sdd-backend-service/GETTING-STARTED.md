@@ -1,5 +1,5 @@
 # Getting Started — SDD Pack
-# 5 Steps to First Run
+# Steps to First Run
 
 ---
 
@@ -28,8 +28,8 @@ Must include a Tech Stack section:
 ```
 SPECIFY reads this and fills the constitution automatically.
 
-## Step 3 — Fill Manifest (2 min)
-Edit `.specify/manifest.yml` — just 4 fields:
+## Step 3 — Fill Manifest + Roles (3 min)
+Edit `.specify/manifest.yml` — 4 fields:
 ```yaml
 project:
   name: "Your Service Name"
@@ -38,26 +38,33 @@ project:
   context_file: "your-feature.md"
 ```
 
+(Optional but recommended) Edit `.specify/memory/roles.yml` — fill in
+names/teams for product_owner, tech_lead, qa_lead, etc. Every gate from
+/validate to /release references these.
+
 ## Step 4 — Run
 ```bash
 claude    # Claude Code Desktop
 ```
 OR open VS Code at project root + GitHub Copilot Chat
 
-## Step 5 — Run the 9 Commands in Order
+## Step 5 — Run the Commands in Order
 
-### Pilot (7 commands)
+### Pilot (9 commands + GATE-1)
 ```
-/specify    → fills constitution + generates spec docs
+/specify    → fills constitution Part 2 (DRAFT) + generates spec docs
+[GATE-1]    → YOU review + finalize constitution Part 2 (manual, blocking)
+/validate   → business sign-off on BRD/SRD
 /analyze    → risks + complexity
 /clarify    → you answer the questions
-/plan-arch  → architecture + plan
+/plan-arch  → architecture + plan + refine scope docs
 /plan-hld   → HLD diagrams
 /task       → Feature → Story → Task + Jira
 /implement  → code one task at a time
+/release    → UAT + deployment plan + go-live gate
 ```
 
-### MVP+ (9 commands — add after /plan-hld)
+### MVP+ (11 commands + GATE-1 — add after /plan-hld)
 ```
 /plan-lld   → LLD + class diagrams
 /plan-adr   → Architecture Decision Records
@@ -68,18 +75,26 @@ OR open VS Code at project root + GitHub Copilot Chat
 ## What Happens at /specify
 
 Two actions automatically:
-1. Reads your context → fills constitution.md Part 2
+1. Reads your context → fills constitution.md Part 2 as a DRAFT
    (Tech Stack 20 concerns + Principles + Domain Rules)
-2. Generates spec documents (BRD, SRD, HLD...)
+2. Generates spec documents (BRD, SRD, Security-Design...)
 
-You never manually fill the constitution.
+## What Happens at GATE-1
+
+Constitution Part 2 is a DRAFT until you:
+1. Open constitution.md, review every row
+2. Resolve any `[MISSING — ask user]` markers
+3. Edit anything wrong — your edits are authoritative
+4. Tell the agent "Constitution Part 2 finalized"
+
+Nothing after /specify proceeds until this is done.
 
 ---
 
 ## Read Next
 | File | When |
 |---|---|
-| PROMPT-GUIDE.md | All 9 command prompts — copy-paste |
+| PROMPT-GUIDE.md | All 11 command prompts — copy-paste |
 | README.md | Full overview |
 | HOW-TO-USE.md | Scope presets + tips |
 | CHANGE-GUIDE.md | Making changes later |

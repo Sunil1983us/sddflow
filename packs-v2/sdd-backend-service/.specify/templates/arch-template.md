@@ -45,10 +45,22 @@
 | DTO | dto/ | Request/response records |
 
 ## 4. Key Design Decisions
-| ID | Decision | Rationale |
-|---|---|---|
-| ADR-001 | {decision} | {why} |
-| ADR-002 | {decision} | {why} |
+| ID | Decision | Rationale | ADR (mvp+) |
+|---|---|---|---|
+| DEC-001 | {decision} | {why} | ADR-001 (if mvp+, else "—") |
+| DEC-002 | {decision} | {why} | ADR-002 (if mvp+, else "—") |
+
+Pilot scope: use DEC-NNN only — no ADR column value (ADRs are mvp+ only,
+generated at /plan-adr). MVP+: /plan-adr converts HIGH-impact DEC-NNN
+rows into full ADR-NNN records — fill the ADR column once generated.
+
+## 4a. NFR → Architecture Decision Mapping (AR-3)
+| NFR-NNN | Requirement | Design Constraint | Decision (DEC-NNN) |
+|---|---|---|---|
+| NFR-{NNN} | {requirement, from analyze.md §5} | {what it forces} | DEC-{NNN} |
+
+Every NFR flagged in analyze.md §5 NFR Impact Analysis must appear here
+with the decision that satisfies it.
 
 ## 5. Flow — Happy Path
 ```
