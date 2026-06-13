@@ -170,13 +170,17 @@ PR rules enforced. Max 400 lines per PR.
 
 | Change | Re-run Commands |
 |---|---|
-| New field in request/response | /specify (api-spec only) → /task |
-| New endpoint | /specify (srd + api-spec) → /plan-arch (if structural) → /task |
+| New field in request/response | /specify (api-spec only, mvp+) → /plan-arch (refine) → /task |
+| New endpoint | /specify (srd + api-spec) → /plan-arch (refine + if structural) → /task |
 | New status/state | /specify (srd + api-spec + data-model) → /plan-hld (update diagram) → /task |
 | New business rule | /specify (srd) → /task |
 | Architecture change | /specify + /plan-arch + /plan-hld → /task |
 | New integration | /specify + /analyze (re-run) + /plan-arch → /task |
+| New security control / regulation | /specify (security-design) → /plan-arch (refine) → /release (regulatory trace) |
 | Scope upgrade | See scope upgrade section below |
+
+AI-8 applies on re-runs too: if any updated doc gets a new
+`[ASSUMPTION-NNN]`, run /clarify before /plan-arch.
 
 ---
 
@@ -187,11 +191,17 @@ Edit manifest.yml: scope: "pilot" → "mvp"
 
 Tell agent:
 "Scope upgraded to mvp. Re-read manifest.yml.
- Run /specify for newly enabled docs only: lld, api_spec
+ Run /specify for newly enabled docs only: component-spec, ux-flow,
+   api-spec, security-design (§2 additions)
+ Run /plan-arch to refine the newly generated docs against arch.md
  Run /plan-lld (now enabled)
  Run /plan-adr (now enabled)
  Update /task with new tasks"
 ```
+
+Scope upgrade to full additionally triggers /plan-arch refine of
+component-spec, ux-flow, api-spec, data-model, resilience, investigation,
+and security-design (§3-4) as applicable per scope.
 
 ---
 
@@ -206,7 +216,12 @@ Tell agent:
 | New DB table | data-model + arch + lld | srd, api-spec, hld |
 | NFR change | srd + resilience | all others |
 | New integration | srd + arch + api-spec + lld + analyze | hld, data-model |
+| New security control / regulation | security-design + srd | arch, hld, data-model |
 | Bug fix / refactor | none | all (code only) |
+
+Every change above must also be reflected in /release §6 (Business
+Objective Closure) if it affects a BO-NNN metric, and in /release §2
+(UAT Plan) if it adds a new UC-NNN.
 
 ---
 
@@ -227,7 +242,9 @@ git commit -m "test(CHG-003): update integration tests for X-Priority"
 ## What NEVER Changes on a Change Request
 
 - constitution.md Part 1
-- All templates
+- All templates (including validate-template, release-template,
+  runbook-template, security-design-template)
 - CLAUDE.md + copilot-instructions.md
+- roles.yml (unless reviewer/owner assignments change)
 - Documents NOT in the impact chain
 - Summary-rules.md (unless limit needs adjusting)

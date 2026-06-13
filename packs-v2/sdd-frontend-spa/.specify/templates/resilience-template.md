@@ -1,104 +1,117 @@
-# Resilience Design
+# Frontend Resilience
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: arch.summary.md + srd.summary.md
-> Scope: MVP+ only — skip for pilot
+> Version: 1.0 | Date: {date} | Scope: Full only — skip for pilot + mvp
+> Drafted at: /specify (Input: srd.summary.md)
+> Refined at: /plan-arch (Input: + arch.summary.md — integration list)
 
 ---
 
-## 1. Resilience Strategy
+## 1. Offline Detection & UX
 
-| Integration | Retry | Circuit Breaker | Timeout | Fallback |
+| Concern | Behaviour |
+|---|---|
+| Detection | `navigator.onLine` + `online`/`offline` window events; optional periodic health-check ping |
+| Offline banner | Persistent, non-blocking banner: "{message}" — shown app-wide when offline |
+| Offline-capable routes | {list routes/components that remain usable offline via cached/IndexedDB data — see data-model.md §3} |
+| Reconnect behaviour | On `online` event: dismiss banner, revalidate stale queries, flush any queued mutations |
+| Service worker | {Yes/No — if Yes: caching strategy (stale-while-revalidate / cache-first for static assets, network-first for API)} |
+
+---
+
+## 2. API Call Retry & Backoff Policy
+
+| Call Type | Retry? | Max Attempts | Backoff | Notes |
 |---|---|---|---|---|
-| {Integration A} | 3 attempts | Yes | 1,000ms | {fallback action} |
-| {Integration B} | 2 attempts | Yes | 2,000ms | {fallback action} |
-| {Database} | 3 attempts | No | 5,000ms | Fail fast |
+| GET (queries) | Yes | 3 | Exponential — 500ms, 1s, 2s | Skip retry on 4xx (except 429) |
+| POST/PUT/PATCH/DELETE (mutations) | No (default) | 0 | n/a | Re-running a mutation can duplicate side effects — use Idempotency-Key (api-spec.md §3) if retry is required |
+| 429 Too Many Requests | Yes | per `Retry-After` header | As specified by header | Show rate-limit notice to user |
 
----
-
-## 2. Retry Configuration
-
-### {Integration A}
-```yaml
-resilience4j:
-  retry:
-    instances:
-      {integrationA}:
-        max-attempts: 3
-        wait-duration: 500ms
-        exponential-backoff-multiplier: 2
-        retry-exceptions:
-          - java.io.IOException
-          - java.util.concurrent.TimeoutException
-        ignore-exceptions:
-          - {BusinessException}
+```ts
+// Example: react-query / TanStack Query retry config
+{
+  retry: (failureCount, error) => {
+    if (error.status >= 400 && error.status < 500 && error.status !== 429) {
+      return false; // don't retry client errors
+    }
+    return failureCount < 3;
+  },
+  retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
+}
 ```
 
-### Rule: New Request ID per Retry
-- Correlation ID unchanged across retries
-- New {requestId} on every retry attempt
-- Log each retry attempt with attempt number
+### Rule: Correlation ID per Retry
+- `X-Correlation-Id` is generated once per logical user action and reused
+  across all retry attempts (mirrors backend correlation tracing)
+- Each retry attempt is logged client-side with attempt number (for
+  error-tracking — see investigation.md §1)
 
 ---
 
-## 3. Circuit Breaker Configuration
+## 3. Timeout Handling for Slow Networks
 
-```yaml
-resilience4j:
-  circuitbreaker:
-    instances:
-      {integrationA}:
-        failure-rate-threshold: 50
-        slow-call-rate-threshold: 80
-        slow-call-duration-threshold: 2s
-        permitted-number-of-calls-in-half-open-state: 3
-        sliding-window-size: 10
-        wait-duration-in-open-state: 30s
-```
-
-**States:** CLOSED → OPEN → HALF-OPEN
-**When OPEN:** Apply failure path immediately — do not wait
-
----
-
-## 4. Timeout Configuration
-
-```yaml
-resilience4j:
-  timelimiter:
-    instances:
-      {integrationA}:
-        timeout-duration: 1s
-        cancel-running-future: true
-```
-
----
-
-## 5. Failure Paths
-
-| Trigger | Action | Status |
+| Call Type | Timeout | On Timeout |
 |---|---|---|
-| {IntegrationA} retry exhausted | {action} | {FAILURE_STATUS} |
-| {IntegrationB} circuit open | {action} | {FAILURE_STATUS} |
-| Timeout exceeded | {action} | {TIMEOUT_STATUS} |
+| GET (queries) | {ms, e.g. 8000ms} | Show "taking longer than usual" message; allow manual retry |
+| POST/PUT/PATCH/DELETE (mutations) | {ms, e.g. 15000ms} | Show timeout error; do NOT auto-retry — confirm with user before resubmitting |
+| File upload/download | {ms or none — use progress events} | Show progress indicator; allow cancel |
+
+```ts
+// Example: AbortController-based timeout
+const controller = new AbortController();
+const timeoutId = setTimeout(() => controller.abort(), 8000);
+fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeoutId));
+```
 
 ---
 
-## 6. Compensation
+## 4. Error Boundaries (Component-Level Fallback UI)
 
-| Trigger | Compensation Action | Notes |
+| Boundary Scope | Component | Fallback UI | Recovery |
+|---|---|---|---|
+| App root | `<AppErrorBoundary>` | Full-page "Something went wrong" + reload button | Reload app |
+| Route/page | `<PageErrorBoundary>` | In-layout error card, nav remains usable | "Try again" re-mounts the page |
+| Widget/section | `<WidgetErrorBoundary>` | Inline "Unable to load {widget}" placeholder | Retry button re-fetches just that widget |
+
+**Rule:** Every error boundary reports the caught error + component stack
+to the error-tracking SDK (investigation.md §1) with the active
+correlation ID and route.
+
+---
+
+## 5. Degraded-Mode UX
+
+| Scenario | Degraded UX |
+|---|---|
+| Initial load, data not yet fetched | Skeleton screens matching final layout (component-spec.md) — never blank white screen or layout shift |
+| Refetch in progress, stale data available | Show stale data with a subtle "updating..." indicator (stale-while-revalidate — data-model.md §4) |
+| Fetch failed, cached data available (IndexedDB) | Show cached data + "showing offline data from {timestamp}" banner |
+| Fetch failed, no cached data | Empty state with retry action — never a raw error stack |
+| Non-critical widget fails | Page remains usable; only that widget shows its error boundary fallback (§4) |
+
+---
+
+## 6. Failure Paths
+
+| Trigger | Action | User-Visible Result |
 |---|---|---|
-| Failure after {step N} | {undo action} | Only if {condition} |
-| {condition} | Never compensate | {why} |
+| API retry exhausted (query) | Show cached/stale data if available, else error state | "Unable to refresh — showing last known data" or error card |
+| API timeout (mutation) | Surface error, do not auto-retry | "Request timed out — please try again" |
+| Offline during mutation | Block submit, queue if supported, else disable form | "You're offline — changes will be saved when you reconnect" or disabled form with banner |
+| Error boundary triggered | Render fallback UI at the appropriate scope (§4) | Scoped fallback — rest of app unaffected |
 
 ---
 
 ## 7. Observability
-| Event | Log Level | Metric |
+
+| Event | Reported To | Data Included |
 |---|---|---|
-| Retry attempt | WARN | retry.attempt.count |
-| Retry exhausted | ERROR | retry.exhausted.count |
-| Circuit opened | ERROR | circuit.open.count |
-| Timeout | ERROR | timeout.count |
+| Retry attempt | Console (dev) / error-tracking breadcrumb (prod) | endpoint, attempt number, correlation ID |
+| Retry exhausted | Error-tracking SDK | endpoint, attempts, last error, correlation ID |
+| Error boundary triggered | Error-tracking SDK | component stack, route, correlation ID |
+| Offline/online transition | Analytics/RUM | timestamp, duration offline |
+| Timeout | Error-tracking SDK | endpoint, timeout value, correlation ID |
+
+See investigation.md (Full scope) for SDK integration details and triage.
 
 ---
-*Generated from: arch.summary.md + srd.summary.md*
+*Drafted from: srd.summary.md (at /specify) | Refined from: arch.summary.md (at /plan-arch)*
