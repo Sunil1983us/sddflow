@@ -17,6 +17,11 @@ Read .specify/templates/plan-template.md
 clarify.summary.md must exist with all items RESOLVED.
 If missing — STOP. Ask for CLARIFY to complete first.
 
+AI-8 check: scan brd.md, srd.md, api-spec.md, data-model.md, and
+security-design.md for any remaining `[ASSUMPTION-NNN]` marker without a
+matching `<!-- Clarified: {ID} -->` note. If any remain — STOP. State:
+"PLAN-ARCH blocked — unresolved assumptions {list}. Run /clarify first."
+
 ## Your Task
 
 ### Architecture Document
@@ -44,6 +49,21 @@ From arch.md:
 Save: .specify/features/{manifest.project.feature}/plan.md
 Save: .specify/features/{manifest.project.feature}/plan.summary.md
 
-After both saved:
-State: "PLAN-ARCH complete — review arch.md + plan.md before PLAN-HLD"
+### Refine Scope-Scaled Documents (now that arch.md exists)
+These were drafted at /specify from context + srd only; refine them using
+arch.md (ports/adapters, integration mapping, data architecture):
+
+  mvp+: api-spec.md, data-model.md — align with port/adapter contracts
+        and entity design in arch.md
+  all:  security-design.md — align controls with arch.md cross-cutting
+        concerns section
+  full: resilience.md — align with arch.md integration list
+  full: investigation.md — align with arch.md flows
+
+Re-save each updated doc + its .summary.md.
+
+After all saved:
+State: "PLAN-ARCH complete — review arch.md + plan.md (and refined
+api-spec/data-model/security-design/resilience/investigation) before
+PLAN-HLD"
 Wait for review.

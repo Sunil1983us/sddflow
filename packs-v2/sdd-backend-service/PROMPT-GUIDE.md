@@ -1,4 +1,4 @@
-# SDD Prompt Guide — 9 Commands
+# SDD Prompt Guide — 11 Commands
 # Claude Code Desktop + GitHub Copilot
 
 ---
@@ -8,15 +8,18 @@
 | Command | Claude Code | Copilot | Does |
 |---|---|---|---|
 | Startup | Paste Step 0 | Step 0 | Read files + confirm |
-| `/specify` | Paste prompt | `/specify` | Constitution + spec docs |
+| `/specify` | Paste prompt | `/specify` | Constitution Part 2 (DRAFT) + spec docs |
+| — GATE-1 — | Manual | Manual | You review + finalize constitution Part 2 |
+| `/validate` | Paste prompt | `/validate` | Business sign-off on BRD/SRD |
 | `/analyze` | Paste prompt | `/analyze` | Risks + complexity |
 | `/clarify` | Paste prompt | `/clarify` | Questions → you answer |
-| `/plan-arch` | Paste prompt | `/plan-arch` | Architecture + plan |
+| `/plan-arch` | Paste prompt | `/plan-arch` | Architecture + plan + refine scope docs |
 | `/plan-hld` | Paste prompt | `/plan-hld` | HLD + diagrams |
 | `/plan-lld` | Paste prompt | `/plan-lld` | LLD (mvp+ only) |
 | `/plan-adr` | Paste prompt | `/plan-adr` | ADRs (mvp+ only) |
 | `/task` | Paste prompt | `/task` | Stories + Tasks + Jira |
 | `/implement` | Paste prompt | `/implement TASK-NNN` | Code one task |
+| `/release` | Paste prompt | `/release` | UAT + deployment + go-live gate |
 
 ---
 
@@ -27,18 +30,47 @@ Read CLAUDE.md
 Read .specify/manifest.yml
 Read .specify/memory/constitution.md
 Read .specify/memory/summary-rules.md
+Read .specify/memory/change-rules.md
+Read .specify/memory/roles.yml
+Read .github/instructions/*.instructions.md
+  (AI-7 — apply each file's applyTo glob to matching files you touch)
 
 Confirm:
   Project name: {value}
   Scope: {pilot | mvp | full}
   Feature: {value}
   Context file: {value}
-  Constitution Part 2: generated? yes / no
+  Constitution Part 2: generated? yes/no
+  Constitution Part 2 finalized (GATE-1)? yes/no
   Commands for this scope: {list}
   PR rules: max {N} lines, {N} files
 
-State which command ready to run.
+State which command is ready to run.
+If Part 2 generated but not finalized → remind: complete GATE-1 before
+/validate.
 ```
+
+---
+
+## Document Inventory by Scope/Command (canonical — single source of truth)
+
+| Command | Pilot | MVP | Full |
+|---|---|---|---|
+| `/specify` | brd, srd, security-design (§1) | + api-spec, data-model, security-design (§1-2) | + resilience, investigation, security-design (§1-4) |
+| GATE-1 (manual) | constitution Part 2 finalized — all scopes |||
+| `/validate` | validate.md — all scopes |||
+| `/analyze` | analyze.md — all scopes |||
+| `/clarify` | clarify.md — all scopes |||
+| `/plan-arch` | arch.md, plan.md + refine the scope-scaled docs above | same | same |
+| `/plan-hld` | hld.md — all scopes |||
+| `/plan-lld` | skip | lld.md | lld.md |
+| `/plan-adr` | skip | ADRs | ADRs |
+| `/task` | stories.md, tasks.md, jira — all scopes |||
+| `/implement` | code + paired tests | + qa_cases, runbook | + qa_cases, runbook, openapi |
+| `/release` | release.md — all scopes |||
+
+If any other document in this pack lists a different mapping, this table
+wins — fix the other document.
 
 ---
 
@@ -50,7 +82,7 @@ Read .specify/memory/constitution.md + summary-rules.md
 Read .specify/contexts/{manifest.project.context_file}
 Read all templates needed per scope
 
-ACTION 1 — Generate constitution.md Part 2:
+ACTION 1 — Generate constitution.md Part 2 (DRAFT):
   Extract from context and fill:
 
   Tech Stack (extract each concern):
@@ -69,21 +101,82 @@ ACTION 1 — Generate constitution.md Part 2:
   Domain Rules → extract from business rules section
   Never Do → extract from constraints section
 
-  Save constitution.md (Part 1 unchanged, Part 2 filled)
-  Report: "Constitution Part 2 generated — review Tech Stack table"
+  Save constitution.md (Part 1 unchanged, Part 2 = DRAFT)
+  Report: "Constitution Part 2 generated — DRAFT. Review and finalize
+  every row (GATE-1) before /validate."
 
-ACTION 2 — Generate spec documents per scope:
-  pilot: brd → srd → analyze → hld
-  mvp+:  + lld + api_spec + data_model
-  full:  + resilience + investigation + security_design
+ACTION 2 — Generate spec documents per scope (canonical table above):
+  pilot: brd → srd → security-design (§1 — pilot checklist)
+  mvp:   + api-spec → data-model → security-design (§1-2)
+  full:  + resilience → investigation → security-design (§1-4)
 
-  For each: read template → derive from context
-  Save: {doc}.md + {doc}.summary.md
-  Mark assumptions: [ASSUMPTION: ...]
+  For each: read template → derive from context → save .md + .summary.md
+  Mark assumptions: [ASSUMPTION-NNN: ...]
   FR IDs: FR-NNN | NFR IDs: NFR-NNN
 
 List generated + skipped.
-State: "SPECIFY complete — ready for /analyze"
+State: "SPECIFY complete. If GATE-1 not yet passed, finalize constitution
+Part 2 now (see GATE-1 prompt below). Then run /validate."
+```
+
+---
+
+## GATE-1 — Finalize Constitution Part 2 (manual, blocking)
+
+```
+Open .specify/memory/constitution.md → Part 2 (DRAFT from /specify)
+
+Review every row:
+  - Tech Stack (20 concerns)
+  - Core Principles
+  - Domain Rules
+  - Never Do
+
+Resolve any [MISSING — ask user] markers — fill the value yourself
+Edit directly anything that is wrong — manual edits are AUTHORITATIVE
+
+Tell the agent: "Constitution Part 2 finalized"
+```
+
+Rules:
+- No `/validate`, `/analyze`, or any later command runs until this gate
+  passes.
+- A later `/specify` re-run must propose changes for review — it must
+  never silently overwrite a finalized Part 2.
+
+---
+
+## /validate — Business Sign-Off (NEW — runs after GATE-1)
+
+```
+Read .specify/manifest.yml + constitution.md + roles.yml
+Read brd.summary.md + srd.summary.md
+Read validate-template.md
+
+GATE-1 CHECK: constitution Part 2 finalized?
+  If not — STOP. State: "GATE-1 open — finalize constitution Part 2
+  before /validate."
+
+Produce:
+  1. BUSINESS OBJECTIVE TRACE — every BO-NNN → FR-NNN(s) that address it.
+     Flag any BO-NNN with no FR.
+  2. BUSINESS REQUIREMENTS REVIEW — every BR-NNN correctly reflected in
+     srd.md? Flag mismatches.
+  3. ASSUMPTIONS SIGN-OFF — every [ASSUMPTION-NNN] in brd/srd for the
+     business owner to confirm or reject.
+  4. SCOPE CONFIRMATION — in-scope / out-of-scope items from brd.md.
+  5. SIGN-OFF — Product Owner + Business Analyst (names from roles.yml):
+     Approved / Changes Requested.
+
+Save: validate.md + validate.summary.md
+Present report. WAIT for sign-off.
+
+If approved:
+  State: "VALIDATE complete — ready for /analyze."
+Else:
+  State: "VALIDATE incomplete — {N} items need changes. Update
+  context.md, re-run /specify for affected docs, re-run /validate."
+  Do NOT proceed to /analyze.
 ```
 
 ---
@@ -92,13 +185,18 @@ State: "SPECIFY complete — ready for /analyze"
 
 ```
 Read constitution.md + summary-rules.md
+Read .specify/features/{feature}/validate.summary.md
 Read .specify/features/{feature}/srd.summary.md
 Read .specify/features/{feature}/brd.summary.md
 Read analyze-template.md
 
+GATE CHECK: validate.summary.md states "VALIDATE complete"?
+  If not — STOP. State: "ANALYZE blocked — run /validate first."
+
 Produce:
   RISKS: every integration + flow + NFR
-    Each: likelihood (L/M/H) + impact (L/M/H/Critical) + mitigation
+    Each: likelihood (L/M/H) + impact (L/M/H/Critical)
+    + linked FR-NNN / NFR-NNN (AR-3) + mitigation
 
   DEPENDENCIES: internal + external + timeline
     Each: blocking/non-blocking + owner + risk
@@ -164,13 +262,19 @@ State: "CLARIFY complete — ready for /plan-arch"
 
 ---
 
-## /plan-arch — Architecture + Plan
+## /plan-arch — Architecture + Plan + Refine Scope Docs
 
 ```
 Read constitution.md + summary-rules.md
-Read clarify.summary.md (MUST exist — stop if missing)
+Read clarify.summary.md (MUST exist, all RESOLVED — stop if missing)
 Read analyze.summary.md + all spec summaries
 Read arch-template.md + plan-template.md
+
+AI-8 GATE CHECK: scan brd.md, srd.md, api-spec.md, data-model.md,
+security-design.md for any [ASSUMPTION-NNN] without a matching
+<!-- Clarified: {ID} --> note.
+  If any remain — STOP. State: "PLAN-ARCH blocked — unresolved
+  assumptions {list}. Run /clarify first."
 
 ARCHITECTURE:
   Pattern from constitution tech stack
@@ -179,6 +283,8 @@ ARCHITECTURE:
   Integration mapping
   Cross-cutting concerns (auth, logging, error handling)
   Risk mitigations from analyze.md applied
+  NFR → Decision mapping (arch-template §4a) for every NFR in
+  analyze.md §5
 
 IMPLEMENTATION PLAN:
   Layer-by-layer breakdown
@@ -191,7 +297,17 @@ IMPLEMENTATION PLAN:
 Save: arch.md + arch.summary.md
 Save: plan.md + plan.summary.md
 
-State: "PLAN-ARCH complete — review arch.md + plan.md"
+REFINE SCOPE-SCALED DOCS (now that arch.md exists):
+  mvp+: api-spec.md, data-model.md — align with ports/adapters + entity
+        design in arch.md
+  all:  security-design.md — align controls with arch.md cross-cutting
+        concerns section
+  full: resilience.md — align with arch.md integration list
+  full: investigation.md — align with arch.md flows
+  Re-save each refined doc + its .summary.md.
+
+State: "PLAN-ARCH complete — review arch.md + plan.md (+ refined scope
+docs) before PLAN-HLD"
 Wait for approval before /plan-hld.
 ```
 
@@ -282,7 +398,7 @@ SCOPE CHECK:
 
 VERIFY: arch.md exists. Stop if not.
 
-One ADR per key decision:
+One ADR per key decision (arch.md §4 DEC-NNN rows):
   Pattern choice (hexagonal, layered, event-driven)
   Technology choice where alternatives existed
   Integration approach (sync vs async)
@@ -295,6 +411,7 @@ Each ADR format:
 
 Save: docs/architecture/adr/ADR-{NNN}-{title}.md
 Save: docs/architecture/decisions.md (index)
+Update arch.md §4 — fill ADR column for each DEC-NNN now covered.
 State: "/plan-adr complete — {N} ADRs. Ready for /task."
 ```
 
@@ -306,6 +423,7 @@ State: "/plan-adr complete — {N} ADRs. Ready for /task."
 Read constitution.md + summary-rules.md
 Read plan.summary.md + analyze.summary.md + clarify.summary.md
 Read feature-story-template.md + tasks-template.md + jira-export-template.md
+Read qa-testcases.summary.md (mvp+, if already generated)
 
 VERIFY: hld.md exists and reviewed. Stop if not.
 
@@ -317,11 +435,14 @@ VERIFY: hld.md exists and reviewed. Stop if not.
    Sprint assignment
    Acceptance criteria (testable)
    HIGH complexity from analyze.md → higher story points
+   Traceability matrix: Story → FR → Task → TC-NNN → R-NNN (QA-1)
 
    Save: stories.md + stories.summary.md
 
 2. TASK LIST:
    Each task mapped to a story (STORY-NNN)
+   Satisfies: FR-NNN / NFR-NNN
+   Verifies: TC-NNN (mvp+; "TBD — link at /implement" if not yet generated)
    Estimated lines
    PR strategy: single or SPLIT A/B/C
    Files that change
@@ -367,6 +488,7 @@ BEFORE CODING:
 WHILE CODING:
   Follow constitution Part 1 universal rules
   Follow constitution Part 2 tech stack + domain rules
+  Apply .github/instructions/*.instructions.md for matching files (AI-7)
   Write paired test alongside — never after
   No class/component over constitution size limit
 
@@ -374,14 +496,52 @@ AFTER CODING:
   List every file changed
   State total lines added
   Confirm each criterion: ✅ {criterion}
+  Confirm Verifies: TC-{NNN} now covered by the paired test
   State: "PR ready — {N} lines, {N} files"
   WAIT for "go" before next task
 
 AFTER ALL TASKS:
   Generate delivery per scope:
-    openapi   → docs/openapi.yaml
-    qa_cases  → docs/qa/functional-test-cases.md
-    runbook   → docs/runbook/local-setup.md
+    qa_cases  → docs/qa/functional-test-cases.md (mvp+)
+    runbook   → docs/runbook/local-setup.md (mvp+)
+    openapi   → docs/openapi.yaml (full)
+  State: "IMPLEMENT complete — all tasks merged. Ready for /release."
+```
+
+---
+
+## /release — UAT + Deployment + Go-Live Gate (NEW)
+
+```
+Read constitution.md + roles.yml
+Read tasks.md + qa-testcases.summary.md (mvp+) + brd.summary.md
++ srd.summary.md + docs/runbook/local-setup.md (mvp+)
+Read release-template.md
+
+VERIFY GATE: every task in tasks.md is "PR ready" and merged.
+  If not — STOP. State: "RELEASE blocked — {N} tasks not yet merged."
+
+Produce:
+  1. PRE-RELEASE CHECKLIST — tasks merged, PRs reference TASK-NNN/CHG-NNN,
+     tests green, coverage ≥ gate, security checklist passed
+     (security-design.md §1, +§2 mvp+), traceability complete
+  2. UAT PLAN — one row per UC-NNN from srd.md: scenario, tester (from
+     roles.yml), environment, result
+  3. DEPLOYMENT PLAN — DB migrations, deploy strategy, smoke test,
+     feature flag/traffic shift — owner + rollback-if-fails per step
+  4. POST-DEPLOY SMOKE TEST — health check, key endpoint, logs, key NFR
+  5. GO-LIVE GATE — Tech Lead / Product Owner / Ops-SRE: Go / No-Go
+  6. BUSINESS OBJECTIVE CLOSURE — every BO-NNN: metric, measured result
+     or "measure after N days", met? yes/pending
+  7. ROLLBACK PLAN — summary, points to runbook §6
+
+Save: release.md + release.summary.md
+Present report. WAIT for go-live sign-off (section 5).
+
+If approved:
+  State: "RELEASE complete — go-live approved."
+Else:
+  State: "RELEASE incomplete — go-live NOT approved. {N} items blocking."
 ```
 
 ---
@@ -393,6 +553,14 @@ AFTER ALL TASKS:
 Re-read CLAUDE.md + manifest.yml + constitution.md
 Project: {name} | Feature: {feature} | Last command: /{cmd}
 Continue from here.
+```
+
+### GATE-1 Reminder
+```
+Constitution Part 2 was generated as DRAFT but not yet finalized.
+Re-read .specify/memory/constitution.md Part 2 — review every row,
+resolve [MISSING — ask user] markers, edit anything wrong.
+Tell agent "Constitution Part 2 finalized" to unblock /validate.
 ```
 
 ### Regenerate a Document

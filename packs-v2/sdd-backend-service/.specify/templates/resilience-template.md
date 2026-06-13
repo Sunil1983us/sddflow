@@ -1,7 +1,8 @@
 # Resilience Design
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: arch.summary.md + srd.summary.md
-> Scope: MVP+ only — skip for pilot
+> Version: 1.0 | Date: {date} | Scope: Full only — skip for pilot + mvp
+> Drafted at: /specify (Input: srd.summary.md)
+> Refined at: /plan-arch (Input: + arch.summary.md — integration list)
 
 ---
 

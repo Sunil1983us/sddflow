@@ -1,0 +1,41 @@
+# RACI — Roles & Responsibilities
+# R = Responsible (does the work) | A = Accountable (final approval)
+# C = Consulted (input sought)     | I = Informed (kept up to date)
+#
+# Fill names/teams once per project. Referenced by every gate in PROMPT-GUIDE.md.
+
+roles:
+  product_owner: ""        # owns BRD, /validate sign-off, go-live decision
+  business_analyst: ""     # supports BRD/SRD accuracy, /validate
+  tech_lead: ""             # /plan-arch, /plan-hld review, constitution Part 2 finalize
+  architect: ""             # /plan-adr review (mvp+)
+  senior_developer_backend: ""   # /plan-lld review (mvp+), implements backend
+  senior_developer_frontend: ""  # /plan-lld review (mvp+), implements frontend
+  qa_lead: ""               # qa_cases, UAT sign-off, /release
+  security_officer: ""     # security-design review (mvp+/full)
+  devops_sre: ""            # runbook, deployment, /release go-live
+  ux_lead: ""               # ux-flow / component-spec / screen-spec review
+
+gates:
+  - gate: "Constitution Part 2 finalized"
+    raci: { responsible: tech_lead, accountable: tech_lead, consulted: [architect], informed: [product_owner] }
+  - gate: "/validate — business sign-off"
+    raci: { responsible: business_analyst, accountable: product_owner, consulted: [tech_lead], informed: [qa_lead] }
+  - gate: "/analyze — risk review"
+    raci: { responsible: tech_lead, accountable: tech_lead, consulted: [architect, security_officer], informed: [product_owner] }
+  - gate: "/clarify — all items resolved"
+    raci: { responsible: tech_lead, accountable: product_owner, consulted: [business_analyst], informed: [] }
+  - gate: "/plan-arch reviewed"
+    raci: { responsible: architect, accountable: tech_lead, consulted: [], informed: [product_owner] }
+  - gate: "/plan-hld reviewed"
+    raci: { responsible: tech_lead, accountable: tech_lead, consulted: [ux_lead], informed: [product_owner, qa_lead] }
+  - gate: "/plan-lld reviewed (mvp+)"
+    raci: { responsible: "senior_developer_backend, senior_developer_frontend", accountable: tech_lead, consulted: [], informed: [] }
+  - gate: "/plan-adr reviewed (mvp+)"
+    raci: { responsible: architect, accountable: architect, consulted: [tech_lead], informed: [] }
+  - gate: "/task — stories + tasks approved"
+    raci: { responsible: tech_lead, accountable: product_owner, consulted: [qa_lead], informed: [devops_sre] }
+  - gate: "/implement — per-task PR approval"
+    raci: { responsible: "{assigned developer}", accountable: tech_lead, consulted: [], informed: [] }
+  - gate: "/release — UAT + go-live"
+    raci: { responsible: qa_lead, accountable: product_owner, consulted: [tech_lead, devops_sre, security_officer], informed: [business_analyst] }

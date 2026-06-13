@@ -313,17 +313,8 @@ docker-compose up -d --build app
 
 ---
 
-## Constitution P11 Docker — Crisp Version
-# Replace the Docker rows in constitution P11 with this
-
-| Rule | Detail |
-|---|---|
-| Base image | `-alpine` always — pin exact version |
-| User | Non-root: `adduser appuser` |
-| Secrets | `.env` file — never in compose or Dockerfile |
-| Build | Multi-stage — no Maven/Node in prod image |
-| Health | `healthcheck` on every service |
-| Volumes | Named volumes for all persistent data |
-| Networks | Single bridge network per stack |
-| Depends | `condition: service_healthy` — not just `depends_on` |
+## Constitution Reference
+These templates implement the rules in constitution.md Part 1 →
+"Containerization" table. That table is the source of truth — do not
+duplicate or diverge from it here.
 

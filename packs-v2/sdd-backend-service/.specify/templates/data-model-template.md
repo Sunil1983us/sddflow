@@ -1,6 +1,8 @@
 # Data Model
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: arch.summary.md
+> Version: 1.0 | Date: {date} | Scope: MVP+
+> Drafted at: /specify (Input: srd.summary.md)
+> Refined at: /plan-arch (Input: + arch.summary.md — entity design)
 
 ---
 
@@ -67,5 +69,23 @@ erDiagram
 | amount | Monetary value — always stored with currency |
 | {field} | {business meaning} |
 
+## 6. Data Classification & Privacy (SEC-7)
+
+| Table.Column | Classification | PII? | Encryption | Retention | Masking in Logs |
+|---|---|---|---|---|---|
+| {entity_a}.{field} | Public/Internal/Confidential/Restricted | Yes/No | At-rest: {alg} / In-transit: TLS | {N days/years or "indefinite"} | {mask pattern or "N/A"} |
+| {entity_b}.{field} | {classification} | Yes/No | {approach} | {policy} | {pattern} |
+
+**Classification key:**
+- Public — no restriction
+- Internal — employees/contractors only
+- Confidential — need-to-know (e.g. financial, business-sensitive)
+- Restricted — regulated PII/PCI/PHI — encryption + access audit mandatory
+
+Any column marked PII = Yes must:
+- Never appear in logs (constitution Part 1 — Logging)
+- Be covered by a retention/deletion policy (BRD §6 regulatory trace)
+- Be listed in security-design.md §4 Regulatory/Compliance Trace
+
 ---
-*Generated from: arch.summary.md*
+*Drafted from: srd.summary.md (at /specify) | Refined from: arch.summary.md (at /plan-arch)*

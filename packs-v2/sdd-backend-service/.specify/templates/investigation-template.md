@@ -2,6 +2,8 @@
 # Feature: {Feature Name}
 > Version: 1.0 | Date: {date}
 > Scope: Full only — skip for pilot + mvp
+> Drafted at: /specify (Input: srd.summary.md)
+> Refined at: /plan-arch (Input: + arch.summary.md — flows)
 
 ---
 
