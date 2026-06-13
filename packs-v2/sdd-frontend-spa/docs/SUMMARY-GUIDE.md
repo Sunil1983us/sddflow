@@ -34,10 +34,23 @@ Tell agent: "Summary rules updated — re-read summary-rules.md"
 | MVP | 20-25 | ~350 |
 | Full | 25-35 | ~450 |
 
-## What Each Verb Reads
-SPECIFY reads: context.summary.md
-ANALYZE reads: srd.summary + brd.summary
+## What Each Command Reads (AI-2 — summary-first, mandatory)
+CREATE-CONTEXT (optional, before SPECIFY) reads: any raw notes provided +
+  context.raw.md (if re-run) — writes context.md. No other command ever
+  reads context.raw.md.
+SPECIFY reads: context.md (full — first run only)
+GATE-1 (manual): you read constitution.md Part 2 in full to finalize it
+VALIDATE reads: brd.summary + srd.summary
+ANALYZE reads: validate.summary + srd.summary + brd.summary
 CLARIFY reads: all spec summaries + analyze.summary
-PLAN reads: clarify.summary + analyze.summary
-TASK reads: plan.summary + analyze.summary
-IMPLEMENT reads: tasks.md (one task) + constitution.md
+PLAN-ARCH reads: clarify.summary + analyze.summary + all spec summaries
+PLAN-HLD reads: arch.summary + analyze.summary
+PLAN-LLD reads: plan.summary + arch.summary
+PLAN-ADR reads: arch.summary + analyze.summary
+TASK reads: plan.summary + analyze.summary + clarify.summary
+IMPLEMENT reads: tasks.md (one task, full) + constitution.md (full)
+RELEASE reads: tasks.md + qa-testcases.summary + brd.summary + srd.summary
+
+After /specify, no command should read a full `.md` document except the
+two exceptions above (GATE-1 manual review, and IMPLEMENT's tasks.md +
+constitution.md).

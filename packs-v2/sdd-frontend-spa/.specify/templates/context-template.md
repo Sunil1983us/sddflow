@@ -62,6 +62,34 @@ Steps: {what happens + resolution}
 |---|---|---|---|
 | OQ-001 | {question} | {owner} | {date} |
 
+## 11. Tech Stack
+> Drives constitution.md Part 2 (Tech Stack table) at /specify Action 1.
+> Fill what you know — leave `[MISSING — ask user]` for the rest; GATE-1
+> is where any remaining gaps get finalized.
+
+| Concern | Choice |
+|---|---|
+| Language | {e.g. TypeScript 5.x} |
+| Framework | {e.g. React 18} |
+| Build Tool | {e.g. Vite} |
+| State Management | {e.g. Redux Toolkit / Zustand / Pinia / Context API} |
+| Component Library/Design System | {e.g. MUI / shadcn-ui / Tailwind + custom} |
+| Routing | {e.g. React Router / Vue Router / Angular Router} |
+| API Client | {e.g. fetch + React Query / Axios / Apollo} |
+| Bundler | {e.g. Vite / Webpack / Next.js / Nuxt} |
+| Data Cache | {e.g. React Query cache / none} |
+| Configuration | {e.g. .env files / runtime config.json} |
+| Secrets | {e.g. env vars — never in bundle} |
+| Resilience | {e.g. retry on fetch / offline handling} |
+| Observability | {e.g. Sentry / RUM / none} |
+| Logging | {e.g. structured console logs / error boundary} |
+| Testing | {e.g. Vitest + Testing Library} |
+| Coverage Gate | {e.g. 80% line coverage} |
+| Linting/Formatting | {e.g. ESLint + Prettier} |
+| Accessibility | {e.g. axe-core, WCAG 2.1 AA} |
+| CI/CD | {e.g. GitHub Actions} |
+| Hosting/CDN | {e.g. S3 + CloudFront / Vercel / Netlify / nginx} |
+
 ---
 
 ## CHANGELOG

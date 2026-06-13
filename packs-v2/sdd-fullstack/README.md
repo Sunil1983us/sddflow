@@ -109,13 +109,20 @@ Two actions automatically:
 unzip sdd-fullstack-v2.zip -d my-service
 cd my-service
 git init
-# Write .specify/contexts/my-feature.md
+# Write .specify/contexts/my-feature.md (or run /create-context if you'd
+# rather paste rough notes and let the agent draft it for you)
 # Fill .specify/manifest.yml (4 fields)
-claude    # Claude Code Desktop
-# OR open VS Code + Copilot Chat
+claude    # Claude Code Desktop — type /start, then /specify, /clarify, etc.
+# OR open VS Code + Copilot Chat — type /specify, /clarify, etc.
 ```
 
-Paste Step 0 from PROMPT-GUIDE.md → follow the 9 commands.
+No structured context.md yet? Run `/create-context` first — paste any
+notes you have (backend, frontend, or both) and the agent drafts it with
+you (see PROMPT-GUIDE.md).
+
+Otherwise, run `/start` (Claude Code) or follow Step 0 (Copilot) from
+PROMPT-GUIDE.md → then run the commands as native slash commands (no
+copy/paste needed — `.claude/commands/` ships with this pack).
 
 ---
 
@@ -124,7 +131,7 @@ Paste Step 0 from PROMPT-GUIDE.md → follow the 9 commands.
 | File | Purpose |
 |---|---|
 | GETTING-STARTED.md | 5 steps to first run |
-| PROMPT-GUIDE.md | All 9 command prompts — copy-paste ready |
+| PROMPT-GUIDE.md | All command prompts — native `/specify` etc. in Claude Code & Copilot |
 | HOW-TO-USE.md | Scope presets + command table |
 | SDLC-COMPLETE-GUIDE.md | Full lifecycle reference + checklist |
 | CHANGE-GUIDE.md | Making changes later |

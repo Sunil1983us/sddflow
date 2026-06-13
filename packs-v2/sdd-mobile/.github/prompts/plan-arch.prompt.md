@@ -17,6 +17,12 @@ Read .specify/templates/plan-template.md
 clarify.summary.md must exist with all items RESOLVED.
 If missing — STOP. Ask for /clarify to complete first.
 
+AI-8 check: scan brd.md, srd.md, screen-spec.md, ux-flow.md, api-spec.md,
+and security-design.md (whichever exist for this scope) for any remaining
+`[ASSUMPTION-NNN]` marker without a matching `<!-- Clarified: {ID} -->`
+note. If any remain — STOP. State: "PLAN-ARCH blocked — unresolved
+assumptions {list}. Run /clarify first."
+
 ## Your Task
 
 ### Screen Architecture (NOT hexagonal — mobile pattern)
@@ -29,6 +35,9 @@ From context + constitution Part 2 + analyze.md:
 - Permission request flow
 - Platform abstraction layer (iOS vs Android differences)
 - Push notification handling
+- Risk mitigations from analyze.md applied to design
+- NFR → Decision mapping (arch-template §4a) for every NFR in
+  analyze.md §5
 
 Save: arch.md + arch.summary.md
 
@@ -44,5 +53,29 @@ From arch.md:
 
 Save: plan.md + plan.summary.md
 
-State: "PLAN-ARCH complete — review arch.md + plan.md before /plan-hld"
+### Refine Scope-Scaled Documents (now that arch.md exists)
+These were drafted at /specify from context + srd only; refine them using
+arch.md (screen hierarchy, navigation structure, state architecture,
+offline strategy):
+
+  mvp+: screen-spec.md, ux-flow.md — align with screen hierarchy and
+        navigation structure in arch.md
+  mvp+: api-spec.md — align with the service layer / API client contracts
+        in arch.md
+  all:  security-design.md (§1-2) — align controls with arch.md
+        cross-cutting concerns section
+  full: data-model.md — align with the local data & cache model (on-device
+        storage schema) in arch.md
+  full: resilience.md — align with arch.md offline strategy + sync/retry
+        approach
+  full: investigation.md — align with arch.md flows
+  full: security-design.md (§3-4) — align with arch.md cross-cutting
+        concerns section
+
+Re-save each updated doc + its .summary.md.
+
+After all saved:
+State: "PLAN-ARCH complete — review arch.md + plan.md (and refined
+screen-spec/ux-flow/api-spec/data-model/security-design/resilience/
+investigation) before PLAN-HLD"
 Wait for review.

@@ -62,6 +62,34 @@ Steps: {what happens + resolution}
 |---|---|---|---|
 | OQ-001 | {question} | {owner} | {date} |
 
+## 11. Tech Stack
+> Drives constitution.md Part 2 (Tech Stack table) at /specify Action 1.
+> Fill what you know — leave `[MISSING — ask user]` for the rest; GATE-1
+> is where any remaining gaps get finalized.
+
+| Concern | Choice |
+|---|---|
+| Language/Framework | {e.g. React Native 0.74 + TypeScript / Flutter 3.x + Dart} |
+| Navigation | {e.g. React Navigation / Expo Router / Flutter Navigator 2.0} |
+| State Management | {e.g. Redux Toolkit / Zustand / Riverpod / Bloc} |
+| Local Storage/DB | {e.g. SQLite / WatermelonDB / Hive / Realm} |
+| API Client | {e.g. fetch + React Query / Axios / Dio} |
+| Build Tool | {e.g. Metro / Gradle + xcodebuild / Flutter build} |
+| Push Notifications | {e.g. Firebase Cloud Messaging / APNs} |
+| Crash/Analytics | {e.g. Sentry / Firebase Crashlytics} |
+| Data Cache | {e.g. query cache / persisted store / none} |
+| Offline Sync | {e.g. queued mutations / background sync / none} |
+| Configuration | {e.g. .env files / build flavors per environment} |
+| Secrets | {e.g. Keychain / Keystore / secure storage} |
+| Resilience | {e.g. retry + offline queue / optimistic UI} |
+| Observability | {e.g. crash reporting + performance monitoring} |
+| Logging | {e.g. structured logs / remote log shipping} |
+| Testing | {e.g. Jest + React Native Testing Library / Detox} |
+| Coverage Gate | {e.g. 80% line coverage} |
+| Quality/Security | {e.g. ESLint + Prettier / dart analyze, MASVS checklist} |
+| CI/CD | {e.g. GitHub Actions / Fastlane lanes} |
+| App Store Distribution | {e.g. TestFlight + Play Console internal track} |
+
 ---
 
 ## CHANGELOG

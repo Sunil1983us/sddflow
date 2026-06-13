@@ -12,12 +12,18 @@
 |---|---|---|
 | BO-001 | {objective} | {how measured} |
 
-## 3. Stakeholders
+## 3. Stakeholders (BA-3 — see .specify/memory/roles.yml for named owners)
 | Role | Team | Responsibility |
 |---|---|---|
-| Product Owner | {team} | Approves requirements |
-| Tech Lead | {team} | Reviews architecture |
-| Developer | {team} | Implements |
+| Product Owner | {team} | Approves requirements, /validate + /release sign-off |
+| Business Analyst | {team} | Requirements accuracy, /validate |
+| Tech Lead | {team} | Reviews architecture, /analyze risk review |
+| Architect | {team} | /plan-adr review (mvp+) |
+| Senior Developer (Mobile) | {team} | /plan-lld review (mvp+), implements |
+| QA Lead | {team} | Test cases, UAT sign-off, /release |
+| Security Officer | {team} | security-design review (mvp+/full) |
+| DevOps/SRE | {team} | Runbook, app-store release pipeline, /release go-live |
+| UX Lead | {team} | screen-spec / ux-flow review |
 
 ## 4. Business Context
 ### Problem Statement

@@ -62,6 +62,34 @@ Steps: {what happens + resolution}
 |---|---|---|---|
 | OQ-001 | {question} | {owner} | {date} |
 
+## 11. Tech Stack
+> Drives constitution.md Part 2 (Tech Stack table) at /specify Action 1.
+> Fill what you know — leave `[MISSING — ask user]` for the rest; GATE-1
+> is where any remaining gaps get finalized.
+
+| Concern | Choice |
+|---|---|
+| Language | {e.g. Java 21} |
+| Framework | {e.g. Spring Boot 3.x} |
+| Build Tool | {e.g. Maven} |
+| API Style | {e.g. REST + OpenAPI} |
+| Messaging/Async | {e.g. Kafka / RabbitMQ / none} |
+| Serialisation | {e.g. JSON / Avro / Protobuf} |
+| Schema | {e.g. Flyway-managed SQL} |
+| Data Store | {e.g. PostgreSQL 15} |
+| Data Cache | {e.g. Redis / none} |
+| DB Migration | {e.g. Flyway / Liquibase} |
+| Configuration | {e.g. Spring Config / env vars} |
+| Secrets | {e.g. Vault / cloud secrets manager} |
+| Resilience | {e.g. Resilience4j — retry/circuit breaker} |
+| Observability | {e.g. OpenTelemetry + Grafana} |
+| Logging | {e.g. structured JSON logs} |
+| Testing | {e.g. JUnit 5 + Testcontainers} |
+| Coverage Gate | {e.g. 80% line coverage} |
+| Quality/Security | {e.g. SonarQube + OWASP Dependency-Check} |
+| Orchestration | {e.g. Kubernetes} |
+| CI/CD | {e.g. GitHub Actions / Jenkins} |
+
 ---
 
 ## CHANGELOG

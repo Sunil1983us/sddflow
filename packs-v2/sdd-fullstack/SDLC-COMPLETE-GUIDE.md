@@ -5,7 +5,10 @@
 
 ## Overview
 
-You write one context file. Agent generates everything else.
+You write one context file (or run `/create-context` first if you'd
+rather paste rough notes — covering backend, frontend, or both — and have
+the agent draft it with you — see .specify/contexts/CONTEXT-GUIDE.md).
+Agent generates everything else.
 Constitution Part 2 is auto-generated — never manually filled.
 PLAN is split into 4 sub-commands — each reviewed separately.
 
@@ -124,7 +127,8 @@ Update context.md + CHANGELOG
 
 ### Setup
 - [ ] manifest.yml filled (4 fields)
-- [ ] context.md written with tech stack section
+- [ ] context.md written with Backend + Frontend + Shared tech stack
+      sections (directly, or via `/create-context` from informal notes)
 - [ ] Git initialised
 
 ### /specify

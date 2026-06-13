@@ -35,6 +35,9 @@ Tell agent: "Summary rules updated — re-read summary-rules.md"
 | Full | 25-35 | ~450 |
 
 ## What Each Verb Reads
+CREATE-CONTEXT (optional, before SPECIFY) reads: any raw notes provided +
+  context.raw.md (if re-run) — writes context.md. No other command ever
+  reads context.raw.md.
 SPECIFY reads: context.summary.md
 ANALYZE reads: srd.summary + brd.summary
 CLARIFY reads: all spec summaries + analyze.summary

@@ -44,20 +44,42 @@ Never Do → from constraints + add: API calls in screens,
            hardcode platform checks, permissions on startup,
            any type (RN), mutable state in widgets (Flutter)
 
-Save constitution.md (Part 1 unchanged)
-Report: "Constitution Part 2 generated — review Tech Stack table"
+Save updated constitution.md (Part 1 unchanged, Part 2 is a DRAFT).
+Confirm: "Constitution Part 2 generated from context — DRAFT.
+Review and finalize every row (GATE-1) before /validate."
+
+## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
+Do NOT proceed to Action 2 in the same turn as a first-time generation
+unless the user has already reviewed Part 2. If the user says
+"Constitution Part 2 finalized" (now or in a later session), proceed.
+A later /specify re-run on an already-finalized Part 2 must propose
+changes for review — never silently overwrite finalized rows.
 
 ## ACTION 2 — Generate spec documents per scope
 
-pilot:  brd → srd → analyze → hld (screen flow) → ux-flow → screen-spec
-mvp+:   + lld → navigation-spec → accessibility
+Read updated constitution.md
+Generate documents per manifest.scope (canonical doc inventory —
+the only correct list; see PROMPT-GUIDE.md):
 
-For each: read matching template → derive from context
+pilot:  brd → srd → security-design (§1 — pilot checklist)
+mvp:    + screen-spec → ux-flow → api-spec (Backend API Contract —
+        Consumer) → security-design (§1-2)
+full:   + data-model (Local Data & Cache Model) → resilience (Mobile
+        Resilience) → investigation (Crash & Incident Triage) →
+        security-design (§1-4 — STRIDE + MASVS)
+
+For each: read template → derive from context → save .md + .summary.md
+Mark all assumptions: [ASSUMPTION-NNN: ...]
+Every FR: FR-NNN | Every NFR: NFR-NNN
+
 Templates to use:
-  hld → hld-template.md (use screen flow diagram, NOT service sequence)
-  ux-flow → ux-flow-template.md
   screen-spec → screen-spec-template.md
-  Do NOT use: api-spec-template, data-model-template,
-              arch-template (no hexagonal for mobile), resilience-template
+  ux-flow → ux-flow-template.md
+  api-spec → api-spec-template.md (Backend API Contract — Consumer)
+  data-model → data-model-template.md (Local Data & Cache Model)
+  resilience → resilience-template.md (Mobile Resilience)
+  investigation → investigation-template.md (Crash & Incident Triage)
 
-List generated + skipped. State: ready for /analyze
+List generated + skipped.
+State: "SPECIFY complete. If GATE-1 not yet passed, finalize constitution
+Part 2 now. Then run /validate — ready for business sign-off."

@@ -18,7 +18,8 @@ State: "PLAN-ADR skipped — pilot scope. Proceed to TASK."
 arch.md must exist and be reviewed.
 
 ## Your Task
-Generate one ADR per key architectural decision.
+Generate one ADR per key architectural decision (start from arch.md §4
+"Key Design Decisions" — every DEC-NNN row).
 
 ### What Qualifies as an ADR
 - Pattern choice (hexagonal, layered, event-driven)
@@ -42,6 +43,7 @@ ADR-002-{kebab-case-title}.md
 
 Save each: docs/architecture/adr/ADR-{NNN}-{title}.md
 Save index: docs/architecture/decisions.md
+Update arch.md §4 — fill the ADR column for each DEC-NNN now covered.
 
 State: "PLAN-ADR complete — {N} ADRs generated. Ready for TASK."
 Wait for review.

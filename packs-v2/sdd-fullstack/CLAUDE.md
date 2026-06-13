@@ -2,6 +2,17 @@
 # Backend + Frontend together
 # 6-Verb: SPECIFY→ANALYZE→CLARIFY→PLAN→TASK→IMPLEMENT
 
+## CREATE-CONTEXT — Optional Pre-Phase (before SPECIFY)
+If `.specify/contexts/{feature}.md` does not exist yet, or is empty/a
+placeholder, offer `/create-context`: the user pastes informal notes (any
+format, covering backend and/or frontend), the agent drafts context.md
+against context-template.md (including the Backend / Frontend / Shared
+Tech Stack tables), lists a plain-language "Missing Information" checklist,
+and iterates with the user until it's ready. See
+.github/prompts/create-context.prompt.md and
+.specify/contexts/CONTEXT-GUIDE.md. Skip this entirely if the user already
+has a structured context.md.
+
 ## Startup
 1. Read .specify/manifest.yml
 2. Read .specify/memory/constitution.md
