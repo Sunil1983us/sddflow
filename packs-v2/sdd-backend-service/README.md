@@ -124,11 +124,13 @@ git init
 # Write .specify/contexts/my-feature.md
 # Fill .specify/manifest.yml (4 fields)
 # Fill .specify/memory/roles.yml (RACI owners — optional but recommended)
-claude    # Claude Code Desktop
-# OR open VS Code + Copilot Chat
+claude    # Claude Code Desktop — type /start, then /specify, /clarify, etc.
+# OR open VS Code + Copilot Chat — type /specify, /clarify, etc.
 ```
 
-Paste Step 0 from PROMPT-GUIDE.md → follow the 11 commands.
+Run `/start` (Claude Code) or follow Step 0 (Copilot) from PROMPT-GUIDE.md →
+then run the 11 commands as native slash commands (no copy/paste needed —
+see "Claude Code Native Slash Commands" in PROMPT-GUIDE.md).
 
 ---
 

@@ -5,21 +5,50 @@
 
 ## Command Overview
 
+> **Claude Code users**: every command below is a native slash command —
+> type it directly (e.g. `/specify`), exactly like Copilot. No copy/paste
+> needed. These come from `.claude/commands/*.md` (committed to the repo)
+> and each one reads its full instructions from the matching
+> `.github/prompts/<name>.prompt.md` file. See "Claude Code Native Slash
+> Commands" below for setup details.
+
 | Command | Claude Code | Copilot | Does |
 |---|---|---|---|
-| Startup | Paste Step 0 | Step 0 | Read files + confirm |
-| `/specify` | Paste prompt | `/specify` | Constitution Part 2 (DRAFT) + spec docs |
+| Startup | `/start` | Step 0 | Read files + confirm |
+| `/specify` | `/specify` | `/specify` | Constitution Part 2 (DRAFT) + spec docs |
 | — GATE-1 — | Manual | Manual | You review + finalize constitution Part 2 |
-| `/validate` | Paste prompt | `/validate` | Business sign-off on BRD/SRD |
-| `/analyze` | Paste prompt | `/analyze` | Risks + complexity |
-| `/clarify` | Paste prompt | `/clarify` | Questions → you answer |
-| `/plan-arch` | Paste prompt | `/plan-arch` | Architecture + plan + refine scope docs |
-| `/plan-hld` | Paste prompt | `/plan-hld` | HLD + diagrams |
-| `/plan-lld` | Paste prompt | `/plan-lld` | LLD (mvp+ only) |
-| `/plan-adr` | Paste prompt | `/plan-adr` | ADRs (mvp+ only) |
-| `/task` | Paste prompt | `/task` | Stories + Tasks + Jira |
-| `/implement` | Paste prompt | `/implement TASK-NNN` | Code one task |
-| `/release` | Paste prompt | `/release` | UAT + deployment + go-live gate |
+| `/validate` | `/validate` | `/validate` | Business sign-off on BRD/SRD |
+| `/analyze` | `/analyze` | `/analyze` | Risks + complexity |
+| `/clarify` | `/clarify` | `/clarify` | Questions → you answer |
+| `/plan-arch` | `/plan-arch` | `/plan-arch` | Architecture + plan + refine scope docs |
+| `/plan-hld` | `/plan-hld` | `/plan-hld` | HLD + diagrams |
+| `/plan-lld` | `/plan-lld` | `/plan-lld` | LLD (mvp+ only) |
+| `/plan-adr` | `/plan-adr` | `/plan-adr` | ADRs (mvp+ only) |
+| `/task` | `/task` | `/task` | Stories + Tasks + Jira |
+| `/implement` | `/implement TASK-NNN` | `/implement TASK-NNN` | Code one task |
+| `/release` | `/release` | `/release` | UAT + deployment + go-live gate |
+
+---
+
+## Claude Code Native Slash Commands (setup, once)
+
+This pack ships a `.claude/commands/` directory with one Markdown file per
+command (`start.md`, `specify.md`, `validate.md`, `analyze.md`, `clarify.md`,
+`plan-arch.md`, `plan-hld.md`, `plan-lld.md`, `plan-adr.md`, `task.md`,
+`implement.md`, `release.md`). Claude Code auto-discovers these — nothing to
+install or configure.
+
+- Type `/start` at the beginning of every session — equivalent to STEP 0
+  below (reads CLAUDE.md, manifest, constitution, summary-rules,
+  change-rules, roles.yml, instructions).
+- Type `/specify`, `/validate`, `/analyze`, `/clarify`, `/plan-arch`,
+  `/plan-hld`, `/plan-lld`, `/plan-adr`, `/task`, `/release` to run each
+  command — Claude reads the matching `.github/prompts/<name>.prompt.md` and
+  executes it.
+- `/implement TASK-NNN` passes the task ID through to the implement prompt.
+- Editing a `.github/prompts/<name>.prompt.md` file (as described in
+  CHANGE-GUIDE.md) automatically updates the matching slash command — the
+  command files only delegate, they don't duplicate instructions.
 
 ---
 

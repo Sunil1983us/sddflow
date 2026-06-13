@@ -79,7 +79,7 @@ You never manually fill the constitution.
 ## Read Next
 | File | When |
 |---|---|
-| PROMPT-GUIDE.md | All 9 command prompts — copy-paste |
+| PROMPT-GUIDE.md | All command prompts — native `/specify` etc. in Claude Code & Copilot |
 | README.md | Full overview |
 | HOW-TO-USE.md | Scope presets + tips |
 | CHANGE-GUIDE.md | Making changes later |

@@ -111,11 +111,13 @@ cd my-service
 git init
 # Write .specify/contexts/my-feature.md
 # Fill .specify/manifest.yml (4 fields)
-claude    # Claude Code Desktop
-# OR open VS Code + Copilot Chat
+claude    # Claude Code Desktop — type /start, then /specify, /clarify, etc.
+# OR open VS Code + Copilot Chat — type /specify, /clarify, etc.
 ```
 
-Paste Step 0 from PROMPT-GUIDE.md → follow the 9 commands.
+Run `/start` (Claude Code) or follow Step 0 (Copilot) from PROMPT-GUIDE.md →
+then run the commands as native slash commands (no copy/paste needed —
+`.claude/commands/` ships with this pack).
 
 ---
 
@@ -124,7 +126,7 @@ Paste Step 0 from PROMPT-GUIDE.md → follow the 9 commands.
 | File | Purpose |
 |---|---|
 | GETTING-STARTED.md | 5 steps to first run |
-| PROMPT-GUIDE.md | All 9 command prompts — copy-paste ready |
+| PROMPT-GUIDE.md | All command prompts — native `/specify` etc. in Claude Code & Copilot |
 | HOW-TO-USE.md | Scope presets + command table |
 | SDLC-COMPLETE-GUIDE.md | Full lifecycle reference + checklist |
 | CHANGE-GUIDE.md | Making changes later |

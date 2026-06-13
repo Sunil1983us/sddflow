@@ -96,7 +96,7 @@ Nothing after /specify proceeds until this is done.
 ## Read Next
 | File | When |
 |---|---|
-| PROMPT-GUIDE.md | All 11 command prompts — copy-paste |
+| PROMPT-GUIDE.md | All 11 commands — native `/specify` etc. in Claude Code & Copilot |
 | README.md | Full overview |
 | HOW-TO-USE.md | Scope presets + tips |
 | CHANGE-GUIDE.md | Making changes later |
