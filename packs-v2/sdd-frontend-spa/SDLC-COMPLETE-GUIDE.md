@@ -5,7 +5,9 @@
 
 ## Overview
 
-You write one context file. Agent generates everything else.
+You write one context file (or run `/create-context` first if you'd
+rather paste rough notes and have the agent draft it with you — see
+.specify/contexts/CONTEXT-GUIDE.md). Agent generates everything else.
 Constitution Part 2 is auto-generated as a DRAFT — you review and
 finalize it (GATE-1) before /validate runs. Manual edits after that
 point are authoritative.
@@ -197,7 +199,8 @@ See CHANGE-GUIDE.md for the full impact matrix and AI-8 assumption rule.
 ### Setup
 - [ ] manifest.yml filled (4 fields)
 - [ ] roles.yml filled (RACI owners)
-- [ ] context.md written with tech stack section
+- [ ] context.md written with tech stack section (directly, or via
+      `/create-context` from informal notes)
 - [ ] Git initialised
 
 ### /specify
