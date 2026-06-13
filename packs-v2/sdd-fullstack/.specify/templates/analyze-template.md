@@ -1,8 +1,14 @@
 # Analysis Report
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: srd.summary.md + brd.summary.md
+> Version: 1.0 | Date: {date}
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced} |
+| brd.summary.md | {sections/IDs referenced} |
 
 ## 1. Executive Summary
 {2-3 sentences: overall complexity, biggest risks, key recommendation.}
@@ -69,4 +75,8 @@ Overall Complexity: LOW | MEDIUM | HIGH
 - {area} — reason: {complexity or size}
 
 ---
-*Generated from: srd.summary.md + brd.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

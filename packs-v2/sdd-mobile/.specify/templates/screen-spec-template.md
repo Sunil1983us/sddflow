@@ -1,5 +1,10 @@
 # Screen Specification — {Feature Name}
-> Input: srd.summary.md + ux-flow.summary.md
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced} |
+| ux-flow.summary.md | {sections/IDs referenced} |
 
 ## Screen Inventory
 | Screen | Route/Stack | Purpose | Auth Required |
@@ -22,6 +27,11 @@
 {ScreenA} → {action} → {ScreenB}
            ← back ←
 ```
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
 
 ## Summary
 > Lines: {N} / {SUMMARY_MAX_LINES}

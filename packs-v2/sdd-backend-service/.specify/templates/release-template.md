@@ -1,10 +1,17 @@
 # Release Plan
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: tasks.md (all complete) + qa-testcases.summary.md
+> Version: 1.0 | Date: {date}
 > Run after: /implement — all tasks "PR ready" and merged
 > Gate before: production go-live
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| tasks.md | {sections/IDs referenced} |
+| qa-testcases.summary.md | {sections/IDs referenced} |
+| runbook.md | {sections/IDs referenced} |
 
 ## 1. Pre-Release Checklist
 
@@ -75,4 +82,8 @@
 {Summary — full detail in runbook.md §6}
 
 ---
-*Generated from: tasks.md + qa-testcases.summary.md + runbook.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

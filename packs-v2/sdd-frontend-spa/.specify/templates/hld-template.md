@@ -1,8 +1,14 @@
 # High Level Design (HLD)
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: arch.summary.md + srd.summary.md
+> Version: 1.0 | Date: {date}
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| arch.summary.md | {sections/IDs referenced} |
+| srd.summary.md | {sections/IDs referenced} |
 
 ## 1. System Context (C4 Level 1)
 ```mermaid
@@ -96,5 +102,9 @@ stateDiagram-v2
 - {item from context out of scope section}
 
 ---
-*Generated from: arch.summary.md + srd.summary.md*
 *All diagrams: Mermaid — renders in GitHub, VS Code, Claude*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

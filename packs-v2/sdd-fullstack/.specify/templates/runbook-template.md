@@ -1,10 +1,16 @@
 # Runbook
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: plan.summary.md + arch.summary.md
+> Version: 1.0 | Date: {date}
 > Scope: MVP+ only — skip for pilot
 > Covers: Backend service ops (§1-7) AND Frontend ops (§1a-7a)
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| plan.summary.md | {sections/IDs referenced} |
+| arch.summary.md | {sections/IDs referenced} |
 
 ## 1. Local Setup — Backend
 
@@ -160,4 +166,8 @@ redeploying the previous backend image tag (§6) — the two are coupled.
 | Core Web Vital regression (LCP/INP/CLS) | Check recent frontend deploy + CDN status | Escalate to frontend on-call |
 
 ---
-*Generated from: plan.summary.md + arch.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

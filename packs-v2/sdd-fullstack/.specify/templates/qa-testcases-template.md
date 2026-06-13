@@ -1,8 +1,14 @@
 # QA Test Cases
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: api-spec.summary.md + srd.summary.md
+> Version: 1.0 | Date: {date}
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| api-spec.summary.md | {sections/IDs referenced} |
+| srd.summary.md | {sections/IDs referenced} |
 
 ## 1. Test Coverage Summary
 
@@ -109,4 +115,8 @@
 ```
 
 ---
-*Generated from: api-spec.summary.md + srd.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

@@ -4,6 +4,12 @@
 
 ---
 
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| All prior spec summaries (brd.summary.md, srd.summary.md, etc.) | {ambiguities/assumptions referenced} |
+| analyze.summary.md | {risks/complexity items referenced} |
+
 ## AMBIGUITIES — AMB-NNN
 
 ### AMB-001: {Topic}
@@ -75,3 +81,8 @@
 Status: OPEN → RESOLVED / CONFIRMED / DECIDED / CORRECTED
 
 All items must be resolved before PLAN begins.
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

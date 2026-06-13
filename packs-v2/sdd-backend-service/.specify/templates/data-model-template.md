@@ -1,10 +1,14 @@
 # Data Model
 # Feature: {Feature Name}
 > Version: 1.0 | Date: {date} | Scope: MVP+
-> Drafted at: /specify (Input: srd.summary.md)
-> Refined at: /plan-arch (Input: + arch.summary.md — entity design)
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced — drafted at /specify} |
+| arch.summary.md | {sections/IDs referenced — refined at /plan-arch: entity design} |
 
 ## 1. Entity Relationship
 ```mermaid
@@ -88,4 +92,8 @@ Any column marked PII = Yes must:
 - Be listed in security-design.md §4 Regulatory/Compliance Trace
 
 ---
-*Drafted from: srd.summary.md (at /specify) | Refined from: arch.summary.md (at /plan-arch)*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

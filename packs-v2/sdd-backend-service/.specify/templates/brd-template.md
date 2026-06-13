@@ -4,6 +4,11 @@
 
 ---
 
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| .specify/contexts/{feature}.md | {sections/IDs referenced} |
+
 ## 1. Executive Summary
 {2-3 sentences: what is being built, why, and for whom.}
 
@@ -55,4 +60,8 @@ Out of Scope:
 - [ ] {verifiable criterion}
 
 ---
-*Generated from: .specify/contexts/{feature}.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

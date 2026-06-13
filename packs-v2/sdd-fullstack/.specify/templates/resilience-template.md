@@ -1,9 +1,15 @@
 # Resilience Design
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: arch.summary.md + srd.summary.md
+> Version: 1.0 | Date: {date}
 > Scope: MVP+ only — skip for pilot
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| arch.summary.md | {sections/IDs referenced} |
+| srd.summary.md | {sections/IDs referenced} |
 
 ## 1. Resilience Strategy
 
@@ -101,4 +107,8 @@ resilience4j:
 | Timeout | ERROR | timeout.count |
 
 ---
-*Generated from: arch.summary.md + srd.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

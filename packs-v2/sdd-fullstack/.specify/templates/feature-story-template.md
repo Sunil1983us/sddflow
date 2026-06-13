@@ -1,8 +1,14 @@
 # Feature and Story Breakdown
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: srd.summary.md + plan.summary.md
+> Version: 1.0 | Date: {date}
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced} |
+| plan.summary.md | {sections/IDs referenced} |
 
 ## Feature Definition
 
@@ -95,4 +101,8 @@ Sprint 3:
 | STORY-003 | FR-004, FR-005 | TASK-006 to 008 | 2 |
 
 ---
-*Generated from: srd.summary.md + plan.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

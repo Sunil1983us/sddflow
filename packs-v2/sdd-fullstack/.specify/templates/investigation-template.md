@@ -5,6 +5,12 @@
 
 ---
 
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| arch.summary.md | {sections/IDs referenced} |
+| srd.summary.md | {sections/IDs referenced} |
+
 ## 1. Investigation Triggers
 
 | ID | Trigger | Severity | SLA |
@@ -72,4 +78,8 @@
 | {alert name} | INV-{NNN} | Yes/No |
 
 ---
-*Generated from: arch.summary.md + srd.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
