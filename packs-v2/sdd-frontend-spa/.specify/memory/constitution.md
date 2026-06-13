@@ -82,7 +82,7 @@ multi-stage Dockerfile and nginx config matching these rules.
 ## SDD Workflow
 | Rule | Value |
 |---|---|
-| Order | SPECIFY→[GATE-1]→VALIDATE→ANALYZE→CLARIFY→PLAN→TASK→IMPLEMENT→RELEASE |
+| Order | SPECIFY→[GATE-1]→VALIDATE→ANALYZE→CLARIFY→PLAN-ARCH→PLAN-HLD→PLAN-LLD (mvp+)→PLAN-ADR (mvp+)→TASK→IMPLEMENT→RELEASE |
 | Gates | GATE-1 before VALIDATE · VALIDATE before ANALYZE · CLARIFY before PLAN-ARCH · no unresolved [ASSUMPTION-NNN] before PLAN-ARCH (AI-8) · TASK approved before IMPLEMENT · all tasks merged before RELEASE |
 | Change | Update context.md first — never code first |
 

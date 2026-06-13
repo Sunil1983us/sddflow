@@ -26,20 +26,79 @@ If you're comfortable writing the structured file directly, skip
 
 ## What to Include
 
-### 1. What the system does (2-3 sentences)
-### 2. Actors — who uses or calls it
-### 3. Key flows — step by step (happy path + key unhappy paths)
-### 4. Integrations — what external systems are involved
-### 5. Tech stack — what technologies you are using
-### 6. NFRs — performance, availability, scalability targets
-### 7. Constraints — regulatory, security, business rules
-### 8. Out of scope — what is explicitly excluded
+### 1. What This Service Does
+2-3 sentences. What problem does it solve? What does it process?
+Example: "Processes inbound payment instructions from partner banks,
+validates them against compliance rules, and forwards approved
+instructions to the settlement engine."
+
+### 2. Actors
+Who uses or calls it — humans and systems, with their role.
+Example: `Ops Analyst | Human | Reviews flagged payments`,
+`Settlement Engine | System | Receives approved instructions`.
+
+### 3. Key Flows
+Step by step, happy path + key unhappy paths.
+Example happy path: "Step 1: Partner bank submits payment via API.
+Step 2: System validates against compliance rules — passes.
+Step 3: System forwards to settlement engine, returns 202 Accepted."
+Example unhappy path: "Trigger: compliance check fails. Steps: payment
+flagged for manual review, ops analyst notified, payment held."
+
+### 4. Endpoints
+The API surface this service exposes — method, path, purpose, caller,
+request/response types.
+Example: `POST | /api/v1/payments | Submit a payment instruction |
+Partner Bank | PaymentRequest | PaymentAccepted`.
+
+### 5. Integrations
+What external systems are involved, direction, purpose, and whether
+Phase 1 uses a mock or the real integration.
+Example: `Settlement Engine | Outbound | Forward approved payments |
+Real`, `Fraud Service | Outbound | Real-time risk score | Mock`.
+
+### 6. Business Rules
+Specific, verifiable rules the system must enforce.
+Example: "A payment over $10,000 must be flagged for manual review
+before forwarding."
+
+### 7. Non-Functional Requirements
+Performance, availability, throughput, data retention targets.
+Example: `Performance | P99 < 300ms`, `Availability | 99.9%`,
+`Throughput | 500 TPS peak`, `Data Retention | 7 years`.
+
+### 8. Constraints
+Technical and regulatory constraints that shape the design.
+Example: "Must run on existing Kubernetes cluster — no new
+infrastructure." / "Must comply with PCI-DSS for card data."
+
+### 9. Out of Scope
+What is explicitly excluded from this version.
+Example: "Multi-currency support — Phase 2." / "Batch payment uploads —
+not in this release."
+
+### 10. Open Questions
+Things that still need an answer, with an owner and due date — these
+get resolved before or during /clarify.
+Example: `OQ-001 | Which team owns the fraud service SLA? |
+Architect | 2026-06-20`.
+
+### 11. Tech Stack
+What technologies you are using — drives constitution.md Part 2 (Tech
+Stack table) at /specify Action 1. Fill what you know — leave
+`[MISSING — ask user]` for the rest; GATE-1 is where any remaining gaps
+get finalized.
+Example: `Language | Java 21`, `Framework | Spring Boot 3.x`,
+`Data Store | PostgreSQL 15`.
 
 ## What the Agent Extracts for Constitution
 
 From your tech stack section:
-  Language, Framework, Database, Cache, Messaging,
-  Deployment, CI/CD, Testing approach → fills Tech Stack table
+  Language, Framework, Build Tool, API Style, Messaging/Async,
+  Serialisation, Schema, Data Store, Data Cache, DB Migration,
+  Configuration, Secrets, Resilience, Observability, Logging, Testing,
+  Coverage Gate, Quality/Security, Orchestration, CI/CD → fills Tech
+  Stack table
 
 From your constraints section:
   Business rules → Domain Rules
@@ -49,51 +108,87 @@ From your constraints section:
 ## Template
 
 # System Context — {Service Name}
-# Version: 1.0 | Date: {date}
+# Version: {version} | Scope: {pilot | mvp | full}
+# Date: {date} | Author: {author}
 
-## What This Does
-{2-3 sentences}
+## 1. What This Service Does
+{2-3 sentences. What problem does it solve? What does it process?}
 
-## Actors
+## 2. Actors
 | Actor | Type | Role |
 |---|---|---|
+| {name} | Human / System | {role} |
 
-## Tech Stack
+## 3. Key Flows
+
+### Flow 1: {Name} — Happy Path
+Step 1: {who does what}
+Step 2: {system calls downstream → result}
+Step 3: {outcome}
+
+### Flow 2: {Name} — Unhappy Path (if in scope)
+Trigger: {what causes this}
+Steps: {what happens + resolution}
+
+## 4. Endpoints
+| Method | Path | Purpose | Caller | Request | Response |
+|---|---|---|---|---|---|
+| POST | /api/v1/{resource} | {purpose} | {caller} | {type} | {type} |
+
+## 5. Integrations
+| System | Direction | Purpose | Phase 1 |
+|---|---|---|---|
+| {name} | Inbound/Outbound | {purpose} | Mock/Real |
+
+## 6. Business Rules
+- {Rule 1 — specific and verifiable}
+- {Rule 2}
+
+## 7. Non-Functional Requirements
+| Category | Requirement |
+|---|---|
+| Performance | {P99 response target} |
+| Availability | {uptime target} |
+| Throughput | {TPS peak} |
+| Data Retention | {years} |
+
+## 8. Constraints
+- {Technical constraint}
+- {Regulatory constraint}
+
+## 9. Out of Scope
+- {Excluded item 1}
+- {Excluded item 2}
+
+## 10. Open Questions
+| ID | Question | Owner | Due |
+|---|---|---|---|
+| OQ-001 | {question} | {owner} | {date} |
+
+## 11. Tech Stack
 | Concern | Choice |
 |---|---|
 | Language | {e.g. Java 21} |
 | Framework | {e.g. Spring Boot 3.x} |
-| Database | {e.g. PostgreSQL 15} |
-| Deployment | {e.g. Kubernetes} |
-| CI/CD | {e.g. Jenkins} |
+| Build Tool | {e.g. Maven} |
+| API Style | {e.g. REST + OpenAPI} |
+| Messaging/Async | {e.g. Kafka / RabbitMQ / none} |
+| Serialisation | {e.g. JSON / Avro / Protobuf} |
+| Schema | {e.g. Flyway-managed SQL} |
+| Data Store | {e.g. PostgreSQL 15} |
+| Data Cache | {e.g. Redis / none} |
+| DB Migration | {e.g. Flyway / Liquibase} |
+| Configuration | {e.g. Spring Config / env vars} |
+| Secrets | {e.g. Vault / cloud secrets manager} |
+| Resilience | {e.g. Resilience4j — retry/circuit breaker} |
+| Observability | {e.g. OpenTelemetry + Grafana} |
+| Logging | {e.g. structured JSON logs} |
 | Testing | {e.g. JUnit 5 + Testcontainers} |
-| ... add all relevant |
-
-## Key Flows
-### Happy Path
-1. {step}
-2. {step}
-
-### Unhappy Path (if applicable)
-1. {step}
-
-## Integrations
-| System | Direction | Purpose |
-|---|---|---|
-
-## NFRs
-| Category | Requirement |
-|---|---|
-| Performance | |
-| Availability | |
-
-## Constraints
-- {business rule}
-- {regulatory requirement}
-
-## Out of Scope
-- {item}
+| Coverage Gate | {e.g. 80% line coverage} |
+| Quality/Security | {e.g. SonarQube + OWASP Dependency-Check} |
+| Orchestration | {e.g. Kubernetes} |
+| CI/CD | {e.g. GitHub Actions / Jenkins} |
 
 ## CHANGELOG
-### v1.0 — {date}
-- Initial version
+### v1.0 — {date} — {author}
+- Added: Initial version

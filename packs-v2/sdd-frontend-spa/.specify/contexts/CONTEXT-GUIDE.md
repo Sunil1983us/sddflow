@@ -26,20 +26,78 @@ If you're comfortable writing the structured file directly, skip
 
 ## What to Include
 
-### 1. What the system does (2-3 sentences)
-### 2. Actors — who uses or calls it
-### 3. Key flows — step by step (happy path + key unhappy paths)
-### 4. Integrations — what external systems are involved
-### 5. Tech stack — what technologies you are using
-### 6. NFRs — performance, availability, scalability targets
-### 7. Constraints — regulatory, security, business rules
-### 8. Out of scope — what is explicitly excluded
+### 1. What This Service Does
+2-3 sentences. What problem does it solve? What does it process?
+Example: "Lets customer-support agents search, view, and update customer
+tickets from a single dashboard, with real-time status updates."
+
+### 2. Actors
+Who uses or calls it — humans and systems, with their role.
+Example: `Support Agent | Human | Searches and updates tickets`,
+`Ticketing API | System | Source of ticket data`.
+
+### 3. Key Flows
+Step by step, happy path + key unhappy paths.
+Example happy path: "Step 1: Agent logs in. Step 2: Agent searches for a
+ticket by customer email. Step 3: App displays matching tickets in a
+list."
+Example unhappy path: "Trigger: search returns no results. Steps: app
+shows an empty state with a 'create ticket' call to action."
+
+### 4. Endpoints
+The backend API surface this app consumes — method, path, purpose,
+caller, request/response types it expects.
+Example: `GET | /api/v1/tickets?email={email} | Search tickets by
+customer email | Agent UI | — | TicketSummary[]`.
+
+### 5. Integrations
+What external systems are involved, direction, purpose, and whether
+Phase 1 uses a mock or the real integration.
+Example: `Ticketing API | Inbound | Fetch + update ticket data | Real`,
+`Auth Provider | Inbound | SSO login | Mock`.
+
+### 6. Business Rules
+Specific, verifiable rules the UI must enforce.
+Example: "A ticket cannot be marked Resolved unless it has at least one
+agent reply."
+
+### 7. Non-Functional Requirements
+Performance, accessibility, browser/device support targets.
+Example: `Performance | First Contentful Paint < 2s`, `Accessibility |
+WCAG 2.1 AA`, `Browser Support | Latest 2 versions of Chrome/Firefox/Safari`.
+
+### 8. Constraints
+Technical and organisational constraints that shape the design.
+Example: "Must use the existing design system component library." /
+"Must support keyboard-only navigation throughout."
+
+### 9. Out of Scope
+What is explicitly excluded from this version.
+Example: "Dark mode — Phase 2." / "Offline support — not in this
+release."
+
+### 10. Open Questions
+Things that still need an answer, with an owner and due date — these
+get resolved before or during /clarify.
+Example: `OQ-001 | Which design system version are we standardising on? |
+Tech Lead | 2026-06-20`.
+
+### 11. Tech Stack
+What technologies you are using — drives constitution.md Part 2 (Tech
+Stack table) at /specify Action 1. Fill what you know — leave
+`[MISSING — ask user]` for the rest; GATE-1 is where any remaining gaps
+get finalized.
+Example: `Language | TypeScript 5.x`, `Framework | React 18`, `Build Tool
+| Vite`.
 
 ## What the Agent Extracts for Constitution
 
 From your tech stack section:
-  Language, Framework, Database, Cache, Messaging,
-  Deployment, CI/CD, Testing approach → fills Tech Stack table
+  Language, Framework, Build Tool, State Management, Component
+  Library/Design System, Routing, API Client, Bundler, Data Cache,
+  Configuration, Secrets, Resilience, Observability, Logging, Testing,
+  Coverage Gate, Linting/Formatting, Accessibility, CI/CD, Hosting/CDN →
+  fills Tech Stack table
 
 From your constraints section:
   Business rules → Domain Rules
@@ -48,52 +106,87 @@ From your constraints section:
 
 ## Template
 
-# System Context — {Service Name}
-# Version: 1.0 | Date: {date}
+# System Context — {App Name}
+# Version: {version} | Scope: {pilot | mvp | full}
+# Date: {date} | Author: {author}
 
-## What This Does
-{2-3 sentences}
+## 1. What This Service Does
+{2-3 sentences. What problem does it solve? What does it process?}
 
-## Actors
+## 2. Actors
 | Actor | Type | Role |
 |---|---|---|
+| {name} | Human / System | {role} |
 
-## Tech Stack
-| Concern | Choice |
-|---|---|
-| Language | {e.g. Java 21} |
-| Framework | {e.g. Spring Boot 3.x} |
-| Database | {e.g. PostgreSQL 15} |
-| Deployment | {e.g. Kubernetes} |
-| CI/CD | {e.g. Jenkins} |
-| Testing | {e.g. JUnit 5 + Testcontainers} |
-| ... add all relevant |
+## 3. Key Flows
 
-## Key Flows
-### Happy Path
-1. {step}
-2. {step}
+### Flow 1: {Name} — Happy Path
+Step 1: {who does what}
+Step 2: {app calls API → result}
+Step 3: {outcome}
 
-### Unhappy Path (if applicable)
-1. {step}
+### Flow 2: {Name} — Unhappy Path (if in scope)
+Trigger: {what causes this}
+Steps: {what happens + resolution}
 
-## Integrations
-| System | Direction | Purpose |
-|---|---|---|
+## 4. Endpoints
+| Method | Path | Purpose | Caller | Request | Response |
+|---|---|---|---|---|---|
+| GET | /api/v1/{resource} | {purpose} | {caller} | {type} | {type} |
 
-## NFRs
+## 5. Integrations
+| System | Direction | Purpose | Phase 1 |
+|---|---|---|---|
+| {name} | Inbound/Outbound | {purpose} | Mock/Real |
+
+## 6. Business Rules
+- {Rule 1 — specific and verifiable}
+- {Rule 2}
+
+## 7. Non-Functional Requirements
 | Category | Requirement |
 |---|---|
-| Performance | |
-| Availability | |
+| Performance | {load time target} |
+| Accessibility | {WCAG level} |
+| Browser Support | {browsers/versions} |
 
-## Constraints
-- {business rule}
-- {regulatory requirement}
+## 8. Constraints
+- {Technical constraint}
+- {Organisational constraint}
 
-## Out of Scope
-- {item}
+## 9. Out of Scope
+- {Excluded item 1}
+- {Excluded item 2}
+
+## 10. Open Questions
+| ID | Question | Owner | Due |
+|---|---|---|---|
+| OQ-001 | {question} | {owner} | {date} |
+
+## 11. Tech Stack
+| Concern | Choice |
+|---|---|
+| Language | {e.g. TypeScript 5.x} |
+| Framework | {e.g. React 18} |
+| Build Tool | {e.g. Vite} |
+| State Management | {e.g. Redux Toolkit / Zustand / Pinia / Context API} |
+| Component Library/Design System | {e.g. MUI / shadcn-ui / Tailwind + custom} |
+| Routing | {e.g. React Router / Vue Router / Angular Router} |
+| API Client | {e.g. fetch + React Query / Axios / Apollo} |
+| Bundler | {e.g. Vite / Webpack / Next.js / Nuxt} |
+| Data Cache | {e.g. React Query cache / none} |
+| Configuration | {e.g. .env files / runtime config.json} |
+| Secrets | {e.g. env vars — never in bundle} |
+| Resilience | {e.g. retry on fetch / offline handling} |
+| Observability | {e.g. Sentry / RUM / none} |
+| Logging | {e.g. structured console logs / error boundary} |
+| Testing | {e.g. Vitest + Testing Library} |
+| Coverage Gate | {e.g. 80% line coverage} |
+| Linting/Formatting | {e.g. ESLint + Prettier} |
+| Accessibility | {e.g. axe-core, WCAG 2.1 AA} |
+| CI/CD | {e.g. GitHub Actions} |
+| Hosting/CDN | {e.g. S3 + CloudFront / Vercel / Netlify / nginx} |
 
 ## CHANGELOG
-### v1.0 — {date}
-- Initial version
+### v1.0 — {date} — {author}
+- Added: Initial version

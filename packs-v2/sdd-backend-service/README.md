@@ -144,7 +144,7 @@ PROMPT-GUIDE.md).
 | File | Purpose |
 |---|---|
 | GETTING-STARTED.md | Steps to first run |
-| PROMPT-GUIDE.md | All 11 command prompts — copy-paste ready |
+| PROMPT-GUIDE.md | All 11 commands — native `/specify` etc. in Claude Code & Copilot |
 | HOW-TO-USE.md | Scope presets + command table |
 | SDLC-COMPLETE-GUIDE.md | Full lifecycle reference + checklist |
 | CHANGE-GUIDE.md | Making changes later |

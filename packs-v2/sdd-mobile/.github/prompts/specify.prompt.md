@@ -14,26 +14,26 @@ Read .specify/contexts/{manifest.project.context_file}
 Extract from context and fill Tech Stack table:
 | Concern | Look for in context |
 |---|---|
-| Language | typescript (RN) / dart (Flutter) |
-| Framework | react-native / flutter |
-| Build Tool | metro / flutter build |
-| API Style | REST / GraphQL — consumed not owned |
-| Messaging/Async | push notifications / websocket / none |
-| Serialisation | JSON always |
-| Schema | OpenAPI from backend / none |
-| Data Store | async-storage / hive / sqflite / realm / none |
-| Data Cache | in-memory / device storage |
-| DB Migration | none (device storage) |
-| Configuration | env vars / .env / app.config.js |
-| Secrets | secure storage — never in bundle |
-| Resilience | retry on network failure / offline queue |
-| Observability | crash reporting (Sentry/Crashlytics) |
-| Logging | structured — no sensitive data |
-| Testing | jest + detox (RN) / flutter_test + integration_test |
+| Language/Framework | typescript + react-native / dart + flutter |
+| Navigation | react navigation / expo router / flutter navigator 2.0 |
+| State Management | redux toolkit / zustand / riverpod / bloc |
+| Local Storage/DB | sqlite / watermelondb / hive / realm / async-storage |
+| API Client | fetch / axios + react-query / dio |
+| Build Tool | metro / gradle + xcodebuild / flutter build |
+| Push Notifications | firebase cloud messaging / apns |
+| Crash/Analytics | sentry / firebase crashlytics |
+| Data Cache | query cache / in-memory + persisted store |
+| Offline Sync | queued mutations / background sync / none |
+| Configuration | env files (.env) / build flavors per environment |
+| Secrets | keychain / keystore / secure storage — never in bundle |
+| Resilience | retry + offline queue / optimistic UI |
+| Observability | crash reporting + performance monitoring |
+| Logging | structured logs / remote log shipping — no sensitive data |
+| Testing | jest + react native testing library / detox (RN) — flutter_test + integration_test (Flutter) |
 | Coverage Gate | extract from context or default 80% |
-| Quality/Security | eslint / dart analyze + SAST |
-| Orchestration | app-store / play-store / expo / testflight |
-| CI/CD | github-actions / fastlane / bitrise / none |
+| Quality/Security | eslint + prettier / dart analyze, MASVS checklist |
+| CI/CD | github actions / fastlane lanes / bitrise / none |
+| App Store Distribution | testflight + play console internal track |
 
 Core Principles → derive from domain:
   Offline-First, Accessible, Cross-Platform, Performant

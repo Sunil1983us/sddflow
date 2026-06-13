@@ -38,12 +38,11 @@ in full. See .specify/memory/summary-rules.md.
 
 Action 1 — Generate constitution.md Part 2 from context (DRAFT):
   Read context file → extract all tech decisions
-  Fill Tech Stack table (Language/Framework, Build Tool, State Management,
-  Component Library/Design System, Routing, API Client, Bundler, Testing,
-  Coverage Gate, Linting/Formatting, Accessibility, CI/CD, Hosting/CDN,
-  and remaining concerns adapted from the 20-concern backend list —
-  Messaging/Async=none, Data Store=none/local-storage, Observability,
-  Logging, Quality/Security, Configuration, Secrets)
+  Fill Tech Stack table (Language, Framework, Build Tool, State
+  Management, Component Library/Design System, Routing, API Client,
+  Bundler, Data Cache, Configuration, Secrets, Resilience, Observability,
+  Logging, Testing, Coverage Gate, Linting/Formatting, Accessibility,
+  CI/CD, Hosting/CDN — see constitution.md Part 2 Tech Stack table)
   Extract Core Principles from domain constraints
   (Component-First, Accessible, Performant + Specification First,
   Test First, Traceability)

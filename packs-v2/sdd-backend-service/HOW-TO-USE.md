@@ -2,6 +2,10 @@
 
 ---
 
+No `.specify/contexts/{feature}.md` yet? Run `/create-context` first —
+paste rough notes and the agent drafts context.md with you, instead of
+writing it by hand. See `.specify/contexts/CONTEXT-GUIDE.md`.
+
 ## The 11 Commands
 
 | Command | What It Does | Scope |
