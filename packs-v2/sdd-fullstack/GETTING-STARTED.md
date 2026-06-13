@@ -90,7 +90,7 @@ OR open VS Code at project root + GitHub Copilot Chat
 
 Two actions automatically:
 1. Reads your context → fills constitution.md Part 2
-   (Tech Stack 20 concerns + Principles + Domain Rules)
+   (Tech Stack — Backend / Frontend / Shared + Principles + Domain Rules)
 2. Generates spec documents (BRD, SRD, HLD...)
 
 You never manually fill the constitution.

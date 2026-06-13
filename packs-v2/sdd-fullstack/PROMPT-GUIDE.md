@@ -90,6 +90,7 @@ Read CLAUDE.md
 Read .specify/manifest.yml
 Read .specify/memory/constitution.md
 Read .specify/memory/summary-rules.md
+Read .specify/memory/change-rules.md
 
 Confirm:
   Project name: {value}

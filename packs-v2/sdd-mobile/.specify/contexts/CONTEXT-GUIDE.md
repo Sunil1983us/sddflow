@@ -26,14 +26,17 @@ If you're comfortable writing the structured file directly, skip
 
 ## What to Include
 
-### 1. What the system does (2-3 sentences)
-### 2. Actors — who uses or calls it
-### 3. Key flows — step by step (happy path + key unhappy paths)
-### 4. Integrations — what external systems are involved
-### 5. Tech stack — what technologies you are using
-### 6. NFRs — performance, availability, scalability targets
-### 7. Constraints — regulatory, security, business rules
-### 8. Out of scope — what is explicitly excluded
+### 1. What This Service Does — 2-3 sentences on what problem it solves and what it processes
+### 2. Actors — who uses or calls it (human or system, and their role)
+### 3. Key Flows — step by step (happy path + key unhappy paths)
+### 4. Endpoints — the API surface this service exposes (method, path, purpose, caller, request/response)
+### 5. Integrations — what external systems are involved, direction, and purpose
+### 6. Business Rules — specific, verifiable rules the system must enforce
+### 7. Non-Functional Requirements — performance, availability, throughput, data retention targets
+### 8. Constraints — technical, regulatory, and business constraints
+### 9. Out of Scope — what is explicitly excluded
+### 10. Open Questions — unresolved items, with owner and due date
+### 11. Tech Stack — what technologies you are using
 
 ## What the Agent Extracts for Constitution
 

@@ -33,7 +33,7 @@ Status/State Machine (if applicable):
   All states + transitions — stateDiagram-v2
 
 ### Include If Applicable
-- Component hierarchy (frontend/mobile)
+- Screen hierarchy / navigation tree
 - Screen flow diagram (mobile)
 - Event flow diagram (messaging)
 - Deployment diagram (if complex)

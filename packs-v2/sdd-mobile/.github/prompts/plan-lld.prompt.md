@@ -25,11 +25,11 @@ Generate LLD with detailed technical diagrams in Mermaid.
 ### Package / Folder Structure
 Full directory tree — every package/folder and its purpose
 
-### Class Diagram (backend)
+### Class diagram (view-models / services / repositories)
 All classes + interfaces + relationships — classDiagram
 Include: fields, key methods, implements/extends
 
-### Component Diagram (frontend/mobile)
+### Screen/widget component diagram
 All components + props + events — graph TD or classDiagram
 
 ### Detailed Sequence Diagrams

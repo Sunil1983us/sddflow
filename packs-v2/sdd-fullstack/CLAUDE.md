@@ -18,16 +18,28 @@ has a structured context.md.
 2. Read .specify/memory/constitution.md
 3. Read .specify/memory/summary-rules.md
 4. Read .specify/memory/change-rules.md
-4. Confirm: project.name, scope, feature, context_file
+5. Confirm: project.name, scope, feature, context_file
+
+## AI-2 — Summary-First Rule (token economy)
+For every command AFTER /specify, read ONLY `.summary.md` files for prior
+documents — never re-read full `.md` docs. The one exception is
+/implement, which reads `tasks.md` (current task only) + `constitution.md`
+in full. See .specify/memory/summary-rules.md.
 
 ## SPECIFY — Two Actions in Order
 
 Action 1 — Generate constitution.md Part 2 from context:
-  Extract FULL tech stack for both layers:
-  Backend: Language, Framework, Data Store, Cache, Messaging,
-           DB Migration, Resilience, CI/CD, Deployment
-  Frontend: UI Framework, Styling, State, Testing, E2E
-  Shared: API Style, Serialisation, Observability, Secrets
+  Extract FULL tech stack for both layers — see constitution.md Part 2
+  Tech Stack table (Backend / Frontend / Shared):
+  Backend:  Language, Framework, Build Tool, Messaging/Async, Schema,
+            Data Store, Data Cache, DB Migration, Resilience, Testing,
+            Coverage Gate
+  Frontend: Language, Framework, Build Tool, State Management, Component
+            Library/Design System, Routing, API Client, Data Cache,
+            Testing, Coverage Gate, Accessibility
+  Shared:   API Style, Serialisation, Configuration, Secrets,
+            Observability, Logging, Quality/Security, Orchestration,
+            CI/CD
   Extract Core Principles (API-contract-first, test-first, traceable)
   Extract Domain Rules covering both layers
   Save updated constitution.md
