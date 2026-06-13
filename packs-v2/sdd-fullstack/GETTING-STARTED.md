@@ -14,14 +14,35 @@ git init && git add . && git commit -m "chore: SDD framework"
 Create `.specify/contexts/my-feature.md`
 Open `.specify/contexts/CONTEXT-GUIDE.md` — use it as your guide.
 
-Must include a Tech Stack section:
+**Not confident writing this yourself?** Run `/create-context` instead —
+paste any rough notes (an email, bullet points, half-formed thoughts —
+backend, frontend, or both) and the agent drafts `context.md` with you,
+asking a plain-language checklist for anything missing. See
+PROMPT-GUIDE.md → "/create-context".
+
+Must include a Tech Stack section covering BOTH layers (Backend, Frontend,
+Shared):
 ```markdown
 ## Tech Stack
+
+### Backend
 | Concern | Choice |
 |---|---|
 | Language | Java 21 |
 | Framework | Spring Boot 3.x |
 | Database | PostgreSQL 15 |
+
+### Frontend
+| Concern | Choice |
+|---|---|
+| Language | TypeScript 5.x |
+| Framework | React 18 |
+| State Management | Redux Toolkit |
+
+### Shared
+| Concern | Choice |
+|---|---|
+| API Style | REST + OpenAPI |
 | Deployment | Kubernetes |
 | CI/CD | Jenkins |
 ...

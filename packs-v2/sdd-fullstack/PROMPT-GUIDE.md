@@ -7,6 +7,7 @@
 
 | Command | Claude Code | Copilot | Does |
 |---|---|---|---|
+| `/create-context` (optional) | `/create-context` | `/create-context` | Turn informal notes into context.md |
 | Startup | Paste Step 0 | Step 0 | Read files + confirm |
 | `/specify` | Paste prompt | `/specify` | Constitution + spec docs |
 | `/analyze` | Paste prompt | `/analyze` | Risks + complexity |
@@ -17,6 +18,39 @@
 | `/plan-adr` | Paste prompt | `/plan-adr` | ADRs (mvp+ only) |
 | `/task` | Paste prompt | `/task` | Stories + Tasks + Jira |
 | `/implement` | Paste prompt | `/implement TASK-NNN` | Code one task |
+
+---
+
+## /create-context — Optional Pre-Phase (before SPECIFY)
+
+Skip this if you already have a structured `.specify/contexts/{feature}.md`
+written per `.specify/contexts/CONTEXT-GUIDE.md` — go straight to STEP 0.
+
+If you don't (or aren't sure how to write one), run `/create-context`:
+
+```
+Paste whatever you have — rough notes, an email, a requirements doc, bullet
+points, even half-formed thoughts. Any format. Cover backend and frontend
+if you can, but partial info for either side is OK.
+```
+
+The agent:
+1. Maps your input onto context-template.md's sections (What This Does,
+   Actors, Key Flows, Endpoints, Integrations, Business Rules, NFRs,
+   Constraints, Out of Scope, Open Questions, Tech Stack — Backend /
+   Frontend / Shared).
+2. Fills in what it can infer, marks the rest `[MISSING — ask user]`.
+3. Gives you a plain-language "Missing Information" checklist.
+4. You answer what you can — "not sure" is fine for technical questions
+   (the architect decides later at /plan-arch).
+5. Repeat until you say "good enough, proceed" or nothing is missing.
+6. Saves `.specify/contexts/{feature}.md` — the file /specify reads.
+
+Optionally keeps your original notes at
+`.specify/contexts/{feature}.raw.md` (reference only, never read by any
+other command) so you can re-run `/create-context` later with more detail —
+e.g. when scope upgrades from pilot to mvp/full and new sections need
+filling in.
 
 ---
 

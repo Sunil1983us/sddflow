@@ -109,15 +109,20 @@ Two actions automatically:
 unzip sdd-fullstack-v2.zip -d my-service
 cd my-service
 git init
-# Write .specify/contexts/my-feature.md
+# Write .specify/contexts/my-feature.md (or run /create-context if you'd
+# rather paste rough notes and let the agent draft it for you)
 # Fill .specify/manifest.yml (4 fields)
 claude    # Claude Code Desktop — type /start, then /specify, /clarify, etc.
 # OR open VS Code + Copilot Chat — type /specify, /clarify, etc.
 ```
 
-Run `/start` (Claude Code) or follow Step 0 (Copilot) from PROMPT-GUIDE.md →
-then run the commands as native slash commands (no copy/paste needed —
-`.claude/commands/` ships with this pack).
+No structured context.md yet? Run `/create-context` first — paste any
+notes you have (backend, frontend, or both) and the agent drafts it with
+you (see PROMPT-GUIDE.md).
+
+Otherwise, run `/start` (Claude Code) or follow Step 0 (Copilot) from
+PROMPT-GUIDE.md → then run the commands as native slash commands (no
+copy/paste needed — `.claude/commands/` ships with this pack).
 
 ---
 
