@@ -1,8 +1,14 @@
 # API Specification
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: srd.summary.md + arch.summary.md
+> Version: 1.0 | Date: {date}
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced} |
+| arch.summary.md | {sections/IDs referenced} |
 
 ## 1. Base URL
 ```
@@ -122,4 +128,8 @@
 | {DOMAIN_ERROR} | 422 | {domain-specific error} |
 
 ---
-*Generated from: srd.summary.md + arch.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

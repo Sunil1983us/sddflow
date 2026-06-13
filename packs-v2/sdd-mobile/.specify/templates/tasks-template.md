@@ -1,8 +1,13 @@
 # Task List
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: plan.summary.md
+> Version: 1.0 | Date: {date}
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| plan.summary.md | {sections/IDs referenced} |
 
 ## Task Field Reference
 Every task includes:
@@ -188,4 +193,8 @@ Acceptance criteria:
 | **Total** | **13 tasks** | **~990** | **15 PRs** |
 
 ---
-*Generated from: plan.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

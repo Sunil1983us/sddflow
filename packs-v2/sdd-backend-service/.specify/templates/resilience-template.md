@@ -1,10 +1,14 @@
 # Resilience Design
 # Feature: {Feature Name}
 > Version: 1.0 | Date: {date} | Scope: Full only — skip for pilot + mvp
-> Drafted at: /specify (Input: srd.summary.md)
-> Refined at: /plan-arch (Input: + arch.summary.md — integration list)
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced — drafted at /specify} |
+| arch.summary.md | {sections/IDs referenced — refined at /plan-arch: integration list} |
 
 ## 1. Resilience Strategy
 
@@ -102,4 +106,8 @@ resilience4j:
 | Timeout | ERROR | timeout.count |
 
 ---
-*Generated from: arch.summary.md + srd.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

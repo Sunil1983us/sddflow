@@ -2,10 +2,14 @@
 # Feature: {Feature Name}
 > Version: 1.0 | Date: {date}
 > Scope: Full only — skip for pilot + mvp
-> Drafted at: /specify (Input: srd.summary.md)
-> Refined at: /plan-arch (Input: + arch.summary.md — flows)
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced — drafted at /specify} |
+| arch.summary.md | {sections/IDs referenced — refined at /plan-arch: flows} |
 
 ## 1. Crash-Reporting SDK Integration
 
@@ -161,4 +165,8 @@ When a crash or bug is reported, collect:
 | API error rate (client-observed) > {threshold} | INV-{NNN} | Yes |
 
 ---
-*Drafted from: srd.summary.md (at /specify) | Refined from: arch.summary.md (at /plan-arch)*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

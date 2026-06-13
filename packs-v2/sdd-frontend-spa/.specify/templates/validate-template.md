@@ -1,9 +1,15 @@
 # Validation Report — Business Sign-Off
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: brd.summary.md + srd.summary.md
+> Version: 1.0 | Date: {date}
 > Run after: Constitution Part 2 finalized | Gate before: /analyze
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| brd.summary.md | {sections/IDs referenced} |
+| srd.summary.md | {sections/IDs referenced} |
 
 ## 1. Business Objective Trace
 
@@ -61,4 +67,8 @@ State one of:
 - "VALIDATE incomplete — {N} items need changes. Update context.md and re-run /specify before re-validating."
 
 ---
-*Generated from: brd.summary.md + srd.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

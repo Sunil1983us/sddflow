@@ -1,5 +1,9 @@
 # UX Flow — {Feature Name}
-> Input: srd.summary.md
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced} |
 
 ## User Journey
 | Step | Actor | Action | Screen/State | Outcome |
@@ -19,6 +23,11 @@
 ## Edge Cases
 - {edge case 1}
 - {edge case 2}
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
 
 ## Summary
 > Lines: {N} / {SUMMARY_MAX_LINES}

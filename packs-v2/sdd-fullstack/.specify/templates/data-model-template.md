@@ -1,8 +1,13 @@
 # Data Model
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: arch.summary.md
+> Version: 1.0 | Date: {date}
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| arch.summary.md | {sections/IDs referenced} |
 
 ## 1. Entity Relationship
 ```mermaid
@@ -68,4 +73,8 @@ erDiagram
 | {field} | {business meaning} |
 
 ---
-*Generated from: arch.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

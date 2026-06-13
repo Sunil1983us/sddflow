@@ -1,10 +1,14 @@
 # Frontend Resilience
 # Feature: {Feature Name}
 > Version: 1.0 | Date: {date} | Scope: Full only — skip for pilot + mvp
-> Drafted at: /specify (Input: srd.summary.md)
-> Refined at: /plan-arch (Input: + arch.summary.md — integration list)
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced — drafted at /specify} |
+| arch.summary.md | {sections/IDs referenced — refined at /plan-arch: integration list} |
 
 ## 1. Offline Detection & UX
 
@@ -114,4 +118,8 @@ correlation ID and route.
 See investigation.md (Full scope) for SDK integration details and triage.
 
 ---
-*Drafted from: srd.summary.md (at /specify) | Refined from: arch.summary.md (at /plan-arch)*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

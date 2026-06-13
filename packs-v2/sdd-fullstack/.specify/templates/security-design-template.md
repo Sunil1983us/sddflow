@@ -2,12 +2,16 @@
 # Feature: {Feature Name}
 > Version: 1.0 | Date: {date} | Generated at ALL scopes — depth scales
 > with scope (see section markers)
-> Drafted at: /specify (Input: srd.summary.md)
-> Refined at: /plan-arch (Input: + arch.summary.md — cross-cutting concerns)
 > Covers: Server-side / backend (OWASP Top 10, ASVS) AND
 > Client-side / frontend (XSS, CSRF, token storage, SCA) — see subsections
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced — drafted at /specify} |
+| arch.summary.md | {sections/IDs referenced — refined at /plan-arch: cross-cutting concerns} |
 
 ## 1. Pilot Security Checklist (always)
 
@@ -115,5 +119,9 @@
 - Never render unsanitized user input as HTML (frontend XSS)
 
 ---
-*Drafted from: srd.summary.md (at /specify) | Refined from: arch.summary.md (at /plan-arch)*
 *Pilot: sections 1a+1b only | MVP: + sections 2a+2b | Full: + sections 3-4 (both subsections)*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

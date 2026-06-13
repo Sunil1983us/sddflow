@@ -1,8 +1,14 @@
 # Feature and Story Breakdown
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Input: srd.summary.md + plan.summary.md
+> Version: 1.0 | Date: {date}
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced} |
+| plan.summary.md | {sections/IDs referenced} |
 
 ## Feature Definition
 
@@ -99,4 +105,8 @@ least one TC-NNN before /release. R-NNN IDs come from analyze.md §2 Risk
 Register — link only risks relevant to that story.
 
 ---
-*Generated from: srd.summary.md + plan.summary.md*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

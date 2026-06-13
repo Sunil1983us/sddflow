@@ -1,10 +1,14 @@
 # API Specification
 # Feature: {Feature Name}
 > Version: 1.0 | Date: {date} | Scope: MVP+
-> Drafted at: /specify (Input: srd.summary.md)
-> Refined at: /plan-arch (Input: + arch.summary.md — ports/adapters)
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced — drafted at /specify} |
+| arch.summary.md | {sections/IDs referenced — refined at /plan-arch: ports/adapters} |
 
 ## 1. Base URL
 ```
@@ -124,4 +128,8 @@
 | {DOMAIN_ERROR} | 422 | {domain-specific error} |
 
 ---
-*Drafted from: srd.summary.md (at /specify) | Refined from: arch.summary.md (at /plan-arch)*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

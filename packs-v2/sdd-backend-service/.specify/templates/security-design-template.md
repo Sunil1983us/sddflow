@@ -2,10 +2,14 @@
 # Feature: {Feature Name}
 > Version: 1.0 | Date: {date} | Generated at ALL scopes — depth scales
 > with scope (see section markers)
-> Drafted at: /specify (Input: srd.summary.md)
-> Refined at: /plan-arch (Input: + arch.summary.md — cross-cutting concerns)
 
 ---
+
+## References
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced — drafted at /specify} |
+| arch.summary.md | {sections/IDs referenced — refined at /plan-arch: cross-cutting concerns} |
 
 ## 1. Pilot Security Checklist (always)
 
@@ -72,5 +76,9 @@
 - Never commit secrets — `.env` is gitignored, `.env.example` has placeholders only
 
 ---
-*Drafted from: srd.summary.md (at /specify) | Refined from: arch.summary.md (at /plan-arch)*
 *Pilot: section 1 only | MVP: + section 2 | Full: + sections 3-4*
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
