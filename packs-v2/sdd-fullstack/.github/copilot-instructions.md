@@ -5,7 +5,8 @@ Read .specify/manifest.yml + constitution.md + summary-rules.md
 
 ## SPECIFY — Two Actions
 Action 1: Generate constitution.md Part 2 from context
-  (Tech Stack 20 concerns + Principles + Domain Rules + Never Do)
+  (Tech Stack — Backend / Frontend / Shared + Principles + Domain Rules +
+  Never Do)
 Action 2: Generate spec documents per scope
 
 ## 9 Commands

@@ -28,21 +28,97 @@ If you're comfortable writing the structured file directly, skip
 
 ## What to Include
 
-### 1. What the system does (2-3 sentences)
-### 2. Actors — who uses or calls it
-### 3. Key flows — step by step (happy path + key unhappy paths)
-### 4. Integrations — what external systems are involved
-### 5. Tech stack — what technologies you are using
-### 6. NFRs — performance, availability, scalability targets
-### 7. Constraints — regulatory, security, business rules
-### 8. Out of scope — what is explicitly excluded
+### 1. What This Service Does
+2-3 sentences. What problem does it solve? What does it process — and
+which parts are backend vs frontend?
+Example: "Lets customer-support agents search, view, and update customer
+tickets from a dashboard. The backend validates updates against business
+rules and persists them; the frontend renders the ticket list and detail
+views."
+
+### 2. Actors
+Who uses or calls it — humans and systems, with their role.
+Example: `Support Agent | Human | Searches and updates tickets via the
+UI`, `Ticketing DB | System | Stores ticket records`.
+
+### 3. Key Flows
+Step by step, happy path + key unhappy paths — note which steps happen in
+the frontend vs the backend.
+Example happy path: "Step 1: Agent searches by email in the UI. Step 2:
+Frontend calls GET /api/v1/tickets?email=. Step 3: Backend validates and
+queries the DB, returns matching tickets. Step 4: Frontend renders the
+list."
+Example unhappy path: "Trigger: backend returns 404 (no tickets found).
+Steps: frontend shows an empty state with a 'create ticket' call to
+action."
+
+### 4. Endpoints
+The API contract between backend and frontend — method, path, purpose,
+caller, request/response types. This is the single source of truth both
+layers are built against.
+Example: `GET | /api/v1/tickets?email={email} | Search tickets by
+customer email | Frontend | — | TicketSummary[]`.
+
+### 5. Integrations
+What external systems are involved, direction, purpose, and whether
+Phase 1 uses a mock or the real integration.
+Example: `Auth Provider | Inbound | SSO login | Mock`, `Notification
+Service | Outbound | Email on ticket update | Real`.
+
+### 6. Business Rules
+Specific, verifiable rules the system must enforce — note whether
+enforced by the backend, the frontend, or both.
+Example: "A ticket cannot be marked Resolved unless it has at least one
+agent reply (enforced by backend; frontend disables the button until
+true)."
+
+### 7. Non-Functional Requirements
+Performance, availability, accessibility, and scalability targets for
+both layers.
+Example: `Backend Performance | P99 < 300ms`, `Frontend Performance |
+First Contentful Paint < 2s`, `Accessibility | WCAG 2.1 AA`,
+`Availability | 99.9%`.
+
+### 8. Constraints
+Technical, regulatory, and organisational constraints that shape the
+design of either layer.
+Example: "Must run on existing Kubernetes cluster — no new
+infrastructure." / "Must use the existing design system component
+library."
+
+### 9. Out of Scope
+What is explicitly excluded from this version.
+Example: "Multi-currency support — Phase 2." / "Dark mode — not in this
+release."
+
+### 10. Open Questions
+Things that still need an answer, with an owner and due date — these
+get resolved before or during /clarify.
+Example: `OQ-001 | Which team owns the notification service SLA? |
+Architect | 2026-06-20`.
+
+### 11. Tech Stack
+What technologies you are using — drives constitution.md Part 2 (Tech
+Stack table, split Backend / Frontend / Shared) at /specify Action 1.
+Fill what you know — leave `[MISSING — ask user]` for the rest; GATE-1
+(or your scope's equivalent constitution review) is where any remaining
+gaps get finalized. This pack covers both layers — fill Backend AND
+Frontend; Shared applies to both.
+Example: `Backend: Language | Java 21`, `Frontend: Framework | React 18`,
+`Shared: API Style | REST + OpenAPI`.
 
 ## What the Agent Extracts for Constitution
 
 From your tech stack section (Backend, Frontend, and Shared):
-  Backend:  Language, Framework, Database, Cache, Messaging, DB Migration
-  Frontend: Language, Framework, State Management, API Client, Testing
-  Shared:   API Style, Configuration, Secrets, Observability, CI/CD
+  Backend:  Language, Framework, Build Tool, Messaging/Async, Schema,
+            Data Store, Data Cache, DB Migration, Resilience, Testing,
+            Coverage Gate
+  Frontend: Language, Framework, Build Tool, State Management, Component
+            Library/Design System, Routing, API Client, Data Cache,
+            Testing, Coverage Gate, Accessibility
+  Shared:   API Style, Serialisation, Configuration, Secrets,
+            Observability, Logging, Quality/Security, Orchestration,
+            CI/CD
   → fills constitution Tech Stack table for both layers
 
 From your constraints section:
@@ -53,72 +129,114 @@ From your constraints section:
 ## Template
 
 # System Context — {Service Name}
-# Version: 1.0 | Date: {date}
+# Version: {version} | Scope: {pilot | mvp | full}
+# Date: {date} | Author: {author}
 
-## What This Does
-{2-3 sentences}
+## 1. What This Service Does
+{2-3 sentences. What problem does it solve? What does it process — and
+which parts are backend vs frontend?}
 
-## Actors
+## 2. Actors
 | Actor | Type | Role |
 |---|---|---|
+| {name} | Human / System | {role} |
 
-## Tech Stack
+## 3. Key Flows
+
+### Flow 1: {Name} — Happy Path
+Step 1: {who does what}
+Step 2: {system calls downstream → result}
+Step 3: {outcome}
+
+### Flow 2: {Name} — Unhappy Path (if in scope)
+Trigger: {what causes this}
+Steps: {what happens + resolution}
+
+## 4. Endpoints
+| Method | Path | Purpose | Caller | Request | Response |
+|---|---|---|---|---|---|
+| POST | /api/v1/{resource} | {purpose} | {caller} | {type} | {type} |
+
+## 5. Integrations
+| System | Direction | Purpose | Phase 1 |
+|---|---|---|---|
+| {name} | Inbound/Outbound | {purpose} | Mock/Real |
+
+## 6. Business Rules
+- {Rule 1 — specific and verifiable}
+- {Rule 2}
+
+## 7. Non-Functional Requirements
+| Category | Requirement |
+|---|---|
+| Performance | {P99 response target} |
+| Availability | {uptime target} |
+| Throughput | {TPS peak} |
+| Data Retention | {years} |
+
+## 8. Constraints
+- {Technical constraint}
+- {Regulatory constraint}
+
+## 9. Out of Scope
+- {Excluded item 1}
+- {Excluded item 2}
+
+## 10. Open Questions
+| ID | Question | Owner | Due |
+|---|---|---|---|
+| OQ-001 | {question} | {owner} | {date} |
+
+## 11. Tech Stack
+> Drives constitution.md Part 2 (Tech Stack table) at /specify Action 1.
+> Fill what you know — leave `[MISSING — ask user]` for the rest; GATE-1
+> (or your scope's equivalent constitution review) is where any remaining
+> gaps get finalized. This pack covers both layers — fill Backend AND
+> Frontend; Shared applies to both.
 
 ### Backend
 | Concern | Choice |
 |---|---|
 | Language | {e.g. Java 21} |
 | Framework | {e.g. Spring Boot 3.x} |
-| Database | {e.g. PostgreSQL 15} |
-| Cache | {e.g. Redis / none} |
+| Build Tool | {e.g. Maven} |
+| Messaging/Async | {e.g. Kafka / RabbitMQ / none} |
+| Schema | {e.g. Flyway-managed SQL} |
+| Data Store | {e.g. PostgreSQL 15} |
+| Data Cache | {e.g. Redis / none} |
+| DB Migration | {e.g. Flyway / Liquibase} |
+| Resilience | {e.g. Resilience4j — retry/circuit breaker} |
 | Testing | {e.g. JUnit 5 + Testcontainers} |
-| ... add all relevant |
+| Coverage Gate | {e.g. 80% line coverage} |
 
 ### Frontend
 | Concern | Choice |
 |---|---|
 | Language | {e.g. TypeScript 5.x} |
 | Framework | {e.g. React 18} |
-| State Management | {e.g. Redux Toolkit / Zustand} |
-| API Client | {e.g. fetch + React Query / Axios} |
+| Build Tool | {e.g. Vite} |
+| State Management | {e.g. Redux Toolkit / Zustand / Pinia / Context API} |
+| Component Library/Design System | {e.g. MUI / shadcn-ui / Tailwind + custom} |
+| Routing | {e.g. React Router / Vue Router / Angular Router} |
+| API Client | {e.g. fetch + React Query / Axios / Apollo} |
+| Data Cache | {e.g. React Query cache / none} |
 | Testing | {e.g. Vitest + Testing Library} |
-| ... add all relevant |
+| Coverage Gate | {e.g. 80% line coverage} |
+| Accessibility | {e.g. axe-core, WCAG 2.1 AA} |
 
 ### Shared
 | Concern | Choice |
 |---|---|
 | API Style | {e.g. REST + OpenAPI} |
-| Configuration | {e.g. env vars / .env files} |
-| Secrets | {e.g. Vault / cloud secrets manager} |
-| Deployment | {e.g. Kubernetes} |
+| Serialisation | {e.g. JSON / Avro / Protobuf} |
+| Configuration | {e.g. env vars / config server / .env files} |
+| Secrets | {e.g. Vault / cloud secrets manager — never in frontend bundle} |
+| Observability | {e.g. OpenTelemetry + Grafana / Sentry / RUM} |
+| Logging | {e.g. structured JSON logs (backend) / console + error boundary (frontend)} |
+| Quality/Security | {e.g. SonarQube + OWASP Dependency-Check + ESLint} |
+| Orchestration | {e.g. Kubernetes} |
 | CI/CD | {e.g. GitHub Actions / Jenkins} |
-| ... add all relevant |
-
-## Key Flows
-### Happy Path
-1. {step}
-2. {step}
-
-### Unhappy Path (if applicable)
-1. {step}
-
-## Integrations
-| System | Direction | Purpose |
-|---|---|---|
-
-## NFRs
-| Category | Requirement |
-|---|---|
-| Performance | |
-| Availability | |
-
-## Constraints
-- {business rule}
-- {regulatory requirement}
-
-## Out of Scope
-- {item}
 
 ## CHANGELOG
-### v1.0 — {date}
-- Initial version
+### v1.0 — {date} — {author}
+- Added: Initial version

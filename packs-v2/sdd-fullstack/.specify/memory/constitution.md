@@ -76,25 +76,48 @@
 # Do not fill manually — run SPECIFY first
 
 ## Tech Stack
+> This pack covers both layers — fill Backend AND Frontend; Shared
+> applies to both.
+
+### Backend
 | Concern | Choice | Notes |
 |---|---|---|
 | Language | {extracted from context} | |
 | Framework | {extracted from context} | |
 | Build Tool | {derived} | |
-| API Style | {extracted from context} | |
 | Messaging/Async | {extracted from context} | |
-| Serialisation | {extracted from context} | |
 | Schema | {extracted from context} | |
 | Data Store | {extracted from context} | |
 | Data Cache | {extracted from context} | |
 | DB Migration | {derived} | |
-| Configuration | {extracted from context} | |
-| Secrets | {extracted from context} | |
 | Resilience | {extracted from context} | |
-| Observability | {extracted from context} | |
-| Logging | {extracted from context} | |
 | Testing | {derived} | |
 | Coverage Gate | {extracted from context} | |
+
+### Frontend
+| Concern | Choice | Notes |
+|---|---|---|
+| Language | {extracted from context} | |
+| Framework | {extracted from context} | |
+| Build Tool | {derived} | |
+| State Management | {extracted from context} | |
+| Component Library/Design System | {extracted from context} | |
+| Routing | {extracted from context} | |
+| API Client | {extracted from context} | |
+| Data Cache | {extracted from context} | |
+| Testing | {derived} | |
+| Coverage Gate | {extracted from context} | |
+| Accessibility | {extracted from context} | |
+
+### Shared
+| Concern | Choice | Notes |
+|---|---|---|
+| API Style | {extracted from context} | |
+| Serialisation | {extracted from context} | |
+| Configuration | {extracted from context} | |
+| Secrets | {extracted from context} | |
+| Observability | {extracted from context} | |
+| Logging | {extracted from context} | |
 | Quality/Security | {derived} | |
 | Orchestration | {extracted from context} | |
 | CI/CD | {extracted from context} | |

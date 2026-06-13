@@ -33,11 +33,15 @@ PLAN is split into 4 sub-commands — each reviewed separately.
 ## /specify — Two Actions
 
 **Action 1 — Constitution Part 2:**
-Reads context → fills Tech Stack (20 concerns):
-Language, Framework, Build Tool, API Style, Messaging/Async,
-Serialisation, Schema, Data Store, Data Cache, DB Migration,
-Configuration, Secrets, Resilience, Observability, Logging,
-Testing, Coverage Gate, Quality/Security, Orchestration, CI/CD
+Reads context → fills Tech Stack, split Backend / Frontend / Shared:
+Backend:  Language, Framework, Build Tool, Messaging/Async, Schema,
+          Data Store, Data Cache, DB Migration, Resilience, Testing,
+          Coverage Gate
+Frontend: Language, Framework, Build Tool, State Management, Component
+          Library/Design System, Routing, API Client, Data Cache,
+          Testing, Coverage Gate, Accessibility
+Shared:   API Style, Serialisation, Configuration, Secrets,
+          Observability, Logging, Quality/Security, Orchestration, CI/CD
 
 Also extracts: Core Principles, Domain Rules, Never Do
 
