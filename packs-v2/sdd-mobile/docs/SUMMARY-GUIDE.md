@@ -35,6 +35,9 @@ Tell agent: "Summary rules updated — re-read summary-rules.md"
 | Full | 25-35 | ~450 |
 
 ## What Each Command Reads (AI-2 — summary-first, mandatory)
+CREATE-CONTEXT (optional, before SPECIFY) reads: any raw notes provided +
+  context.raw.md (if re-run) — writes context.md. No other command ever
+  reads context.raw.md.
 SPECIFY reads: context.md (full — first run only)
 GATE-1 (manual): you read constitution.md Part 2 in full to finalize it
 VALIDATE reads: brd.summary + srd.summary

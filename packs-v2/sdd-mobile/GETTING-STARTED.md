@@ -14,6 +14,11 @@ git init && git add . && git commit -m "chore: SDD framework"
 Create `.specify/contexts/my-feature.md`
 Open `.specify/contexts/CONTEXT-GUIDE.md` — use it as your guide.
 
+**Not confident writing this yourself?** Run `/create-context` instead —
+paste any rough notes (an email, bullet points, half-formed thoughts) and
+the agent drafts `context.md` with you, asking a plain-language checklist
+for anything missing. See PROMPT-GUIDE.md → "/create-context".
+
 Must include a Tech Stack section:
 ```markdown
 ## Tech Stack
@@ -99,7 +104,7 @@ Nothing after /specify proceeds until this is done.
 ## Read Next
 | File | When |
 |---|---|
-| PROMPT-GUIDE.md | All 11 command prompts — copy-paste |
+| PROMPT-GUIDE.md | All 11 commands — native `/specify` etc. in Claude Code & Copilot |
 | README.md | Full overview |
 | HOW-TO-USE.md | Scope presets + tips |
 | CHANGE-GUIDE.md | Making changes later |

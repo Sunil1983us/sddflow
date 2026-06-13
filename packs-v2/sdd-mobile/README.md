@@ -17,7 +17,8 @@ you review and finalize it (GATE-1) before work continues.
 
 ### 1. contexts/{feature}.md — Your system description (15-30 min)
 Include a Tech Stack section — agent extracts it for constitution.
-Use CONTEXT-GUIDE.md as your guide.
+Use CONTEXT-GUIDE.md as your guide, or run `/create-context` to have
+the agent draft it with you from informal notes.
 
 ### 2. manifest.yml — 4 fields only (2 min)
 ```yaml
@@ -127,14 +128,21 @@ for review — never silently overwrite a finalized Part 2.
 unzip sdd-mobile-v2.zip -d my-app
 cd my-app
 git init
-# Write .specify/contexts/my-feature.md
+# Write .specify/contexts/my-feature.md (or run /create-context if you'd
+# rather paste rough notes and let the agent draft it for you)
 # Fill .specify/manifest.yml (4 fields)
 # Fill .specify/memory/roles.yml (RACI owners — optional but recommended)
-claude    # Claude Code Desktop
-# OR open VS Code + Copilot Chat
+claude    # Claude Code Desktop — type /start, then /specify, /clarify, etc.
+# OR open VS Code + Copilot Chat — type /specify, /clarify, etc.
 ```
 
-Paste Step 0 from PROMPT-GUIDE.md → follow the 11 commands.
+No structured context.md yet? Run `/create-context` first — paste any
+notes you have and the agent drafts it with you (see PROMPT-GUIDE.md).
+
+Otherwise, run `/start` (Claude Code) or follow Step 0 (Copilot) from
+PROMPT-GUIDE.md → then run the 11 commands as native slash commands (no
+copy/paste needed — see "Claude Code Native Slash Commands" in
+PROMPT-GUIDE.md).
 
 ---
 
@@ -143,7 +151,7 @@ Paste Step 0 from PROMPT-GUIDE.md → follow the 11 commands.
 | File | Purpose |
 |---|---|
 | GETTING-STARTED.md | Steps to first run |
-| PROMPT-GUIDE.md | All 11 command prompts — copy-paste ready |
+| PROMPT-GUIDE.md | All 11 command prompts — native `/specify` etc. in Claude Code & Copilot |
 | HOW-TO-USE.md | Scope presets + command table |
 | SDLC-COMPLETE-GUIDE.md | Full lifecycle reference + checklist |
 | CHANGE-GUIDE.md | Making changes later |

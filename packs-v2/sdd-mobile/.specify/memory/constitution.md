@@ -105,26 +105,26 @@ table.
 ## Tech Stack
 | Concern | Choice | Notes |
 |---|---|---|
-| Language | {extracted from context} | |
-| Framework | {extracted from context} | |
-| Build Tool | {derived} | |
-| API Style | {extracted from context} | |
-| Messaging/Async | {extracted from context} | |
-| Serialisation | {extracted from context} | |
-| Schema | {extracted from context} | |
-| Data Store | {extracted from context} | |
-| Data Cache | {extracted from context} | |
-| DB Migration | {derived} | |
-| Configuration | {extracted from context} | |
-| Secrets | {extracted from context} | |
-| Resilience | {extracted from context} | |
-| Observability | {extracted from context} | |
-| Logging | {extracted from context} | |
-| Testing | {derived} | |
+| Language/Framework | {extracted from context} | react native + typescript / flutter + dart |
+| Navigation | {extracted from context} | react navigation / expo router / flutter navigator 2.0 |
+| State Management | {extracted from context} | redux toolkit / zustand / riverpod / bloc |
+| Local Storage/DB | {extracted from context} | sqlite / watermelondb / hive / realm |
+| API Client | {extracted from context} | fetch / axios + react-query / dio |
+| Build Tool | {derived} | metro / gradle + xcodebuild / flutter build |
+| Push Notifications | {extracted from context} | firebase cloud messaging / apns |
+| Crash/Analytics | {extracted from context} | sentry / firebase crashlytics |
+| Data Cache | {extracted from context} | query cache / in-memory + persisted store |
+| Offline Sync | {extracted from context} | queued mutations / background sync / none |
+| Configuration | {extracted from context} | env files (.env) / build flavors per environment |
+| Secrets | {extracted from context} | keychain / keystore / secure storage — never in bundle |
+| Resilience | {extracted from context} | retry + offline queue / optimistic UI |
+| Observability | {extracted from context} | crash reporting + performance monitoring |
+| Logging | {extracted from context} | structured logs / remote log shipping |
+| Testing | {derived} | jest + react native testing library / detox (e2e) |
 | Coverage Gate | {extracted from context} | |
-| Quality/Security | {derived} | |
-| Orchestration | {extracted from context} | |
-| CI/CD | {extracted from context} | |
+| Quality/Security | {derived} | eslint + prettier / dart analyze, MASVS checklist |
+| CI/CD | {extracted from context} | github actions / fastlane lanes |
+| App Store Distribution | {extracted from context} | testflight + play console internal track |
 
 ## Core Principles
 | Principle | Applied As |
@@ -132,6 +132,10 @@ table.
 | Specification First | No code before spec + TASK approved |
 | Test First | Paired test with every class — same PR |
 | Traceability | task → story → FR → context — always |
+| Offline-First | Assume no connectivity — queue/cache locally, sync when connected |
+| Accessible | Every screen meets the Accessibility bar from Tech Stack (screen reader labels, contrast, touch targets) |
+| Cross-Platform | Behaviour verified on iOS + Android (or all target platforms) |
+| Performant | Cold-start, list scroll, and navigation transitions meet NFR budgets |
 | {derived from domain} | {how it applies} |
 
 ## Domain Rules
