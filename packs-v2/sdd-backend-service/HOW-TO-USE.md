@@ -123,7 +123,7 @@ never silently overwrite a finalized Part 2.
 | /plan-lld | Senior developer | /plan-adr or /task |
 | /plan-adr | Architect | /task |
 | /task | Product owner + dev team (+ QA lead consulted) | /implement |
-| /implement | Assigned developer (responsible), tech lead (accountable) — per PR | /release |
+| /implement | Assigned developer (responsible), tech lead (accountable) — per task (PR in github mode, "go" in local mode) | /release |
 | /release | QA lead (responsible), product owner (accountable) | go-live |
 
 ---
@@ -142,13 +142,48 @@ except /implement, which reads tasks.md + constitution.md in full.
 
 ---
 
+## Workflow Mode — GitHub or Local
+
+```yaml
+workflow_mode: "github"   # github | local   DEFAULT: github
+```
+
+**github** (default) — branch + PR flow:
+- `/implement` ends each task with `"PR ready — {N} lines, {N} files"`
+- CI (`.github/workflows/quality-gate.yml`) runs build/test/coverage/
+  lint/secret-scan/SCA on every PR push
+- `/release` requires every task PR-approved and merged
+
+**local** — no git hosting required (e.g. a shared/synced folder such as
+OneDrive, opened via Claude Desktop's "Code" tab — no GitHub or git
+needed at all):
+- `/implement` runs the same build/test/coverage/lint checks itself,
+  locally, reporting ✅/❌ for each, then ends each task with
+  `"Task accepted — {N} lines, {N} files"` — there is no CI pipeline
+  afterwards to catch issues
+- `.github/workflows/quality-gate.yml` does not run (no GitHub) — its
+  checks are covered by the agent's local run instead
+- `/release` requires every task `"Task accepted"`
+- Review = the assigned reviewer (roles.yml) inspects the changed files
+  directly in the shared folder, then tells the agent "go"
+- Optional: `git init` locally for commit-level history — exclude `.git`
+  from any cloud sync (OneDrive/SharePoint sync can corrupt git's
+  internal files). Without local git, OneDrive's per-file version
+  history serves as the audit trail instead.
+
+Switch modes any time by editing `manifest.yml` — no other files change.
+
+---
+
 ## PR Rules
 ```yaml
 pr_rules:
   max_lines_per_pr: 400   # change if needed
   max_files_per_pr: 5
 ```
-Agent enforces automatically — estimates before every task.
+Agent enforces automatically — estimates before every task. Applies in
+both workflow modes; see "Workflow Mode" above for what happens after
+the size check passes.
 
 ---
 

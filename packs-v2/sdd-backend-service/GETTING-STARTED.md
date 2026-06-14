@@ -47,6 +47,11 @@ project:
 names/teams for product_owner, tech_lead, qa_lead, etc. Every gate from
 /validate to /release references these.
 
+(Optional) `workflow_mode` — defaults to `"github"`. Set to `"local"` if
+you have no GitHub/git access (e.g. working from a shared OneDrive folder
+via Claude Desktop's "Code" tab). See HOW-TO-USE.md "Workflow Mode" for
+what changes.
+
 ## Step 4 — Run
 ```bash
 claude    # Claude Code Desktop

@@ -101,6 +101,7 @@ Confirm:
   Scope: {pilot | mvp | full}
   Feature: {value}
   Context file: {value}
+  Workflow mode: {github | local}
   Constitution Part 2: generated? yes/no
   Constitution Part 2 finalized (GATE-1)? yes/no
   Commands for this scope: {list}
@@ -558,7 +559,14 @@ AFTER CODING:
   State total lines added
   Confirm each criterion: ✅ {criterion}
   Confirm Verifies: TC-{NNN} now covered by the paired test
-  State: "PR ready — {N} lines, {N} files"
+
+  If manifest.workflow_mode == "local":
+    Run build + test + lint + coverage commands locally (per
+    constitution Part 2 Tech Stack) — report ✅/❌ for each
+    State: "Task accepted — {N} lines, {N} files"
+  Else (github):
+    State: "PR ready — {N} lines, {N} files"
+
   WAIT for "go" before next task
 
 AFTER ALL TASKS:
@@ -579,8 +587,11 @@ Read tasks.md + qa-testcases.summary.md (mvp+) + brd.summary.md
 + srd.summary.md + docs/runbook/local-setup.md (mvp+)
 Read release-template.md
 
-VERIFY GATE: every task in tasks.md is "PR ready" and merged.
-  If not — STOP. State: "RELEASE blocked — {N} tasks not yet merged."
+VERIFY GATE (per manifest.workflow_mode):
+  github: every task in tasks.md is "PR ready" and merged.
+  local:  every task in tasks.md is "Task accepted".
+  If not — STOP. State: "RELEASE blocked — {N} tasks not yet
+  {merged|accepted}."
 
 Produce:
   1. PRE-RELEASE CHECKLIST — tasks merged, PRs reference TASK-NNN/CHG-NNN,

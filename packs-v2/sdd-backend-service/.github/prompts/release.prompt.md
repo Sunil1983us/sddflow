@@ -16,17 +16,21 @@ Read docs/runbook/local-setup.md (mvp+ — for rollback summary)
 Read .specify/templates/release-template.md
 
 ## Verify Gate (blocking)
-Every task in tasks.md must be "PR ready" and merged.
-If not — STOP. State: "RELEASE blocked — {N} tasks not yet merged."
+Per manifest.workflow_mode:
+  github: every task in tasks.md must be "PR ready" and merged.
+  local:  every task in tasks.md must be "Task accepted".
+If not — STOP. State: "RELEASE blocked — {N} tasks not yet
+{merged|accepted}."
 
 ## Your Task
 Produce the release plan:
 
 1. PRE-RELEASE CHECKLIST
-   All tasks complete + merged, PRs reference TASK-NNN/CHG-NNN,
-   test suite green, coverage ≥ gate (constitution Part 2),
-   security checklist passed (security-design.md §1, +§2 mvp+),
-   traceability.md has no FR/NFR without a passing test (if present)
+   All tasks complete — merged with PRs referencing TASK-NNN/CHG-NNN
+   (github mode) or accepted (local mode), test suite green, coverage
+   ≥ gate (constitution Part 2), security checklist passed
+   (security-design.md §1, +§2 mvp+), traceability.md has no FR/NFR
+   without a passing test (if present)
 
 2. UAT PLAN
    One row per UC-NNN from srd.md: scenario, tester role (from

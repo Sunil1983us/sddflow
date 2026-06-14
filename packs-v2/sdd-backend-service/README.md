@@ -28,6 +28,14 @@ project:
   context_file: "your-feature.md"
 ```
 
+Optional — `workflow_mode` (defaults to `"github"` if omitted):
+```yaml
+workflow_mode: "github"   # github | local — no GitHub/git needed for
+                           # "local" (e.g. a shared OneDrive folder via
+                           # Claude Desktop's "Code" tab). See
+                           # HOW-TO-USE.md "Workflow Mode" for details.
+```
+
 ### 3. constitution.md Part 2 — Generated (draft) by /specify, finalized by you
 Agent reads your context → fills Tech Stack (20 concerns) + Principles +
 Rules as a DRAFT. You review every row and confirm "Constitution Part 2

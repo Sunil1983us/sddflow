@@ -73,7 +73,10 @@ Each gate requires the previous step complete and reviewed.
 ## PR Contract
 Estimate before every task.
 If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
-After task: state files + lines + "PR ready" → wait for go.
+After task, per manifest.workflow_mode:
+  github: state files + lines + "PR ready" → wait for go.
+  local:  run build/test/lint/coverage locally → report ✅/❌ per check →
+          state files + lines + "Task accepted" → wait for go.
 
 ## Summary
 After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
@@ -85,7 +88,8 @@ Never run /plan-arch without clarify.summary.md
 Never run /plan-arch while any spec doc has an unresolved
   `[ASSUMPTION-NNN]` marker (AI-8)
 Never run /implement without TASK (stories.md + tasks.md) approved
-Never run /release before all tasks are "PR ready" and merged
+Never run /release before all tasks are complete — "PR ready" + merged
+  (github mode) or "Task accepted" (local mode)
 Never code before context.md updated
 Never hardcode any value
 Never skip paired test
@@ -125,7 +129,8 @@ PLAN is split into 4 sub-commands — each has its own review gate:
               Run after: /specify (Action 2) | Gate before: /analyze
 
 /release    → UAT plan, deployment plan, go-live gate, BO closure
-              Gate: all tasks "PR ready" and merged
+              Gate: all tasks complete — "PR ready" + merged (github
+              mode) or "Task accepted" (local mode)
               Review: qa lead, product owner, tech lead, devops/sre
               Run after: /implement (all tasks) | Gate before: go-live
 

@@ -130,8 +130,13 @@ Agent auto-skips /plan-lld and /plan-adr for pilot — states reason.
 Every task before coding:
 1. Agent estimates lines
 2. If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time
-3. After task → state files + lines + "PR ready" → wait for go
+3. After task, per manifest.workflow_mode:
+   - github: state files + lines + "PR ready" → wait for go
+   - local: run build/test/lint/coverage locally → report ✅/❌ →
+     state files + lines + "Task accepted" → wait for go
 4. Confirm Verifies: TC-NNN now covered by the paired test
+
+See HOW-TO-USE.md "Workflow Mode" for the github vs local difference.
 
 ---
 
@@ -155,7 +160,8 @@ Jira CSV generated at /task — import before /implement starts.
 
 ## /release — UAT, Deployment, Go-Live
 
-Runs after /implement — all tasks "PR ready" and merged.
+Runs after /implement — all tasks complete ("PR ready" + merged in
+github mode, or "Task accepted" in local mode).
 
 1. Pre-Release Checklist (tests green, coverage, security, traceability)
 2. UAT Plan — UC-NNN → tester (roles.yml) → environment → result
