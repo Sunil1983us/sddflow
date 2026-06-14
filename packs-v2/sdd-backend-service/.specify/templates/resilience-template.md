@@ -61,8 +61,8 @@ resilience4j:
         wait-duration-in-open-state: 30s
 ```
 
-**States:** CLOSED → OPEN → HALF-OPEN
-**When OPEN:** Apply failure path immediately — do not wait
+- **States:** CLOSED → OPEN → HALF-OPEN
+- **When OPEN:** Apply failure path immediately — do not wait
 
 ---
 

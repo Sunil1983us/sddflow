@@ -14,58 +14,58 @@
 ## AMBIGUITIES — AMB-NNN
 
 ### AMB-001: {Topic}
-**Found in:** {document + section}
-**The ambiguity:** {two valid interpretations}
-**Option A:** {interpretation 1}
-**Option B:** {interpretation 2}
-**Your answer:** {FILL THIS}
+- **Found in:** {document + section}
+- **The ambiguity:** {two valid interpretations}
+- **Option A:** {interpretation 1}
+- **Option B:** {interpretation 2}
+- **Your answer:** {FILL THIS}
 
 ---
 
 ## GAPS — GAP-NNN
 
 ### GAP-001: {Topic}
-**Needed for:** {which design decision}
-**The gap:** {what is missing}
-**Your answer:** {FILL THIS}
+- **Needed for:** {which design decision}
+- **The gap:** {what is missing}
+- **Your answer:** {FILL THIS}
 
 ---
 
 ## CONFLICTS — CON-NNN
 
 ### CON-001: {Topic}
-**Conflict between:** FR-{NNN} and {rule/FR}
-**The conflict:** {describe contradiction}
-**Your resolution:** {FILL THIS}
+- **Conflict between:** FR-{NNN} and {rule/FR}
+- **The conflict:** {describe contradiction}
+- **Your resolution:** {FILL THIS}
 
 ---
 
 ## ASSUMPTIONS — ASM-NNN
 
 ### ASM-001: {Topic}
-**Assumption:** {what was assumed}
-**Found in:** {document + section}
-**Basis:** {why assumed}
-**Correct?** {FILL: Yes / No — if No: correct version}
+- **Assumption:** {what was assumed}
+- **Found in:** {document + section}
+- **Basis:** {why assumed}
+- **Correct?** {FILL: Yes / No — if No: correct version}
 
 ---
 
 ## OPEN QUESTIONS — OQ-NNN
 
 ### OQ-001: {Topic}
-**Question:** {decision needed}
-**Impact:** {what cannot be designed without this}
-**Options:** {list if applicable}
-**Your decision:** {FILL THIS}
+- **Question:** {decision needed}
+- **Impact:** {what cannot be designed without this}
+- **Options:** {list if applicable}
+- **Your decision:** {FILL THIS}
 
 ---
 
 ## HIGH RISK ITEMS (from analyze.md)
 
 ### HR-001: {Risk Title from analyze.md}
-**Risk:** {description from analyze.md}
-**Clarification needed:** {what must be clarified to mitigate this risk}
-**Your answer:** {FILL THIS}
+- **Risk:** {description from analyze.md}
+- **Clarification needed:** {what must be clarified to mitigate this risk}
+- **Your answer:** {FILL THIS}
 
 ---
 

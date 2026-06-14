@@ -95,12 +95,12 @@ with this header:
 # Source for .specify/contexts/{feature}.md — regenerate via /create-context
 ```
 
-State: "Context file ready at .specify/contexts/{feature}.md
-({N} of {M} sections complete, {K} still marked [MISSING — ask user]).
-Run /specify to generate constitution Part 2 (DRAFT) + spec docs."
-If any `[MISSING — ask user]` markers remain, add: "Note: /specify Action 1
-will carry forward any remaining [MISSING — ask user] markers into
-constitution Part 2 — resolve them at GATE-1."
+- State: "Context file ready at .specify/contexts/{feature}.md
+  ({N} of {M} sections complete, {K} still marked [MISSING — ask user]).
+  Run /specify to generate constitution Part 2 (DRAFT) + spec docs."
+- If any `[MISSING — ask user]` markers remain, add: "Note: /specify
+  Action 1 will carry forward any remaining [MISSING — ask user] markers
+  into constitution Part 2 — resolve them at GATE-1."
 
 ## Never Do
 - Never invent business rules, NFR numbers, or constraints not stated or

@@ -30,16 +30,16 @@ source doc updated with `<!-- Clarified: {ID} -->`. If any remain
 unresolved, /plan-arch must STOP and point back to /clarify.
 
 ## Impact Analysis Output Format
-CHANGE: {description} | VERSION: v{N.N}
-DOCS TO UPDATE: {list with reason}
-DOCS TO SKIP: {list}
-NEW TASKS: CHG-NNN: {description} — est {N} lines
-TOTAL: {N} docs, {N} tasks, ~{N} lines
+- CHANGE: {description} | VERSION: v{N.N}
+- DOCS TO UPDATE: {list with reason}
+- DOCS TO SKIP: {list}
+- NEW TASKS: CHG-NNN: {description} — est {N} lines
+- TOTAL: {N} docs, {N} tasks, ~{N} lines
 
 ## Change Task Naming
-CHG-001: {description}
-CHG-002: {description}
-Append to tasks.md under: ## Change Set: v{N.N} — {date}
+- CHG-001: {description}
+- CHG-002: {description}
+- Append to tasks.md under: ## Change Set: v{N.N} — {date}
 
 ## What Never Changes on a Change Request
 - constitution.md Part 1

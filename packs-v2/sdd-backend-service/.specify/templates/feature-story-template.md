@@ -14,22 +14,22 @@
 ## Feature Definition
 
 ### FEATURE-001: {Feature Name}
-**Business Capability:** {what business capability this delivers}
-**Scope:** {pilot | mvp | full}
-**Priority:** Must Have
-**Linked BRD Objectives:** BO-{NNN}
+- **Business Capability:** {what business capability this delivers}
+- **Scope:** {pilot | mvp | full}
+- **Priority:** Must Have
+- **Linked BRD Objectives:** BO-{NNN}
 
 ---
 
 ## Stories
 
 ### STORY-001: {Story Title}
-**As** {actor}
-**I want** {capability}
-**So that** {business value}
+- **As** {actor}
+- **I want** {capability}
+- **So that** {business value}
 
-**Linked FRs:** FR-{NNN}, FR-{NNN}
-**Story Points:** {1|2|3|5|8} | **Sprint:** 1
+- **Linked FRs:** FR-{NNN}, FR-{NNN}
+- **Story Points:** {1|2|3|5|8} | **Sprint:** 1
 
 **Acceptance Criteria:**
 - [ ] {Given/When/Then criterion 1}
@@ -40,12 +40,12 @@
 ---
 
 ### STORY-002: {Story Title}
-**As** {actor}
-**I want** {capability}
-**So that** {business value}
+- **As** {actor}
+- **I want** {capability}
+- **So that** {business value}
 
-**Linked FRs:** FR-{NNN}
-**Story Points:** {N} | **Sprint:** 1
+- **Linked FRs:** FR-{NNN}
+- **Story Points:** {N} | **Sprint:** 1
 
 **Acceptance Criteria:**
 - [ ] {criterion}
@@ -55,12 +55,12 @@
 ---
 
 ### STORY-003: {Story Title}
-**As** {actor}
-**I want** {capability}
-**So that** {business value}
+- **As** {actor}
+- **I want** {capability}
+- **So that** {business value}
 
-**Linked FRs:** FR-{NNN}
-**Story Points:** {N} | **Sprint:** 2
+- **Linked FRs:** FR-{NNN}
+- **Story Points:** {N} | **Sprint:** 2
 
 **Acceptance Criteria:**
 - [ ] {criterion}

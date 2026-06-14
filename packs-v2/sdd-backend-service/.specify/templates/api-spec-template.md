@@ -34,8 +34,8 @@
 ## 4. Endpoints
 
 ### POST /api/v1/{resource}
-**Purpose:** {what this creates or triggers}
-**Caller:** {upstream service or actor}
+- **Purpose:** {what this creates or triggers}
+- **Caller:** {upstream service or actor}
 
 **Request:**
 ```json

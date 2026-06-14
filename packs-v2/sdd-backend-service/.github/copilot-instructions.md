@@ -5,12 +5,12 @@ Read .specify/manifest.yml + constitution.md + summary-rules.md +
 change-rules.md + roles.yml
 
 ## SPECIFY — Two Actions
-Action 1: Generate constitution.md Part 2 from context — DRAFT
+- Action 1: Generate constitution.md Part 2 from context — DRAFT
   (Tech Stack 20 concerns + Principles + Domain Rules + Never Do)
-Action 2: Generate spec documents per scope:
-  pilot: brd, srd, security-design (§1)
-  mvp:   + api-spec, data-model, security-design (§1-2)
-  full:  + resilience, investigation, security-design (§1-4)
+- Action 2: Generate spec documents per scope:
+  - pilot: brd, srd, security-design (§1)
+  - mvp: + api-spec, data-model, security-design (§1-2)
+  - full: + resilience, investigation, security-design (§1-4)
 
 ## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
 Part 2 from Action 1 is a DRAFT. User must review every row and confirm

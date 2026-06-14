@@ -37,23 +37,22 @@ in full. See .specify/memory/summary-rules.md.
 ## SPECIFY — Two Actions in Order
 
 Action 1 — Generate constitution.md Part 2 from context (DRAFT):
-  Read context file → extract all tech decisions
-  Fill Tech Stack table (Language, Framework, Build Tool,
-  API Style, Messaging/Async, Serialisation, Schema,
-  Data Store, Data Cache, DB Migration, Configuration,
-  Secrets, Resilience, Observability, Logging, Testing,
-  Coverage Gate, Quality/Security, Orchestration, CI/CD)
-  Extract Core Principles from domain constraints
-  Extract Domain Rules from business rules
-  Extract Never Do from stated constraints
-  Save updated constitution.md — Part 1 unchanged, Part 2 is a DRAFT
-  State: "Constitution Part 2 generated — DRAFT. Review and finalize
+- Read context file → extract all tech decisions
+- Fill Tech Stack table (Language, Framework, Build Tool, API Style,
+  Messaging/Async, Serialisation, Schema, Data Store, Data Cache, DB
+  Migration, Configuration, Secrets, Resilience, Observability, Logging,
+  Testing, Coverage Gate, Quality/Security, Orchestration, CI/CD)
+- Extract Core Principles from domain constraints
+- Extract Domain Rules from business rules
+- Extract Never Do from stated constraints
+- Save updated constitution.md — Part 1 unchanged, Part 2 is a DRAFT
+- State: "Constitution Part 2 generated — DRAFT. Review and finalize
   every row (GATE-1) before running /validate."
 
 Action 2 — Generate spec documents per scope:
-  pilot:  brd, srd, security-design (§1 — pilot checklist only)
-  mvp:    + api-spec, data-model, security-design (§1-2)
-  full:   + resilience, investigation, security-design (§1-4 — STRIDE + DAST)
+- pilot: brd, srd, security-design (§1 — pilot checklist only)
+- mvp: + api-spec, data-model, security-design (§1-2)
+- full: + resilience, investigation, security-design (§1-4 — STRIDE + DAST)
 
 ## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
 After Action 1, constitution.md Part 2 is a DRAFT.
@@ -66,17 +65,17 @@ overwrite a finalized Part 2.
 No /validate, /analyze, or any later command may run until this gate passes.
 
 ## 11-Command Gates
-SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
-→ PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
-Each gate requires the previous step complete and reviewed.
+- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
+  → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+- Each gate requires the previous step complete and reviewed.
 
 ## PR Contract
-Estimate before every task.
-If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
-After task, per manifest.workflow_mode:
-  github: state files + lines + "PR ready" → wait for go.
-  local:  run build/test/lint/coverage locally → report ✅/❌ per check →
-          state files + lines + "Task accepted" → wait for go.
+- Estimate before every task.
+- If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
+- After task, per manifest.workflow_mode:
+  - github: state files + lines + "PR ready" → wait for go.
+  - local: run build/test/lint/coverage locally → report ✅/❌ per check →
+    state files + lines + "Task accepted" → wait for go.
 
 ## Summary
 After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
@@ -98,41 +97,41 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 
 PLAN is split into 4 sub-commands — each has its own review gate:
 
-/plan-arch  → Architecture decisions + plan.md
-              Gate: clarify.summary.md exists, all RESOLVED
-              Gate: no unresolved [ASSUMPTION-NNN] in any spec doc (AI-8)
-              Also generates (now that arch.md exists): api-spec.md,
-              data-model.md (mvp+), security-design.md refinement,
-              resilience.md + investigation.md (full)
-              Review: tech lead approves arch + plan
+- **`/plan-arch`** → Architecture decisions + plan.md
+  - Gate: clarify.summary.md exists, all RESOLVED
+  - Gate: no unresolved [ASSUMPTION-NNN] in any spec doc (AI-8)
+  - Also generates (now that arch.md exists): api-spec.md,
+    data-model.md (mvp+), security-design.md refinement,
+    resilience.md + investigation.md (full)
+  - Review: tech lead approves arch + plan
 
-/plan-hld   → HLD + all Mermaid diagrams
-              Gate: arch.md reviewed
-              Review: stakeholders + tech lead
-              Pilot: always run | MVP+: always run
+- **`/plan-hld`** → HLD + all Mermaid diagrams
+  - Gate: arch.md reviewed
+  - Review: stakeholders + tech lead
+  - Pilot: always run | MVP+: always run
 
-/plan-lld   → LLD + class/sequence diagrams
-              Gate: hld.md reviewed
-              Scope check: SKIP if pilot — state skip reason
-              Review: senior developer
+- **`/plan-lld`** → LLD + class/sequence diagrams
+  - Gate: hld.md reviewed
+  - Scope check: SKIP if pilot — state skip reason
+  - Review: senior developer
 
-/plan-adr   → Architecture Decision Records
-              Gate: arch.md reviewed
-              Scope check: SKIP if pilot — state skip reason
-              Review: architect
+- **`/plan-adr`** → Architecture Decision Records
+  - Gate: arch.md reviewed
+  - Scope check: SKIP if pilot — state skip reason
+  - Review: architect
 
 ## VALIDATE and RELEASE — Bookends
 
-/validate   → Business sign-off on brd.md + srd.md
-              Gate: GATE-1 (constitution Part 2 finalized)
-              Review: product owner + business analyst
-              Run after: /specify (Action 2) | Gate before: /analyze
+- **`/validate`** → Business sign-off on brd.md + srd.md
+  - Gate: GATE-1 (constitution Part 2 finalized)
+  - Review: product owner + business analyst
+  - Run after: /specify (Action 2) | Gate before: /analyze
 
-/release    → UAT plan, deployment plan, go-live gate, BO closure
-              Gate: all tasks complete — "PR ready" + merged (github
-              mode) or "Task accepted" (local mode)
-              Review: qa lead, product owner, tech lead, devops/sre
-              Run after: /implement (all tasks) | Gate before: go-live
+- **`/release`** → UAT plan, deployment plan, go-live gate, BO closure
+  - Gate: all tasks complete — "PR ready" + merged (github
+    mode) or "Task accepted" (local mode)
+  - Review: qa lead, product owner, tech lead, devops/sre
+  - Run after: /implement (all tasks) | Gate before: go-live
 
 ## Command Order
 SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD

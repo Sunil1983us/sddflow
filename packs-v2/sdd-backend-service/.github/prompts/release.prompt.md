@@ -17,8 +17,9 @@ description: RELEASE — UAT, deployment plan, go-live gate, BO closure
 
 ## Verify Gate (blocking)
 Per manifest.workflow_mode:
-  github: every task in tasks.md must be "PR ready" and merged.
-  local:  every task in tasks.md must be "Task accepted".
+- github: every task in tasks.md must be "PR ready" and merged.
+- local: every task in tasks.md must be "Task accepted".
+
 If not — STOP. State: "RELEASE blocked — {N} tasks not yet
 {merged|accepted}."
 

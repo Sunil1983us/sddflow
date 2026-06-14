@@ -14,12 +14,12 @@ description: CLARIFY — Surface ambiguities and get human answers
 ## Your Task — Generate Questions
 Review all spec documents and analysis. Find and document:
 
-AMB-NNN: Ambiguities — anything with two valid interpretations
-GAP-NNN: Gaps — information needed for design but not in spec
-CON-NNN: Conflicts — two requirements that contradict
-ASM-NNN: Assumptions — agent assumed something, needs confirmation
-OQ-NNN:  Open questions — human decision needed before design
-HR-NNN:  High risks — from analyze.md needing clarification
+- AMB-NNN: Ambiguities — anything with two valid interpretations
+- GAP-NNN: Gaps — information needed for design but not in spec
+- CON-NNN: Conflicts — two requirements that contradict
+- ASM-NNN: Assumptions — agent assumed something, needs confirmation
+- OQ-NNN: Open questions — human decision needed before design
+- HR-NNN: High risks — from analyze.md needing clarification
 
 Rules:
 - Every item: unique ID + where found + why it matters for design
