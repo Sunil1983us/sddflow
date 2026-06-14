@@ -4,12 +4,12 @@ description: TASK — Feature→Story→Task hierarchy + Jira export
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/summary-rules.md
-Read .specify/features/{manifest.project.feature}/plan.summary.md
-Read .specify/features/{manifest.project.feature}/analyze.summary.md
-Read .specify/features/{manifest.project.feature}/clarify.summary.md
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/memory/summary-rules.md
+- Read .specify/features/{manifest.project.feature}/plan.summary.md
+- Read .specify/features/{manifest.project.feature}/analyze.summary.md
+- Read .specify/features/{manifest.project.feature}/clarify.summary.md
 
 ## Verify Gate
 Confirm plan.md exists and has been reviewed.

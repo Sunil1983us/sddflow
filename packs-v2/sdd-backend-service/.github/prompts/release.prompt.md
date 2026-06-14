@@ -4,16 +4,16 @@ description: RELEASE — UAT, deployment plan, go-live gate, BO closure
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/roles.yml
-Read .specify/features/{manifest.project.feature}/tasks.md
-Read .specify/features/{manifest.project.feature}/qa-testcases.summary.md
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/memory/roles.yml
+- Read .specify/features/{manifest.project.feature}/tasks.md
+- Read .specify/features/{manifest.project.feature}/qa-testcases.summary.md
   (mvp+ — skip if not present for pilot)
-Read .specify/features/{manifest.project.feature}/brd.summary.md
-Read .specify/features/{manifest.project.feature}/srd.summary.md
-Read docs/runbook/local-setup.md (mvp+ — for rollback summary)
-Read .specify/templates/release-template.md
+- Read .specify/features/{manifest.project.feature}/brd.summary.md
+- Read .specify/features/{manifest.project.feature}/srd.summary.md
+- Read docs/runbook/local-setup.md (mvp+ — for rollback summary)
+- Read .specify/templates/release-template.md
 
 ## Verify Gate (blocking)
 Per manifest.workflow_mode:

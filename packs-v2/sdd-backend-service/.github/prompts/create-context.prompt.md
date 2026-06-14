@@ -10,9 +10,9 @@ This is an OPTIONAL pre-phase for users who do not yet have a structured
 directly.
 
 ## Before Starting
-Read .specify/manifest.yml (if filled — confirm project.feature)
-Read .specify/templates/context-template.md
-Read .specify/contexts/CONTEXT-GUIDE.md
+- Read .specify/manifest.yml (if filled — confirm project.feature)
+- Read .specify/templates/context-template.md
+- Read .specify/contexts/CONTEXT-GUIDE.md
 
 ## Step 1 — Gather Raw Input
 If the user has not already provided notes in this conversation, ask:
@@ -103,11 +103,11 @@ will carry forward any remaining [MISSING — ask user] markers into
 constitution Part 2 — resolve them at GATE-1."
 
 ## Never Do
-Never invent business rules, NFR numbers, or constraints not stated or
-reasonably inferable — use `[MISSING — ask user]` instead
-Never skip the Missing Information Checklist, even if the draft looks
-complete
-Never overwrite an existing `.specify/contexts/{feature}.md` without
-confirming with the user first (offer to show a diff / merge instead)
-Never read `.specify/contexts/{feature}.raw.md` in any command other than
-/create-context (AI-2 — it is reference-only)
+- Never invent business rules, NFR numbers, or constraints not stated or
+  reasonably inferable — use `[MISSING — ask user]` instead
+- Never skip the Missing Information Checklist, even if the draft looks
+  complete
+- Never overwrite an existing `.specify/contexts/{feature}.md` without
+  confirming with the user first (offer to show a diff / merge instead)
+- Never read `.specify/contexts/{feature}.raw.md` in any command other than
+  /create-context (AI-2 — it is reference-only)

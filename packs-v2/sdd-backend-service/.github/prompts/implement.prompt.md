@@ -4,9 +4,9 @@ description: IMPLEMENT — Execute one task at a time with PR rules enforced
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/features/{manifest.project.feature}/tasks.md
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/features/{manifest.project.feature}/tasks.md
 
 ## Verify Gate
 Confirm tasks.md and stories.md have been approved.

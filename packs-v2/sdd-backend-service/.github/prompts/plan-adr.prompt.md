@@ -4,11 +4,11 @@ description: PLAN-ADR — Architecture Decision Records
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/features/{manifest.project.feature}/arch.summary.md
-Read .specify/features/{manifest.project.feature}/analyze.summary.md
-Read .specify/templates/adr-template.md
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/features/{manifest.project.feature}/arch.summary.md
+- Read .specify/features/{manifest.project.feature}/analyze.summary.md
+- Read .specify/templates/adr-template.md
 
 ## Scope Check
 If manifest.scope = pilot → STOP.

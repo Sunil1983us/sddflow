@@ -4,12 +4,12 @@ description: PLAN-HLD — High Level Design with Mermaid diagrams
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/summary-rules.md
-Read .specify/features/{manifest.project.feature}/arch.summary.md
-Read .specify/features/{manifest.project.feature}/analyze.summary.md
-Read .specify/templates/hld-template.md
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/memory/summary-rules.md
+- Read .specify/features/{manifest.project.feature}/arch.summary.md
+- Read .specify/features/{manifest.project.feature}/analyze.summary.md
+- Read .specify/templates/hld-template.md
 
 ## Verify Gate
 arch.md must exist and be reviewed.

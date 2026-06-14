@@ -4,12 +4,12 @@ description: VALIDATE — Business sign-off on BRD/SRD before analysis begins
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/roles.yml
-Read .specify/features/{manifest.project.feature}/brd.summary.md
-Read .specify/features/{manifest.project.feature}/srd.summary.md
-Read .specify/templates/validate-template.md
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/memory/roles.yml
+- Read .specify/features/{manifest.project.feature}/brd.summary.md
+- Read .specify/features/{manifest.project.feature}/srd.summary.md
+- Read .specify/templates/validate-template.md
 
 ## GATE-1 Check (blocking)
 Verify constitution.md Part 2 has been finalized by the user (no
