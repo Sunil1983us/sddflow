@@ -287,7 +287,7 @@ Wait for review before /clarify.
 
 ### Step A — Generate Questions
 ```
-Read constitution.md + all spec summaries + analyze.md
+Read constitution.md + all spec summaries + analyze.summary.md
 Read clarify-template.md
 
 Find and document:
@@ -296,10 +296,10 @@ Find and document:
   CON-NNN: contradicting requirements
   ASM-NNN: agent assumed — needs confirmation
   OQ-NNN:  human decision needed
-  HR-NNN:  high risk from analyze.md needing clarity
+  R-NNN (High/Critical): high/critical risk from analyze.summary.md §2
 
 Each item: unique ID + where found + why it matters
-Prioritise HIGH risk items from analyze.md
+Prioritise HIGH/CRITICAL risk items (R-NNN) from analyze.summary.md §2
 
 Save: .specify/features/{feature}/clarify.md
 Present report. WAIT for answers. Do NOT proceed.
@@ -484,10 +484,18 @@ State: "/plan-adr complete — {N} ADRs. Ready for /task."
 ```
 Read constitution.md + summary-rules.md
 Read plan.summary.md + analyze.summary.md + clarify.summary.md
++ srd.summary.md + api-spec.summary.md (mvp+)
 Read feature-story-template.md + tasks-template.md + jira-export-template.md
-Read qa-testcases.summary.md (mvp+, if already generated)
++ qa-testcases-template.md
 
 VERIFY: hld.md exists and reviewed. Stop if not.
+
+0. QA TEST CASES (mvp+; skip for pilot):
+   For each FR-NNN (srd.summary.md) / endpoint (api-spec.summary.md):
+   TC-NNN covering happy path, validation, auth, unhappy path,
+   performance (qa-testcases-template.md categories)
+
+   Save: qa-testcases.md + qa-testcases.summary.md
 
 1. FEATURE + STORIES:
    FEATURE: business capability from BRD
@@ -497,14 +505,16 @@ VERIFY: hld.md exists and reviewed. Stop if not.
    Sprint assignment
    Acceptance criteria (testable)
    HIGH complexity from analyze.md → higher story points
-   Traceability matrix: Story → FR → Task → TC-NNN → R-NNN (QA-1)
+   Traceability matrix: Story → FR → Task → TC-NNN (from qa-testcases.md,
+   mvp+) → R-NNN (QA-1)
 
    Save: stories.md + stories.summary.md
 
 2. TASK LIST:
    Each task mapped to a story (STORY-NNN)
    Satisfies: FR-NNN / NFR-NNN
-   Verifies: TC-NNN (mvp+; "TBD — link at /implement" if not yet generated)
+   Verifies: TC-NNN from qa-testcases.md (mvp+; "TBD — link at /implement"
+   for pilot)
    Estimated lines
    PR strategy: single or SPLIT A/B/C
    Files that change
@@ -571,9 +581,12 @@ AFTER CODING:
 
 AFTER ALL TASKS:
   Generate delivery per scope:
-    qa_cases  → docs/qa/functional-test-cases.md (mvp+)
-    runbook   → docs/runbook/local-setup.md (mvp+)
-    openapi   → docs/openapi.yaml (full)
+    qa_cases  → docs/qa/functional-test-cases.md (mvp+) — finalize
+                qa-testcases.md (per qa-testcases-template.md) with
+                pass/fail results from the paired tests
+    runbook   → docs/runbook/local-setup.md (mvp+, per runbook-template.md)
+    openapi   → docs/openapi.yaml (full, per openapi-template.md, from
+                api-spec.summary.md)
   State: "IMPLEMENT complete — all tasks merged. Ready for /release."
 ```
 

@@ -8,7 +8,7 @@ description: CLARIFY — Surface ambiguities and get human answers
 - Read .specify/memory/constitution.md
 - Read .specify/memory/summary-rules.md
 - Read all .specify/features/{manifest.project.feature}/*.summary.md
-- Read .specify/features/{manifest.project.feature}/analyze.md
+- Read .specify/features/{manifest.project.feature}/analyze.summary.md
 - Read .specify/templates/clarify-template.md
 
 ## Your Task — Generate Questions
@@ -19,11 +19,12 @@ Review all spec documents and analysis. Find and document:
 - CON-NNN: Conflicts — two requirements that contradict
 - ASM-NNN: Assumptions — agent assumed something, needs confirmation
 - OQ-NNN: Open questions — human decision needed before design
-- HR-NNN: High risks — from analyze.md needing clarification
+- R-NNN (High/Critical): High/Critical risks — from analyze.summary.md
+  §2 needing clarification
 
 Rules:
 - Every item: unique ID + where found + why it matters for design
-- Prioritise HIGH risk items from analyze.md
+- Prioritise HIGH/CRITICAL risk items (R-NNN) from analyze.summary.md §2
 - Over-clarify is better than under-clarify
 - Do NOT start designing — questions only
 

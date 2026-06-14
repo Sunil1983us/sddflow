@@ -48,7 +48,8 @@ Tell agent: "Summary rules updated — re-read summary-rules.md"
 - PLAN-HLD reads: arch.summary + analyze.summary
 - PLAN-LLD reads: plan.summary + arch.summary
 - PLAN-ADR reads: arch.summary + analyze.summary
-- TASK reads: plan.summary + analyze.summary + clarify.summary
+- TASK reads: plan.summary + analyze.summary + clarify.summary +
+  srd.summary + api-spec.summary (mvp+)
 - IMPLEMENT reads: tasks.md (one task, full) + constitution.md (full)
 - RELEASE reads: tasks.md + qa-testcases.summary + brd.summary + srd.summary
 
