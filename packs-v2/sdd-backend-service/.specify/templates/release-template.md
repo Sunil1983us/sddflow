@@ -8,6 +8,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | tasks.md | {sections/IDs referenced} |
@@ -85,6 +86,7 @@
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

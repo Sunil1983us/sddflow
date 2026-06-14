@@ -198,6 +198,7 @@ the size check passes.
 ---
 
 ## File Ownership
+
 | File | Owner | Changes |
 |---|---|---|
 | manifest.yml | You | Per project (4 fields) |

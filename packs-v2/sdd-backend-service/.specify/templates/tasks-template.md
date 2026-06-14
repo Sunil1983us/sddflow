@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | plan.summary.md | {sections/IDs referenced} |
@@ -182,6 +183,7 @@ Acceptance criteria:
 ---
 
 ## Summary
+
 | Phase | Tasks | Est. Lines | PRs |
 |---|---|---|---|
 | A Foundation | TASK-001 to 004 | ~180 | 4 |
@@ -195,6 +197,7 @@ Acceptance criteria:
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

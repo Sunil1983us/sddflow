@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | arch.summary.md | {sections/IDs referenced} |
@@ -77,6 +78,7 @@ stateDiagram-v2
 ```
 
 ## 5. Technology Stack
+
 | Layer | Technology | Version |
 |---|---|---|
 | Language | {from constitution} | {version} |
@@ -87,11 +89,13 @@ stateDiagram-v2
 | Deployment | {from constitution} | |
 
 ## 6. Key Design Principles
+
 | Principle | Applied As |
 |---|---|
 | {from constitution core principles} | {how applied} |
 
 ## 7. Non-Functional Summary
+
 | Category | Target |
 |---|---|
 | Response time | {from NFR-NNN} |
@@ -105,6 +109,7 @@ stateDiagram-v2
 *All diagrams: Mermaid — renders in GitHub, VS Code, Claude*
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

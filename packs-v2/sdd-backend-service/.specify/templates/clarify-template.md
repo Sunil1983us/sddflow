@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | All prior spec summaries (brd.summary.md, srd.summary.md, etc.) | {ambiguities/assumptions referenced} |
@@ -83,6 +84,7 @@ Status: OPEN → RESOLVED / CONFIRMED / DECIDED / CORRECTED
 All items must be resolved before PLAN begins.
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

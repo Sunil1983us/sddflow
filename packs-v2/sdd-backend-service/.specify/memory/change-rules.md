@@ -8,6 +8,7 @@ context.md → brd → srd → validate → analyze → clarify → arch → pla
 → hld → lld → tasks → release
 
 ## Change Impact Matrix
+
 | Change Type | Documents to Update |
 |---|---|
 | New field in request/response | api-spec only |

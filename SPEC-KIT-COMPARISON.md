@@ -11,13 +11,15 @@
 | | **GitHub spec-kit** | **packs-v2 SDD Framework** |
 |---|---|---|
 | Designed for | Individual developer / small team, tool-agnostic | Enterprise teams with formal sign-off chains |
-| Commands | 7 (`/speckit.constitution` → `implement`) | 9–11 (`/specify` → `/release`) |
+| Commands | 9 — core: `constitution → specify → plan → tasks → taskstoissues → implement`; optional: `clarify`, `analyze`, `checklist` | 9–11 (`/specify` → `/release`) |
 | Spec artifacts per feature | spec.md, plan.md, research.md, data-model.md, tasks.md, checklists/ | BRD, SRD, Security-Design, API Spec, Data Model, Resilience, Arch, HLD, LLD, ADR, Stories, Tasks, QA Cases, Runbook, Release |
 | Tech stack capture | Per-feature, inside plan.md | Once, in constitution.md Part 2 (20-concern table), GATE-1 finalized |
 | Governance / RACI | None | `roles.yml` — every gate has a named accountable role |
 | Hard gates | 2 (Constitution Check in plan.md, checklist completeness in implement.md) | Gate at every command transition (GATE-1, validate, AI-8 assumptions, clarify, etc.) |
 | Business sign-off | Not modeled | `/validate` — Product Owner + Business Analyst sign-off on BRD/SRD |
-| Traceability | On-demand report (`/speckit.analyze` → FR/SC → task coverage table) | Persistent matrix: Story → FR/NFR → Task → TC-NNN → R-NNN |
+| Spec-quality checks | `/speckit.checklist` — on-demand "unit tests for English" for the spec (clarity/completeness/consistency) | Folded into `/analyze` + `/validate` + AI-8 assumption gate |
+| Traceability | On-demand, advisory (`/speckit.analyze` — severity-ranked consistency audit across spec/plan/tasks) | Persistent matrix: Story → FR/NFR → Task → TC-NNN → R-NNN |
+| Task export | `/speckit.taskstoissues` — tasks.md → GitHub Issues | `/task` → Jira CSV |
 | PR / CI governance | Left to the team's normal git workflow | Built-in `pr_rules` (max lines/files, SPLIT A/B/C), `quality-gate.yml`, and a configurable `workflow_mode: github \| local` |
 | Portability | Designed to run identically across many AI coding tools | Per-IDE prompt mirrors (`.github/prompts/`, `.claude/commands/`) |
 
@@ -109,24 +111,43 @@ already split business vs. technical sign-off.
 
 ## 3. Commands & Flow
 
-| Step | spec-kit | packs-v2 (pilot scope) |
-|---|---|---|
-| 1 | `/speckit.constitution` | `/specify` (also drafts Part 2 of constitution) |
-| — | | **GATE-1** — manual review/finalize constitution |
-| 2 | `/speckit.specify` | `/validate` — business sign-off |
-| 3 | `/speckit.clarify` | `/analyze` — risk/complexity |
-| 4 | `/speckit.plan` | `/clarify` — resolve open questions |
-| 5 | `/speckit.tasks` | `/plan-arch` — architecture + plan |
-| 6 | `/speckit.analyze` (optional) | `/plan-hld` — HLD + diagrams |
-| 7 | `/speckit.implement` | (`/plan-lld`, `/plan-adr` — MVP+ only) |
-| 8 | | `/task` — Feature → Story → Task + Jira CSV |
-| 9 | | `/implement` — one task at a time, PR rules enforced |
-| 10 | | `/release` — UAT + deployment + go-live gate |
+### spec-kit — 9 commands (6 core + 3 optional)
 
-**Takeaway:** spec-kit gets a developer from idea to code in ~6 steps with
-minimal ceremony. packs-v2 adds the steps an enterprise actually performs
-around code — business validation, risk analysis, architecture review,
-and a formal release/go-live gate — each with a named owner.
+**Core, in order:**
+1. `/speckit.constitution` — generate/update constitution.md
+2. `/speckit.specify` — generate spec.md (requirements + user stories)
+3. `/speckit.plan` — generate plan.md (tech stack, design, Constitution Check)
+4. `/speckit.tasks` — generate tasks.md (T001.., `[P]`/`[US1]` tags)
+5. `/speckit.taskstoissues` — export tasks.md → GitHub Issues
+6. `/speckit.implement` — execute tasks.md, respecting dependencies/hooks
+
+**Optional, insert where useful:**
+- `/speckit.clarify` — before `/plan`; up to 5 targeted questions to resolve
+  `[NEEDS CLARIFICATION]` markers in spec.md
+- `/speckit.analyze` — after `/tasks`, before `/implement`; read-only
+  consistency audit across spec/plan/tasks (advisory)
+- `/speckit.checklist` — anytime; generates domain-specific
+  requirement-quality checklists (e.g. `ux.md`, `security.md`)
+
+### packs-v2 — 9–11 commands (pilot scope shown)
+
+1. `/specify` (also drafts constitution Part 2)
+   — **GATE-1** — manual review/finalize constitution
+2. `/validate` — business sign-off
+3. `/analyze` — risk/complexity
+4. `/clarify` — resolve open questions
+5. `/plan-arch` — architecture + plan
+6. `/plan-hld` — HLD + diagrams
+   (`/plan-lld`, `/plan-adr` — MVP+ only)
+7. `/task` — Feature → Story → Task + Jira CSV
+8. `/implement` — one task at a time, PR rules enforced
+9. `/release` — UAT + deployment + go-live gate
+
+**Takeaway:** spec-kit's core path is 6 steps with 3 optional add-ons a
+developer can skip entirely. packs-v2's steps are *not* optional — each
+maps to a phase an enterprise SDLC already requires (business validation,
+risk analysis, architecture review, formal release/go-live) and each has
+a named owner in `roles.yml`.
 
 ---
 
@@ -138,8 +159,16 @@ and a formal release/go-live gate — each with a named owner.
 2. `implement.md` refuses to proceed if items in `checklists/` are
    unresolved.
 
-Everything else (`/speckit.clarify`, `/speckit.analyze`) is recommended
-but skippable — there's no concept of "who" approves a step.
+Everything else is recommended but skippable — there's no concept of
+"who" approves a step:
+- `/speckit.clarify` — optional, can be skipped entirely
+- `/speckit.analyze` — produces a severity-ranked findings table
+  (CRITICAL/HIGH/MEDIUM/LOW); only CRITICAL findings (constitution
+  violations) get a "resolve before implement" note — everything else
+  the user "may proceed" past
+- `/speckit.checklist` — generates quality checklists but doesn't itself
+  block anything (the *items it creates* feed implement.md's checklist
+  check, #2 above)
 
 **packs-v2** treats *every* command transition as a gate, each mapped to
 a role in `roles.yml`:
@@ -165,10 +194,14 @@ without sign-off," not just a human reviewer after the fact.
 ## 5. Traceability
 
 **spec-kit**: traceability is a *report you generate on demand*.
-`/speckit.analyze` produces a "Coverage Summary Table" mapping each
-`FR-###`/`SC-###` to the task IDs that implement it (tasks are tagged
-`[US1]`, `[US2]`, `[P]` for parallelizable). It's a snapshot, regenerated
-whenever you ask.
+`/speckit.analyze` is a read-only cross-artifact audit of
+spec.md/plan.md/tasks.md — checking for duplication, ambiguity,
+underspecification, constitution conflicts, coverage gaps (FR/SC not
+covered by any task), and terminology drift. It produces a severity-ranked
+findings table; it's a snapshot, regenerated whenever you run it, and is
+not persisted as a requirement→task map. Tasks carry `[US1]`/`[US2]`/`[P]`
+labels for which user story / parallelizability, which `/analyze` uses to
+spot coverage gaps.
 
 **packs-v2**: traceability is a *persistent matrix* maintained throughout
 the lifecycle: `Story → FR/NFR → Task → TC-NNN (test case) → R-NNN
@@ -177,9 +210,10 @@ TC-NNN` up front, and `/release` checks these are all closed before
 go-live.
 
 **Takeaway:** spec-kit's traceability is great for "show me what's covered
-right now." packs-v2's is built for audit — answering "prove every
-business requirement maps to a tested, released change" at any point in
-the lifecycle, which is what compliance/audit teams typically ask for.
+right now, and what's inconsistent." packs-v2's is built for audit —
+answering "prove every business requirement maps to a tested, released
+change" at any point in the lifecycle, which is what compliance/audit
+teams typically ask for.
 
 ---
 
@@ -214,17 +248,31 @@ To be fair, a few things spec-kit does better:
   across Claude, Copilot, Cursor, Windsurf, etc., with bash/PowerShell
   helper scripts.
 - **Lower ceremony** — a solo developer can go idea → working code in
-  under an hour with 7 commands and no role setup.
+  under an hour with 6 core commands and no role setup.
 - **`[NEEDS CLARIFICATION]` inline markers** — lighter-weight than a
   separate clarify document; ambiguity is flagged exactly where it occurs
   in the spec.
 - **Given/When/Then acceptance scenarios embedded in the spec itself**,
   not deferred to a separate QA-cases document.
+- **`/speckit.checklist`** — "unit tests for English": generates
+  domain-specific checklists (`ux.md`, `security.md`, etc.) that test the
+  *spec's* clarity/completeness/consistency before any code is written —
+  catching ambiguity earlier and cheaper than a downstream review gate.
+- **`/speckit.analyze`** — a one-command, severity-ranked consistency
+  audit across spec/plan/tasks (duplication, ambiguity, coverage gaps,
+  constitution conflicts, terminology drift) — useful as a quick health
+  check at any point.
+- **`/speckit.taskstoissues`** — one command to turn tasks.md into GitHub
+  Issues, native to teams already living in GitHub.
 
 These are reasonable enhancements we could selectively borrow into
-packs-v2's `srd.md` (FR-### with embedded Given/When/Then,
-`[NEEDS CLARIFICATION]` as a complement to `[ASSUMPTION-NNN]`) without
-giving up the governance/RACI layer — worth a future, low-risk iteration.
+packs-v2 without giving up the governance/RACI layer — worth a future,
+low-risk iteration:
+- FR-### in `srd.md` with embedded Given/When/Then acceptance scenarios
+- `[NEEDS CLARIFICATION]` as a lighter-weight complement to
+  `[ASSUMPTION-NNN]` for in-line ambiguity flags
+- A `/speckit.checklist`-style spec-quality pass, run early (e.g. as part
+  of `/clarify`) to catch ambiguous requirements before `/validate`
 
 ---
 

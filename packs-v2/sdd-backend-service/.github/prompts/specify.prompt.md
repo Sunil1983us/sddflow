@@ -14,6 +14,7 @@ Read .specify/contexts/{manifest.project.context_file}
 Extract from context and fill constitution.md Part 2:
 
 Tech Stack table — extract every concern:
+
 | Concern | Look for in context | If not found |
 |---|---|---|
 | Language | explicit mention | ask |

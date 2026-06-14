@@ -6,6 +6,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | plan.summary.md | {sections/IDs referenced} |
@@ -90,6 +91,7 @@ If no down-migration exists for the latest version: {documented manual recovery 
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

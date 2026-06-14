@@ -28,6 +28,7 @@ SUMMARY_MAX_LINES: 20   ← change this
 Tell agent: "Summary rules updated — re-read summary-rules.md"
 
 ## Recommended by Scope
+
 | Scope | Lines | Tokens |
 |---|---|---|
 | Pilot | 15-20 | ~250 |

@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced} |
@@ -38,6 +39,7 @@
 ```
 
 ## 3. Layer Responsibilities
+
 | Layer | Package | Responsibility |
 |---|---|---|
 | Controller | controller/ | Receive request, delegate, return response |
@@ -50,6 +52,7 @@
 | DTO | dto/ | Request/response records |
 
 ## 4. Key Design Decisions
+
 | ID | Decision | Rationale | ADR (mvp+) |
 |---|---|---|---|
 | DEC-001 | {decision} | {why} | ADR-001 (if mvp+, else "—") |
@@ -60,6 +63,7 @@ generated at /plan-adr). MVP+: /plan-adr converts HIGH-impact DEC-NNN
 rows into full ADR-NNN records — fill the ADR column once generated.
 
 ## 4a. NFR → Architecture Decision Mapping (AR-3)
+
 | NFR-NNN | Requirement | Design Constraint | Decision (DEC-NNN) |
 |---|---|---|---|
 | NFR-{NNN} | {requirement, from analyze.md §5} | {what it forces} | DEC-{NNN} |
@@ -79,11 +83,13 @@ with the decision that satisfies it.
 ```
 
 ## 6. Data Architecture
+
 | Table/Collection | Purpose |
 |---|---|
 | {name} | {what it stores} |
 
 ## 7. Cross-Cutting Concerns
+
 | Concern | Approach |
 |---|---|
 | Auth | {approach} |
@@ -94,6 +100,7 @@ with the decision that satisfies it.
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

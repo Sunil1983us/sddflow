@@ -7,6 +7,7 @@
 # PART 1 — UNIVERSAL
 
 ## Architecture
+
 | Rule | Value |
 |---|---|
 | Pattern | Hexagonal — domain isolated from infrastructure |
@@ -15,6 +16,7 @@
 | Class | One responsibility — split if doing two things |
 
 ## Code Quality
+
 | Rule | Value |
 |---|---|
 | Controllers | Delegate only — zero business logic |
@@ -23,6 +25,7 @@
 | Dead code | Delete — never comment out |
 
 ## PR Rules
+
 | Rule | Value |
 |---|---|
 | Workflow mode | {from manifest.workflow_mode} — github: PR + CI checks; local: agent runs checks, human says "go" |
@@ -33,6 +36,7 @@
 | Over limit | Estimate → SPLIT A/B/C → confirm → one at a time |
 
 ## Testing
+
 | Rule | Value |
 |---|---|
 | Pairing | Every class/component has paired test |
@@ -41,6 +45,7 @@
 | Coverage | As specified in tech stack (Part 2) |
 
 ## Logging
+
 | Rule | Value |
 |---|---|
 | Format | Structured JSON always |
@@ -49,6 +54,7 @@
 | Level | INFO=business WARN=recoverable ERROR=failure |
 
 ## Error Handling
+
 | Rule | Value |
 |---|---|
 | Exceptions | All extend base application exception |
@@ -56,6 +62,7 @@
 | Response | errorCode + message + timestamp — no stack trace |
 
 ## Git
+
 | Rule | Value |
 |---|---|
 | Branch | feature/{n} fix/{n} chore/{n} |
@@ -64,6 +71,7 @@
 | Merge | No direct commits to main or develop |
 
 ## Containerization (OPS-7)
+
 | Rule | Detail |
 |---|---|
 | Base image | `-alpine` (or distroless) always — pin exact version |
@@ -79,6 +87,7 @@ See .specify/templates/docker-config-template.md for ready-to-use
 docker-compose.yml, Dockerfile, and .env.example matching these rules.
 
 ## SDD Workflow
+
 | Rule | Value |
 |---|---|
 | Order | SPECIFY→[GATE-1]→VALIDATE→ANALYZE→CLARIFY→PLAN→TASK→IMPLEMENT→RELEASE |
@@ -102,6 +111,7 @@ docker-compose.yml, Dockerfile, and .env.example matching these rules.
 # until GATE-1 (above) is passed. After finalization, manual edits win.
 
 ## Tech Stack
+
 | Concern | Choice | Notes |
 |---|---|---|
 | Language | {extracted from context} | |
@@ -126,6 +136,7 @@ docker-compose.yml, Dockerfile, and .env.example matching these rules.
 | CI/CD | {extracted from context} | |
 
 ## Core Principles
+
 | Principle | Applied As |
 |---|---|
 | Specification First | No code before spec + TASK approved |
@@ -134,11 +145,13 @@ docker-compose.yml, Dockerfile, and .env.example matching these rules.
 | {derived from domain} | {how it applies} |
 
 ## Domain Rules
+
 | Rule | Value |
 |---|---|
 | {extracted from context} | {detail} |
 
 ## Never Do
+
 | Rule | Reason |
 |---|---|
 | {extracted from context} | {why} |

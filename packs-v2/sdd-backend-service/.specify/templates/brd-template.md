@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | .specify/contexts/{feature}.md | {sections/IDs referenced} |
@@ -13,11 +14,13 @@
 {2-3 sentences: what is being built, why, and for whom.}
 
 ## 2. Business Objectives
+
 | ID | Objective | Success Metric |
 |---|---|---|
 | BO-001 | {objective} | {how measured} |
 
 ## 3. Stakeholders (BA-3 — see .specify/memory/roles.yml for named owners)
+
 | Role | Team | Responsibility |
 |---|---|---|
 | Product Owner | {team} | Approves requirements, /validate + /release sign-off |
@@ -42,12 +45,14 @@ Out of Scope:
 - {item}
 
 ## 5. Business Requirements
+
 | ID | Requirement | Priority |
 |---|---|---|
 | BR-001 | {description} | Must Have |
 | BR-002 | {description} | Should Have |
 
 ## 6. Regulatory and Compliance
+
 | Regulation | Requirement | Impact |
 |---|---|---|
 | {regulation} | {requirement} | {design impact} |
@@ -62,6 +67,7 @@ Out of Scope:
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

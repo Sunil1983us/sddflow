@@ -6,6 +6,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced — drafted at /specify} |
@@ -50,11 +51,13 @@
 | THR-006 | {component} | Elevation of Privilege | {description} | {mitigation} | Low/Med/High |
 
 ### DAST
+
 | Target | Tool | Frequency |
 |---|---|---|
 | {endpoint/environment} | {tool} | {e.g. every release} |
 
 ### Penetration Test Plan
+
 | Scope | Trigger | Owner |
 |---|---|---|
 | {in-scope systems} | {e.g. before go-live, annually} | {team} |
@@ -79,6 +82,7 @@
 *Pilot: section 1 only | MVP: + section 2 | Full: + sections 3-4*
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
