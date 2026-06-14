@@ -35,7 +35,12 @@ Execute ONE task at a time. Never batch.
 - List every file changed
 - State total lines added
 - Confirm each acceptance criterion: ✅ {criterion text}
-- State: "PR ready — {N} lines, {N} files"
+- If manifest.workflow_mode == "local":
+  - Run build + test + lint + coverage commands locally (per
+    constitution Part 2 Tech Stack) — report ✅/❌ for each
+  - State: "Task accepted — {N} lines, {N} files"
+- Else (github):
+  - State: "PR ready — {N} lines, {N} files"
 - WAIT for "go" before starting next task
 
 ### After All Tasks

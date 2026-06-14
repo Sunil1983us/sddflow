@@ -9,3 +9,15 @@ project:
 pr_rules:
   max_lines_per_pr: 400   # DEFAULT:400
   max_files_per_pr: 5     # DEFAULT:5
+
+# Workflow Mode — github | local   DEFAULT: github
+#   github: branch + PR flow. CI (.github/workflows/quality-gate.yml) runs
+#           build/test/coverage/lint/secret-scan/SCA on every PR push.
+#           /implement ends each task with "PR ready"; /release requires
+#           every task PR-approved and merged.
+#   local:  no git hosting needed (e.g. a shared/synced folder such as
+#           OneDrive, opened via Claude Desktop's "Code" tab). The agent
+#           runs the same build/test/coverage/lint checks itself before
+#           ending each task with "Task accepted"; /release requires every
+#           task accepted. See HOW-TO-USE.md "Workflow Mode" for details.
+workflow_mode: "github"   # github | local

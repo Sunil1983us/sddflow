@@ -25,9 +25,10 @@
 ## PR Rules
 | Rule | Value |
 |---|---|
+| Workflow mode | {from manifest.workflow_mode} — github: PR + CI checks; local: agent runs checks, human says "go" |
 | Max lines | {from manifest.pr_rules.max_lines_per_pr} |
 | Max files | {from manifest.pr_rules.max_files_per_pr} |
-| Tests | Same PR always |
+| Tests | Same PR/task always |
 | Class max | 200 lines — split before commit |
 | Over limit | Estimate → SPLIT A/B/C → confirm → one at a time |
 
