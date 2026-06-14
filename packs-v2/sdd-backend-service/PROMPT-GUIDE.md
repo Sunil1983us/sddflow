@@ -515,7 +515,7 @@ VERIFY: hld.md exists and reviewed. Stop if not.
    Save: tasks.md
 
 3. JIRA CSV:
-   Epic → Story → Task hierarchy
+   Feature → Story → Task hierarchy
    Story points, sprint, acceptance criteria
    Save: docs/jira/stories.md + docs/jira/jira-import.csv
 
