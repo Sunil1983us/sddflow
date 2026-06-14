@@ -86,6 +86,11 @@
 See .specify/templates/docker-config-template.md for ready-to-use
 docker-compose.yml, Dockerfile, and .env.example matching these rules.
 
+If Tech Stack → Orchestration = Kubernetes, see
+.specify/templates/k8s-manifest-template.md for Deployment, Service,
+HPA, NetworkPolicy, ConfigMap, and Secret manifests matching the same
+rules — used instead of docker-compose.yml for cluster deployment.
+
 ## SDD Workflow
 
 | Rule | Value |

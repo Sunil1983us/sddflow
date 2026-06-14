@@ -201,12 +201,18 @@ Acceptance criteria:
 - Dependencies: TASK-012
 - Estimated lines: ~80 | PR: single
 - Files: Dockerfile, docker-compose.yml, application.yml, application-mock.yml
+- If Orchestration = Kubernetes (constitution.md Tech Stack): also
+  k8s/deployment.yaml, k8s/service.yaml, k8s/hpa.yaml,
+  k8s/networkpolicy.yaml, k8s/configmap.yaml, k8s/secret.yaml — from
+  k8s-manifest-template.md
 
 Acceptance criteria:
   - [ ] docker-compose up starts all services
   - [ ] Health check passes
   - [ ] Mock profile activates in compose
   - [ ] No secrets in any committed file
+  - [ ] If Orchestration = Kubernetes: `kubectl apply --dry-run=client
+        -f k8s/` validates cleanly
 
 ---
 
