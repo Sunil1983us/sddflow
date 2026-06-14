@@ -35,19 +35,19 @@ are authoritative — never silently overwritten by a later /specify.
 | /release | RELEASE | UAT + deployment + go-live gate |
 
 ## Gates
-GATE-1 (constitution Part 2 finalized) before /validate
-/validate (sign-off) before /analyze
-/analyze before /clarify
-/clarify (all answered) before /plan-arch
-AI-8: no unresolved [ASSUMPTION-NNN] in any spec doc before /plan-arch
-/plan-arch reviewed before /plan-hld
-/plan-hld reviewed before /plan-lld or /task
-/task (approved) before /implement
-/implement (all tasks merged) before /release
+- GATE-1 (constitution Part 2 finalized) before /validate
+- /validate (sign-off) before /analyze
+- /analyze before /clarify
+- /clarify (all answered) before /plan-arch
+- AI-8: no unresolved [ASSUMPTION-NNN] in any spec doc before /plan-arch
+- /plan-arch reviewed before /plan-hld
+- /plan-hld reviewed before /plan-lld or /task
+- /task (approved) before /implement
+- /implement (all tasks merged) before /release
 
 ## Pilot Scope — Skip These
-/plan-lld → skip (state: pilot scope)
-/plan-adr → skip (state: pilot scope)
+- /plan-lld → skip (state: pilot scope)
+- /plan-adr → skip (state: pilot scope)
 
 ## AI-7 — Apply Glob-Scoped Instructions
 Apply every `.github/instructions/*.instructions.md` file's `applyTo`
