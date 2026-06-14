@@ -6,6 +6,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | brd.summary.md | {sections/IDs referenced} |
@@ -69,6 +70,7 @@ State one of:
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

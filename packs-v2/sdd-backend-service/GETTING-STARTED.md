@@ -102,6 +102,7 @@ Nothing after /specify proceeds until this is done.
 ---
 
 ## Read Next
+
 | File | When |
 |---|---|
 | PROMPT-GUIDE.md | All 11 commands — native `/specify` etc. in Claude Code & Copilot |

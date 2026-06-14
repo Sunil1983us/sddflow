@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced — drafted at /specify} |
@@ -98,6 +99,7 @@ resilience4j:
 ---
 
 ## 7. Observability
+
 | Event | Log Level | Metric |
 |---|---|---|
 | Retry attempt | WARN | retry.attempt.count |
@@ -108,6 +110,7 @@ resilience4j:
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

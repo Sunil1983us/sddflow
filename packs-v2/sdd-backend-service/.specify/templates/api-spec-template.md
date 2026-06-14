@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced — drafted at /specify} |
@@ -16,11 +17,13 @@
 ```
 
 ## 2. Authentication
+
 | Method | Header | Notes |
 |---|---|---|
 | {Bearer/API Key/mTLS} | {header name} | {requirements} |
 
 ## 3. Common Headers
+
 | Header | Mandatory | Description |
 |---|---|---|
 | X-Correlation-Id | Yes | UUID v4 — trace across services |
@@ -96,6 +99,7 @@
 ---
 
 ## 5. Status Codes
+
 | HTTP | Meaning | When |
 |---|---|---|
 | 200 | OK | GET success |
@@ -118,6 +122,7 @@
 ```
 
 ## 7. Error Codes
+
 | Code | HTTP | Meaning |
 |---|---|---|
 | VALIDATION_ERROR | 400 | Request failed validation |
@@ -130,6 +135,7 @@
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

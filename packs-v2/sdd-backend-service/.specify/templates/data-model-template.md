@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced — drafted at /specify} |
@@ -32,6 +33,7 @@ erDiagram
 ## 2. Tables
 
 ### {entity_a}
+
 | Column | Type | Nullable | Notes |
 |---|---|---|---|
 | id | UUID | NOT NULL | PK — generated |
@@ -46,6 +48,7 @@ erDiagram
 - `idx_{table}_{field}` ON {table}({field})
 
 ### {entity_b}
+
 | Column | Type | Nullable | Notes |
 |---|---|---|---|
 | id | UUID | NOT NULL | PK |
@@ -60,12 +63,14 @@ erDiagram
 ```
 
 ## 4. Flyway Migration Scripts
+
 | Script | Purpose |
 |---|---|
 | V001__{desc}.sql | Create {entity_a} table + indexes |
 | V002__{desc}.sql | Create {entity_b} table + indexes |
 
 ## 5. Data Dictionary
+
 | Field | Business Meaning |
 |---|---|
 | id | Unique system identifier — never exposed externally |
@@ -94,6 +99,7 @@ Any column marked PII = Yes must:
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

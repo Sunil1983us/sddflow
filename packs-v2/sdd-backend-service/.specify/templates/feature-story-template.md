@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced} |
@@ -107,6 +108,7 @@ Register — link only risks relevant to that story.
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

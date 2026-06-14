@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | arch.summary.md | {sections/IDs referenced} |
@@ -148,6 +149,7 @@ public record {Feature}Response(
 ```
 
 ## 5. Test Classes
+
 | Test Class | Tests | Type |
 |---|---|---|
 | {Feature}ControllerTest | happy path + validation errors | Unit |
@@ -156,6 +158,7 @@ public record {Feature}Response(
 | {Feature}IntegrationTest | full HTTP → DB | Integration |
 
 ## 6. Key Method Signatures
+
 | Class | Method | Returns |
 |---|---|---|
 | {Feature}UseCase | execute({Feature}Request) | {Feature}Response |
@@ -166,6 +169,7 @@ public record {Feature}Response(
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced} |
@@ -82,6 +83,7 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

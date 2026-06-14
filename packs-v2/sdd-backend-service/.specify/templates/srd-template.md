@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | brd.summary.md | {sections/IDs referenced} |
@@ -14,12 +15,14 @@
 {One paragraph — what this system does technically.}
 
 ## 2. Functional Requirements
+
 | ID | Requirement | Source | Priority |
 |---|---|---|---|
 | FR-001 | {description} | BR-{NNN} | Must Have |
 | FR-002 | {description} | BR-{NNN} | Should Have |
 
 ## 3. Non-Functional Requirements
+
 | ID | Category | Requirement |
 |---|---|---|
 | NFR-001 | Performance | {e.g. P99 response ≤ 500ms} |
@@ -45,11 +48,13 @@
 - **Outcome:** {error result + recovery}
 
 ## 5. Integrations
+
 | System | Endpoint | Direction | Phase 1 |
 |---|---|---|---|
 | {name} | {path} | Inbound/Outbound | Mock/Real |
 
 ## 6. Data Requirements
+
 | Entity | Description | New/Existing |
 |---|---|---|
 | {name} | {what it represents} | New |
@@ -62,6 +67,7 @@
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |

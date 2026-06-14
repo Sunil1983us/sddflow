@@ -12,6 +12,7 @@
 {2-3 sentences. What problem does it solve? What does it process?}
 
 ## 2. Actors
+
 | Actor | Type | Role |
 |---|---|---|
 | {name} | Human / System | {role} |
@@ -28,11 +29,13 @@ Trigger: {what causes this}
 Steps: {what happens + resolution}
 
 ## 4. Endpoints
+
 | Method | Path | Purpose | Caller | Request | Response |
 |---|---|---|---|---|---|
 | POST | /api/v1/{resource} | {purpose} | {caller} | {type} | {type} |
 
 ## 5. Integrations
+
 | System | Direction | Purpose | Phase 1 |
 |---|---|---|---|
 | {name} | Inbound/Outbound | {purpose} | Mock/Real |
@@ -42,6 +45,7 @@ Steps: {what happens + resolution}
 - {Rule 2}
 
 ## 7. Non-Functional Requirements
+
 | Category | Requirement |
 |---|---|
 | Performance | {P99 response target} |
@@ -58,6 +62,7 @@ Steps: {what happens + resolution}
 - {Excluded item 2}
 
 ## 10. Open Questions
+
 | ID | Question | Owner | Due |
 |---|---|---|---|
 | OQ-001 | {question} | {owner} | {date} |
