@@ -54,13 +54,12 @@ Produce the release plan:
 7. ROLLBACK PLAN
    Summary — point to docs/runbook/local-setup.md §6 for full detail
 
-Save to: .specify/features/{manifest.project.feature}/release.md
-Save summary to: release.summary.md (max SUMMARY_MAX_LINES)
-Present the report. WAIT for go-live sign-off (section 5).
+- Save to: .specify/features/{manifest.project.feature}/release.md
+- Save summary to: release.summary.md (max SUMMARY_MAX_LINES)
+- Present the report. WAIT for go-live sign-off (section 5).
 
 ## Outcome
-If go-live gate approved (all roles "Go"):
-  State: "RELEASE complete — go-live approved. Proceed with deployment
-  plan section 3."
-Else:
-  State: "RELEASE incomplete — go-live NOT approved. {N} items blocking."
+- If go-live gate approved (all roles "Go"): State: "RELEASE complete —
+  go-live approved. Proceed with deployment plan section 3."
+- Else: State: "RELEASE incomplete — go-live NOT approved. {N} items
+  blocking."

@@ -40,14 +40,13 @@ Produce a business sign-off report:
    Product Owner + Business Analyst — Approved / Changes Requested
    (use roles.yml for names if filled)
 
-Save to: .specify/features/{manifest.project.feature}/validate.md
-Save summary to: validate.summary.md (max SUMMARY_MAX_LINES)
-Present the report. WAIT for sign-off.
+- Save to: .specify/features/{manifest.project.feature}/validate.md
+- Save summary to: validate.summary.md (max SUMMARY_MAX_LINES)
+- Present the report. WAIT for sign-off.
 
 ## Outcome
-If all objectives traced and all assumptions confirmed:
-  State: "VALIDATE complete — ready for /analyze."
-If any item needs changes:
-  State: "VALIDATE incomplete — {N} items need changes. Update
-  context.md, re-run /specify for affected docs, re-run /validate."
-  Do NOT proceed to /analyze.
+- If all objectives traced and all assumptions confirmed: State:
+  "VALIDATE complete — ready for /analyze."
+- If any item needs changes: State: "VALIDATE incomplete — {N} items
+  need changes. Update context.md, re-run /specify for affected docs,
+  re-run /validate." Do NOT proceed to /analyze.

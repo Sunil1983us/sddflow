@@ -54,9 +54,9 @@ Never Do — extract from:
 - Regulatory requirements
 - Add standard rules: logic in controller, hardcode values, skip tests
 
-Save updated constitution.md (Part 1 unchanged, Part 2 is a DRAFT).
-Confirm: "Constitution Part 2 generated from context — DRAFT.
-Review and finalize every row (GATE-1) before /validate."
+- Save updated constitution.md (Part 1 unchanged, Part 2 is a DRAFT).
+- Confirm: "Constitution Part 2 generated from context — DRAFT.
+  Review and finalize every row (GATE-1) before /validate."
 
 ## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
 Do NOT proceed to Action 2 in the same turn as a first-time generation
@@ -67,18 +67,15 @@ changes for review — never silently overwrite finalized rows.
 
 ## Action 2 — Generate Spec Documents
 
-Read updated constitution.md
-Generate documents per manifest.scope (canonical doc inventory —
-the only correct list; see PROMPT-GUIDE.md):
-
-pilot:  brd → srd → security-design (§1 — pilot checklist)
-mvp:    + api-spec → data-model → security-design (§1-2)
-full:   + resilience → investigation → security-design (§1-4 — STRIDE + DAST)
-
-For each: read template → derive from context → save .md + .summary.md
-Mark all assumptions: [ASSUMPTION-NNN: ...]
-Every FR: FR-NNN | Every NFR: NFR-NNN
-
-List generated + skipped.
-State: "SPECIFY complete. If GATE-1 not yet passed, finalize constitution
-Part 2 now. Then run /validate — ready for business sign-off."
+- Read updated constitution.md
+- Generate documents per manifest.scope (canonical doc inventory — the
+  only correct list; see PROMPT-GUIDE.md):
+  - pilot: brd → srd → security-design (§1 — pilot checklist)
+  - mvp: + api-spec → data-model → security-design (§1-2)
+  - full: + resilience → investigation → security-design (§1-4 — STRIDE + DAST)
+- For each: read template → derive from context → save .md + .summary.md
+- Mark all assumptions: [ASSUMPTION-NNN: ...]
+- Every FR: FR-NNN | Every NFR: NFR-NNN
+- List generated + skipped.
+- State: "SPECIFY complete. If GATE-1 not yet passed, finalize constitution
+  Part 2 now. Then run /validate — ready for business sign-off."

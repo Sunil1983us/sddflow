@@ -27,14 +27,14 @@ Rules:
 - Over-clarify is better than under-clarify
 - Do NOT start designing — questions only
 
-Save to: .specify/features/{manifest.project.feature}/clarify.md
-Present the report. WAIT for human answers.
-Do NOT proceed to PLAN until all items answered.
+- Save to: .specify/features/{manifest.project.feature}/clarify.md
+- Present the report. WAIT for human answers.
+- Do NOT proceed to PLAN until all items answered.
 
 ## After Human Fills Answers
-Read clarify.md with answers filled in.
-Update affected spec documents:
+- Read clarify.md with answers filled in.
+- Update affected spec documents:
   - Mark changes: <!-- Clarified: {ID} -->
   - Regenerate .summary.md for each updated doc
-Write clarify.summary.md — confirm all items RESOLVED.
-State: CLARIFY complete — ready for PLAN.
+- Write clarify.summary.md — confirm all items RESOLVED.
+- State: CLARIFY complete — ready for PLAN.

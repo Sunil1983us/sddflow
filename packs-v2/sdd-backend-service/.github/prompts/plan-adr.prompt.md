@@ -31,19 +31,19 @@ Generate one ADR per key architectural decision (start from arch.md §4
 - Any decision from analyze.md marked HIGH risk
 
 ### Each ADR Contains
-Context: why was this decision needed?
-Options: at least 2 alternatives considered
-Decision: what was chosen and why
-Consequences: positive + negative + risks
+- Context: why was this decision needed?
+- Options: at least 2 alternatives considered
+- Decision: what was chosen and why
+- Consequences: positive + negative + risks
 
 ### Naming
-ADR-001-{kebab-case-title}.md
-ADR-002-{kebab-case-title}.md
-...
+- ADR-001-{kebab-case-title}.md
+- ADR-002-{kebab-case-title}.md
+- ...
 
-Save each: docs/architecture/adr/ADR-{NNN}-{title}.md
-Save index: docs/architecture/decisions.md
-Update arch.md §4 — fill the ADR column for each DEC-NNN now covered.
+- Save each: docs/architecture/adr/ADR-{NNN}-{title}.md
+- Save index: docs/architecture/decisions.md
+- Update arch.md §4 — fill the ADR column for each DEC-NNN now covered.
 
-State: "PLAN-ADR complete — {N} ADRs generated. Ready for TASK."
-Wait for review.
+- State: "PLAN-ADR complete — {N} ADRs generated. Ready for TASK."
+- Wait for review.

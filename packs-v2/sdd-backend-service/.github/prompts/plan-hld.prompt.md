@@ -19,18 +19,14 @@ If missing — STOP. Run PLAN-ARCH first.
 Generate HLD with ALL diagrams in Mermaid.
 
 ### Always Include
-System Context diagram (C4 Level 1):
-  All actors + systems + this service — graph TD
-
-Container/Component diagram (C4 Level 2):
-  Internal structure + dependencies — graph TD
-
-Happy Path Sequence diagram:
-  Full flow from entry to outcome — sequenceDiagram
-  Every service call shown
-
-Status/State Machine (if applicable):
-  All states + transitions — stateDiagram-v2
+- **System Context diagram (C4 Level 1)**: All actors + systems + this
+  service — graph TD
+- **Container/Component diagram (C4 Level 2)**: Internal structure +
+  dependencies — graph TD
+- **Happy Path Sequence diagram**: Full flow from entry to outcome —
+  sequenceDiagram. Every service call shown
+- **Status/State Machine (if applicable)**: All states + transitions —
+  stateDiagram-v2
 
 ### Include If Applicable
 - Component hierarchy (frontend/mobile)
@@ -44,9 +40,9 @@ Status/State Machine (if applicable):
 - Happy path only for pilot scope
 - All flows for mvp+ scope
 
-Save: docs/hld/hld.md
-Save: docs/hld/hld.summary.md (max SUMMARY_MAX_LINES)
+- Save: docs/hld/hld.md
+- Save: docs/hld/hld.summary.md (max SUMMARY_MAX_LINES)
 
-State: "PLAN-HLD complete — review hld.md before PLAN-LLD or TASK"
-If scope = pilot → state: "Skip PLAN-LLD and PLAN-ADR — proceed to TASK"
-Wait for review.
+- State: "PLAN-HLD complete — review hld.md before PLAN-LLD or TASK"
+- If scope = pilot → state: "Skip PLAN-LLD and PLAN-ADR — proceed to TASK"
+- Wait for review.
