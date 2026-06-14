@@ -101,9 +101,9 @@ From your tech stack section:
   Stack table
 
 From your constraints section:
-  Business rules → Domain Rules
-  "never do" items → Never Do list
-  Compliance requirements → Core Principles
+- Business rules → Domain Rules
+- "never do" items → Never Do list
+- Compliance requirements → Core Principles
 
 ## Template
 
@@ -123,13 +123,13 @@ From your constraints section:
 ## 3. Key Flows
 
 ### Flow 1: {Name} — Happy Path
-Step 1: {who does what}
-Step 2: {system calls downstream → result}
-Step 3: {outcome}
+- Step 1: {who does what}
+- Step 2: {system calls downstream → result}
+- Step 3: {outcome}
 
 ### Flow 2: {Name} — Unhappy Path (if in scope)
-Trigger: {what causes this}
-Steps: {what happens + resolution}
+- Trigger: {what causes this}
+- Steps: {what happens + resolution}
 
 ## 4. Endpoints
 

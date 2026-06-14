@@ -23,9 +23,9 @@
 
 ## 2. Investigation Case: INV-001 — {Title}
 
-**Trigger:** {exact condition that triggers investigation}
-**Detected by:** {log event / monitor / alert}
-**Impact:** {what is affected}
+- **Trigger:** {exact condition that triggers investigation}
+- **Detected by:** {log event / monitor / alert}
+- **Impact:** {what is affected}
 
 **Resolution Steps:**
 1. {step 1}
@@ -37,16 +37,16 @@
 - {timestamp range}
 - {relevant log events}
 
-**Resolution:** {how to close the case}
-**Prevention:** {what to change to avoid recurrence}
+- **Resolution:** {how to close the case}
+- **Prevention:** {what to change to avoid recurrence}
 
 ---
 
 ## 3. Investigation Case: INV-002 — {Title}
 
-**Trigger:** {condition}
-**Detected by:** {method}
-**Impact:** {impact}
+- **Trigger:** {condition}
+- **Detected by:** {method}
+- **Impact:** {impact}
 
 **Resolution Steps:**
 1. {step}

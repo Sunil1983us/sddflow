@@ -34,8 +34,8 @@ From context + constitution Part 2 + analyze.md:
 - Identify cross-cutting concerns (auth, logging, error handling)
 - Risk mitigations from analyze.md applied to design
 
-Save: .specify/features/{manifest.project.feature}/arch.md
-Save: .specify/features/{manifest.project.feature}/arch.summary.md
+- Save: .specify/features/{manifest.project.feature}/arch.md
+- Save: .specify/features/{manifest.project.feature}/arch.summary.md
 
 ### Implementation Plan
 From arch.md:
@@ -46,24 +46,24 @@ From arch.md:
 - Test strategy per layer
 - DB migration plan (if applicable)
 
-Save: .specify/features/{manifest.project.feature}/plan.md
-Save: .specify/features/{manifest.project.feature}/plan.summary.md
+- Save: .specify/features/{manifest.project.feature}/plan.md
+- Save: .specify/features/{manifest.project.feature}/plan.summary.md
 
 ### Refine Scope-Scaled Documents (now that arch.md exists)
 These were drafted at /specify from context + srd only; refine them using
 arch.md (ports/adapters, integration mapping, data architecture):
 
-  mvp+: api-spec.md, data-model.md — align with port/adapter contracts
-        and entity design in arch.md
-  all:  security-design.md — align controls with arch.md cross-cutting
-        concerns section
-  full: resilience.md — align with arch.md integration list
-  full: investigation.md — align with arch.md flows
+- mvp+: api-spec.md, data-model.md — align with port/adapter contracts
+  and entity design in arch.md
+- all: security-design.md — align controls with arch.md cross-cutting
+  concerns section
+- full: resilience.md — align with arch.md integration list
+- full: investigation.md — align with arch.md flows
 
 Re-save each updated doc + its .summary.md.
 
 After all saved:
-State: "PLAN-ARCH complete — review arch.md + plan.md (and refined
-api-spec/data-model/security-design/resilience/investigation) before
-PLAN-HLD"
-Wait for review.
+- State: "PLAN-ARCH complete — review arch.md + plan.md (and refined
+  api-spec/data-model/security-design/resilience/investigation) before
+  PLAN-HLD"
+- Wait for review.

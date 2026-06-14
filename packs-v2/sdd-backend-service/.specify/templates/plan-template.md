@@ -66,11 +66,11 @@
 | Integration | Testcontainers | Full stack |
 
 ## 4. Mock Strategy
-All outbound integrations start as mocks.
-@Profile("mock") — activated in dev + test.
-@Profile("prod") — real adapter in production.
-MockDataFactory provides all test data.
-Mocks only return happy path in pilot scope.
+- All outbound integrations start as mocks.
+- @Profile("mock") — activated in dev + test.
+- @Profile("prod") — real adapter in production.
+- MockDataFactory provides all test data.
+- Mocks only return happy path in pilot scope.
 
 ## 5. Configuration
 

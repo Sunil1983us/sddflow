@@ -17,8 +17,9 @@ description: RELEASE — UAT, deployment plan, go-live gate, BO closure
 
 ## Verify Gate (blocking)
 Per manifest.workflow_mode:
-  github: every task in tasks.md must be "PR ready" and merged.
-  local:  every task in tasks.md must be "Task accepted".
+- github: every task in tasks.md must be "PR ready" and merged.
+- local: every task in tasks.md must be "Task accepted".
+
 If not — STOP. State: "RELEASE blocked — {N} tasks not yet
 {merged|accepted}."
 
@@ -54,13 +55,12 @@ Produce the release plan:
 7. ROLLBACK PLAN
    Summary — point to docs/runbook/local-setup.md §6 for full detail
 
-Save to: .specify/features/{manifest.project.feature}/release.md
-Save summary to: release.summary.md (max SUMMARY_MAX_LINES)
-Present the report. WAIT for go-live sign-off (section 5).
+- Save to: .specify/features/{manifest.project.feature}/release.md
+- Save summary to: release.summary.md (max SUMMARY_MAX_LINES)
+- Present the report. WAIT for go-live sign-off (section 5).
 
 ## Outcome
-If go-live gate approved (all roles "Go"):
-  State: "RELEASE complete — go-live approved. Proceed with deployment
-  plan section 3."
-Else:
-  State: "RELEASE incomplete — go-live NOT approved. {N} items blocking."
+- If go-live gate approved (all roles "Go"): State: "RELEASE complete —
+  go-live approved. Proceed with deployment plan section 3."
+- Else: State: "RELEASE incomplete — go-live NOT approved. {N} items
+  blocking."

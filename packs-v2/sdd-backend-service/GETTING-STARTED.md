@@ -11,8 +11,8 @@ git init && git add . && git commit -m "chore: SDD framework"
 ```
 
 ## Step 2 — Write Your Context (15-30 min)
-Create `.specify/contexts/my-feature.md`
-Open `.specify/contexts/CONTEXT-GUIDE.md` — use it as your guide.
+- Create `.specify/contexts/my-feature.md`
+- Open `.specify/contexts/CONTEXT-GUIDE.md` — use it as your guide.
 
 **Not confident writing this yourself?** Run `/create-context` instead —
 paste any rough notes (an email, bullet points, half-formed thoughts) and

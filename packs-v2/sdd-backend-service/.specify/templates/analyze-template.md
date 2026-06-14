@@ -13,6 +13,7 @@
 
 ## 1. Executive Summary
 {2-3 sentences: overall complexity, biggest risks, key recommendation.}
+
 Overall Complexity: LOW | MEDIUM | HIGH
 
 ---
@@ -30,11 +31,11 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 ### High/Critical Risks — Detail
 
 #### R-{NNN}: {Risk Title}
-**Description:** {what could go wrong}
-**Trigger:** {what causes this}
-**Linked FR/NFR:** FR-{NNN} / NFR-{NNN}
-**Impact on design:** {architectural consequence}
-**Mitigation:** {concrete action}
+- **Description:** {what could go wrong}
+- **Trigger:** {what causes this}
+- **Linked FR/NFR:** FR-{NNN} / NFR-{NNN}
+- **Impact on design:** {architectural consequence}
+- **Mitigation:** {concrete action}
 
 ---
 

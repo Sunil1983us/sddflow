@@ -47,6 +47,6 @@ RECOMMENDATION:
   - Items to raise in CLARIFY
   - Tasks likely needing SPLIT (from complexity)
 
-Save to: .specify/features/{manifest.project.feature}/analyze.md
-Save summary to: analyze.summary.md (max SUMMARY_MAX_LINES)
-Wait for review before CLARIFY.
+- Save to: .specify/features/{manifest.project.feature}/analyze.md
+- Save summary to: analyze.summary.md (max SUMMARY_MAX_LINES)
+- Wait for review before CLARIFY.

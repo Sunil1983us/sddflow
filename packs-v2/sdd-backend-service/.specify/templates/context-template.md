@@ -20,13 +20,13 @@
 ## 3. Key Flows
 
 ### Flow 1: {Name} — Happy Path
-Step 1: {who does what}
-Step 2: {system calls downstream → result}
-Step 3: {outcome}
+- Step 1: {who does what}
+- Step 2: {system calls downstream → result}
+- Step 3: {outcome}
 
 ### Flow 2: {Name} — Unhappy Path (if in scope)
-Trigger: {what causes this}
-Steps: {what happens + resolution}
+- Trigger: {what causes this}
+- Steps: {what happens + resolution}
 
 ## 4. Endpoints
 
@@ -103,10 +103,10 @@ Steps: {what happens + resolution}
 - Added: Initial version
 
 ### How to add future entries:
-v{N.N} — {date} — {author}
-Added:   {new capability or rule}
-Changed: {what was modified and why}
-Fixed:   {what was corrected}
-Removed: {what was explicitly removed}
-Impact:  {which documents need updating}
+- v{N.N} — {date} — {author}
+- Added:   {new capability or rule}
+- Changed: {what was modified and why}
+- Fixed:   {what was corrected}
+- Removed: {what was explicitly removed}
+- Impact:  {which documents need updating}
 
