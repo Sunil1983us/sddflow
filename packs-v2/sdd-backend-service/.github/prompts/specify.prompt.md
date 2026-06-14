@@ -4,10 +4,10 @@ description: SPECIFY — Generate constitution Part 2 then all spec documents
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/summary-rules.md
-Read .specify/contexts/{manifest.project.context_file}
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/memory/summary-rules.md
+- Read .specify/contexts/{manifest.project.context_file}
 
 ## Action 1 — Generate Constitution Part 2
 

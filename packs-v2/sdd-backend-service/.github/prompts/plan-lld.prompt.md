@@ -4,12 +4,12 @@ description: PLAN-LLD — Low Level Design with class and sequence diagrams
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/summary-rules.md
-Read .specify/features/{manifest.project.feature}/plan.summary.md
-Read .specify/features/{manifest.project.feature}/arch.summary.md
-Read .specify/templates/lld-template.md
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/memory/summary-rules.md
+- Read .specify/features/{manifest.project.feature}/plan.summary.md
+- Read .specify/features/{manifest.project.feature}/arch.summary.md
+- Read .specify/templates/lld-template.md
 
 ## Scope Check
 If manifest.scope = pilot → STOP.

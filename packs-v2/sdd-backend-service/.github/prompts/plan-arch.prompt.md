@@ -4,14 +4,14 @@ description: PLAN-ARCH — Architecture decisions and implementation plan
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/summary-rules.md
-Read .specify/features/{manifest.project.feature}/clarify.summary.md
-Read .specify/features/{manifest.project.feature}/analyze.summary.md
-Read all spec .summary.md files
-Read .specify/templates/arch-template.md
-Read .specify/templates/plan-template.md
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/memory/summary-rules.md
+- Read .specify/features/{manifest.project.feature}/clarify.summary.md
+- Read .specify/features/{manifest.project.feature}/analyze.summary.md
+- Read all spec .summary.md files
+- Read .specify/templates/arch-template.md
+- Read .specify/templates/plan-template.md
 
 ## Verify Gate
 clarify.summary.md must exist with all items RESOLVED.

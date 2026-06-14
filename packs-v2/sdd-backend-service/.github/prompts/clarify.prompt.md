@@ -4,12 +4,12 @@ description: CLARIFY — Surface ambiguities and get human answers
 ---
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/summary-rules.md
-Read all .specify/features/{manifest.project.feature}/*.summary.md
-Read .specify/features/{manifest.project.feature}/analyze.md
-Read .specify/templates/clarify-template.md
+- Read .specify/manifest.yml
+- Read .specify/memory/constitution.md
+- Read .specify/memory/summary-rules.md
+- Read all .specify/features/{manifest.project.feature}/*.summary.md
+- Read .specify/features/{manifest.project.feature}/analyze.md
+- Read .specify/templates/clarify-template.md
 
 ## Your Task — Generate Questions
 Review all spec documents and analysis. Find and document:
