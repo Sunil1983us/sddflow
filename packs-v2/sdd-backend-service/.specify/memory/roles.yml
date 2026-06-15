@@ -32,6 +32,8 @@ gates:
     raci: { responsible: senior_developer, accountable: tech_lead, consulted: [], informed: [] }
   - gate: "/plan-adr reviewed (mvp+)"
     raci: { responsible: architect, accountable: architect, consulted: [tech_lead], informed: [] }
+  - gate: "/task — QA test cases reviewed (mvp+)"
+    raci: { responsible: qa_lead, accountable: qa_lead, consulted: [tech_lead], informed: [product_owner] }
   - gate: "/task — stories + tasks approved"
     raci: { responsible: tech_lead, accountable: product_owner, consulted: [qa_lead], informed: [devops_sre] }
   - gate: "/implement — per-task PR approval"

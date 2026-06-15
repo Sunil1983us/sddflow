@@ -40,7 +40,7 @@ For each story:
 - Traceability matrix: Story → FR → Task → TC-NNN (from qa-testcases.md,
   mvp+) → R-NNN (from analyze.summary.md §2)
 
-- High-complexity items from analyze.md → larger story point estimates
+- High-complexity items from analyze.summary.md → larger story point estimates
 - Save: stories.md + stories.summary.md
 
 ### 3. Task List
@@ -56,7 +56,7 @@ For every task:
     /implement" (pilot)
 
 - Auto-split any task > manifest.pr_rules.max_lines_per_pr
-- High-risk items from analyze.md → pre-flag for SPLIT
+- High-risk items from analyze.summary.md → pre-flag for SPLIT
 
 Save: tasks.md
 

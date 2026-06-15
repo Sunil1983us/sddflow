@@ -355,9 +355,9 @@ ARCHITECTURE:
   All ports + adapters
   Integration mapping
   Cross-cutting concerns (auth, logging, error handling)
-  Risk mitigations from analyze.md applied
+  Risk mitigations from analyze.summary.md applied
   NFR → Decision mapping (arch-template §4a) for every NFR in
-  analyze.md §5
+  analyze.summary.md §5
 
 IMPLEMENTATION PLAN:
   Layer-by-layer breakdown
@@ -477,7 +477,7 @@ One ADR per key decision (arch.md §4 DEC-NNN rows):
   Integration approach (sync vs async)
   Data store choice
   Deployment + security approach
-  Any HIGH risk item from analyze.md
+  Any HIGH risk item from analyze.summary.md
 
 Each ADR format:
   Context → Options Considered → Decision → Consequences
@@ -515,7 +515,7 @@ VERIFY: hld.md exists and reviewed. Stop if not.
    Story points: 1/2/3/5/8
    Sprint assignment
    Acceptance criteria (testable)
-   HIGH complexity from analyze.md → higher story points
+   HIGH complexity from analyze.summary.md → higher story points
    Traceability matrix: Story → FR → Task → TC-NNN (from qa-testcases.md,
    mvp+) → R-NNN (QA-1)
 
@@ -531,7 +531,7 @@ VERIFY: hld.md exists and reviewed. Stop if not.
    Files that change
    Acceptance criteria linked to FR/NFR
    Auto-split any task > max_lines_per_pr
-   Pre-flag HIGH complexity items from analyze.md
+   Pre-flag HIGH complexity items from analyze.summary.md
 
    Save: tasks.md
 
