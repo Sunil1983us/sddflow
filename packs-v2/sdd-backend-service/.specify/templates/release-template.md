@@ -13,7 +13,7 @@
 |---|---|
 | tasks.md | {sections/IDs referenced} |
 | qa-testcases.summary.md | {sections/IDs referenced} |
-| runbook.md | {sections/IDs referenced} |
+| docs/runbook/local-setup.md (mvp+) | {sections/IDs referenced} |
 
 ## 1. Pre-Release Checklist
 
@@ -41,7 +41,7 @@
 
 | Step | Action | Owner | Rollback If Fails |
 |---|---|---|---|
-| 1 | Deploy DB migrations (V{NNN}) | {role} | Run down-script (runbook §6) |
+| 1 | Deploy DB migrations (V{NNN}) | {role} | Run down-script (docs/runbook/local-setup.md §6) |
 | 2 | Deploy application — {strategy: rolling/blue-green/canary} | {role} | Redeploy previous image tag |
 | 3 | Smoke test (section 4) | {role} | Roll back step 2 |
 | 4 | Enable feature flag / traffic shift | {role} | Disable flag / revert traffic |
@@ -81,7 +81,7 @@
 
 ## 7. Rollback Plan
 
-{Summary — full detail in runbook.md §6}
+{Summary — full detail in docs/runbook/local-setup.md §6}
 
 ---
 

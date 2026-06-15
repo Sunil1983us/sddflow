@@ -44,7 +44,10 @@ Execute ONE task at a time. Never batch.
 - WAIT for "go" before starting next task
 
 ### After All Tasks
-Generate delivery artifacts per manifest.scope:
-- openapi → docs/openapi.yaml
-- qa_cases → docs/qa/functional-test-cases.md
-- runbook → docs/runbook/local-setup.md
+Generate delivery artifacts per manifest.project.scope:
+- qa_cases (mvp+) → docs/qa/functional-test-cases.md — finalize
+  .specify/features/{manifest.project.feature}/qa-testcases.md (per
+  qa-testcases-template.md) with pass/fail results from the paired tests
+- runbook (mvp+) → docs/runbook/local-setup.md (per runbook-template.md)
+- openapi (full) → docs/openapi.yaml (per openapi-template.md, from
+  api-spec.summary.md)

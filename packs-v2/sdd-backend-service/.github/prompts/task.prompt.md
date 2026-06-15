@@ -10,14 +10,25 @@ description: TASK — Feature→Story→Task hierarchy + Jira export
 - Read .specify/features/{manifest.project.feature}/plan.summary.md
 - Read .specify/features/{manifest.project.feature}/analyze.summary.md
 - Read .specify/features/{manifest.project.feature}/clarify.summary.md
+- Read .specify/features/{manifest.project.feature}/srd.summary.md
+- Read .specify/features/{manifest.project.feature}/api-spec.summary.md (mvp+)
 
 ## Verify Gate
-Confirm plan.md exists and has been reviewed.
-If not — STOP and ask for PLAN approval first.
+Confirm hld.md exists and has been reviewed.
+If not — STOP and ask for PLAN-HLD approval first.
 
 ## Your Task
 
-### 1. Feature and Story Breakdown
+### 1. QA Test Cases (mvp+)
+- Skip if manifest.project.scope == pilot — tasks.md uses
+  "Verifies: TBD — link at /implement" instead
+- Read qa-testcases-template.md
+- For each FR-NNN (srd.summary.md) / endpoint (api-spec.summary.md):
+  generate TC-NNN covering happy path, validation, auth, unhappy path,
+  and performance per the template's categories
+- Save: qa-testcases.md + qa-testcases.summary.md
+
+### 2. Feature and Story Breakdown
 - Read feature-story-template.md
 - Structure: FEATURE → STORY → TASK
 
@@ -26,11 +37,13 @@ For each story:
 - Acceptance criteria: linked to FR-NNN from SRD
 - Story points: 1 / 2 / 3 / 5 / 8
 - Sprint assignment
+- Traceability matrix: Story → FR → Task → TC-NNN (from qa-testcases.md,
+  mvp+) → R-NNN (from analyze.summary.md §2)
 
-- High-complexity items from analyze.md → larger story point estimates
+- High-complexity items from analyze.summary.md → larger story point estimates
 - Save: stories.md + stories.summary.md
 
-### 2. Task List
+### 3. Task List
 - Read tasks-template.md
 
 For every task:
@@ -39,13 +52,15 @@ For every task:
   - Files that will change
   - Acceptance criteria linked to FR/NFR
   - Mapped to a story (STORY-NNN)
+  - Verifies: TC-NNN from qa-testcases.md (mvp+), or "TBD — link at
+    /implement" (pilot)
 
 - Auto-split any task > manifest.pr_rules.max_lines_per_pr
-- High-risk items from analyze.md → pre-flag for SPLIT
+- High-risk items from analyze.summary.md → pre-flag for SPLIT
 
 Save: tasks.md
 
-### 3. Jira Export
+### 4. Jira Export
 - Read jira-export-template.md
 - Hierarchy: Feature → Story → Task
 - Include: story points, sprint, acceptance criteria

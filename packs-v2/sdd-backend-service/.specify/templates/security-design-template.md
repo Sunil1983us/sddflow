@@ -70,6 +70,10 @@
 |---|---|---|
 | {regulation} | {control ID(s) from sections 1-3} | {TC-NNN / ADR-NNN} |
 
+> Verified By is filled in incrementally as later commands run:
+> ADR-NNN from /plan-adr, TC-NNN from /task. Confirm no placeholders
+> remain before /release §1 Pre-Release Checklist.
+
 ---
 
 ## 5. Never Do (security-specific)

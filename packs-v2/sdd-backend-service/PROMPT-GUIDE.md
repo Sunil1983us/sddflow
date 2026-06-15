@@ -94,7 +94,10 @@ Read .specify/memory/summary-rules.md
 Read .specify/memory/change-rules.md
 Read .specify/memory/roles.yml
 Read .github/instructions/*.instructions.md
-  (AI-7 — apply each file's applyTo glob to matching files you touch)
+  (AI-7 — apply each file's applyTo glob to matching files you touch.
+  These model the Java/Spring reference stack — if constitution Part 2
+  → Language/Framework differs, apply each rule's intent using that
+  language's idioms and conventions, don't skip it.)
 
 Confirm:
   Project name: {value}
@@ -163,7 +166,14 @@ ACTION 1 — Generate constitution.md Part 2 (DRAFT):
   Domain Rules → extract from business rules section
   Never Do → extract from constraints section
 
+  Set/bump Part 2 version line:
+    First run: Version v1.0 | Last Amended: {date} | Amended By: initial /specify
+    Re-run (finalized Part 2): bump v{X.Y} → v{X.Y+1}, Amended By:
+    CHG-NNN (or "manual /specify re-run")
+
   Save constitution.md (Part 1 unchanged, Part 2 = DRAFT)
+  List remaining [MISSING — ask user] rows as "Open Items for GATE-1"
+  ({N} items) — or "No open items — ready for GATE-1 review"
   Report: "Constitution Part 2 generated — DRAFT. Review and finalize
   every row (GATE-1) before /validate."
 
@@ -205,6 +215,10 @@ Rules:
   passes.
 - A later `/specify` re-run must propose changes for review — it must
   never silently overwrite a finalized Part 2.
+- Re-run on finalized Part 2 → produce a Constitution Amendment Summary:
+  `{Row}: {old} → {new}` per changed row, cross-referenced against
+  change-rules.md's Change Impact Matrix for downstream docs, plus the
+  version bump (v{X.Y} → v{X.Y+1}). WAIT for confirmation before applying.
 
 ---
 
@@ -287,7 +301,7 @@ Wait for review before /clarify.
 
 ### Step A — Generate Questions
 ```
-Read constitution.md + all spec summaries + analyze.md
+Read constitution.md + all spec summaries + analyze.summary.md
 Read clarify-template.md
 
 Find and document:
@@ -296,10 +310,10 @@ Find and document:
   CON-NNN: contradicting requirements
   ASM-NNN: agent assumed — needs confirmation
   OQ-NNN:  human decision needed
-  HR-NNN:  high risk from analyze.md needing clarity
+  R-NNN (High/Critical): high/critical risk from analyze.summary.md §2
 
 Each item: unique ID + where found + why it matters
-Prioritise HIGH risk items from analyze.md
+Prioritise HIGH/CRITICAL risk items (R-NNN) from analyze.summary.md §2
 
 Save: .specify/features/{feature}/clarify.md
 Present report. WAIT for answers. Do NOT proceed.
@@ -344,9 +358,9 @@ ARCHITECTURE:
   All ports + adapters
   Integration mapping
   Cross-cutting concerns (auth, logging, error handling)
-  Risk mitigations from analyze.md applied
+  Risk mitigations from analyze.summary.md applied
   NFR → Decision mapping (arch-template §4a) for every NFR in
-  analyze.md §5
+  analyze.summary.md §5
 
 IMPLEMENTATION PLAN:
   Layer-by-layer breakdown
@@ -466,7 +480,7 @@ One ADR per key decision (arch.md §4 DEC-NNN rows):
   Integration approach (sync vs async)
   Data store choice
   Deployment + security approach
-  Any HIGH risk item from analyze.md
+  Any HIGH risk item from analyze.summary.md
 
 Each ADR format:
   Context → Options Considered → Decision → Consequences
@@ -484,37 +498,47 @@ State: "/plan-adr complete — {N} ADRs. Ready for /task."
 ```
 Read constitution.md + summary-rules.md
 Read plan.summary.md + analyze.summary.md + clarify.summary.md
++ srd.summary.md + api-spec.summary.md (mvp+)
 Read feature-story-template.md + tasks-template.md + jira-export-template.md
-Read qa-testcases.summary.md (mvp+, if already generated)
++ qa-testcases-template.md
 
 VERIFY: hld.md exists and reviewed. Stop if not.
 
-1. FEATURE + STORIES:
+1. QA TEST CASES (mvp+; skip for pilot):
+   For each FR-NNN (srd.summary.md) / endpoint (api-spec.summary.md):
+   TC-NNN covering happy path, validation, auth, unhappy path,
+   performance (qa-testcases-template.md categories)
+
+   Save: qa-testcases.md + qa-testcases.summary.md
+
+2. FEATURE + STORIES:
    FEATURE: business capability from BRD
    Each story: As {actor} I want {X} so that {Y}
    Linked to FR-NNN from SRD
    Story points: 1/2/3/5/8
    Sprint assignment
    Acceptance criteria (testable)
-   HIGH complexity from analyze.md → higher story points
-   Traceability matrix: Story → FR → Task → TC-NNN → R-NNN (QA-1)
+   HIGH complexity from analyze.summary.md → higher story points
+   Traceability matrix: Story → FR → Task → TC-NNN (from qa-testcases.md,
+   mvp+) → R-NNN (QA-1)
 
    Save: stories.md + stories.summary.md
 
-2. TASK LIST:
+3. TASK LIST:
    Each task mapped to a story (STORY-NNN)
    Satisfies: FR-NNN / NFR-NNN
-   Verifies: TC-NNN (mvp+; "TBD — link at /implement" if not yet generated)
+   Verifies: TC-NNN from qa-testcases.md (mvp+; "TBD — link at /implement"
+   for pilot)
    Estimated lines
    PR strategy: single or SPLIT A/B/C
    Files that change
    Acceptance criteria linked to FR/NFR
    Auto-split any task > max_lines_per_pr
-   Pre-flag HIGH complexity items from analyze.md
+   Pre-flag HIGH complexity items from analyze.summary.md
 
    Save: tasks.md
 
-3. JIRA CSV:
+4. JIRA CSV:
    Feature → Story → Task hierarchy
    Story points, sprint, acceptance criteria
    Save: docs/jira/stories.md + docs/jira/jira-import.csv
@@ -571,9 +595,12 @@ AFTER CODING:
 
 AFTER ALL TASKS:
   Generate delivery per scope:
-    qa_cases  → docs/qa/functional-test-cases.md (mvp+)
-    runbook   → docs/runbook/local-setup.md (mvp+)
-    openapi   → docs/openapi.yaml (full)
+    qa_cases  → docs/qa/functional-test-cases.md (mvp+) — finalize
+                qa-testcases.md (per qa-testcases-template.md) with
+                pass/fail results from the paired tests
+    runbook   → docs/runbook/local-setup.md (mvp+, per runbook-template.md)
+    openapi   → docs/openapi.yaml (full, per openapi-template.md, from
+                api-spec.summary.md)
   State: "IMPLEMENT complete — all tasks merged. Ready for /release."
 ```
 

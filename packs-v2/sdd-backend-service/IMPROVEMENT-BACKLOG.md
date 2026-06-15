@@ -12,13 +12,6 @@ dashboards-as-code (Grafana JSON checked into repo), and a standard
 service. Add an `observability-template.md` if this pack is used for
 services with formal SLOs.
 
-## OPS-8 — Kubernetes Manifests
-docker-config-template.md covers docker-compose for local/dev. No
-equivalent `k8s/` template (Deployment, Service, HPA, NetworkPolicy,
-ConfigMap/Secret refs) exists for clusters that go straight to
-Kubernetes. Add a `k8s-manifest-template.md` referencing the same
-Containerization rules in constitution.md Part 1.
-
 ## SEC-8 — Data Classification Depth
 data-model-template.md §6 (added in this pass) gives a starting
 classification/PII/retention table. A full data-governance pass

@@ -54,7 +54,15 @@ Never Do — extract from:
 - Regulatory requirements
 - Add standard rules: logic in controller, hardcode values, skip tests
 
+- Set/bump the Part 2 version line:
+  - First run: `> Version: v1.0 | Last Amended: {date} | Amended By: initial /specify`
+  - Re-run on already-finalized Part 2: bump v{X.Y} → v{X.Y+1}, set
+    Amended By to the CHG-NNN driving this change (or "manual /specify
+    re-run" if none given)
 - Save updated constitution.md (Part 1 unchanged, Part 2 is a DRAFT).
+- List any remaining `[MISSING — ask user]` rows as "Open Items for
+  GATE-1" ({N} items, by row name) — or state "No open items — Part 2
+  ready for GATE-1 review" if none remain.
 - Confirm: "Constitution Part 2 generated from context — DRAFT.
   Review and finalize every row (GATE-1) before /validate."
 
@@ -62,8 +70,16 @@ Never Do — extract from:
 Do NOT proceed to Action 2 in the same turn as a first-time generation
 unless the user has already reviewed Part 2. If the user says
 "Constitution Part 2 finalized" (now or in a later session), proceed.
-A later /specify re-run on an already-finalized Part 2 must propose
-changes for review — never silently overwrite finalized rows.
+
+A later /specify re-run on an already-finalized Part 2 must NOT silently
+overwrite finalized rows. Instead, produce a Constitution Amendment
+Summary:
+- For each row whose value would change: `{Row}: {old value} → {new value}`
+- For each changed row, look up its category in change-rules.md's Change
+  Impact Matrix and list the downstream docs that may need updating
+- Show the version bump (v{X.Y} → v{X.Y+1}) and new "Amended By" value
+- Present the summary. WAIT for the user to confirm before applying any
+  change to the finalized Part 2.
 
 ## Action 2 — Generate Spec Documents
 

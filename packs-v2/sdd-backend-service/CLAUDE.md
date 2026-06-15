@@ -22,7 +22,10 @@ has a structured context.md.
 5. Read .specify/memory/roles.yml
 6. Read .github/instructions/*.instructions.md — apply each file's
    `applyTo` glob to any file you create or edit that matches it,
-   exactly as GitHub Copilot does (AI-7: Claude Code ≡ Copilot parity)
+   exactly as GitHub Copilot does (AI-7: Claude Code ≡ Copilot parity).
+   These model the Java/Spring reference stack (constitution Part 2 →
+   Language/Framework) — if your stack differs, apply each rule's
+   intent using that language's idioms and conventions, don't skip it.
 7. Confirm: project.name, scope, feature, context_file
 8. If constitution Part 2 not generated → remind user to run /specify first
 9. If constitution Part 2 generated but NOT finalized (GATE-1 open) →
@@ -45,7 +48,9 @@ Action 1 — Generate constitution.md Part 2 from context (DRAFT):
 - Extract Core Principles from domain constraints
 - Extract Domain Rules from business rules
 - Extract Never Do from stated constraints
+- Set/bump Part 2 version line (v1.0 first run, v{X.Y+1} on amendment)
 - Save updated constitution.md — Part 1 unchanged, Part 2 is a DRAFT
+- List any remaining `[MISSING — ask user]` rows as Open Items for GATE-1
 - State: "Constitution Part 2 generated — DRAFT. Review and finalize
   every row (GATE-1) before running /validate."
 
@@ -61,7 +66,9 @@ Rules, Never Do), resolves any `[MISSING — ask user]` markers, and may
 edit directly. Manual edits are AUTHORITATIVE. The user then tells the
 agent: "Constitution Part 2 finalized."
 A later /specify re-run must propose changes for review — never silently
-overwrite a finalized Part 2.
+overwrite a finalized Part 2. Re-run produces a Constitution Amendment
+Summary (row diffs + version bump + change-rules.md Change Impact Matrix
+cross-reference) and WAITs for confirmation.
 No /validate, /analyze, or any later command may run until this gate passes.
 
 ## 11-Command Gates
