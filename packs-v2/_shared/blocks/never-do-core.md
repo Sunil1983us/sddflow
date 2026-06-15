@@ -4,8 +4,7 @@
 - Never run /plan-arch while any spec doc has an unresolved
   `[ASSUMPTION-NNN]` marker (AI-8)
 - Never run /implement without TASK (stories.md + tasks.md) approved
-- Never run /release before all tasks are complete — "PR ready" + merged
-  (github mode) or "Task accepted" (local mode)
+- Never run /release before all tasks are "PR ready" and merged
 - Never code before context.md updated
 - Never hardcode any value
 - Never skip paired test

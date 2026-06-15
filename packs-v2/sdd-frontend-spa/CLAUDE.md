@@ -71,32 +71,38 @@ overwrite a finalized Part 2.
 No /validate, /analyze, or any later command may run until this gate passes.
 
 ## 11-Command Gates
-SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
-→ PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
-Each gate requires the previous step complete and reviewed.
+<!-- shared:command-gates:start -->
+- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
+  → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+- Each gate requires the previous step complete and reviewed.
+<!-- shared:command-gates:end -->
 
 ## PR Contract
-Estimate before every task.
-If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
-After task: state files + lines + "PR ready" → wait for go.
+<!-- shared:pr-contract:start -->
+- Estimate before every task.
+- If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
+- After task: state files + lines + "PR ready" → wait for go.
+<!-- shared:pr-contract:end -->
 
 ## Summary
 After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 
 ## Never Do
-Never run /validate before constitution Part 2 finalized (GATE-1)
-Never run /analyze without validate.summary.md
-Never run /plan-arch without clarify.summary.md
-Never run /plan-arch while any spec doc has an unresolved
+<!-- shared:never-do-core:start -->
+- Never run /validate before constitution Part 2 finalized (GATE-1)
+- Never run /analyze without validate.summary.md
+- Never run /plan-arch without clarify.summary.md
+- Never run /plan-arch while any spec doc has an unresolved
   `[ASSUMPTION-NNN]` marker (AI-8)
-Never run /implement without TASK (stories.md + tasks.md) approved
-Never run /release before all tasks are "PR ready" and merged
-Never code before context.md updated
-Never hardcode any value
-Never skip paired test
-Never call an API directly from a component — service layer only
-Never use inline styles — use the project styling solution
-Never ship a component without an axe-core accessibility check
+- Never run /implement without TASK (stories.md + tasks.md) approved
+- Never run /release before all tasks are "PR ready" and merged
+- Never code before context.md updated
+- Never hardcode any value
+- Never skip paired test
+<!-- shared:never-do-core:end -->
+- Never call an API directly from a component — service layer only
+- Never use inline styles — use the project styling solution
+- Never ship a component without an axe-core accessibility check
 
 ## PLAN Sub-Commands
 

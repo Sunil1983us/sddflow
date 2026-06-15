@@ -82,11 +82,11 @@ No /validate, /analyze, or any later command may run until this gate passes.
 <!-- shared:pr-contract:start -->
 - Estimate before every task.
 - If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
-- After task, per manifest.workflow_mode:
-  - github: state files + lines + "PR ready" → wait for go.
-  - local: run build/test/lint/coverage locally → report ✅/❌ per check →
-    state files + lines + "Task accepted" → wait for go.
+- After task: state files + lines + "PR ready" → wait for go.
 <!-- shared:pr-contract:end -->
+- If `manifest.workflow_mode = local`: instead of "PR ready", run
+  build/test/lint/coverage locally → report ✅/❌ per check → state
+  files + lines + "Task accepted" → wait for go.
 
 ## Summary
 After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
@@ -99,12 +99,14 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 - Never run /plan-arch while any spec doc has an unresolved
   `[ASSUMPTION-NNN]` marker (AI-8)
 - Never run /implement without TASK (stories.md + tasks.md) approved
-- Never run /release before all tasks are complete — "PR ready" + merged
-  (github mode) or "Task accepted" (local mode)
+- Never run /release before all tasks are "PR ready" and merged
 - Never code before context.md updated
 - Never hardcode any value
 - Never skip paired test
 <!-- shared:never-do-core:end -->
+- Never run /release in local mode (`manifest.workflow_mode = local`)
+  before all tasks show "Task accepted" — the local-mode equivalent of
+  "PR ready" + merged
 
 ## PLAN Sub-Commands
 
