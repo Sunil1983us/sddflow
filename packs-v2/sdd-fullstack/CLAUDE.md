@@ -65,11 +65,13 @@ Action 1 — Generate constitution.md Part 2 from context (DRAFT):
   State: "Constitution Part 2 generated — DRAFT. Review and finalize
   every row (GATE-1) before running /validate."
 
-Action 2 — Generate spec documents:
-  pilot:  brd, srd, analyze, arch, hld, data-model, api-spec,
-          ux-flow, plan, tasks, stories, jira, openapi
-  mvp:    + lld, component-spec, adr, qa_cases, runbook
-  full:   + resilience, security-design, accessibility
+Action 2 — Generate spec documents per scope (canonical doc inventory —
+see PROMPT-GUIDE.md):
+  pilot:  brd, srd, security-design (§1 — pilot checklist)
+  mvp:    + api-spec (Shared API Contract), component-spec, ux-flow,
+          data-model (Backend Schema & Persistence Model),
+          security-design (§1-2)
+  full:   + resilience, investigation, security-design (§1-4)
 
 ## Full Stack Rules (always applied)
 API contract is source of truth — backend and frontend aligned

@@ -17,6 +17,12 @@ Read .specify/templates/plan-template.md
 clarify.summary.md must exist with all items RESOLVED.
 If missing — STOP. Ask for CLARIFY to complete first.
 
+AI-8 check: scan brd.md, srd.md, api-spec.md, component-spec.md,
+ux-flow.md, data-model.md, and security-design.md (whichever exist for
+this scope) for any remaining `[ASSUMPTION-NNN]` marker without a
+matching `<!-- Clarified: {ID} -->` note. If any remain — STOP. State:
+"PLAN-ARCH blocked — unresolved assumptions {list}. Run /clarify first."
+
 ## Your Task
 
 ### Architecture Document
@@ -44,6 +50,26 @@ From arch.md:
 Save: .specify/features/{manifest.project.feature}/plan.md
 Save: .specify/features/{manifest.project.feature}/plan.summary.md
 
-After both saved:
-State: "PLAN-ARCH complete — review arch.md + plan.md before PLAN-HLD"
+### Refine Scope-Scaled Documents (now that arch.md exists)
+These were drafted at /specify from context + srd only; refine them using
+arch.md (layer responsibilities, ports/adapters, component tree):
+
+  mvp+: api-spec.md — align with the port/adapter contracts (backend) and
+        service layer (frontend) in arch.md — single shared contract
+  mvp+: component-spec.md, ux-flow.md — align with the frontend component
+        tree and state architecture in arch.md
+  mvp+: data-model.md — align with the backend schema/persistence design
+        in arch.md
+  all:  security-design.md — align controls with arch.md cross-cutting
+        concerns section (both layers)
+  full: resilience.md — align with arch.md integration list and error/
+        offline handling strategy (both layers)
+  full: investigation.md — align with arch.md flows (both layers)
+
+Re-save each updated doc + its .summary.md.
+
+After all saved:
+State: "PLAN-ARCH complete — review arch.md + plan.md (and refined
+api-spec/component-spec/ux-flow/data-model/security-design/resilience/
+investigation) before PLAN-HLD"
 Wait for review.
