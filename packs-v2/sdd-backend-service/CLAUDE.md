@@ -45,7 +45,9 @@ Action 1 — Generate constitution.md Part 2 from context (DRAFT):
 - Extract Core Principles from domain constraints
 - Extract Domain Rules from business rules
 - Extract Never Do from stated constraints
+- Set/bump Part 2 version line (v1.0 first run, v{X.Y+1} on amendment)
 - Save updated constitution.md — Part 1 unchanged, Part 2 is a DRAFT
+- List any remaining `[MISSING — ask user]` rows as Open Items for GATE-1
 - State: "Constitution Part 2 generated — DRAFT. Review and finalize
   every row (GATE-1) before running /validate."
 
@@ -61,7 +63,9 @@ Rules, Never Do), resolves any `[MISSING — ask user]` markers, and may
 edit directly. Manual edits are AUTHORITATIVE. The user then tells the
 agent: "Constitution Part 2 finalized."
 A later /specify re-run must propose changes for review — never silently
-overwrite a finalized Part 2.
+overwrite a finalized Part 2. Re-run produces a Constitution Amendment
+Summary (row diffs + version bump + change-rules.md Change Impact Matrix
+cross-reference) and WAITs for confirmation.
 No /validate, /analyze, or any later command may run until this gate passes.
 
 ## 11-Command Gates

@@ -115,6 +115,8 @@ rules — used instead of docker-compose.yml for cluster deployment.
 # Agent fills this section automatically during SPECIFY — Part 2 is a DRAFT
 # until GATE-1 (above) is passed. After finalization, manual edits win.
 
+> Version: v1.0 | Last Amended: {date} | Amended By: initial /specify
+
 ## Tech Stack
 
 | Concern | Choice | Notes |

@@ -163,7 +163,14 @@ ACTION 1 — Generate constitution.md Part 2 (DRAFT):
   Domain Rules → extract from business rules section
   Never Do → extract from constraints section
 
+  Set/bump Part 2 version line:
+    First run: Version v1.0 | Last Amended: {date} | Amended By: initial /specify
+    Re-run (finalized Part 2): bump v{X.Y} → v{X.Y+1}, Amended By:
+    CHG-NNN (or "manual /specify re-run")
+
   Save constitution.md (Part 1 unchanged, Part 2 = DRAFT)
+  List remaining [MISSING — ask user] rows as "Open Items for GATE-1"
+  ({N} items) — or "No open items — ready for GATE-1 review"
   Report: "Constitution Part 2 generated — DRAFT. Review and finalize
   every row (GATE-1) before /validate."
 
@@ -205,6 +212,10 @@ Rules:
   passes.
 - A later `/specify` re-run must propose changes for review — it must
   never silently overwrite a finalized Part 2.
+- Re-run on finalized Part 2 → produce a Constitution Amendment Summary:
+  `{Row}: {old} → {new}` per changed row, cross-referenced against
+  change-rules.md's Change Impact Matrix for downstream docs, plus the
+  version bump (v{X.Y} → v{X.Y+1}). WAIT for confirmation before applying.
 
 ---
 
