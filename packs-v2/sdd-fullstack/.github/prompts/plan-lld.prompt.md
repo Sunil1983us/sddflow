@@ -29,7 +29,7 @@ Full directory tree — every package/folder and its purpose
 All classes + interfaces + relationships — classDiagram
 Include: fields, key methods, implements/extends
 
-### Component Diagram (frontend/mobile)
+### Component Diagram (frontend)
 All components + props + events — graph TD or classDiagram
 
 ### Detailed Sequence Diagrams

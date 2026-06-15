@@ -41,5 +41,7 @@ Execute ONE task at a time. Never batch.
 ### After All Tasks
 Generate delivery artifacts per manifest.scope:
   openapi   → docs/openapi.yaml
-  qa_cases  → docs/qa/functional-test-cases.md
-  runbook   → docs/runbook/local-setup.md
+  qa_cases  → docs/qa/functional-test-cases.md (mvp+)
+  runbook   → docs/runbook/local-setup.md (mvp+)
+
+State: "IMPLEMENT complete — all tasks merged. Ready for /release."
