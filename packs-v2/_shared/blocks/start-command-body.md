@@ -1,8 +1,3 @@
----
-description: Startup — read framework files and confirm project state (Step 0)
----
-
-<!-- shared:start-command-body:start -->
 Read and follow the "Startup (every session)" steps in `CLAUDE.md`:
 - `.specify/manifest.yml`
 - `.specify/memory/constitution.md`
@@ -19,6 +14,3 @@ Then confirm:
 
 State which command is ready to run next. If Part 2 is generated but not
 finalized, remind the user to complete GATE-1 before `/validate`.
-<!-- shared:start-command-body:end -->
-
-$ARGUMENTS

@@ -45,3 +45,6 @@ hand-copied into each pack and drift apart (e.g. one pack documents the
 | `command-gates.md` | "11-Command Gates" — command order + gate rule |
 | `pr-contract.md` | "PR Contract" — estimate/split/report-and-wait rule |
 | `never-do-core.md` | "Never Do" — the 9 process-level rules common to every pack |
+| `startup-instructions.md` | "Startup" item 6 — read `.github/instructions/*.instructions.md` (AI-7) |
+| `gate1-reminders.md` | "Startup" items 8-9 — GATE-1 reminders |
+| `start-command-body.md` | `.claude/commands/start.md` — Step 0 body (file reads + confirm fields) |
