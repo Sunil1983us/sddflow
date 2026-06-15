@@ -101,8 +101,8 @@ Sprint 3:
 | STORY-003 | FR-004, FR-005 | TASK-006 to 008 | TC-004, TC-005 | R-002 | 2 |
 
 TC-NNN IDs come from qa-testcases.md (mvp+) — every FR must map to at
-least one TC-NNN before /release. R-NNN IDs come from analyze.md §2 Risk
-Register — link only risks relevant to that story.
+least one TC-NNN before /release. R-NNN IDs come from analyze.summary.md
+§2 Risk Register — link only risks relevant to that story.
 
 ---
 

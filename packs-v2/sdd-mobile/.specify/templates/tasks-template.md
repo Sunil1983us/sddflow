@@ -11,6 +11,8 @@
 
 ## Task Field Reference
 Every task includes:
+- `Story:` — STORY-NNN this task belongs to (from stories.md) —
+  populates the Jira CSV Parent column for this task
 - `Satisfies:` — FR-NNN / NFR-NNN / architectural rule this task delivers
 - `Verifies:` — TC-NNN (mvp+, from qa-testcases.md) this task's paired
   test covers. If qa-testcases.md not yet generated (pilot, or before
@@ -22,6 +24,7 @@ Every task includes:
 ## Phase A — Foundation
 
 ### TASK-001 — Project Scaffold + Dependencies
+Story: STORY-001
 Satisfies: NFR-001 (build), NFR-{N} (tech stack)
 Dependencies: none
 Estimated lines: ~50 | PR: single
@@ -33,6 +36,7 @@ Acceptance criteria:
   - [ ] `{build command}` passes
 
 ### TASK-002 — Domain Entity + Enum
+Story: STORY-001
 Satisfies: FR-{NNN}
 Verifies: TC-{NNN} (unit — entity creation + state transitions)
 Dependencies: TASK-001
@@ -44,6 +48,7 @@ Acceptance criteria:
   - [ ] Unit test covers creation + state transitions
 
 ### TASK-003 — Port Interfaces
+Story: STORY-001
 Satisfies: Architecture — hexagonal pattern
 Dependencies: TASK-002
 Estimated lines: ~40 | PR: single
@@ -54,6 +59,7 @@ Acceptance criteria:
   - [ ] No implementation in port files
 
 ### TASK-004 — DB Migration Scripts
+Story: STORY-002
 Satisfies: FR-{NNN} (persistence)
 Dependencies: TASK-002
 Estimated lines: ~30 | PR: single
@@ -68,6 +74,7 @@ Acceptance criteria:
 ## Phase B — Mock Layer
 
 ### TASK-005 — MockDataFactory
+Story: STORY-002
 Satisfies: Testing strategy
 Dependencies: TASK-002
 Estimated lines: ~80 | PR: single
@@ -78,6 +85,7 @@ Acceptance criteria:
   - [ ] All mock responses constructable
 
 ### TASK-006 — Mock Adapters
+Story: STORY-003
 Satisfies: FR-{NNN} (integration mocks)
 Dependencies: TASK-003, TASK-005
 Estimated lines: ~120 | PR: SPLIT (A: mock1+mock2, B: mock3+mock4)
@@ -92,6 +100,7 @@ Acceptance criteria:
 ## Phase C — Persistence
 
 ### TASK-007 — JPA Repository
+Story: STORY-003
 Satisfies: FR-{NNN} (persistence)
 Dependencies: TASK-002, TASK-004
 Estimated lines: ~80 | PR: single
@@ -106,6 +115,7 @@ Acceptance criteria:
 ## Phase D — Service Layer
 
 ### TASK-008 — Service Implementation
+Story: STORY-003
 Satisfies: FR-{NNN}, FR-{NNN}
 Verifies: TC-{NNN}, TC-{NNN} (unit — service happy path + failure paths)
 Dependencies: TASK-003, TASK-006, TASK-007
@@ -122,6 +132,7 @@ Acceptance criteria:
 ## Phase E — API Layer
 
 ### TASK-009 — DTOs (Records)
+Story: STORY-004
 Satisfies: FR-{NNN} (API contract)
 Dependencies: TASK-002
 Estimated lines: ~60 | PR: single
@@ -132,6 +143,7 @@ Acceptance criteria:
   - [ ] Records are immutable
 
 ### TASK-010 — Controller
+Story: STORY-004
 Satisfies: FR-{NNN}
 Verifies: TC-{NNN} (controller — request/response contract)
 Dependencies: TASK-003, TASK-009
@@ -144,6 +156,7 @@ Acceptance criteria:
   - [ ] Delegates to use case — no logic in controller
 
 ### TASK-011 — Exception Handler
+Story: STORY-004
 Satisfies: NFR-{NNN} (error handling)
 Dependencies: TASK-009
 Estimated lines: ~60 | PR: single
@@ -154,6 +167,7 @@ Acceptance criteria:
   - [ ] No stack traces in response
 
 ### TASK-012 — Integration Test
+Story: STORY-005
 Satisfies: All FRs — end-to-end verification
 Verifies: TC-{NNN} (integration — full request→DB→response path)
 Dependencies: TASK-007, TASK-008, TASK-010
@@ -169,6 +183,7 @@ Acceptance criteria:
 ## Phase F — Infrastructure
 
 ### TASK-013 — Docker + Config
+Story: STORY-005
 Satisfies: NFR-{NNN} (deployment)
 Dependencies: TASK-012
 Estimated lines: ~80 | PR: single

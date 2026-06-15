@@ -59,10 +59,10 @@
 
 ---
 
-## HIGH RISK ITEMS (from analyze.md)
+## HIGH RISK ITEMS — R-NNN (High/Critical, from analyze.summary.md §2)
 
-### HR-001: {Risk Title from analyze.md}
-**Risk:** {description from analyze.md}
+### R-{NNN}: {Risk Title from analyze.summary.md §2 "High/Critical Risks — Detail"}
+**Risk:** {description from analyze.summary.md}
 **Clarification needed:** {what must be clarified to mitigate this risk}
 **Your answer:** {FILL THIS}
 
@@ -76,7 +76,7 @@
 | GAP-001 | Gap | {topic} | OPEN |
 | ASM-001 | Assumption | {topic} | OPEN |
 | OQ-001 | Open Question | {topic} | OPEN |
-| HR-001 | High Risk | {topic} | OPEN |
+| R-{NNN} | High/Critical Risk | {topic} | OPEN |
 
 Status: OPEN → RESOLVED / CONFIRMED / DECIDED / CORRECTED
 
