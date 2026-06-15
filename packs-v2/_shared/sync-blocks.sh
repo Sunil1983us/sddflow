@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Sync canonical _shared/blocks/*.md content into marked sections of
-# every sdd-* pack. See README.md for the marker format and rules.
+# Sync canonical _shared/ content into every sdd-* pack:
+#  1. blocks/*.md   -> marked sections within otherwise pack-specific files
+#  2. full/**       -> whole files with zero pack-specific content
+# See README.md for the marker format and rules.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -17,5 +19,16 @@ for block in blocks/*.md; do
       { print }
     ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
     echo "synced $id -> $file"
+  done
+done
+
+find full -type f | while read -r src; do
+  rel="${src#full/}"
+  for pack in ../sdd-*; do
+    dest="$pack/$rel"
+    if [ -f "$dest" ] && ! cmp -s "$src" "$dest"; then
+      cp "$src" "$dest"
+      echo "synced (full) $rel -> $dest"
+    fi
   done
 done

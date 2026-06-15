@@ -5,11 +5,13 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | arch.summary.md | {sections/IDs referenced} |
 
 ## 1. Tech Stack (from constitution)
+
 | Concern | Choice |
 |---|---|
 | Language | {from constitution} |
@@ -54,6 +56,7 @@
 21. CI/CD pipeline file
 
 ## 3. Test Strategy
+
 | Layer | Framework | Scope |
 |---|---|---|
 | Domain | JUnit 5 | Pure unit — no deps |
@@ -63,13 +66,14 @@
 | Integration | Testcontainers | Full stack |
 
 ## 4. Mock Strategy
-All outbound integrations start as mocks.
-@Profile("mock") — activated in dev + test.
-@Profile("prod") — real adapter in production.
-MockDataFactory provides all test data.
-Mocks only return happy path in pilot scope.
+- All outbound integrations start as mocks.
+- @Profile("mock") — activated in dev + test.
+- @Profile("prod") — real adapter in production.
+- MockDataFactory provides all test data.
+- Mocks only return happy path in pilot scope.
 
 ## 5. Configuration
+
 | Profile | Purpose | DB | Integrations |
 |---|---|---|---|
 | mock | Development + test | H2 or Testcontainers | All mocked |
@@ -85,6 +89,7 @@ Mocks only return happy path in pilot scope.
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
