@@ -94,7 +94,10 @@ Read .specify/memory/summary-rules.md
 Read .specify/memory/change-rules.md
 Read .specify/memory/roles.yml
 Read .github/instructions/*.instructions.md
-  (AI-7 — apply each file's applyTo glob to matching files you touch)
+  (AI-7 — apply each file's applyTo glob to matching files you touch.
+  These model the Java/Spring reference stack — if constitution Part 2
+  → Language/Framework differs, apply each rule's intent using that
+  language's idioms and conventions, don't skip it.)
 
 Confirm:
   Project name: {value}
@@ -501,14 +504,14 @@ Read feature-story-template.md + tasks-template.md + jira-export-template.md
 
 VERIFY: hld.md exists and reviewed. Stop if not.
 
-0. QA TEST CASES (mvp+; skip for pilot):
+1. QA TEST CASES (mvp+; skip for pilot):
    For each FR-NNN (srd.summary.md) / endpoint (api-spec.summary.md):
    TC-NNN covering happy path, validation, auth, unhappy path,
    performance (qa-testcases-template.md categories)
 
    Save: qa-testcases.md + qa-testcases.summary.md
 
-1. FEATURE + STORIES:
+2. FEATURE + STORIES:
    FEATURE: business capability from BRD
    Each story: As {actor} I want {X} so that {Y}
    Linked to FR-NNN from SRD
@@ -521,7 +524,7 @@ VERIFY: hld.md exists and reviewed. Stop if not.
 
    Save: stories.md + stories.summary.md
 
-2. TASK LIST:
+3. TASK LIST:
    Each task mapped to a story (STORY-NNN)
    Satisfies: FR-NNN / NFR-NNN
    Verifies: TC-NNN from qa-testcases.md (mvp+; "TBD — link at /implement"
@@ -535,7 +538,7 @@ VERIFY: hld.md exists and reviewed. Stop if not.
 
    Save: tasks.md
 
-3. JIRA CSV:
+4. JIRA CSV:
    Feature → Story → Task hierarchy
    Story points, sprint, acceptance criteria
    Save: docs/jira/stories.md + docs/jira/jira-import.csv

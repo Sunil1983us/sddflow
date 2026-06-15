@@ -22,7 +22,10 @@ has a structured context.md.
 5. Read .specify/memory/roles.yml
 6. Read .github/instructions/*.instructions.md — apply each file's
    `applyTo` glob to any file you create or edit that matches it,
-   exactly as GitHub Copilot does (AI-7: Claude Code ≡ Copilot parity)
+   exactly as GitHub Copilot does (AI-7: Claude Code ≡ Copilot parity).
+   These model the Java/Spring reference stack (constitution Part 2 →
+   Language/Framework) — if your stack differs, apply each rule's
+   intent using that language's idioms and conventions, don't skip it.
 7. Confirm: project.name, scope, feature, context_file
 8. If constitution Part 2 not generated → remind user to run /specify first
 9. If constitution Part 2 generated but NOT finalized (GATE-1 open) →

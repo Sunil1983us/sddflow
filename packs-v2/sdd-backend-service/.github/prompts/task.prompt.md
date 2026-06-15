@@ -14,8 +14,8 @@ description: TASK — Feature→Story→Task hierarchy + Jira export
 - Read .specify/features/{manifest.project.feature}/api-spec.summary.md (mvp+)
 
 ## Verify Gate
-Confirm plan.md exists and has been reviewed.
-If not — STOP and ask for PLAN approval first.
+Confirm hld.md exists and has been reviewed.
+If not — STOP and ask for PLAN-HLD approval first.
 
 ## Your Task
 

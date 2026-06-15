@@ -9,6 +9,8 @@
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced} |
+| clarify.summary.md | {resolved items applied} |
+| analyze.summary.md | {risk mitigations §2 / NFR mapping §5 applied} |
 
 ## 1. Architecture Overview
 {One paragraph — pattern chosen, key decisions, why.}

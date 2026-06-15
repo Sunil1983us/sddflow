@@ -52,6 +52,9 @@ are authoritative — never silently overwritten by a later /specify.
 ## AI-7 — Apply Glob-Scoped Instructions
 Apply every `.github/instructions/*.instructions.md` file's `applyTo`
 glob to any matching file you create or edit (api/domain/tests/java).
+These model the Java/Spring reference stack (constitution Part 2 →
+Language/Framework) — if your stack differs, apply each rule's intent
+using that language's idioms and conventions, don't skip it.
 
 ## Summary
 After every doc: write .summary.md — max SUMMARY_MAX_LINES (AI-2:
