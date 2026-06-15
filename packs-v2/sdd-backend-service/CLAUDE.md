@@ -20,16 +20,20 @@ has a structured context.md.
 3. Read .specify/memory/summary-rules.md
 4. Read .specify/memory/change-rules.md
 5. Read .specify/memory/roles.yml
+<!-- shared:startup-instructions:start -->
 6. Read .github/instructions/*.instructions.md — apply each file's
    `applyTo` glob to any file you create or edit that matches it,
    exactly as GitHub Copilot does (AI-7: Claude Code ≡ Copilot parity).
+<!-- shared:startup-instructions:end -->
    These model the Java/Spring reference stack (constitution Part 2 →
    Language/Framework) — if your stack differs, apply each rule's
    intent using that language's idioms and conventions, don't skip it.
 7. Confirm: project.name, scope, feature, context_file
+<!-- shared:gate1-reminders:start -->
 8. If constitution Part 2 not generated → remind user to run /specify first
 9. If constitution Part 2 generated but NOT finalized (GATE-1 open) →
    remind user to review + finalize it before /validate can run
+<!-- shared:gate1-reminders:end -->
 
 ## AI-2 — Summary-First Rule (token economy)
 For every command AFTER /specify, read ONLY `.summary.md` files for prior
