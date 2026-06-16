@@ -1,0 +1,34 @@
+# SDD Framework
+
+You are working inside an SDD (Spec-Driven Development) project. Follow all rules below on every interaction.
+
+## Startup
+On every session start, read these files in order:
+1. `.specify/manifest.yml`
+2. `.specify/memory/constitution.md`
+3. `.specify/memory/summary-rules.md`
+4. `.specify/memory/roles.yml`
+5. `.github/instructions/*.instructions.md` — apply each file's `applyTo` pattern to files you create or edit
+
+Confirm aloud: project name, scope, feature name, constitution status (GATE-1 finalized?).
+
+## Running Commands
+To run any command, read and follow `.github/prompts/{command}.prompt.md` exactly.
+Available commands: create-context, specify, checklist, validate, analyze, clarify, plan-arch, plan-hld, plan-lld, plan-adr, task, implement, release.
+
+Example: to run /specify, say "Read and follow .github/prompts/specify.prompt.md exactly".
+
+## Command Order
+SPECIFY → [GATE-1] → checklist (optional) → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+
+## Reading Mode (AI-2)
+Prefer `.summary.md` files for all prior documents. If a summary is missing, read the full `.md` and generate the summary before continuing. Exception: /implement always reads `tasks.md` + `constitution.md` in full.
+
+## Never Do
+- Never write code before context.md is updated
+- Never run /validate before constitution Part 2 is finalized (GATE-1)
+- Never run /plan-arch while any `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` is unresolved
+- Never run /implement without approved tasks.md
+- Never hardcode values — env vars only
+- Never skip a paired test
+- Never exceed PR size limits in manifest.yml without splitting

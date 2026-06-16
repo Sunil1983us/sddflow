@@ -21,7 +21,7 @@
 | Traceability | On-demand, advisory (`/speckit.analyze` — severity-ranked consistency audit across spec/plan/tasks) | Persistent matrix: Story → FR/NFR → Task → TC-NNN → R-NNN |
 | Task export | `/speckit.taskstoissues` — tasks.md → GitHub Issues | `/task` → Jira CSV |
 | PR / CI governance | Left to the team's normal git workflow | Built-in `pr_rules` (max lines/files, SPLIT A/B/C), `quality-gate.yml`, and a configurable `workflow_mode: github \| local` |
-| Portability | Designed to run identically across many AI coding tools | Per-IDE prompt mirrors (`.github/prompts/`, `.claude/commands/`) |
+| Portability | Designed to run identically across many AI coding tools | Claude Code (`.claude/commands/`), Copilot (`.github/prompts/`), Cursor (`.cursor/rules/`), Windsurf (`.windsurfrules`), any AI via copy-paste; `setup.sh`/`setup.ps1` for one-command init |
 
 **Bottom line:** spec-kit is a lean, portable scaffold that turns "vibe
 coding" into structured, requirement-driven development for a single
