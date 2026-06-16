@@ -1,0 +1,22 @@
+# Personal agent preferences — never commit
+CLAUDE.local.md
+
+# Environment files — never commit
+.env
+.env.local
+.env.*.local
+
+# Build output
+target/
+dist/
+build/
+node_modules/
+
+# IDE
+.idea/
+.vscode/settings.json
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

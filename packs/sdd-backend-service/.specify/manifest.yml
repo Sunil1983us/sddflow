@@ -34,3 +34,7 @@ workflow_mode: "github"   # github | local
 #   tdd:    write failing test first → implement to pass → refactor (Red-Green-Refactor)
 #   bdd:    Given/When/Then specs drive tests, written before implementation
 # testing_style: "paired"
+
+# Project Type — this pack is optimised for backend-service
+# If using sdd-universal instead, set project_type: "backend-service" in its manifest.yml
+# project_type: "backend-service"
