@@ -30,6 +30,12 @@
 
 ## 4. Use Cases
 
+> **Acceptance Scenarios:** Each UC must have at least 2 Given/When/Then scenarios.
+> These become TC-NNN entries in qa-testcases.md — write them in domain language
+> matching FR-NNN wording so the link is traceable.
+> **[NEEDS CLARIFICATION: {question}]** — use this marker on any UC where a specific
+> detail cannot be determined from context and needs a human answer before /validate.
+
 ### UC-001: {Use Case Name} — Happy Path
 - **Actor:** {who triggers this}
 - **Trigger:** {what starts the flow}
@@ -38,11 +44,18 @@
   1. {step}
   2. {step}
 - **Outcome:** {successful result}
+- **Independent Test:** {how this UC can be verified end-to-end without depending on other UCs}
+- **Acceptance Scenarios:**
+  1. **Given** {initial state}, **When** {action}, **Then** {expected outcome}
+  2. **Given** {initial state}, **When** {edge condition}, **Then** {expected outcome}
 
 ### UC-002: {Use Case Name} — Unhappy Path
 - **Trigger:** {what causes this path}
 - **Steps:** {what happens}
 - **Outcome:** {error result + recovery}
+- **Independent Test:** {how this error path can be triggered and verified}
+- **Acceptance Scenarios:**
+  1. **Given** {initial state}, **When** {error condition}, **Then** {error outcome + recovery}
 
 ## 5. Integrations
 | System | Endpoint | Direction | Phase 1 |
