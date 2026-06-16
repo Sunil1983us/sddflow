@@ -58,7 +58,13 @@ Out of Scope:
 | {regulation} | {requirement} | {design impact} |
 
 ## 7. Assumptions
+
+> **Two markers — use the right one:**
+> - `[ASSUMPTION-NNN: ...]` — agent made a reasonable default and proceeded; business owner confirms/rejects at /validate
+> - `[NEEDS CLARIFICATION: {specific question}]` — no safe default; human must answer before /validate sign-off
+
 - [ASSUMPTION-001] {assumption made due to gap in context}
+- Use [NEEDS CLARIFICATION: {specific question}] inline on any BR-NNN where a required detail is missing
 
 ## 8. Success Criteria
 - [ ] {verifiable end-to-end criterion}

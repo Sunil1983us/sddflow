@@ -64,7 +64,7 @@ Core Principles — derive from domain:
 - If payments domain → "Idempotency First"
 - If regulated domain → "Compliance First"
 - If real-time domain → "Latency Budget"
-- Always add: Specification First, Test First, Traceability
+- Always add: Specification First, Test Discipline, Traceability
 
 Domain Rules — extract from:
 - Business rules section
@@ -102,6 +102,14 @@ full:   + resilience → investigation → security-design (§1-4)
 
 For each: read template → derive from context → save .md + .summary.md
 Mark all assumptions: [ASSUMPTION-NNN: ...]
+For every UC-NNN in srd.md: write at least 2 Given/When/Then acceptance
+  scenarios using domain language from the FR-NNN wording. Add an
+  "Independent Test" statement describing how to verify that UC end-to-end.
+  These become TC-NNN entries at /task — precision here saves QA inference.
+Marker discipline:
+  Use [ASSUMPTION-NNN: {what was assumed}] when a reasonable default was applied and the agent proceeded.
+  Use [NEEDS CLARIFICATION: {specific question}] when no safe default exists and a human decision is required before /validate can sign off.
+  Never leave a gap silently — always use one of the two markers.
 Every FR: FR-NNN | Every NFR: NFR-NNN
 
 Templates to use:
