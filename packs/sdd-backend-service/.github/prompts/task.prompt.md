@@ -42,6 +42,13 @@ For each story:
 
 - High-complexity items from analyze.summary.md → larger story point estimates
 - Save: stories.md + stories.summary.md
+- MoSCoW priority per story:
+  - **Must Have** — FR-NNN priority HIGH or CRITICAL; primary BO-NNN objective; blocks launch
+  - **Should Have** — FR-NNN priority MEDIUM; important but not launch-blocking
+  - **Could Have** — FR-NNN priority LOW; nice-to-have, safe to defer
+  - **Won't Have (this release)** — explicitly deferred or out of scope
+  Group stories under MoSCoW headings in stories.md (## Must Have / ## Should Have / etc.)
+  Add a Priority column to each story table.
 
 ### 3. Task List
 - Read tasks-template.md
