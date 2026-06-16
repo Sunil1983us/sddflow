@@ -26,7 +26,7 @@ matching `<!-- Clarified: {ID} -->` note. If any remain — STOP. State:
 ## Your Task
 
 ### Component Architecture (NOT hexagonal — frontend pattern)
-From context + constitution Part 2 + analyze.md:
+From context + constitution Part 2 + analyze.summary.md:
 - Component hierarchy (Page → Container → Presentational)
 - State architecture (global store vs local state boundaries)
 - Service layer (API calls + data transformation)
@@ -34,9 +34,9 @@ From context + constitution Part 2 + analyze.md:
 - Shared component library
 - Error boundary strategy
 - Performance approach (lazy loading, code splitting)
-- Risk mitigations from analyze.md applied to design
+- Risk mitigations from analyze.summary.md applied to design
 - NFR → Decision mapping (arch-template §4a) for every NFR in
-  analyze.md §5
+  analyze.summary.md §5
 
 Save: arch.md + arch.summary.md
 

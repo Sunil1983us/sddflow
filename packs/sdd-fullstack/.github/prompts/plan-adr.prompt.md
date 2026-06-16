@@ -27,7 +27,7 @@ Generate one ADR per key architectural decision.
 - Data store choice
 - Deployment strategy
 - Security approach
-- Any decision from analyze.md marked HIGH risk
+- Any decision from analyze.summary.md marked HIGH risk
 
 ### Each ADR Contains
 Context: why was this decision needed?

@@ -68,9 +68,9 @@ rows into full ADR-NNN records — fill the ADR column once generated.
 
 | NFR-NNN | Requirement | Design Constraint | Decision (DEC-NNN) |
 |---|---|---|---|
-| NFR-{NNN} | {requirement, from analyze.md §5} | {what it forces} | DEC-{NNN} |
+| NFR-{NNN} | {requirement, from analyze.summary.md §5} | {what it forces} | DEC-{NNN} |
 
-Every NFR flagged in analyze.md §5 NFR Impact Analysis must appear here
+Every NFR flagged in analyze.summary.md §5 NFR Impact Analysis must appear here
 with the decision that satisfies it.
 
 ## 5. Flow — Happy Path

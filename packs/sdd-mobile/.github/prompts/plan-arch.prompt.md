@@ -26,7 +26,7 @@ assumptions {list}. Run /clarify first."
 ## Your Task
 
 ### Screen Architecture (NOT hexagonal — mobile pattern)
-From context + constitution Part 2 + analyze.md:
+From context + constitution Part 2 + analyze.summary.md:
 - Screen hierarchy and ownership
 - Navigation structure (stack / tab / drawer)
 - State architecture (global vs local per screen)
@@ -35,9 +35,9 @@ From context + constitution Part 2 + analyze.md:
 - Permission request flow
 - Platform abstraction layer (iOS vs Android differences)
 - Push notification handling
-- Risk mitigations from analyze.md applied to design
+- Risk mitigations from analyze.summary.md applied to design
 - NFR → Decision mapping (arch-template §4a) for every NFR in
-  analyze.md §5
+  analyze.summary.md §5
 
 Save: arch.md + arch.summary.md
 

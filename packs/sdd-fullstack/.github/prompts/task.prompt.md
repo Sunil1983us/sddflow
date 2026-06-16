@@ -27,7 +27,7 @@ For each story:
   Story points: 1 / 2 / 3 / 5 / 8
   Sprint assignment
 
-High-complexity items from analyze.md → larger story point estimates
+High-complexity items from analyze.summary.md → larger story point estimates
 Save: stories.md + stories.summary.md
 
 ### 2. Task List
@@ -40,7 +40,7 @@ For every task:
   - Mapped to a story (STORY-NNN)
 
 Auto-split any task > manifest.pr_rules.max_lines_per_pr
-High-risk items from analyze.md → pre-flag for SPLIT
+High-risk items from analyze.summary.md → pre-flag for SPLIT
 
 Save: tasks.md
 

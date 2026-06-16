@@ -26,14 +26,14 @@ matching `<!-- Clarified: {ID} -->` note. If any remain — STOP. State:
 ## Your Task
 
 ### Architecture Document
-From context + constitution Part 2 + analyze.md:
+From context + constitution Part 2 + analyze.summary.md:
 - Choose architecture pattern (derived from tech stack)
 - Define layers and responsibilities
 - Define all ports and adapters
 - Map integrations to outbound ports
 - List key design decisions with rationale
 - Identify cross-cutting concerns (auth, logging, error handling)
-- Risk mitigations from analyze.md applied to design
+- Risk mitigations from analyze.summary.md applied to design
 
 Save: .specify/features/{manifest.project.feature}/arch.md
 Save: .specify/features/{manifest.project.feature}/arch.summary.md
