@@ -21,3 +21,10 @@ pr_rules:
 #           ending each task with "Task accepted"; /release requires every
 #           task accepted. See HOW-TO-USE.md "Workflow Mode" for details.
 workflow_mode: "github"   # github | local
+
+# Reading Mode — auto | summary | full   DEFAULT: auto (from summary-rules.md)
+#   auto:    use .summary.md when present; fall back to full .md + generate
+#            summary if missing (see summary-rules.md → AI-2 Decision Tree)
+#   summary: always use .summary.md; warn if missing (strict token economy)
+#   full:    always read full .md — for deep debugging or initial migration
+# reading_mode: "auto"

@@ -34,10 +34,16 @@ has a structured context.md.
 <!-- shared:gate1-reminders:end -->
 
 ## AI-2 — Summary-First Rule (token economy)
-For every command AFTER /specify, read ONLY `.summary.md` files for prior
-documents — never re-read full `.md` docs. The one exception is
-/implement, which reads `tasks.md` (current task only) + `constitution.md`
-in full. See .specify/memory/summary-rules.md.
+For every command AFTER /specify, read `.summary.md` files for prior
+documents. Behaviour is governed by `reading_mode` (set in manifest.yml,
+default `auto` from summary-rules.md):
+- auto (default): use summary if present; fall back to full doc +
+  auto-generate summary if missing
+- summary: always use summary; warn if missing (strict token economy)
+- full: always read full .md (debugging / initial migration only)
+/implement always reads `tasks.md` (current task only) + `constitution.md`
+in full regardless of reading_mode.
+See .specify/memory/summary-rules.md → AI-2 Reading Mode Decision Tree.
 
 ## SPECIFY — Two Actions in Order
 

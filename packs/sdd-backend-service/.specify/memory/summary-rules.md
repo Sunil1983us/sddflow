@@ -1,21 +1,47 @@
 # Summary Rules
 SUMMARY_MAX_LINES: 20
+READING_MODE: auto
 # pilot:15-20 | mvp:20-25 | full:25-35
-# Format: What → Key Decisions → Key Artifacts → Constraints → Out of Scope
-# To change: edit SUMMARY_MAX_LINES, tell agent: "re-read summary-rules.md"
+# READING_MODE: auto | summary | full   DEFAULT: auto
+#   auto:    use .summary.md when present; fall back to full .md if missing,
+#            then generate summary immediately (keeps AI-2 on track)
+#   summary: always use .summary.md; warn if missing (strict token economy)
+#   full:    always read full .md (deep debugging / initial migration only)
+# Override per project via manifest.yml → reading_mode
+# To change: edit these values, tell agent: "re-read summary-rules.md"
 
 ## AI-2 — Summary-First Rule (token economy, mandatory)
-After /specify, every command reads ONLY `.summary.md` files for prior
-documents — never the full `.md`. This keeps token usage roughly constant
-per command regardless of how many documents exist (see
-docs/SUMMARY-GUIDE.md → "What Each Verb Reads").
+After /specify, every command reads `.summary.md` files for prior
+documents. The exact behaviour depends on `reading_mode` (see below).
+This keeps token usage roughly constant per command regardless of how many
+documents exist (see docs/SUMMARY-GUIDE.md → "What Each Verb Reads").
 
-Exception: /implement reads `tasks.md` (current task only, in full) +
-`constitution.md` (in full) — both are required for correct code
-generation and are not summarized.
+Exception: /implement always reads `tasks.md` (current task only, in full)
++ `constitution.md` (in full) — both required for correct code generation
+and never summarized — regardless of reading_mode.
 
-If a command needs detail beyond a summary, it should ask the user
-whether to read the full document rather than reading it by default.
+## AI-2 — Reading Mode Decision Tree
+Effective reading_mode = `manifest.yml → reading_mode` if set; else
+`READING_MODE` at the top of this file.
+
+**auto (default):**
+1. `.summary.md` exists → read it. Done.
+2. `.summary.md` missing → read full `.md` instead, then immediately
+   generate and save `.summary.md`. State: "No summary found for {doc} —
+   read full document and generated {doc}.summary.md." Continue.
+3. Agent needs more detail than the summary contains → ask:
+   "I have {doc}.summary.md but may need the full document to {reason}.
+   Read it? (y/n)" — read only on 'y'; note any new detail found.
+
+**summary:**
+1. `.summary.md` exists → read it. Done.
+2. `.summary.md` missing → warn: "WARNING: {doc}.summary.md not found —
+   run the command that generates it first, or set reading_mode: auto
+   in manifest.yml." Do NOT read the full doc without user approval.
+
+**full:**
+Always read the full `.md`. Log: "[reading_mode=full] reading {doc}.md".
+Use only for deep debugging or migrating a project that has no summaries.
 
 ## .raw.md Files — Never Read (AI-2 exception)
 `.specify/contexts/{feature}.raw.md`, if present, holds a user's original
