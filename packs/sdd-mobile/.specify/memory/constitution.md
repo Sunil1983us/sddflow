@@ -35,7 +35,8 @@
 ## Testing
 | Rule | Value |
 |---|---|
-| Pairing | Every screen/component/service has paired test |
+| Style | Set in manifest.testing_style: paired (default) · tdd · bdd |
+| Pairing | Every screen/component/service has a test — same PR, never deferred |
 | Unit | Mock all API calls and device APIs |
 | Naming | should_{expected}_when_{condition} |
 | Coverage | As specified in tech stack (Part 2) |
@@ -130,7 +131,7 @@ table.
 | Principle | Applied As |
 |---|---|
 | Specification First | No code before spec + TASK approved |
-| Test Paired | Paired test with every class — same PR, never after |
+| Test Discipline | Every class/component tested per manifest.testing_style — same PR, never deferred |
 | Traceability | task → story → FR → context — always |
 | Offline-First | Assume no connectivity — queue/cache locally, sync when connected |
 | Accessible | Every screen meets the Accessibility bar from Tech Stack (screen reader labels, contrast, touch targets) |

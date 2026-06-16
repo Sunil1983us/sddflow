@@ -39,7 +39,8 @@
 
 | Rule | Value |
 |---|---|
-| Pairing | Every class/component has paired test |
+| Style | Set in manifest.testing_style: paired (default) · tdd · bdd |
+| Pairing | Every class/component has a test — same PR, never deferred |
 | Unit | Mock all external dependencies |
 | Naming | should_{expected}_when_{condition} |
 | Coverage | As specified in tech stack (Part 2) |
@@ -147,7 +148,7 @@ rules — used instead of docker-compose.yml for cluster deployment.
 | Principle | Applied As |
 |---|---|
 | Specification First | No code before spec + TASK approved |
-| Test Paired | Paired test with every class — same PR, never after |
+| Test Discipline | Every class tested per manifest.testing_style — same PR, never deferred |
 | Traceability | task → story → FR → context — always |
 | {derived from domain} | {how it applies} |
 

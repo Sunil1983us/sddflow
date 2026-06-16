@@ -28,8 +28,26 @@ Execute ONE task at a time. Never batch.
 ### While Writing
 - Follow constitution Part 1 (universal rules)
 - Follow constitution Part 2 (tech stack + domain rules)
-- Write paired test alongside implementation — never after
 - No class / component over max_class_lines
+- Apply testing style from manifest.testing_style (default: paired):
+
+  **paired** — Write test and implementation together; neither goes first.
+  Both must be in the same PR. Never defer tests to a later task.
+
+  **tdd** — Red-Green-Refactor per acceptance criterion:
+  1. Write a failing test that captures the criterion exactly.
+  2. Run it — confirm it fails for the right reason.
+  3. Write minimum code to make it pass — no more.
+  4. Run again — confirm green.
+  5. Refactor only while tests stay green.
+  Never write implementation before a failing test exists.
+
+  **bdd** — Given/When/Then per acceptance criterion:
+  1. Write a Given/When/Then spec using domain language from srd.md.
+  2. Translate spec into a runnable test — confirm it fails.
+  3. Implement exactly what the spec describes — no more.
+  4. Confirm test passes.
+  Spec language must match FR-NNN wording in srd.md.
 
 ### After Writing
 - List every file changed
