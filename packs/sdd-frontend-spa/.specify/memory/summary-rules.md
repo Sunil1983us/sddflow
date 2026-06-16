@@ -82,6 +82,8 @@ and may shift if a template gains new sections.
 - All NFR-NNN that force an architectural decision (NFR Impact Analysis)
 - All U-NNN requiring spike work (Unknowns)
 - /clarify items + tasks flagged for SPLIT (Recommendation)
+- Count of CRITICAL CF-NNN consistency findings (Consistency Findings) — 0 means clean
+- Any constitution conflicts found (CF-NNN rated CRITICAL)
 
 ### clarify.summary.md
 - Status: "CLARIFY complete — all RESOLVED" or "INCOMPLETE — {N} OPEN"

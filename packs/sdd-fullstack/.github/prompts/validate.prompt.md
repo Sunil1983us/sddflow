@@ -21,6 +21,16 @@ Part 2 before /validate."
 ## Your Task
 Produce a business sign-off report:
 
+0. CHECKLIST GATE (advisory)
+   If `.specify/features/{manifest.project.feature}/checklists/` exists,
+   check if the checklist file contains any open `[ ]` CRITICAL items.
+   If open CRITICAL CHK-NNN items found: warn:
+   "WARNING: {N} CRITICAL spec-quality items still open (from /checklist).
+   These should be resolved before sign-off — proceeding anyway will risk
+   finding ambiguities during /plan-arch."
+   (Do NOT block validate — /checklist is optional. Only NEEDS CLARIFICATION
+   markers from Item 2 above are hard-blocking.)
+
 1. BUSINESS OBJECTIVE TRACE
    For each BO-NNN in brd.md: objective, success metric, which FR-NNN
    in srd.md addresses it (backend FRs and frontend/UX FRs alike). Flag
@@ -33,6 +43,16 @@ Produce a business sign-off report:
 3. ASSUMPTIONS SIGN-OFF
    List every `[ASSUMPTION-NNN]` from brd.md and srd.md for the business
    owner to confirm or reject.
+
+3a. NEEDS CLARIFICATION SCAN (blocking)
+   Scan brd.md and srd.md for any `[NEEDS CLARIFICATION: ...]` markers.
+   If any found: list each with its location and question.
+   These are BLOCKING — business sign-off CANNOT proceed until every
+   [NEEDS CLARIFICATION] is answered and replaced with either a confirmed
+   value or an [ASSUMPTION-NNN] the business owner accepts.
+   State: "VALIDATE BLOCKED — {N} [NEEDS CLARIFICATION] items must be
+   answered first. Return to /specify, fill answers, regenerate affected
+   docs, then re-run /validate."
 
 4. SCOPE CONFIRMATION
    List in-scope and out-of-scope items from brd.md for confirmation.

@@ -47,6 +47,29 @@ RECOMMENDATION:
   - Items to raise in CLARIFY
   - Tasks likely needing SPLIT (from complexity)
 
+CROSS-ARTIFACT CONSISTENCY CHECK (read-only):
+Scan brd.summary.md, srd.summary.md, and any available spec summaries for:
+
+  DUPLICATION: near-duplicate BR-NNN or FR-NNN entries (same behaviour,
+  different wording) — flag for merge in /clarify
+  AMBIGUITY: FR-NNN using vague adjectives ("fast", "scalable", "secure",
+  "robust") without a numeric threshold — flag as HIGH
+  COVERAGE GAPS:
+    - Any FR-NNN in srd.md with no UC-NNN that covers it (CRITICAL if
+      it is a core behaviour FR)
+    - Any FR-NNN with no task coverage (flag for /task to address)
+  TERMINOLOGY DRIFT: same entity or concept named differently across
+  brd.md vs srd.md — flag for /clarify to standardise
+  CONSTITUTION CONFLICTS: any FR-NNN or NFR-NNN that appears to violate
+  a MUST rule in constitution Part 1 or a Domain Rule / Never Do in Part 2
+  — CRITICAL
+
+Add all findings to the analyze.md §8 Consistency Findings table using
+CF-NNN IDs. Include in analyze.summary.md:
+  - Count of CRITICAL CF-NNN items (if any, /clarify must address them)
+  - Count of HIGH CF-NNN items
+  - Any constitution conflicts (must resolve before /plan-arch)
+
 Save to: .specify/features/{manifest.project.feature}/analyze.md
 Save summary to: analyze.summary.md (max SUMMARY_MAX_LINES)
 Wait for review before CLARIFY.

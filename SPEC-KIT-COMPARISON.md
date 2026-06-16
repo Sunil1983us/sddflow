@@ -12,12 +12,12 @@
 |---|---|---|
 | Designed for | Individual developer / small team, tool-agnostic | Enterprise teams with formal sign-off chains |
 | Commands | 9 — core: `constitution → specify → plan → tasks → taskstoissues → implement`; optional: `clarify`, `analyze`, `checklist` | 9–11 (`/specify` → `/release`) |
-| Spec artifacts per feature | spec.md, plan.md, research.md, data-model.md, tasks.md, checklists/ | BRD, SRD, Security-Design, API Spec, Data Model, Resilience, Arch, HLD, LLD, ADR, Stories, Tasks, QA Cases, Runbook, Release |
+| Spec artifacts per feature | spec.md, plan.md, research.md, data-model.md, tasks.md, checklists/ | BRD, SRD, Security-Design, API Spec, Data Model, Resilience, Arch, HLD, LLD, ADR, Stories, Tasks, QA Cases, Runbook, Release + checklists/{feature}-spec-quality.md |
 | Tech stack capture | Per-feature, inside plan.md | Once, in constitution.md Part 2 (20-concern table), GATE-1 finalized |
 | Governance / RACI | None | `roles.yml` — every gate has a named accountable role |
-| Hard gates | 2 (Constitution Check in plan.md, checklist completeness in implement.md) | Gate at every command transition (GATE-1, validate, AI-8 assumptions, clarify, etc.) |
+| Hard gates | 2 (Constitution Check in plan.md, checklist completeness in implement.md) | Gate at every command transition (GATE-1, /checklist CRITICAL items, validate, AI-8 assumptions, clarify, etc.) |
 | Business sign-off | Not modeled | `/validate` — Product Owner + Business Analyst sign-off on BRD/SRD |
-| Spec-quality checks | `/speckit.checklist` — on-demand "unit tests for English" for the spec (clarity/completeness/consistency) | Folded into `/analyze` + `/validate` + AI-8 assumption gate |
+| Spec-quality checks | `/speckit.checklist` — on-demand "unit tests for English" for the spec (clarity/completeness/consistency) | `/checklist` — CHK-NNN spec-quality gate (clarity, completeness, consistency, measurability) runs between GATE-1 and /validate; CRITICAL items block /validate |
 | Traceability | On-demand, advisory (`/speckit.analyze` — severity-ranked consistency audit across spec/plan/tasks) | Persistent matrix: Story → FR/NFR → Task → TC-NNN → R-NNN |
 | Task export | `/speckit.taskstoissues` — tasks.md → GitHub Issues | `/task` → Jira CSV |
 | PR / CI governance | Left to the team's normal git workflow | Built-in `pr_rules` (max lines/files, SPLIT A/B/C), `quality-gate.yml`, and a configurable `workflow_mode: github \| local` |
@@ -268,11 +268,10 @@ To be fair, a few things spec-kit does better:
 These are reasonable enhancements we could selectively borrow into
 SDD packs without giving up the governance/RACI layer — worth a future,
 low-risk iteration:
-- FR-### in `srd.md` with embedded Given/When/Then acceptance scenarios
-- `[NEEDS CLARIFICATION]` as a lighter-weight complement to
-  `[ASSUMPTION-NNN]` for in-line ambiguity flags
-- A `/speckit.checklist`-style spec-quality pass, run early (e.g. as part
-  of `/clarify`) to catch ambiguous requirements before `/validate`
+- ✅ `/checklist` — now implemented: CHK-NNN spec-quality gate with Clarity/Completeness/Consistency/Measurability dimensions
+- ✅ Given/When/Then acceptance scenarios — now embedded in each UC in srd.md
+- ✅ `[NEEDS CLARIFICATION: ...]` — now implemented as a lighter-weight complement to `[ASSUMPTION-NNN]`
+- ✅ `/speckit.analyze` cross-artifact consistency — now added as §8 Consistency Findings in /analyze
 
 ---
 

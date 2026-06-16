@@ -160,6 +160,18 @@ PLAN is split into 4 sub-commands — each has its own review gate:
               Scope check: SKIP if pilot — state skip reason
               Review: architect
 
+## /checklist — Optional Spec-Quality Gate (after GATE-1, before /validate)
+
+Run `/checklist` after `/specify` + GATE-1 to catch spec quality issues
+before the business sign-off:
+- CRITICAL: unresolved [NEEDS CLARIFICATION], unmeasured NFRs, FRs without
+  acceptance scenarios — these block /validate
+- HIGH: vague adjectives (fast/scalable/secure without a number), UCs without
+  Independent Test
+- MEDIUM: terminology drift, missing Out of Scope items
+Saves to: `.specify/features/{feature}/checklists/{feature}-spec-quality.md`
+All CRITICAL items must be resolved before /validate can proceed.
+
 ## VALIDATE and RELEASE — Bookends
 
 /validate   → Business sign-off on brd.md + srd.md
@@ -173,5 +185,5 @@ PLAN is split into 4 sub-commands — each has its own review gate:
               Run after: /implement (all tasks) | Gate before: go-live
 
 ## Command Order
-SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
+SPECIFY → [GATE-1] → /checklist (optional) → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
 → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE

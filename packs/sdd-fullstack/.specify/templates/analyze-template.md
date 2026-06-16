@@ -81,6 +81,23 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 
 ---
 
+## 8. Consistency Findings
+
+> This section is populated by cross-artifact consistency checks.
+> CRITICAL findings block /clarify until resolved.
+
+| ID | Category | Severity | Location | Summary | Recommendation |
+|---|---|---|---|---|---|
+| CF-001 | {Duplication\|Ambiguity\|CoverageGap\|TerminologyDrift\|ConstitutionConflict} | CRITICAL\|HIGH\|MEDIUM\|LOW | {doc + section} | {what was found} | {what to do} |
+
+### Severity Guide
+- **CRITICAL** — block /clarify: constitution conflict (FR/NFR violates a MUST rule); FR/NFR with zero UC coverage
+- **HIGH** — resolve in /clarify: duplicate or conflicting requirements; ambiguous security/performance attribute without threshold
+- **MEDIUM** — address before /plan-arch: terminology drift; missing non-functional task coverage; underspecified edge case
+- **LOW** — optional improvement: wording; minor redundancy
+
+---
+
 ## Approvals
 | Role | Status | Date |
 |---|---|---|

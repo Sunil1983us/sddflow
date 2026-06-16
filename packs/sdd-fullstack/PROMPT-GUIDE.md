@@ -18,6 +18,7 @@
 | Startup | `/start` | Step 0 | Read files + confirm |
 | `/specify` | `/specify` | `/specify` | Constitution Part 2 (DRAFT, both layers) + spec docs |
 | **GATE-1** | Manual | Manual | You review + finalize constitution Part 2 |
+| `/checklist` (optional) | `/checklist` | `/checklist` | Spec-quality validation (CHK-NNN) |
 | `/validate` | `/validate` | `/validate` | Business sign-off on BRD/SRD |
 | `/analyze` | `/analyze` | `/analyze` | Risks + complexity |
 | `/clarify` | `/clarify` | `/clarify` | Questions → you answer |
@@ -195,6 +196,12 @@ ACTION 2 — Generate spec documents per scope (canonical table above):
   For each: read template → derive from context → save .md + .summary.md
   Mark assumptions: [ASSUMPTION-NNN: ...]
   FR IDs: FR-NNN | NFR IDs: NFR-NNN
+  For every UC-NNN: at least 2 Given/When/Then acceptance scenarios
+  + "Independent Test" statement (these become TC-NNN at /task)
+  Marker discipline:
+    [ASSUMPTION-NNN] → reasonable default applied; confirm at /validate
+    [NEEDS CLARIFICATION: {question}] → no safe default; must be answered
+    before /validate can proceed — never leave a gap silently
 
   Templates to use:
     api-spec       → api-spec-template.md (Shared API Contract)
@@ -237,6 +244,45 @@ Rules:
 
 ---
 
+## /checklist — Spec-Quality Validation (Optional, after GATE-1)
+
+Run this between GATE-1 and /validate to catch spec quality issues early —
+before the business sign-off meeting.
+
+```
+Read manifest.yml + constitution.md
+Read brd.summary.md + srd.summary.md
+Read checklist-template.md
+
+Checks (in order):
+  CRITICAL (block /validate):
+    Unresolved [NEEDS CLARIFICATION] markers in brd/srd
+    NFR-NNN without numeric threshold
+    FR-NNN with no UC-NNN coverage
+    UC-NNN with < 2 Given/When/Then acceptance scenarios
+
+  HIGH (fix before /validate):
+    Vague adjectives without measurable values
+    UC-NNN missing "Independent Test" field
+    FR-NNN missing BR-NNN source link
+
+  MEDIUM (fix before /plan-arch):
+    Terminology drift between brd.md and srd.md
+    Missing Out of Scope section
+    Unconfirmed ASSUMPTION-NNN markers
+
+  CONSISTENCY:
+    Duplicate FR-NNN entries
+
+Save: .specify/features/{feature}/checklists/{feature}-spec-quality.md
+Present findings table. State count by severity.
+
+If CRITICAL items: State "Fix CRITICAL items → re-run /specify → re-run /checklist"
+If no CRITICAL: State "Spec quality gate passed — ready for /validate"
+```
+
+---
+
 ## /validate — Business Sign-Off (runs after GATE-1)
 
 ```
@@ -255,6 +301,8 @@ Produce:
      srd.md? Flag mismatches.
   3. ASSUMPTIONS SIGN-OFF — every [ASSUMPTION-NNN] in brd/srd for the
      business owner to confirm or reject.
+  3a. NEEDS CLARIFICATION SCAN — scan brd/srd for [NEEDS CLARIFICATION]
+      markers; these are BLOCKING — must be resolved before sign-off
   4. SCOPE CONFIRMATION — in-scope / out-of-scope items from brd.md.
   5. SIGN-OFF — Product Owner + Business Analyst (names from roles.yml):
      Approved / Changes Requested.
@@ -300,6 +348,13 @@ Produce:
     Which NFRs force architectural decisions (backend and/or frontend)?
 
   UNKNOWNS: items needing spike before design
+  CONSISTENCY: cross-artifact audit (CF-NNN items)
+    DUPLICATION: near-duplicate BR/FR entries
+    AMBIGUITY: vague FRs without measurable values
+    COVERAGE GAPS: FR-NNN with no UC, FR-NNN with no task
+    TERMINOLOGY DRIFT: same concept named differently in brd vs srd
+    CONSTITUTION CONFLICTS: FR/NFR violating constitution MUST rules
+    → CRITICAL conflicts block /clarify until resolved
 
   RECOMMENDATION:
     Suggested approach
