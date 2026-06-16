@@ -1,14 +1,14 @@
-# SDD Framework (packs-v2) vs. GitHub spec-kit
+# SDD Framework (SDD packs) vs. GitHub spec-kit
 
 > A side-by-side comparison of our Spec-Driven Development framework
-> (`packs-v2/sdd-*`) against GitHub's open-source `spec-kit` project —
+> (`packs/sdd-*`) against GitHub's open-source `spec-kit` project —
 > for evaluating which fits an enterprise SDLC.
 
 ---
 
 ## TL;DR
 
-| | **GitHub spec-kit** | **packs-v2 SDD Framework** |
+| | **GitHub spec-kit** | **SDD Framework** |
 |---|---|---|
 | Designed for | Individual developer / small team, tool-agnostic | Enterprise teams with formal sign-off chains |
 | Commands | 9 — core: `constitution → specify → plan → tasks → taskstoissues → implement`; optional: `clarify`, `analyze`, `checklist` | 9–11 (`/specify` → `/release`) |
@@ -25,7 +25,7 @@
 
 **Bottom line:** spec-kit is a lean, portable scaffold that turns "vibe
 coding" into structured, requirement-driven development for a single
-developer. packs-v2 SDD is that same idea taken further — it adds the
+developer. SDD packs SDD is that same idea taken further — it adds the
 governance layer (sign-offs, RACI, audit trail, PR/CI rules) that an
 enterprise team needs to run AI-assisted delivery as a *process*, not just
 a prompt template.
@@ -52,7 +52,7 @@ specs/
     checklists/
 ```
 
-### packs-v2/sdd-backend-service
+### packs/sdd-backend-service
 ```
 .specify/
   memory/
@@ -71,7 +71,7 @@ specs/
 .github/workflows/quality-gate.yml
 ```
 
-**Takeaway:** spec-kit produces one cohesive feature folder; packs-v2
+**Takeaway:** spec-kit produces one cohesive feature folder; SDD packs
 produces a *document set per feature* mirroring how a regulated SDLC
 already separates BRD/SRD/security/architecture/QA — useful when those
 documents need to be reviewed by different people or fed into existing
@@ -93,7 +93,7 @@ testable structure:
 - `[NEEDS CLARIFICATION]` inline markers for anything ambiguous — the
   spec is allowed to ship with these, resolved later by `/speckit.clarify`
 
-**packs-v2's BRD/SRD** spread the same information across two documents:
+**SDD Framework's BRD/SRD** spread the same information across two documents:
 - BRD: Business Objectives (`BO-NNN`) and Business Requirements (`BR-NNN`)
 - SRD: Functional/Non-Functional Requirements (`FR-NNN`/`NFR-NNN`),
   `[ASSUMPTION-NNN]` markers (must all be resolved before `/plan-arch`,
@@ -101,7 +101,7 @@ testable structure:
 
 **Takeaway:** spec-kit's single spec.md is *sharper per requirement* —
 every FR has Given/When/Then test scenarios baked in from the start.
-packs-v2 traces the same ideas (BO → BR → FR/NFR) but separates
+SDD packs traces the same ideas (BO → BR → FR/NFR) but separates
 "why we're building this" (business) from "what it must do"
 (functional/non-functional) into documents a Product Owner and a Tech
 Lead can review independently — which maps onto how most enterprises
@@ -129,7 +129,7 @@ already split business vs. technical sign-off.
 - `/speckit.checklist` — anytime; generates domain-specific
   requirement-quality checklists (e.g. `ux.md`, `security.md`)
 
-### packs-v2 — 9–11 commands (pilot scope shown)
+### SDD packs — 9–11 commands (pilot scope shown)
 
 1. `/specify` (also drafts constitution Part 2)
    — **GATE-1** — manual review/finalize constitution
@@ -144,7 +144,7 @@ already split business vs. technical sign-off.
 9. `/release` — UAT + deployment + go-live gate
 
 **Takeaway:** spec-kit's core path is 6 steps with 3 optional add-ons a
-developer can skip entirely. packs-v2's steps are *not* optional — each
+developer can skip entirely. SDD Framework's steps are *not* optional — each
 maps to a phase an enterprise SDLC already requires (business validation,
 risk analysis, architecture review, formal release/go-live) and each has
 a named owner in `roles.yml`.
@@ -170,7 +170,7 @@ Everything else is recommended but skippable — there's no concept of
   block anything (the *items it creates* feed implement.md's checklist
   check, #2 above)
 
-**packs-v2** treats *every* command transition as a gate, each mapped to
+**SDD packs** treats *every* command transition as a gate, each mapped to
 a role in `roles.yml`:
 - **GATE-1**: Tech Lead finalizes constitution Part 2 — nothing proceeds
   until done
@@ -184,7 +184,7 @@ a role in `roles.yml`:
   Go/No-Go across Tech Lead / Product Owner / Ops-SRE
 
 **Takeaway:** This is the single biggest differentiator. spec-kit assumes
-one person is driving and trusts them to read the docs. packs-v2 assumes
+one person is driving and trusts them to read the docs. SDD packs assumes
 a *team* with separation of duties — and encodes that separation directly
 into the agent's gate logic, so the agent itself enforces "don't proceed
 without sign-off," not just a human reviewer after the fact.
@@ -203,14 +203,14 @@ not persisted as a requirement→task map. Tasks carry `[US1]`/`[US2]`/`[P]`
 labels for which user story / parallelizability, which `/analyze` uses to
 spot coverage gaps.
 
-**packs-v2**: traceability is a *persistent matrix* maintained throughout
+**SDD packs**: traceability is a *persistent matrix* maintained throughout
 the lifecycle: `Story → FR/NFR → Task → TC-NNN (test case) → R-NNN
 (risk)`. Every task declares `Satisfies: FR-NNN/NFR-NNN` and `Verifies:
 TC-NNN` up front, and `/release` checks these are all closed before
 go-live.
 
 **Takeaway:** spec-kit's traceability is great for "show me what's covered
-right now, and what's inconsistent." packs-v2's is built for audit —
+right now, and what's inconsistent." SDD Framework's is built for audit —
 answering "prove every business requirement maps to a tested, released
 change" at any point in the lifecycle, which is what compliance/audit
 teams typically ask for.
@@ -222,7 +222,7 @@ teams typically ask for.
 **spec-kit** doesn't model this at all — PR size, review process, and CI
 are left entirely to the team's existing git conventions.
 
-**packs-v2** bakes this in:
+**SDD packs** bakes this in:
 - `pr_rules` in `manifest.yml`: `max_lines_per_pr` (400),
   `max_files_per_pr` (5) — agent estimates *before* coding and splits
   oversized tasks (SPLIT A/B/C) automatically
@@ -234,7 +234,7 @@ are left entirely to the team's existing git conventions.
   "PR ready," so the governance model works identically whether or not
   git hosting is available
 
-**Takeaway:** spec-kit assumes you already have PR/CI discipline. packs-v2
+**Takeaway:** spec-kit assumes you already have PR/CI discipline. SDD packs
 provides it out of the box and adapts to teams that don't even have
 GitHub access (e.g., business stakeholders working from a shared OneDrive
 folder via Claude Desktop).
@@ -266,7 +266,7 @@ To be fair, a few things spec-kit does better:
   Issues, native to teams already living in GitHub.
 
 These are reasonable enhancements we could selectively borrow into
-packs-v2 without giving up the governance/RACI layer — worth a future,
+SDD packs without giving up the governance/RACI layer — worth a future,
 low-risk iteration:
 - FR-### in `srd.md` with embedded Given/When/Then acceptance scenarios
 - `[NEEDS CLARIFICATION]` as a lighter-weight complement to
@@ -285,7 +285,7 @@ configure, works everywhere.
 If the audience is **an enterprise team that needs AI-assisted delivery to
 slot into an existing SDLC** — with business sign-off, security review,
 named accountable owners, audit-ready traceability, and PR/CI governance
-that adapts to teams with or without GitHub access — packs-v2 SDD covers
+that adapts to teams with or without GitHub access — SDD packs SDD covers
 everything spec-kit does (constitution-driven generation, structured
 specs, task breakdown, implementation) *and* adds the governance scaffold
 that turns "an AI that writes code from a spec" into "a process an

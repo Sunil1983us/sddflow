@@ -1,12 +1,12 @@
-# SDD Frontend SPA Pack
-## React · Vue · Angular · Svelte
-## Stacks: TypeScript · JavaScript
+# SDD Mobile Pack
+## React Native · Flutter — iOS + Android
+## Stacks: TypeScript · Dart
 
 ---
 
 ## What Is This?
 
-Spec-Driven Development framework for single page applications.
+Spec-Driven Development framework for mobile apps.
 You write what your system does — agent generates everything else.
 Constitution Part 2 is auto-generated from your context as a DRAFT —
 you review and finalize it (GATE-1) before work continues.
@@ -17,7 +17,8 @@ you review and finalize it (GATE-1) before work continues.
 
 ### 1. contexts/{feature}.md — Your system description (15-30 min)
 Include a Tech Stack section — agent extracts it for constitution.
-Use CONTEXT-GUIDE.md as your guide.
+Use CONTEXT-GUIDE.md as your guide, or run `/create-context` to have
+the agent draft it with you from informal notes.
 
 ### 2. manifest.yml — 4 fields only (2 min)
 ```yaml
@@ -29,10 +30,12 @@ project:
 ```
 
 ### 3. constitution.md Part 2 — Generated (draft) by /specify, finalized by you
-Agent reads your context → fills Tech Stack (Framework, State Management,
-Routing, API Client, Bundler, Accessibility, Hosting/CDN, and more) +
-Principles + Rules as a DRAFT. You review every row and confirm
-"Constitution Part 2 finalized" (GATE-1) before /validate runs.
+Agent reads your context → fills Tech Stack (Language/Framework, Navigation,
+State Management, Local Storage/DB, API Client, Push Notifications,
+Crash/Analytics, Build Tool, Testing, Coverage Gate, Quality/Security,
+CI/CD, App Store Distribution, and more) + Principles + Rules as a DRAFT.
+You review every row and confirm "Constitution Part 2 finalized" (GATE-1)
+before /validate runs.
 
 ---
 
@@ -44,13 +47,13 @@ Principles + Rules as a DRAFT. You review every row and confirm
 /validate   → Business sign-off on BRD/SRD
 /analyze    → Risks + dependencies + complexity
 /clarify    → Questions → you answer them
-/plan-arch  → Component architecture decisions + plan + refine scope docs
-/plan-hld   → HLD + all Mermaid diagrams
+/plan-arch  → Screen/app architecture decisions + plan + refine scope docs
+/plan-hld   → HLD + all Mermaid diagrams (screen flow + navigation)
 /plan-lld   → Low Level Design (mvp+ only)
 /plan-adr   → Architecture Decision Records (mvp+ only)
 /task       → Feature → Story → Task + Jira CSV
 /implement  → Code one task at a time, PR rules enforced
-/release    → UAT + deployment plan + go-live gate
+/release    → UAT + store-release plan + go-live gate
 ```
 
 ### Pilot Flow (9 commands + GATE-1)
@@ -72,17 +75,20 @@ Principles + Rules as a DRAFT. You review every row and confirm
 
 Two actions automatically:
 1. Reads context → fills constitution Part 2 (DRAFT):
-   Language/Framework, Build Tool, State Management, Component
-   Library/Design System, Routing, API Client, Bundler, Data Cache,
-   Configuration, Secrets, Resilience, Observability, Logging, Testing,
-   Coverage Gate, Linting/Formatting, Accessibility, CI/CD, Hosting/CDN
-   + Core Principles + Domain Rules + Never Do
+   Language/Framework, Navigation, State Management, Local Storage/DB,
+   API Client, Push Notifications, Crash/Analytics, Build Tool, Testing,
+   Coverage Gate, Quality/Security, CI/CD, App Store Distribution, plus
+   the remaining backend-style concerns adapted for mobile (see
+   constitution.md Part 2 Tech Stack table)
+   + Core Principles (Offline-First, Accessible, Cross-Platform,
+   Performant) + Domain Rules + Never Do
 
 2. Generates spec documents per scope (see table below).
 
 **GATE-1:** the constitution Part 2 is a DRAFT until you review every row
 and tell the agent "Constitution Part 2 finalized". Manual edits after
-that point are authoritative.
+that point are authoritative. A later /specify re-run must propose changes
+for review — never silently overwrite a finalized Part 2.
 
 ---
 
@@ -90,9 +96,9 @@ that point are authoritative.
 
 | Command | Generates | Reviewer (see roles.yml) |
 |---|---|---|
-| /plan-arch | Component architecture + plan.md + refine component-spec/ux-flow/api-spec/data-model/security-design/resilience/investigation | Tech lead |
-| /plan-hld | HLD + all Mermaid diagrams | Stakeholders + tech lead |
-| /plan-lld | LLD + component/class diagrams (mvp+) | Senior developer (frontend) |
+| /plan-arch | Architecture + plan.md + refine screen-spec/ux-flow/api-spec/data-model/security-design/resilience/investigation | Tech lead |
+| /plan-hld | HLD + all Mermaid diagrams (screen flow + navigation) | Stakeholders + tech lead + ux lead |
+| /plan-lld | LLD + class/component diagrams (mvp+) | Senior developer (mobile) |
 | /plan-adr | ADRs (mvp+) | Architect |
 
 ---
@@ -101,13 +107,13 @@ that point are authoritative.
 
 | Command | Pilot | MVP | Full |
 |---|---|---|---|
-| /specify | BRD, SRD, Security-Design (§1) | + Component-Spec, UX-Flow, Backend API Contract (Consumer), Security-Design (§1-2) | + Frontend State & Storage Model, Frontend Resilience, Production Debugging & Error Tracking, Security-Design (§1-4) |
+| /specify | brd, srd, security-design (§1) | + screen-spec, ux-flow, Backend API Contract (Consumer), security-design (§1-2) | + Local Data & Cache Model, Mobile Resilience, Crash & Incident Triage, security-design (§1-4) |
 | GATE-1 | Constitution Part 2 finalized — all scopes |||
 | /validate | validate.md — all scopes |||
 | /analyze | analyze.md — all scopes |||
 | /clarify | clarify.md — all scopes |||
 | /plan-arch | arch.md + plan.md (+ refine the scope-scaled docs above) — all scopes |||
-| /plan-hld | hld.md + plan.md — all scopes |||
+| /plan-hld | hld.md — all scopes |||
 | /plan-lld | ❌ | lld.md | lld.md |
 | /plan-adr | ❌ | ADRs (also fills arch.md §4) | ADRs (also fills arch.md §4) |
 | /task | stories.md, tasks.md, jira CSV — all scopes |||
@@ -119,7 +125,7 @@ that point are authoritative.
 ## Quick Start
 
 ```bash
-unzip sdd-frontend-spa-v2.zip -d my-app
+unzip sdd-mobile.zip -d my-app
 cd my-app
 git init
 # Write .specify/contexts/my-feature.md (or run /create-context if you'd
@@ -145,7 +151,7 @@ PROMPT-GUIDE.md).
 | File | Purpose |
 |---|---|
 | GETTING-STARTED.md | Steps to first run |
-| PROMPT-GUIDE.md | All 11 commands — native `/specify` etc. in Claude Code & Copilot |
+| PROMPT-GUIDE.md | All 11 command prompts — native `/specify` etc. in Claude Code & Copilot |
 | HOW-TO-USE.md | Scope presets + command table |
 | SDLC-COMPLETE-GUIDE.md | Full lifecycle reference + checklist |
 | CHANGE-GUIDE.md | Making changes later |

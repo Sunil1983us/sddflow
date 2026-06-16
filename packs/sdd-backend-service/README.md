@@ -126,7 +126,7 @@ that point are authoritative.
 ## Quick Start
 
 ```bash
-unzip sdd-backend-service-v2.zip -d my-service
+unzip sdd-backend-service.zip -d my-service
 cd my-service
 git init
 # Write .specify/contexts/my-feature.md (or run /create-context if you'd

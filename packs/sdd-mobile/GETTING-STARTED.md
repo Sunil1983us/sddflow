@@ -5,7 +5,7 @@
 
 ## Step 1 — Copy Pack (1 min)
 ```bash
-unzip {pack}-v2.zip -d my-project
+unzip {pack}.zip -d my-project
 cd my-project
 git init && git add . && git commit -m "chore: SDD framework"
 ```
