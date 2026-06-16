@@ -61,5 +61,11 @@ After every doc: write .summary.md — max SUMMARY_MAX_LINES (AI-2:
 summary-first — read only .summary.md after /specify, except /implement
 which reads tasks.md + constitution.md in full)
 
+## Never Do
+- Never code before context.md updated
+- Never hardcode any value
+- Never skip paired test
+- Never run /release in local mode before all tasks show "Task accepted"
+
 ## PR Rule
 Estimate → split if >max_lines_per_pr → confirm → one at a time

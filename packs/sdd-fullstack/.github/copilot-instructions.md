@@ -64,5 +64,18 @@ After every doc: write .summary.md — max SUMMARY_MAX_LINES (AI-2:
 summary-first — read only .summary.md after /specify, except /implement
 which reads tasks.md + constitution.md in full)
 
+## Full Stack Rules
+- API contract is source of truth — backend and frontend aligned
+- Backend class max: 200 lines / Frontend component max: 150 lines
+- Both layers tested independently + E2E together
+
+## Never Do
+- Never code before context.md updated
+- Never hardcode any value
+- Never skip paired test
+- Never let backend or frontend implementation diverge from api-spec.md
+- Never exceed class/component size limits without splitting
+- Never ship a cross-layer feature without E2E tests covering both layers
+
 ## PR Rule
 Estimate → split if >max_lines_per_pr → confirm → one at a time

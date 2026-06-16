@@ -61,5 +61,13 @@ After every doc: write .summary.md — max SUMMARY_MAX_LINES (AI-2:
 summary-first — read only .summary.md after /specify, except /implement
 which reads tasks.md + constitution.md in full)
 
+## Never Do
+- Never code before context.md updated
+- Never hardcode any value
+- Never skip paired test
+- Never call an API directly from a component — service layer only
+- Never use inline styles — use the project styling solution
+- Never ship a component without an axe-core accessibility check
+
 ## PR Rule
 Estimate → split if >max_lines_per_pr → confirm → one at a time
