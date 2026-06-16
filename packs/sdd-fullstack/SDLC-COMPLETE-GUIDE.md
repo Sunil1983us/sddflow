@@ -161,9 +161,11 @@ FEATURE (from BRD)
         └── TASK (one PR each)
               ├── Estimated lines
               ├── Files that will change
+              ├── Satisfies: FR/NFR | Verifies: TC-NNN
               └── PR strategy: single or SPLIT
 ```
 
+Traceability matrix (QA-1): Story → FR → Task → TC-NNN → R-NNN.
 Jira CSV generated at /task — import before /implement starts.
 
 ---
@@ -243,7 +245,7 @@ See CHANGE-GUIDE.md for the full impact matrix and AI-8 assumption rule.
 - [ ] Product Owner + Business Analyst sign-off
 
 ### /analyze
-- [ ] Risk register reviewed
+- [ ] Risk register reviewed — every risk linked to FR/NFR (AR-3)
 - [ ] Complexity hotspots noted
 
 ### /clarify

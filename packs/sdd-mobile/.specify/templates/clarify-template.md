@@ -59,7 +59,7 @@
 
 ---
 
-## HIGH RISK ITEMS — R-NNN (High/Critical, from analyze.summary.md §2)
+## High/Critical Risks — R-NNN (from analyze.summary.md §2 Risk Register)
 
 ### R-{NNN}: {Risk Title from analyze.summary.md §2 "High/Critical Risks — Detail"}
 **Risk:** {description from analyze.summary.md}

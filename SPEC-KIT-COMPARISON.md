@@ -25,7 +25,7 @@
 
 **Bottom line:** spec-kit is a lean, portable scaffold that turns "vibe
 coding" into structured, requirement-driven development for a single
-developer. SDD packs SDD is that same idea taken further — it adds the
+developer. The SDD Framework takes that same idea further — it adds the
 governance layer (sign-offs, RACI, audit trail, PR/CI rules) that an
 enterprise team needs to run AI-assisted delivery as a *process*, not just
 a prompt template.
@@ -285,7 +285,7 @@ configure, works everywhere.
 If the audience is **an enterprise team that needs AI-assisted delivery to
 slot into an existing SDLC** — with business sign-off, security review,
 named accountable owners, audit-ready traceability, and PR/CI governance
-that adapts to teams with or without GitHub access — SDD packs SDD covers
+that adapts to teams with or without GitHub access — the SDD Framework covers
 everything spec-kit does (constitution-driven generation, structured
 specs, task breakdown, implementation) *and* adds the governance scaffold
 that turns "an AI that writes code from a spec" into "a process an

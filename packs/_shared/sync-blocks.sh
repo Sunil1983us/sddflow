@@ -26,9 +26,13 @@ find full -type f | while read -r src; do
   rel="${src#full/}"
   for pack in ../sdd-*; do
     dest="$pack/$rel"
-    if [ -f "$dest" ] && ! cmp -s "$src" "$dest"; then
-      cp "$src" "$dest"
-      echo "synced (full) $rel -> $dest"
+    if [ -f "$dest" ]; then
+      if ! cmp -s "$src" "$dest"; then
+        cp "$src" "$dest"
+        echo "synced (full) $rel -> $dest"
+      fi
+    else
+      echo "SKIP (full) $rel -> $dest  [dest missing — run: cp packs/_shared/full/$rel $dest]" >&2
     fi
   done
 done

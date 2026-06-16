@@ -75,7 +75,7 @@ see PROMPT-GUIDE.md):
 
 ## Full Stack Rules (always applied)
 API contract is source of truth — backend and frontend aligned
-OpenAPI spec generated at DELIVER — not after
+OpenAPI spec contract locked at /plan-arch — api-spec.md is source of truth throughout /implement
 Backend class max: 200 lines
 Frontend component max: 150 lines
 Both layers tested independently + E2E together

@@ -26,34 +26,36 @@ it, and only if the user re-runs that command to regenerate context.md.
 ## Required Fields Per Document (mandatory — completeness floor)
 These items MUST appear in every summary regardless of line budget.
 Rule: if lines are tight, compress narrative prose — never drop identifiers.
+Section heading names are the canonical anchors — §N numbers are examples
+and may shift if a template gains new sections.
 
 ### brd.summary.md
-- All BO-NNN + success metric (§2)
-- In Scope vs Out of Scope boundary (§4)
-- All BR-NNN + priority (§5)
-- Regulatory constraints that affect design (§6)
-- Any unresolved [ASSUMPTION-NNN] (§7)
-- Success criteria (§8)
+- All BO-NNN + success metric (Business Objectives)
+- In Scope vs Out of Scope boundary (Business Context)
+- All BR-NNN + priority (Business Requirements)
+- Regulatory constraints that affect design (Regulatory and Compliance)
+- Any unresolved [ASSUMPTION-NNN] (Assumptions)
+- Success criteria
 
 ### srd.summary.md
-- Every FR-NNN + priority (§2) — list all, no grouping
-- Every NFR-NNN + threshold value (§3) e.g. "NFR-001 P99 ≤ 500ms"
-- All integrations + direction + mock/real phase (§5)
-- All constraints (§7)
+- Every FR-NNN + priority (Functional Requirements) — list all, no grouping
+- Every NFR-NNN + threshold value e.g. "NFR-001 P99 ≤ 500ms" (Non-Functional Requirements)
+- All integrations + direction + mock/real phase (Integrations)
+- All constraints (Constraints)
 
 ### validate.summary.md
-- Outcome statement: "VALIDATE complete" or "INCOMPLETE — {N} items" (§6)
-- Any BR-NNN where SRD reflection was marked No (§2)
-- Any ASSUMPTION-NNN not confirmed by business owner (§3)
+- Outcome: "VALIDATE complete" or "INCOMPLETE — {N} items outstanding" (Outcome)
+- Any BR-NNN where SRD reflection was marked No (Business Requirements Review)
+- Any ASSUMPTION-NNN not confirmed by business owner (Assumptions Sign-Off)
 
 ### analyze.summary.md
-- Overall complexity rating: LOW / MEDIUM / HIGH (§1)
-- ALL R-NNN rated High or Critical: ID + impact + mitigation (§2)
-- All blocking dependencies: system + owner (§3)
-- All feature areas rated HIGH complexity (§4)
-- All NFR-NNN that force an architectural decision (§5)
-- All U-NNN requiring spike work (§6)
-- /clarify items + tasks flagged for SPLIT (§7)
+- Overall complexity rating: LOW / MEDIUM / HIGH (Executive Summary)
+- ALL R-NNN rated High or Critical: ID + impact + mitigation (Risk Register)
+- All blocking dependencies: system + owner (Dependency Map)
+- All feature areas rated HIGH complexity (Complexity Assessment)
+- All NFR-NNN that force an architectural decision (NFR Impact Analysis)
+- All U-NNN requiring spike work (Unknowns)
+- /clarify items + tasks flagged for SPLIT (Recommendation)
 
 ### clarify.summary.md
 - Status: "CLARIFY complete — all RESOLVED" or "INCOMPLETE — {N} OPEN"
@@ -62,22 +64,58 @@ Rule: if lines are tight, compress narrative prose — never drop identifiers.
 - Spec docs updated as a result of answers
 
 ### arch.summary.md
-- Architecture pattern chosen (§1)
-- All DEC-NNN: decision + one-line rationale (§4)
-- All NFR-NNN → DEC-NNN mappings (§4a)
-- All layers named with folder/package (§3)
+- Architecture pattern chosen (Architecture Overview)
+- All DEC-NNN: decision + one-line rationale (Key Design Decisions)
+- All NFR-NNN → DEC-NNN mappings (NFR Architecture Decision Mapping)
+- All layers named with folder/package (Layer Responsibilities)
 - Cross-cutting concerns: auth + logging + error handling
 
 ### plan.summary.md
-- Implementation phases in order (§2)
-- Test framework per layer (§3)
-- All delivery checklist items (§6)
+- Implementation phases in order (Implementation Order)
+- Test framework per layer (Test Strategy)
+- All delivery checklist items (Delivery Checklist)
 
 ### hld.summary.md
-- All integrations: system + direction (§1-2)
-- All state machine states (§4)
-- All NFR targets: ID + threshold (§7)
-- Out of scope items (§8)
+- All integrations: system + direction (System Context)
+- All state machine states (Status / State Machine)
+- All NFR targets: ID + threshold (Non-Functional Summary)
+- Out of scope items
+
+### lld.summary.md
+- Full package / folder structure (Package Structure)
+- All class/interface names per layer
+- Key method signatures (use-case interface + service + adapters)
+
+### adr.summary.md (one entry per ADR file)
+- ADR-NNN title + status + linked DEC-NNN
+- Chosen option + one-line rationale
+- Key risks / consequences
+
+### api-spec.summary.md
+- All endpoints: HTTP method + path + auth requirement
+- Request / response schema names
+- All documented error codes + meanings
+
+### data-model.summary.md
+- All entity / table names + purpose
+- Key relationships (foreign keys, ownership)
+- Constraints affecting design (unique keys, audit fields)
+
+### security-design.summary.md
+- All THR-NNN rated Medium / High: description + mitigation
+- Security controls applied by layer
+- Any open gaps / deferred controls
+
+### resilience.summary.md
+- All retry strategies: target + backoff policy
+- All circuit breaker thresholds
+- Timeout values per integration
+- Degraded-mode behaviour (graceful degradation vs hard fail)
+
+### investigation.summary.md
+- All alert names + thresholds that trigger an incident
+- Key runbook triage steps (ordered)
+- Key dashboards / metrics to check first
 
 ### stories.summary.md
 - All STORY-NNN: title + story points + sprint assignment
@@ -88,6 +126,10 @@ Rule: if lines are tight, compress narrative prose — never drop identifiers.
 - Total estimated lines + count of SPLIT tasks
 
 ### qa-testcases.summary.md
-- All TC-NNN identifiers grouped by category (§2–§6)
-- Coverage count per category (§1 table)
+- All TC-NNN identifiers grouped by category (Test Coverage Summary)
+- Coverage count per category
 - FR-NNN → TC-NNN traceability (which FRs are covered)
+
+### Pack-specific spec documents
+component-spec, screen-spec, ux-flow, and similar — all typed identifiers
+must survive compression; compress prose only.

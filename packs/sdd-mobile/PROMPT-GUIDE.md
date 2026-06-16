@@ -295,7 +295,7 @@ Wait for review before /clarify.
 
 ### Step A — Generate Questions
 ```
-Read constitution.md + all spec summaries + analyze.md
+Read constitution.md + all spec summaries + analyze.summary.md
 Read clarify-template.md
 
 Find and document:
@@ -304,10 +304,10 @@ Find and document:
   CON-NNN: contradicting requirements
   ASM-NNN: agent assumed — needs confirmation
   OQ-NNN:  human decision needed
-  HR-NNN:  high risk from analyze.md needing clarity
+  R-NNN (High/Critical): high/critical risk from analyze.summary.md §2
 
 Each item: unique ID + where found + why it matters
-Prioritise HIGH risk items from analyze.md
+Prioritise HIGH/CRITICAL risk items (R-NNN) from analyze.summary.md §2
 
 Save: .specify/features/{feature}/clarify.md
 Present report. WAIT for answers. Do NOT proceed.

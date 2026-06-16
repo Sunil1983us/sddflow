@@ -8,7 +8,6 @@ Read .specify/manifest.yml
 Read .specify/memory/constitution.md
 Read .specify/memory/summary-rules.md
 Read all .specify/features/{manifest.project.feature}/*.summary.md
-Read .specify/features/{manifest.project.feature}/analyze.summary.md
 Read .specify/templates/clarify-template.md
 
 ## Your Task — Generate Questions
