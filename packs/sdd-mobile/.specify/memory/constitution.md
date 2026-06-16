@@ -130,7 +130,7 @@ table.
 | Principle | Applied As |
 |---|---|
 | Specification First | No code before spec + TASK approved |
-| Test First | Paired test with every class — same PR |
+| Test Paired | Paired test with every class — same PR, never after |
 | Traceability | task → story → FR → context — always |
 | Offline-First | Assume no connectivity — queue/cache locally, sync when connected |
 | Accessible | Every screen meets the Accessibility bar from Tech Stack (screen reader labels, contrast, touch targets) |

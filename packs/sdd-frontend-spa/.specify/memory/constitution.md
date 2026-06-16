@@ -130,7 +130,7 @@ multi-stage Dockerfile and nginx config matching these rules.
 | Principle | Applied As |
 |---|---|
 | Specification First | No code before spec + TASK approved |
-| Test First | Paired test with every component — same PR |
+| Test Paired | Paired test with every component — same PR, never after |
 | Traceability | task → story → FR → context — always |
 | Component-First | UI built from small, composable, single-responsibility components |
 | Accessible | Every component meets the Accessibility bar from Tech Stack (WCAG/axe-core) |

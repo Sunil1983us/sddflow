@@ -126,7 +126,7 @@
 | Principle | Applied As |
 |---|---|
 | Specification First | No code before spec + TASK approved |
-| Test First | Paired test with every class — same PR |
+| Test Paired | Paired test with every class — same PR, never after |
 | Traceability | task → story → FR → context — always |
 | {derived from domain} | {how it applies} |
 
