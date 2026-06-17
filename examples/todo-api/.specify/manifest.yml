@@ -1,0 +1,12 @@
+project:
+  name: "Todo API"
+  scope: "pilot"
+  feature: "task-management"
+  context_file: "task-management.md"
+  project_type: "backend-service"
+
+pr_rules:
+  max_lines_per_pr: 400
+  max_files_per_pr: 5
+
+workflow_mode: "github"
