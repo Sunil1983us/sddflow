@@ -20,7 +20,6 @@ pr_rules:
 #   github: branch + PR flow. CI runs on every PR push.
 #   local:  no git hosting needed (shared folder, Claude Desktop, etc.)
 #           Agent runs build/test/lint locally; "Task accepted" instead of "PR ready"
-workflow_mode: "github"   # github | local
 
 # Reading Mode — auto | summary | full   DEFAULT: auto (from summary-rules.md)
 #   auto:    use .summary.md when present; fall back to full .md + generate summary
@@ -33,3 +32,5 @@ workflow_mode: "github"   # github | local
 #   tdd:    write failing test first → implement to pass → refactor
 #   bdd:    Given/When/Then specs drive tests, written before implementation
 # testing_style: "paired"
+
+sdd_version: "2.0.0"   # set by sdd init; used by sdd upgrade

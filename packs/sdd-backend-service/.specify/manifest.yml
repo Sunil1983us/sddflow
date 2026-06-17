@@ -20,7 +20,6 @@ pr_rules:
 #           runs the same build/test/coverage/lint checks itself before
 #           ending each task with "Task accepted"; /release requires every
 #           task accepted. See HOW-TO-USE.md "Workflow Mode" for details.
-workflow_mode: "github"   # github | local
 
 # Reading Mode — auto | summary | full   DEFAULT: auto (from summary-rules.md)
 #   auto:    use .summary.md when present; fall back to full .md + generate
@@ -38,3 +37,5 @@ workflow_mode: "github"   # github | local
 # Project Type — this pack is optimised for backend-service
 # If using sdd-universal instead, set project_type: "backend-service" in its manifest.yml
 # project_type: "backend-service"
+
+sdd_version: "2.0.0"   # set by sdd init; used by sdd upgrade
