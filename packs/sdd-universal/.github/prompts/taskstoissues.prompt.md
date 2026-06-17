@@ -20,7 +20,7 @@ Converts your approved tasks and stories into two export formats:
 ```
 ## [STORY-NNN] {story title}
 
-**Labels:** `sdd-story`, `priority:{must-have|should-have|could-have}`, `sprint:{sprint}`
+**Labels:** `sdd-story`, `priority:{must-have|should-have|could-have|wont-have}`, `sprint:{sprint}`
 **Milestone:** {manifest.project.feature}
 **Story Points:** {points}
 
@@ -90,12 +90,31 @@ gh label create "sdd-task"  --color "0075ca" --description "SDD implementation t
 gh label create "priority:must-have"    --color "b60205" --repo "$REPO" 2>/dev/null || true
 gh label create "priority:should-have"  --color "e99695" --repo "$REPO" 2>/dev/null || true
 gh label create "priority:could-have"   --color "f9d0c4" --repo "$REPO" 2>/dev/null || true
+gh label create "priority:wont-have"    --color "cccccc" --repo "$REPO" 2>/dev/null || true
 
-# Stories
-{for each STORY-NNN: gh issue create command with title, body, labels, milestone}
+# Stories — one gh issue create per STORY-NNN.
+# Use $'...' quoting for multi-line --body values. Example:
+#
+#   gh issue create \
+#     --repo "$REPO" \
+#     --title "[STORY-001] User can log in with email and password" \
+#     --label "sdd-story,priority:must-have,sprint:1" \
+#     --milestone "$MILESTONE" \
+#     --body $'## User Story\nAs a registered user I want to log in...\n\n## Acceptance Criteria\n- [ ] AC-1...\n\n## Child Tasks\n- TASK-001\n- TASK-002'
+#
+# Replace the example above with one block per STORY-NNN from stories.md.
 
-# Tasks
-{for each TASK-NNN: gh issue create command, referencing parent story issue number}
+# Tasks — one gh issue create per TASK-NNN.
+# Reference the parent story's issue number via --body. Example:
+#
+#   gh issue create \
+#     --repo "$REPO" \
+#     --title "[TASK-001] Implement login endpoint" \
+#     --label "sdd-task,story:STORY-001,backend" \
+#     --milestone "$MILESTONE" \
+#     --body $'## Description\nPOST /auth/login...\n\n## Spec Links\n- Story: STORY-001\n- tasks.md: .specify/features/{feature}/tasks.md\n\n## Definition of Done\n- [ ] Code written and tests passing\n- [ ] PR reviewed and merged'
+#
+# Replace the example above with one block per TASK-NNN from tasks.md.
 
 echo ""
 echo "Done! View issues at: https://github.com/$REPO/issues?milestone={encoded milestone}"

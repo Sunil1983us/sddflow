@@ -26,6 +26,9 @@ has a structured context.md.
    file's `applyTo` glob to any file you create or edit that matches it,
    exactly as GitHub Copilot does (AI-7: Claude Code ≡ Copilot parity).
 8. Confirm: project.name, scope, feature, context_file, project_type
+   - If project_type is "auto" or missing: STOP — state "project_type is not
+     resolved. Run /specify first so the correct tech stack and doc set can be
+     selected." No other command may proceed until project_type is set.
 9. If constitution Part 2 not generated → remind user to run /specify first
 10. If constitution Part 2 generated but NOT finalized (GATE-1 open) →
     remind user to review + finalize it before /validate can run
