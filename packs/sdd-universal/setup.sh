@@ -28,6 +28,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- Auto-detect project type ---
+# Detection order must match specify.prompt.md Step 0 table and setup.ps1
+# Detect-ProjectType. Update all three together when adding a new type.
+# INVARIANT: mobile checks must appear before fullstack — a React Native +
+# pom.xml monorepo must resolve to "mobile", not "fullstack".
 detect_project_type() {
   local root="${1:-.}"
 
@@ -144,6 +148,22 @@ if [[ -z "$SCOPE" ]]; then
   SCOPE="${SCOPE:-pilot}"
 fi
 
+# --- Validate inputs ---
+# Double quotes inside a YAML double-quoted scalar produce invalid YAML.
+# Reject early with a clear message rather than silently writing a broken file.
+_validate_name() {
+  local value="$1" label="$2"
+  if [[ "$value" == *'"'* ]]; then
+    echo "" >&2
+    echo "  ✗  $label cannot contain double-quote characters." >&2
+    echo "     Names are written inside YAML double quotes — an embedded \" breaks" >&2
+    echo "     manifest.yml. Please re-run without \" in the name." >&2
+    exit 1
+  fi
+}
+_validate_name "$PROJECT_NAME" "Project name"
+_validate_name "$FEATURE_NAME" "Feature name"
+
 echo ""
 echo "Setting up:"
 echo "  Project : $PROJECT_NAME"
@@ -173,11 +193,11 @@ feature_name = os.environ['SDD_FEATURE_NAME']
 project_type = os.environ['SDD_PROJECT_TYPE']
 with open(manifest) as f:
     content = f.read()
-content = re.sub(r'name:\s*""',              f'name: "{project_name}"',            content, count=1)
-content = re.sub(r'scope:\s*"pilot"',        f'scope: "{scope}"',                  content, count=1)
-content = re.sub(r'feature:\s*""',           f'feature: "{feature_name}"',         content, count=1)
-content = re.sub(r'context_file:\s*""',      f'context_file: "{feature_name}.md"', content, count=1)
-content = re.sub(r'project_type:\s*"auto"',  f'project_type: "{project_type}"',    content, count=1)
+content = re.sub(r'name:\s*""',              lambda _: f'name: "{project_name}"',            content, count=1)
+content = re.sub(r'scope:\s*"pilot"',        lambda _: f'scope: "{scope}"',                  content, count=1)
+content = re.sub(r'feature:\s*""',           lambda _: f'feature: "{feature_name}"',         content, count=1)
+content = re.sub(r'context_file:\s*""',      lambda _: f'context_file: "{feature_name}.md"', content, count=1)
+content = re.sub(r'project_type:\s*"auto"',  lambda _: f'project_type: "{project_type}"',    content, count=1)
 with open(manifest, 'w') as f:
     f.write(content)
 PYEOF
@@ -188,8 +208,8 @@ else
 fi
 
 # --- Create contexts directory + placeholder ---
-mkdir -p ".specify/contexts"
 CONTEXT_FILE=".specify/contexts/${FEATURE_NAME}.md"
+mkdir -p "$(dirname "$CONTEXT_FILE")"
 if [[ ! -f "$CONTEXT_FILE" ]]; then
   cat > "$CONTEXT_FILE" << 'TMPL'
 # Context: FEATURE_PLACEHOLDER

@@ -13,6 +13,10 @@ description: SPECIFY — Resolve project type, generate constitution Part 2, the
 
 ## Step 0 — Resolve Project Type
 
+<!-- Detection order must match setup.sh detect_project_type() and setup.ps1
+     Detect-ProjectType. Update all three together when adding a new project
+     type. INVARIANT: mobile rows must appear before fullstack in this table. -->
+
 Read `project_type` from `.specify/manifest.yml`.
 
 **If `project_type: auto`** or field is missing, detect from files in the project root:

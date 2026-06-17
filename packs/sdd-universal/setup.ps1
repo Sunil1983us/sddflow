@@ -16,6 +16,9 @@ Write-Host "━━━━━━━━━━━━━━━━━━━━━━�
 Write-Host ""
 
 # --- Auto-detect project type ---
+# Detection order must match setup.sh detect_project_type() and specify.prompt.md
+# Step 0 table. Update all three together when adding a new type.
+# INVARIANT: mobile checks must appear before fullstack.
 function Detect-ProjectType {
   $root = "."
 
@@ -111,6 +114,18 @@ if (-not $Scope) {
   $Scope = if ($ScopeInput) { $ScopeInput } else { "pilot" }
 }
 
+# --- Validate inputs ---
+function Assert-Name {
+  param([string]$Value, [string]$Label)
+  if ($Value.Contains('"')) {
+    Write-Host ""
+    Write-Error "$Label cannot contain double-quote characters. Names are written inside YAML double quotes — an embedded `" breaks manifest.yml. Please re-run without `" in the name."
+    exit 1
+  }
+}
+Assert-Name -Value $Project -Label "Project name"
+Assert-Name -Value $Feature -Label "Feature name"
+
 Write-Host ""
 Write-Host "Setting up:"
 Write-Host "  Project : $Project"
@@ -140,9 +155,8 @@ if (Test-Path $ManifestPath) {
 }
 
 # --- Create context placeholder ---
-$ContextDir  = ".specify\contexts"
-New-Item -ItemType Directory -Force -Path $ContextDir | Out-Null
-$ContextFile = "$ContextDir\$Feature.md"
+$ContextFile = ".specify\contexts\$Feature.md"
+New-Item -ItemType Directory -Force -Path (Split-Path $ContextFile -Parent) | Out-Null
 if (-not (Test-Path $ContextFile)) {
   # Write template with literal placeholders, then replace using .Replace()
   # (safe against feature/project names with regex metacharacters)
