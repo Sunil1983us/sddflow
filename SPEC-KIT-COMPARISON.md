@@ -19,9 +19,11 @@
 | Business sign-off | Not modeled | `/validate` — Product Owner + Business Analyst sign-off on BRD/SRD |
 | Spec-quality checks | `/speckit.checklist` — on-demand "unit tests for English" for the spec (clarity/completeness/consistency) | `/checklist` — CHK-NNN spec-quality gate (clarity, completeness, consistency, measurability) runs between GATE-1 and /validate; CRITICAL items block /validate |
 | Traceability | On-demand, advisory (`/speckit.analyze` — severity-ranked consistency audit across spec/plan/tasks) | Persistent matrix: Story → FR/NFR → Task → TC-NNN → R-NNN |
-| Task export | `/speckit.taskstoissues` — tasks.md → GitHub Issues | `/task` → Jira CSV |
+| Task export | `/speckit.taskstoissues` — tasks.md → GitHub Issues | `/taskstoissues` — tasks.md + stories.md → GitHub Issues markdown + `gh` shell script; `/task` → Jira CSV |
 | PR / CI governance | Left to the team's normal git workflow | Built-in `pr_rules` (max lines/files, SPLIT A/B/C), `quality-gate.yml`, and a configurable `workflow_mode: github \| local` |
-| Portability | Designed to run identically across many AI coding tools | Claude Code (`.claude/commands/`), Copilot (`.github/prompts/`), Cursor (`.cursor/rules/`), Windsurf (`.windsurfrules`), any AI via copy-paste; `setup.sh`/`setup.ps1` for one-command init |
+| Portability | Designed to run identically across many AI coding tools | Claude Code (`.claude/commands/`), Copilot (`.github/prompts/`), Cursor (`.cursor/rules/`), Windsurf (`.windsurfrules`), any AI via copy-paste; `setup.sh`/`setup.ps1` for one-command init; `sdd-universal` pack auto-detects project type (10 types) |
+| Project types | 1 (generic) | 5 packs: backend-service, frontend-spa, mobile, fullstack + `sdd-universal` (auto-detects cli, data-ml, serverless, library, iac, desktop + all 4 above) |
+| Bug management | None | `/bug-assess` (BUG-NNN with severity/root-cause/estimate) + `/bug-fix` (regression-test-first fix) |
 
 **Bottom line:** spec-kit is a lean, portable scaffold that turns "vibe
 coding" into structured, requirement-driven development for a single
@@ -265,13 +267,31 @@ To be fair, a few things spec-kit does better:
 - **`/speckit.taskstoissues`** — one command to turn tasks.md into GitHub
   Issues, native to teams already living in GitHub.
 
-These are reasonable enhancements we could selectively borrow into
-SDD packs without giving up the governance/RACI layer — worth a future,
-low-risk iteration:
-- ✅ `/checklist` — now implemented: CHK-NNN spec-quality gate with Clarity/Completeness/Consistency/Measurability dimensions
-- ✅ Given/When/Then acceptance scenarios — now embedded in each UC in srd.md
-- ✅ `[NEEDS CLARIFICATION: ...]` — now implemented as a lighter-weight complement to `[ASSUMPTION-NNN]`
-- ✅ `/speckit.analyze` cross-artifact consistency — now added as §8 Consistency Findings in /analyze
+All items selectively borrowed into SDD packs — now fully implemented:
+
+**HIGH priority (implemented earlier):**
+- ✅ `/checklist` — CHK-NNN spec-quality gate with Clarity/Completeness/Consistency/Measurability; CRITICAL items block /validate
+- ✅ Given/When/Then acceptance scenarios — embedded in each UC in srd.md; drives TC-NNN traceability
+- ✅ `[NEEDS CLARIFICATION: ...]` — lighter-weight complement to `[ASSUMPTION-NNN]`; blocks /validate if unresolved
+- ✅ `/speckit.analyze` cross-artifact consistency — §8 Consistency Findings (CF-NNN) in /analyze
+
+**MEDIUM priority (now implemented):**
+- ✅ `/taskstoissues` — tasks.md + stories.md → GitHub Issues markdown + `gh` shell script
+- ✅ `/bug-assess` + `/bug-fix` — structured BUG-NNN assessment + regression-test-first fix workflow
+- ✅ `WHY-SDD.md` — philosophy doc in every pack (benefits, objections, who it's for)
+- ✅ Story MoSCoW priority — Must/Should/Could/Won't Have grouping in stories.md output
+
+**Phase 1 — Universal tool portability (implemented):**
+- ✅ Cursor adapter (`.cursor/rules/sdd-framework.mdc`)
+- ✅ Windsurf adapter (`.windsurfrules`)
+- ✅ `setup.sh` / `setup.ps1` one-command initializers
+- ✅ `QUICKSTART.md` per pack + Tool Compatibility table in PROMPT-GUIDE.md
+
+**Phase 2 — Universal pack (now implemented):**
+- ✅ `sdd-universal` pack — single entry point for all 10 project types
+- ✅ Auto-detect project type from project files (package.json, pom.xml, Cargo.toml, *.tf, etc.)
+- ✅ Per-type tech stack tables in `/specify` (10 types × complete concern rows)
+- ✅ Per-type doc-set table (pilot/mvp/full × 10 types)
 
 ---
 

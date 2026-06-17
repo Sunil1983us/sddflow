@@ -1,15 +1,16 @@
-# SDD Backend Service Pack
-## REST APIs · Microservices · Databases · Messaging
-## Stacks: Java · TypeScript · Python · Go
+# SDD Universal Pack
+## Any Project Type · Auto-Detected · Any AI Tool
+## backend-service · frontend-spa · mobile · fullstack · cli · data-ml · serverless · library · iac · desktop
 
 ---
 
 ## What Is This?
 
-Spec-Driven Development framework for backend services.
-You write what your system does — agent generates everything else.
-Constitution Part 2 is auto-generated from your context as a DRAFT —
-you review and finalize it (GATE-1) before work continues.
+Spec-Driven Development framework for any kind of software project.
+Not sure which pack to use? Use this one — `setup.sh` detects your project
+type automatically. You write what your system does; the agent generates
+everything else. Constitution Part 2 is auto-generated from your context
+as a DRAFT — you review and finalize it (GATE-1) before work continues.
 
 ---
 
@@ -79,10 +80,7 @@ finalized" (GATE-1) before /validate runs.
 
 Two actions automatically:
 1. Reads context → fills constitution Part 2 (DRAFT):
-   Language, Framework, Build Tool, API Style, Messaging/Async,
-   Serialisation, Schema, Data Store, Data Cache, DB Migration,
-   Configuration, Secrets, Resilience, Observability, Logging,
-   Testing, Coverage Gate, Quality/Security, Orchestration, CI/CD
+   Tech Stack rows appropriate for your project_type (auto-detected),
    + Core Principles + Domain Rules + Never Do
 
 2. Generates spec documents per scope (see table below).
@@ -106,6 +104,9 @@ that point are authoritative.
 
 ## Document Inventory by Scope/Command (canonical)
 
+Doc sets vary by `project_type` — see [PROMPT-GUIDE.md](PROMPT-GUIDE.md) → Supported Project Types.
+Default (backend-service):
+
 | Command | Pilot | MVP | Full |
 |---|---|---|---|
 | /specify | BRD, SRD, Security-Design (§1) | + API Spec, Data Model, Security-Design (§1-2) | + Resilience, Investigation, Security-Design (§1-4) |
@@ -126,15 +127,12 @@ that point are authoritative.
 ## Quick Start
 
 ```bash
-unzip sdd-backend-service.zip -d my-service
-cd my-service
-git init
-# Write .specify/contexts/my-feature.md (or run /create-context if you'd
-# rather paste rough notes and let the agent draft it for you)
-# Fill .specify/manifest.yml (4 fields)
-# Fill .specify/memory/roles.yml (RACI owners — optional but recommended)
-claude    # Claude Code Desktop — type /start, then /specify, /clarify, etc.
-# OR open VS Code + Copilot Chat — type /specify, /clarify, etc.
+# Copy the sdd-universal folder into your project, then:
+bash setup.sh          # auto-detects project type + fills manifest.yml
+# Fill .specify/contexts/{feature}.md
+claude                 # Claude Code — type /specify to start
+# OR open VS Code + Copilot Chat — type /specify
+# OR in Cursor / Windsurf — say "Run specify"
 ```
 
 No structured context.md yet? Run `/create-context` first — paste any

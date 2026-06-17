@@ -1,5 +1,5 @@
-# SDD Prompt Guide — 11 Commands
-# Claude Code Desktop + GitHub Copilot
+# SDD Prompt Guide — Universal Pack
+# Works with any project type · Claude Code · Copilot · Cursor · Windsurf · Any AI
 
 ---
 
@@ -44,7 +44,28 @@
 
 **For any AI tool:** The `.github/prompts/` files are written as self-contained instructions. Any AI that can read a markdown file can execute any SDD command — just paste the file contents into the chat.
 
-**First time?** Run `bash setup.sh` (Mac/Linux) or `.\setup.ps1` (Windows) to initialize your project. See [QUICKSTART.md](QUICKSTART.md).
+**First time?** Run `bash setup.sh` (Mac/Linux) or `.\setup.ps1` (Windows) — auto-detects project type and fills manifest.yml. See [QUICKSTART.md](QUICKSTART.md).
+
+---
+
+## Supported Project Types
+
+`setup.sh` detects your type from project files. Override with `--type <type>` or set `project_type` in manifest.yml.
+
+| Type | When to use | Auto-detected from |
+|---|---|---|
+| `backend-service` | REST APIs, microservices, gRPC | `pom.xml`, `build.gradle`, `go.mod`, `requirements.txt` |
+| `frontend-spa` | React, Vue, Angular, Svelte web apps | `package.json` with react/vue/angular/svelte |
+| `mobile` | React Native, Flutter, Expo | `package.json` with react-native/expo, `pubspec.yaml` |
+| `fullstack` | Backend + Frontend in one repo | Both backend + frontend files present |
+| `cli` | Command-line tools | `Cargo.toml` [[bin]], `go.mod` + `cmd/`, Click/Cobra/clap usage |
+| `data-ml` | ML models, data pipelines, notebooks | `requirements.txt` with pandas/torch/sklearn/tensorflow |
+| `serverless` | AWS Lambda, Cloud Functions, SAM | `serverless.yml`, `template.yaml` with AWSTemplateFormatVersion |
+| `library` | npm/PyPI/Maven packages, SDKs | `setup.py` with install_requires, library-only structure |
+| `iac` | Terraform, Pulumi, CDK, CloudFormation | `.tf` files, `Pulumi.yaml`, `cdk.json` |
+| `desktop` | Electron, Tauri, native desktop | `package.json` with electron, `tauri.conf.json` |
+
+Not sure? Leave `project_type: auto` in manifest.yml — `/specify` detects it automatically.
 
 ---
 

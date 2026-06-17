@@ -1,8 +1,10 @@
 # SDD Framework — Quick Start
-## Pack: Backend Service (REST API / Microservice)
+## Pack: Universal (any project type)
 
-> **5 minutes to your first spec.** This guide covers setup and first run.
+> **5 minutes to your first spec.** `setup.sh` auto-detects your project type.
 > For the full command reference, see [PROMPT-GUIDE.md](PROMPT-GUIDE.md).
+> Supported types: `backend-service` · `frontend-spa` · `mobile` · `fullstack`
+> · `cli` · `data-ml` · `serverless` · `library` · `iac` · `desktop`
 
 ---
 
