@@ -1,6 +1,14 @@
 # Claude Code internal directories
 .claude/worktrees/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
 # Pack distributor output
 packs/dist/
 
