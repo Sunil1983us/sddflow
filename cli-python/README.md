@@ -331,6 +331,72 @@ manually.
 
 ---
 
+### `/pre-review` (agent command)
+
+Run a one-time code pre-review on the current task before the PR is created.
+Controlled by `code_review.pre_review` in `integrations.yml`.
+
+```
+/pre-review              # infer task from current branch
+/pre-review TASK-001     # explicit task ID
+```
+
+**What it does:**
+1. Checks `code_review.pre_review` — if `false`, skips and calls `sdd pr create` directly
+2. Reads the diff (`git diff main...HEAD`)
+3. Analyses for: correctness bugs, removed behaviour, security issues, cross-file impact, quality, performance
+4. Presents a numbered checklist to the developer
+5. Developer picks which items to fix (`all`, `none`, or `1,3`)
+6. Agent applies selected fixes and commits
+7. Saves pre-review summary to `.specify/features/{feature}/.pre-review-{task}.md`
+8. Calls `sdd pr create --task {task}` — summary is included in the PR body automatically
+
+**Runs once per task** — do not re-run after fixes are applied.
+
+---
+
+### `/address-review` (agent command)
+
+Read unresolved human review comments from a PR, apply developer-selected fixes,
+reply to threads, and request re-review. Repeatable — run once per review round.
+
+```
+/address-review          # infer PR from current branch
+/address-review 42       # explicit PR number
+```
+
+**What it does:**
+1. Fetches all unresolved comment threads from the GitHub PR
+2. Presents them as a numbered checklist
+3. Developer picks which to fix
+4. Agent applies fixes, commits, pushes to the same branch (PR auto-updates)
+5. Posts a reply on each thread: "Fixed in {commit}" or "Acknowledged"
+6. Resolves fixed threads so reviewer sees a clean diff
+7. Requests re-review from the original reviewer
+
+**Run again** after the reviewer adds a new round of comments.
+When there are no unresolved comments: "PR is ready to approve."
+
+---
+
+## Code Review Configuration
+
+```yaml
+# .specify/integrations.yml
+code_review:
+  enabled:    true
+  pre_review: true    # false = skip pre-review, go straight to human review
+```
+
+| Setting | Behaviour |
+|---|---|
+| `pre_review: true` | Agent runs `/pre-review` before creating the PR. PR body includes pre-review summary. |
+| `pre_review: false` | PR created immediately. Human reviewer is the first reviewer of the code. |
+
+`/address-review` is always available regardless of `pre_review` setting.
+
+---
+
 ## Auth Modes
 
 Credentials are **never stored in config files** — only the name of the

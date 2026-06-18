@@ -208,3 +208,22 @@ pr_automation:
   enabled: true
   branch_pattern:    "feature/{task_id}-{slug}"
   pr_title_pattern:  "feat({task_id}): {title}"
+
+
+# ── Code review ───────────────────────────────────────────────────────────────
+#
+# Controls the automated code review gate that runs before PR creation.
+#
+# pre_review: true  — agent analyses the diff, presents a checklist of findings,
+#                     developer picks which to fix, fixes are applied, THEN the
+#                     PR is created (with a pre-review summary in the PR body).
+#
+# pre_review: false — skip pre-review entirely; PR is created immediately and
+#                     the human reviewer is the first reviewer of the code.
+#
+# After the PR is created, /address-review handles human review comments
+# regardless of this setting.
+
+code_review:
+  enabled:    true
+  pre_review: true

@@ -62,6 +62,12 @@ class PrAutomation:
 
 
 @dataclass
+class CodeReviewConfig:
+    enabled: bool = True
+    pre_review: bool = True   # false = skip pre-review, go straight to human review
+
+
+@dataclass
 class IntegrationsConfig:
     profile: str | None
     jira: JiraConfig | None
@@ -74,6 +80,7 @@ class IntegrationsConfig:
         default_factory=lambda: ["approved", "lgtm", "looks good", "go ahead", "confirmed"]
     )
     pr_automation: PrAutomation = field(default_factory=PrAutomation)
+    code_review: CodeReviewConfig = field(default_factory=CodeReviewConfig)
 
 
 def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
@@ -135,6 +142,12 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
         pr_title_pattern=pr_raw.get("pr_title_pattern", "feat({task_id}): {title}"),
     )
 
+    cr_raw = raw.get("code_review") or {}
+    code_review = CodeReviewConfig(
+        enabled=cr_raw.get("enabled", True),
+        pre_review=cr_raw.get("pre_review", True),
+    )
+
     return IntegrationsConfig(
         profile=raw.get("profile"),
         jira=jira,
@@ -146,4 +159,5 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             ["approved", "lgtm", "looks good", "go ahead", "confirmed"]
         ),
         pr_automation=pr_automation,
+        code_review=code_review,
     )

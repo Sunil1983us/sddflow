@@ -4,6 +4,31 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.2.0] — 2026-06-18
+
+### Added
+
+#### Code review gate (`/pre-review` + `/address-review`)
+- `/pre-review` — one-time pre-PR code review: agent analyses diff across 6 angles
+  (correctness, removed behaviour, security, cross-file impact, quality, performance),
+  presents numbered checklist, developer picks which to fix, agent applies fixes,
+  saves summary, then calls `sdd pr create`
+- `/address-review` — handles human PR review comments: fetches unresolved threads,
+  checklist to developer, applies fixes, replies to threads, resolves them, requests
+  re-review; repeatable until PR is approved
+- `code_review.pre_review` config flag — `true` = run pre-review before PR creation;
+  `false` = skip pre-review, go straight to PR + human review
+- `sdd pr create` now reads `.pre-review-{task}.md` summary file and injects it into
+  the PR body under a "Pre-Review" section when pre-review was run
+- New commands distributed to all 5 packs (3 locations each: `.claude/commands/`,
+  `.github/prompts/`)
+
+#### Config
+- `code_review:` section added to `integrations.yml.example` with `enabled` and
+  `pre_review` fields
+
+---
+
 ## [2.1.0] — 2026-06-18
 
 ### Added

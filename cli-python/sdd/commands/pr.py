@@ -129,6 +129,20 @@ def pr_create(task, base, profile, feature):
     satisfies = ", ".join(sdd_task.satisfies) if sdd_task.satisfies else "—"
     story_ref = f"Story: {sdd_task.story_id}  \n" if sdd_task.story_id else ""
 
+    # ── Pre-review summary (if pre_review enabled and summary exists) ─────────
+    pre_review_section = ""
+    if cfg.code_review.enabled and cfg.code_review.pre_review:
+        summary_path = features_dir / f".pre-review-{task.lower()}.md"
+        if summary_path.exists():
+            pre_review_section = f"\n## Pre-Review\n\n{summary_path.read_text().strip()}\n\n"
+            console.print(f"  [green]✓[/green]  Pre-review summary included")
+        else:
+            console.print(
+                f"  [yellow]⚠[/yellow]  Pre-review enabled but not run for {task.upper()}. "
+                "Run [cyan]/pre-review[/cyan] first, or set "
+                "[cyan]code_review.pre_review: false[/cyan] to skip."
+            )
+
     pr_body = (
         f"{jira_section}"
         f"## What this implements\n\n"
@@ -138,6 +152,7 @@ def pr_create(task, base, profile, feature):
         f"## Traceability\n\n"
         f"{story_ref}"
         f"Satisfies: {satisfies}\n"
+        f"{pre_review_section}"
     )
 
     # ── Create PR via gh CLI ──────────────────────────────────────────────────
