@@ -106,3 +106,105 @@ confluence:
     runbook: "{project} — Runbook"
     # validate: "{project} — Validation Report"
     # release:  "{project} — Release Notes"
+
+
+# ── Document review gates ─────────────────────────────────────────────────────
+#
+# Each SDD document has its own reviewer and must be approved before
+# the next document in the phase sequence can be submitted.
+#
+# Sequence within each phase is enforced: you cannot submit SRD for review
+# until BRD is approved; you cannot submit HLD until Arch is approved, etc.
+#
+# reviewer_jira_user:
+#   Cloud:    use the Jira accountId (a UUID-like string)
+#             Find it: Jira profile URL ends in /people/{accountId}
+#   Server/DC: use the Jira username (login name)
+#             Note: change "accountId" to "name" in the CLI if using Server/DC
+
+document_reviews:
+
+  # ── specify phase (BRD → SRD → Arch → HLD) ──────────────────────────────
+  brd:
+    reviewer_jira_user: "5c7b8a2d0f3e1a4b9d6c8f21"   # PO's Jira accountId
+    reviewer_role:      Product Owner
+    phase:              specify
+    sequence:           1
+    confluence_page:    "{project} — Business Requirements"
+
+  srd:
+    reviewer_jira_user: "6d8c9b3e1f4a2b5c0d7e9g32"   # BA's Jira accountId
+    reviewer_role:      Business Analyst
+    phase:              specify
+    sequence:           2    # cannot submit until BRD approved
+    confluence_page:    "{project} — System Requirements"
+
+  arch:
+    reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect's accountId
+    reviewer_role:      Architect
+    phase:              specify
+    sequence:           3    # cannot submit until SRD approved
+    confluence_page:    "{project} — Architecture Overview"
+
+  hld:
+    reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # same Architect
+    reviewer_role:      Architect
+    phase:              specify
+    sequence:           4    # cannot submit until Arch approved
+    confluence_page:    "{project} — High-Level Design"
+
+  # ── planning phase (LLD → ADR) ───────────────────────────────────────────
+  lld:
+    reviewer_jira_user: "8f0e1d5g3h6c4d7e2f9g1i54"   # Tech Lead's accountId
+    reviewer_role:      Tech Lead
+    phase:              planning
+    sequence:           1
+    confluence_page:    "{project} — Low-Level Design"
+
+  adr:
+    reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect
+    reviewer_role:      Architect
+    phase:              planning
+    sequence:           2    # cannot submit until LLD approved
+    confluence_page:    "{project} — Architecture Decisions"
+
+  # ── tasks phase ──────────────────────────────────────────────────────────
+  tasks:
+    reviewer_jira_user: "9g1f2e6h4i7d5e8f3g0h2j65"   # Scrum Master's accountId
+    reviewer_role:      Scrum Master
+    phase:              tasks
+    sequence:           1
+    confluence_page:    "{project} — Task Breakdown"
+
+  # ── release phase (Runbook → Release) ───────────────────────────────────
+  runbook:
+    reviewer_jira_user: "0h2g3f7i5j8e6f9g4h1i3k76"   # DevOps accountId
+    reviewer_role:      DevOps
+    phase:              release
+    sequence:           1
+    confluence_page:    "{project} — Runbook"
+
+  release:
+    reviewer_jira_user: "1i3h4g8j6k9f7g0h5i2j4l87"   # Release Manager accountId
+    reviewer_role:      Release Manager
+    phase:              release
+    sequence:           2    # cannot submit until Runbook approved
+    confluence_page:    "{project} — Release Notes"
+
+
+# Jira task statuses that count as approval
+approved_statuses: [Done, Approved]
+
+# Comment keywords that count as approval (case-insensitive)
+approved_keywords: [approved, lgtm, "looks good", "go ahead", confirmed]
+
+
+# ── PR automation ─────────────────────────────────────────────────────────────
+#
+# Controls how "sdd pr create --task TASK-001" names branches and PRs.
+# Requires gh CLI to be installed: https://cli.github.com
+
+pr_automation:
+  enabled: true
+  branch_pattern:    "feature/{task_id}-{slug}"
+  pr_title_pattern:  "feat({task_id}): {title}"

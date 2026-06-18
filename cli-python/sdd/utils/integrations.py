@@ -46,10 +46,34 @@ class ConfluenceConfig:
 
 
 @dataclass
+class DocumentReview:
+    reviewer_jira_user: str   # Jira accountId (Cloud) or username (Server/DC)
+    reviewer_role: str        # Human-readable label e.g. "Product Owner"
+    phase: str                # specify | planning | tasks | release
+    sequence: int             # 1-based order within the phase
+    confluence_page: str      # page title template, supports {project}
+
+
+@dataclass
+class PrAutomation:
+    enabled: bool = True
+    branch_pattern: str = "feature/{task_id}-{slug}"
+    pr_title_pattern: str = "feat({task_id}): {title}"
+
+
+@dataclass
 class IntegrationsConfig:
     profile: str | None
     jira: JiraConfig | None
     confluence: ConfluenceConfig | None
+    document_reviews: dict[str, DocumentReview] = field(default_factory=dict)
+    approved_statuses: list[str] = field(
+        default_factory=lambda: ["Done", "Approved"]
+    )
+    approved_keywords: list[str] = field(
+        default_factory=lambda: ["approved", "lgtm", "looks good", "go ahead", "confirmed"]
+    )
+    pr_automation: PrAutomation = field(default_factory=PrAutomation)
 
 
 def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
@@ -91,8 +115,35 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             page_map=cf_raw.get("page_map", dict(_DEFAULT_PAGE_MAP)),
         )
 
+    document_reviews: dict[str, DocumentReview] = {}
+    for doc_key, dr_raw in (raw.get("document_reviews") or {}).items():
+        document_reviews[doc_key] = DocumentReview(
+            reviewer_jira_user=dr_raw.get("reviewer_jira_user", ""),
+            reviewer_role=dr_raw.get("reviewer_role", ""),
+            phase=dr_raw.get("phase", "specify"),
+            sequence=int(dr_raw.get("sequence", 1)),
+            confluence_page=dr_raw.get(
+                "confluence_page",
+                _DEFAULT_PAGE_MAP.get(doc_key, f"{{project}} — {doc_key.upper()}")
+            ),
+        )
+
+    pr_raw = raw.get("pr_automation") or {}
+    pr_automation = PrAutomation(
+        enabled=pr_raw.get("enabled", True),
+        branch_pattern=pr_raw.get("branch_pattern", "feature/{task_id}-{slug}"),
+        pr_title_pattern=pr_raw.get("pr_title_pattern", "feat({task_id}): {title}"),
+    )
+
     return IntegrationsConfig(
         profile=raw.get("profile"),
         jira=jira,
         confluence=confluence,
+        document_reviews=document_reviews,
+        approved_statuses=raw.get("approved_statuses", ["Done", "Approved"]),
+        approved_keywords=raw.get(
+            "approved_keywords",
+            ["approved", "lgtm", "looks good", "go ahead", "confirmed"]
+        ),
+        pr_automation=pr_automation,
     )

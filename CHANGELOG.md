@@ -4,6 +4,39 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.1.0] — 2026-06-18
+
+### Added
+
+#### Document-level review gates (`sdd review`)
+- `sdd review submit --doc <key>` — push document to Confluence + create Jira review task assigned to the configured reviewer
+- `sdd review check --doc <key>` — poll review outcome; exit codes 0=approved 1=needs-revision 2=pending 3=not-submitted
+- `sdd review apply --doc <key>` — re-push updated document + notify reviewer via Jira comment
+- `sdd review status` — show all documents grouped by phase with approval state
+- Sequence enforcement: BRD must be approved before SRD, SRD before Arch, Arch before HLD (same pattern for planning/release phases)
+- Approval detection: Jira task status in `approved_statuses` **or** comment containing a keyword from `approved_keywords`
+- ADF-aware comment parsing: handles both Jira Cloud (ADF JSON) and Server/DC (plain string) comment bodies
+
+#### PR automation (`sdd pr create`)
+- `sdd pr create --task TASK-001` — create git branch + GitHub PR linked to the Jira task
+- Branch name and PR title generated from configurable patterns (`branch_pattern`, `pr_title_pattern`)
+- PR body includes task description, acceptance criteria, and Jira link (traceability)
+- Posts PR URL back to Jira as a comment on the task issue
+- Falls back to printing PR title + body if `gh` CLI is not installed
+
+#### Agent slash commands
+- `/submit-review <doc>` — Claude Code command wrapping `sdd review submit`
+- `/check-review [doc]` — Claude Code command wrapping `sdd review check`; decision tree built into prompt
+- `.github/prompts/submit-review.prompt.md` — portable Copilot/Cursor equivalent
+- `.github/prompts/check-review.prompt.md` — portable Copilot/Cursor equivalent
+
+#### Configuration
+- `document_reviews` section in `.specify/integrations.yml.example` — 9 docs pre-configured with reviewer roles, phases, sequence numbers
+- `approved_statuses` and `approved_keywords` lists
+- `pr_automation` block: `enabled`, `branch_pattern`, `pr_title_pattern`
+
+---
+
 ## [2.0.0] — 2026-06-18
 
 ### Added

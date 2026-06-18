@@ -202,6 +202,135 @@ it is created under the configured parent page.
 
 ---
 
+### `sdd review submit`
+
+Push a document to Confluence and create a Jira review task assigned to the
+configured reviewer.
+
+```bash
+sdd review submit --doc brd
+sdd review submit --doc hld
+sdd review submit --doc adr --feature auth
+```
+
+What it does:
+1. Reads `.specify/features/{feature}/{doc}.md`
+2. Converts Markdown → Confluence Storage Format, creates or updates the page
+3. Creates (or updates) a Jira task with the label `sdd-doc:{doc}`, assigned to
+   the configured reviewer
+
+**Sequence enforcement:** Within each phase, a document cannot be submitted
+until its predecessor is approved (e.g. BRD must be approved before SRD can be
+submitted). The CLI refuses with a clear message if the predecessor is not yet
+approved.
+
+---
+
+### `sdd review check`
+
+Check the review status of a submitted document. Exits with a code the agent
+uses to decide the next step.
+
+```bash
+sdd review check --doc brd
+sdd review check --doc srd --profile on-prem
+```
+
+**Exit codes:**
+
+| Code | Meaning | Agent action |
+|---|---|---|
+| `0` | Approved | Advance to next document / phase |
+| `1` | Needs revision | Print comments; agent edits doc, then calls `sdd review apply` |
+| `2` | Pending | Waiting for reviewer — do not advance |
+| `3` | Not submitted | Run `sdd review submit` first |
+
+**Approval detection:** A document is approved when the Jira task status is in
+`approved_statuses` (default: `Done`, `Approved`) **or** any comment contains
+a keyword from `approved_keywords` (default: `approved`, `lgtm`, `looks good`,
+`go ahead`, `confirmed`).
+
+---
+
+### `sdd review apply`
+
+After the agent addresses reviewer comments, re-push the updated document to
+Confluence and notify the reviewer in Jira with a comment.
+
+```bash
+sdd review apply --doc brd
+```
+
+Typical agent workflow:
+```
+sdd review check --doc brd          # exit 1: NEEDS_REVISION
+# (agent edits .specify/features/{feature}/brd.md)
+sdd review apply --doc brd          # re-push + notify reviewer
+sdd review check --doc brd          # poll again after reviewer re-reviews
+```
+
+---
+
+### `sdd review status`
+
+Show the review state of every document in all phases at a glance.
+
+```bash
+sdd review status
+```
+
+Output:
+```
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Review Status
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  SPECIFY phase
+    ✓  BRD        Approved            Product Owner
+    ✓  SRD        Approved            Business Analyst
+    ⏳  ARCH       Pending             Architect
+    🔒  HLD        Blocked             Architect
+
+  PLANNING phase
+    ·  LLD        Not Submitted       Tech Lead
+    ·  ADR        Not Submitted       Architect
+```
+
+Blocked = predecessor in the same phase is not yet approved.
+
+---
+
+### `sdd pr create`
+
+Create a git branch and GitHub PR for a task, linked back to its Jira issue.
+
+```bash
+sdd pr create --task TASK-001
+sdd pr create --task TASK-002 --base develop
+sdd pr create --task TASK-003 --feature auth
+```
+
+What it does:
+1. Looks up `TASK-001` in `.specify/features/{feature}/tasks.md`
+2. Searches Jira for the issue with label `sdd:TASK-001` (if Jira is configured)
+3. Creates and pushes a git branch using `branch_pattern` from `integrations.yml`
+4. Creates a PR via `gh` CLI with the task description and acceptance criteria in
+   the body, linked to the Jira issue
+5. Posts the PR URL as a comment on the Jira task
+
+**Branch / PR title patterns** (configurable in `integrations.yml`):
+
+| Config key | Default | Example output |
+|---|---|---|
+| `branch_pattern` | `feature/{task_id}-{slug}` | `feature/task-001-jwt-validation` |
+| `pr_title_pattern` | `feat({task_id}): {title}` | `feat(TASK-001): JWT validation` |
+
+**`gh` CLI fallback:** If `gh` is not installed, the branch is still created and
+pushed; the PR title + body are printed so you can paste them into GitHub
+manually.
+
+---
+
 ## Auth Modes
 
 Credentials are **never stored in config files** — only the name of the

@@ -55,10 +55,30 @@ class JiraClient:
         if parent_field == "parent":
             self.update_issue(child_key, {"parent": {"key": parent_key}})
         else:
-            # Classic Jira: Epic Link or other custom parent field
             self.update_issue(child_key, {parent_field: parent_key})
 
     def get_issue_types(self, project_key: str) -> list[dict]:
         r = self._s.get(self._api(f"/project/{project_key}/statuses"))
+        r.raise_for_status()
+        return r.json()
+
+    def get_comments(self, issue_key: str) -> list[dict]:
+        r = self._s.get(self._api(f"/issue/{issue_key}/comment"))
+        r.raise_for_status()
+        return r.json().get("comments", [])
+
+    def add_comment(self, issue_key: str, text: str) -> dict:
+        """Add a plain-text comment. Uses ADF format for Cloud/Server compatibility."""
+        payload = {
+            "body": {
+                "type": "doc",
+                "version": 1,
+                "content": [{
+                    "type": "paragraph",
+                    "content": [{"type": "text", "text": text}],
+                }],
+            }
+        }
+        r = self._s.post(self._api(f"/issue/{issue_key}/comment"), json=payload)
         r.raise_for_status()
         return r.json()
