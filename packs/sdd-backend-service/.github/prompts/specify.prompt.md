@@ -88,12 +88,20 @@ Summary:
 ## Action 2 — Generate Spec Documents
 
 - Read updated constitution.md
-- Generate documents per manifest.scope (canonical doc inventory — the
-  only correct list; see PROMPT-GUIDE.md):
-  - pilot: brd → srd → security-design (§1 — pilot checklist)
-  - mvp: + api-spec → data-model → security-design (§1-2)
-  - full: + resilience → investigation → security-design (§1-4 — STRIDE + DAST)
-- For each: read template → derive from context → save .md + .summary.md
+
+**Document generation is one document at a time.** Find the next document to generate:
+
+1. Determine the doc sequence for this pack's scope:
+   - pilot: brd → srd → security-design (§1)
+   - mvp: pilot docs + api-spec → data-model → security-design (§1-2)
+   - full: mvp docs + resilience → investigation → security-design (§1-4)
+2. Check which already exist in `.specify/features/{manifest.project.feature}/`
+3. Find the first doc in sequence that does **not** exist yet
+
+If all docs already exist → State: "All spec documents are generated. Run /validate." Stop.
+
+Generate **only** that next document:
+- Read template → derive from context → save .md + .summary.md
 - Mark all assumptions: [ASSUMPTION-NNN: ...]
 - For every UC-NNN in srd.md: write at least 2 Given/When/Then acceptance
   scenarios using domain language from the FR-NNN wording. Add an
@@ -104,6 +112,14 @@ Summary:
   - Use [NEEDS CLARIFICATION: {specific question}] when no safe default exists and a human decision is required before /validate can sign off.
   - Never leave a gap silently — always use one of the two markers.
 - Every FR: FR-NNN | Every NFR: NFR-NNN
-- List generated + skipped.
-- State: "SPECIFY complete. If GATE-1 not yet passed, finalize constitution
-  Part 2 now. Then run /validate — ready for business sign-off."
+
+After saving, submit for review:
+```bash
+sdd review submit --doc {doc_key}
+```
+If the CLI is not configured or the command fails, present the document inline and ask:
+> "{DOC} generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
+
+State: "**{DOC} generated.** Review in Confluence/Jira (or above), then run **/specify** again to generate {NEXT_DOC}."
+
+**Stop here — do not generate the next document in this turn.**

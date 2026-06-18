@@ -72,26 +72,33 @@ full:   + data-model (Local Data & Cache Model) → resilience (Mobile
         Resilience) → investigation (Crash & Incident Triage) →
         security-design (§1-4 — STRIDE + MASVS)
 
-For each: read template → derive from context → save .md + .summary.md
-Mark all assumptions: [ASSUMPTION-NNN: ...]
-For every UC-NNN in srd.md: write at least 2 Given/When/Then acceptance
+**Document generation is one document at a time.**
+
+1. Check which docs from the sequences above already exist in `.specify/features/{manifest.project.feature}/`
+2. Find the **first doc in sequence** that does not exist yet
+
+If all docs already exist → State: "All spec documents are generated. Run /validate." Stop.
+
+Generate **only** that next document:
+- Read template → derive from context → save .md + .summary.md
+- Mark all assumptions: [ASSUMPTION-NNN: ...]
+- For every UC-NNN in srd.md: write at least 2 Given/When/Then acceptance
   scenarios using domain language from the FR-NNN wording. Add an
   "Independent Test" statement describing how to verify that UC end-to-end.
   These become TC-NNN entries at /task — precision here saves QA inference.
-Marker discipline:
-  Use [ASSUMPTION-NNN: {what was assumed}] when a reasonable default was applied and the agent proceeded.
-  Use [NEEDS CLARIFICATION: {specific question}] when no safe default exists and a human decision is required before /validate can sign off.
-  Never leave a gap silently — always use one of the two markers.
-Every FR: FR-NNN | Every NFR: NFR-NNN
+- Marker discipline:
+  - Use [ASSUMPTION-NNN: {what was assumed}] when a reasonable default was applied and the agent proceeded.
+  - Use [NEEDS CLARIFICATION: {specific question}] when no safe default exists and a human decision is required before /validate can sign off.
+  - Never leave a gap silently — always use one of the two markers.
+- Every FR: FR-NNN | Every NFR: NFR-NNN
 
-Templates to use:
-  screen-spec → screen-spec-template.md
-  ux-flow → ux-flow-template.md
-  api-spec → api-spec-template.md (Backend API Contract — Consumer)
-  data-model → data-model-template.md (Local Data & Cache Model)
-  resilience → resilience-template.md (Mobile Resilience)
-  investigation → investigation-template.md (Crash & Incident Triage)
+After saving, submit for review:
+```bash
+sdd review submit --doc {doc_key}
+```
+If the CLI is not configured or the command fails, present the document inline and ask:
+> "{DOC} generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
 
-List generated + skipped.
-State: "SPECIFY complete. If GATE-1 not yet passed, finalize constitution
-Part 2 now. Then run /validate — ready for business sign-off."
+State: "**{DOC} generated.** Review in Confluence/Jira (or above), then run **/specify** again to generate {NEXT_DOC}."
+
+**Stop here — do not generate the next document in this turn.**

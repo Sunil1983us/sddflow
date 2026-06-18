@@ -285,9 +285,17 @@ Generate documents per `project_type` and `manifest.project.scope`:
 | iac | brd, srd, security-design §1 | data-model (infra state + resource map) | resilience, investigation |
 | desktop | brd, srd, security-design §1 | screen-spec, ux-flow, api-spec (if any backend calls) | data-model (local state), resilience |
 
-For each doc in scope:
+**Document generation is one document at a time.** Find the next document to generate:
+
+1. List all docs in scope for this `project_type` + `scope` (from the table above)
+2. Check which already exist in `.specify/features/{manifest.project.feature}/`
+3. Find the first doc in the table sequence that does **not** exist yet
+
+If all docs already exist → State: "All spec documents are generated. Run /validate." Stop.
+
+Generate **only** that next document:
 - Use template from `.specify/templates/{doc}-template.md`
-- Fill in sections from the context file
+- Fill all sections from the context file
 - For every UC-NNN in srd.md: write ≥2 Given/When/Then acceptance scenarios + Independent Test field
 - Marker discipline:
   - `[ASSUMPTION-NNN: {what}]` — safe default applied; needs sign-off
@@ -295,6 +303,15 @@ For each doc in scope:
   - Never leave a gap silently — always use one of the two markers
 - Every FR: FR-NNN | Every NFR: NFR-NNN
 - Save to: `.specify/features/{manifest.project.feature}/{doc}.md`
-- Write `.summary.md` for each (max SUMMARY_MAX_LINES lines)
+- Write `.summary.md` (max SUMMARY_MAX_LINES lines)
 
-List generated + skipped. State: "SPECIFY complete. Finalize constitution Part 2 (GATE-1) if not already done, then run /validate."
+After saving, submit for review:
+```bash
+sdd review submit --doc {doc_key}
+```
+If the CLI is not configured or the command fails, present the document inline and ask:
+> "{DOC} generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
+
+State: "**{DOC} generated.** Review in Confluence/Jira (or above), then run **/specify** again to generate {NEXT_DOC}."
+
+**Stop here — do not generate the next document in this turn.**
