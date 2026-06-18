@@ -114,18 +114,26 @@ def md_to_storage(md: str) -> str:
 
 
 def _inline(text: str) -> str:
-    """Apply inline Markdown transforms to an already-escaped-free string."""
-    # Extract links before escaping so we can escape label and URL separately.
-    # html.escape(quote=True) is required on the URL to prevent href injection
-    # (quote=False leaves " unescaped, allowing attribute break-out).
-    def _replace_link(m: re.Match) -> str:
+    """Apply inline Markdown transforms, escaping HTML safely."""
+    # Process text in segments: split on Markdown links so we can escape
+    # the link label and URL independently (URL needs quote=True to prevent
+    # href attribute injection via embedded double-quotes).
+    parts: list[str] = []
+    last = 0
+
+    def _process_non_link(segment: str) -> str:
+        s = html.escape(segment, quote=False)
+        s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)
+        s = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<em>\1</em>', s)
+        s = re.sub(r'`([^`]+)`', r'<code>\1</code>', s)
+        return s
+
+    for m in re.finditer(r'\[([^\]]+)\]\(([^)]+)\)', text):
+        parts.append(_process_non_link(text[last:m.start()]))
         label = html.escape(m.group(1), quote=True)
         url   = html.escape(m.group(2), quote=True)
-        return f'<a href="{url}">{label}</a>'
+        parts.append(f'<a href="{url}">{label}</a>')
+        last = m.end()
 
-    result = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', _replace_link, text)
-    result = html.escape(result, quote=False)
-    result = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', result)
-    result = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<em>\1</em>', result)
-    result = re.sub(r'`([^`]+)`', r'<code>\1</code>', result)
-    return result
+    parts.append(_process_non_link(text[last:]))
+    return "".join(parts)
