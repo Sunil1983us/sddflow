@@ -72,33 +72,16 @@ full:   + data-model (Local Data & Cache Model) → resilience (Mobile
         Resilience) → investigation (Crash & Incident Triage) →
         security-design (§1-4 — STRIDE + MASVS)
 
-**Document generation is one document at a time.**
+## After GATE-1 — Generate Spec Documents
 
-1. Check which docs from the sequences above already exist in `.specify/features/{manifest.project.feature}/`
-2. Find the **first doc in sequence** that does not exist yet
+Once constitution Part 2 is finalized, generate spec documents **one at a time** using the dedicated sub-commands:
 
-If all docs already exist → State: "All spec documents are generated. Run /validate." Stop.
+| Command | Document | Gate |
+|---|---|---|
+| `/specify-brd` | Business Requirements | GATE-1 passed |
+| `/specify-srd` | Software Requirements | BRD approved |
+| `/specify-doc {name}` | Any extended doc (security, api-spec, data-model, etc.) | SRD approved |
 
-Generate **only** that next document:
-- Read template → derive from context → save .md + .summary.md
-- Mark all assumptions: [ASSUMPTION-NNN: ...]
-- For every UC-NNN in srd.md: write at least 2 Given/When/Then acceptance
-  scenarios using domain language from the FR-NNN wording. Add an
-  "Independent Test" statement describing how to verify that UC end-to-end.
-  These become TC-NNN entries at /task — precision here saves QA inference.
-- Marker discipline:
-  - Use [ASSUMPTION-NNN: {what was assumed}] when a reasonable default was applied and the agent proceeded.
-  - Use [NEEDS CLARIFICATION: {specific question}] when no safe default exists and a human decision is required before /validate can sign off.
-  - Never leave a gap silently — always use one of the two markers.
-- Every FR: FR-NNN | Every NFR: NFR-NNN
+Run each command, review the output, get approval, then run the next one.
 
-After saving, submit for review:
-```bash
-sdd review submit --doc {doc_key}
-```
-If the CLI is not configured or the command fails, present the document inline and ask:
-> "{DOC} generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
-
-State: "**{DOC} generated.** Review in Confluence/Jira (or above), then run **/specify** again to generate {NEXT_DOC}."
-
-**Stop here — do not generate the next document in this turn.**
+State: "Constitution Part 2 generated — DRAFT. Review and finalize every row (GATE-1), then run **/specify-brd**."

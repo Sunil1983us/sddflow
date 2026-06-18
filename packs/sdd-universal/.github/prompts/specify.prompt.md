@@ -268,50 +268,16 @@ user confirmation before applying any change.
 
 ---
 
-## Action 2 — Generate Spec Documents
+## After GATE-1 — Generate Spec Documents
 
-Generate documents per `project_type` and `manifest.project.scope`:
+Once constitution Part 2 is finalized, generate spec documents **one at a time** using the dedicated sub-commands:
 
-| Project Type | pilot | mvp adds | full adds |
-|---|---|---|---|
-| backend-service | brd, srd, security-design §1 | api-spec, data-model, security-design §1-2 | resilience, investigation, security-design §1-4 |
-| frontend-spa | brd, srd, security-design §1 | component-spec, ux-flow, api-spec (consumer), security-design §1-2 | data-model (frontend state model), resilience, investigation, security-design §1-4 |
-| mobile | brd, srd, security-design §1 | screen-spec, ux-flow, api-spec (consumer) | data-model (local/cache model), resilience, investigation |
-| fullstack | brd, srd, security-design §1 | api-spec (shared contract), component-spec, ux-flow, data-model, security-design §1-2 | resilience, investigation, security-design §1-4 |
-| cli | brd, srd | api-spec (if external API), data-model (if config/state files) | resilience |
-| data-ml | brd, srd, data-model | api-spec (if serving endpoint) | resilience, investigation |
-| serverless | brd, srd, security-design §1 | api-spec, data-model, security-design §1-2 | resilience, investigation, security-design §1-4 |
-| library | brd, srd, api-spec | data-model (if stateful) | — |
-| iac | brd, srd, security-design §1 | data-model (infra state + resource map) | resilience, investigation |
-| desktop | brd, srd, security-design §1 | screen-spec, ux-flow, api-spec (if any backend calls) | data-model (local state), resilience |
+| Command | Document | Gate |
+|---|---|---|
+| `/specify-brd` | Business Requirements | GATE-1 passed |
+| `/specify-srd` | Software Requirements | BRD approved |
+| `/specify-doc {name}` | Any extended doc (security, api-spec, data-model, etc.) | SRD approved |
 
-**Document generation is one document at a time.** Find the next document to generate:
+Run each command, review the output, get approval, then run the next one.
 
-1. List all docs in scope for this `project_type` + `scope` (from the table above)
-2. Check which already exist in `.specify/features/{manifest.project.feature}/`
-3. Find the first doc in the table sequence that does **not** exist yet
-
-If all docs already exist → State: "All spec documents are generated. Run /validate." Stop.
-
-Generate **only** that next document:
-- Use template from `.specify/templates/{doc}-template.md`
-- Fill all sections from the context file
-- For every UC-NNN in srd.md: write ≥2 Given/When/Then acceptance scenarios + Independent Test field
-- Marker discipline:
-  - `[ASSUMPTION-NNN: {what}]` — safe default applied; needs sign-off
-  - `[NEEDS CLARIFICATION: {question}]` — no safe default; human decision required before /validate
-  - Never leave a gap silently — always use one of the two markers
-- Every FR: FR-NNN | Every NFR: NFR-NNN
-- Save to: `.specify/features/{manifest.project.feature}/{doc}.md`
-- Write `.summary.md` (max SUMMARY_MAX_LINES lines)
-
-After saving, submit for review:
-```bash
-sdd review submit --doc {doc_key}
-```
-If the CLI is not configured or the command fails, present the document inline and ask:
-> "{DOC} generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
-
-State: "**{DOC} generated.** Review in Confluence/Jira (or above), then run **/specify** again to generate {NEXT_DOC}."
-
-**Stop here — do not generate the next document in this turn.**
+State: "Constitution Part 2 generated — DRAFT. Review and finalize every row (GATE-1), then run **/specify-brd**."

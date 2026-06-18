@@ -45,21 +45,32 @@ default `auto` from summary-rules.md):
 in full regardless of reading_mode.
 See .specify/memory/summary-rules.md → AI-2 Reading Mode Decision Tree.
 
-## SPECIFY — Two Actions in Order
+## SPECIFY — Four Sub-Commands
 
-See `.github/prompts/specify.prompt.md` for the full project-type-aware
-procedure. Summary:
+`/specify` generates the constitution only. Spec documents are generated
+**one at a time** using dedicated sub-commands — same pattern as `/plan-*`.
 
-Action 1 — Generate constitution.md Part 2 from context (DRAFT):
+| Command | What it generates | Gate |
+|---|---|---|
+| `/specify` | Constitution Part 2 (DRAFT) + project type | — |
+| `/specify-brd` | Business Requirements Document | GATE-1 passed |
+| `/specify-srd` | Software Requirements Document | BRD approved |
+| `/specify-doc {name}` | Any extended doc (security, api-spec, data-model, component-spec, ux-flow, screen-spec, resilience, investigation) | SRD approved |
+
+**`/specify` (constitution):**
   Resolve project_type (auto-detect if "auto" or unset)
-  Fill Tech Stack table appropriate for detected project_type
+  Fill Tech Stack table for the detected project_type
   Extract Core Principles, Domain Rules, Never Do
-  Save updated constitution.md — Part 1 unchanged, Part 2 is a DRAFT
+  Save constitution.md Part 2 as DRAFT
   State: "Constitution Part 2 generated — DRAFT. Review and finalize
-  every row (GATE-1) before running /validate."
+  every row (GATE-1), then run /specify-brd."
 
-Action 2 — Generate spec documents per project_type + scope:
-  See specify.prompt.md → Action 2 doc-set table
+**`/specify-brd` → `brd.md`** — gate: GATE-1 passed
+**`/specify-srd` → `srd.md`** — gate: BRD approved
+**`/specify-doc security`** → `security-design.md` — gate: SRD approved
+**`/specify-doc api-spec`** → `api-spec.md` (mvp+) — gate: SRD approved
+**`/specify-doc data-model`** → `data-model.md` (mvp+) — gate: SRD approved
+**`/specify-doc {name}`** → any other extended doc — gate: SRD approved
 
 ## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
 After Action 1, constitution.md Part 2 is a DRAFT.
@@ -196,5 +207,6 @@ For each task in the `/implement` phase:
   - Run after: /implement (all tasks) | Gate before: go-live
 
 ## Command Order
-SPECIFY → [GATE-1] → /checklist (optional) → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
-→ PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+/specify → [GATE-1] → /specify-brd → /specify-srd → /specify-doc {name}... → /checklist (optional)
+→ /validate → /analyze → /clarify → /plan-arch → /plan-hld
+→ /plan-lld (mvp+) → /plan-adr (mvp+) → /task → /implement → /release

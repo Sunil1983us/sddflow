@@ -213,5 +213,6 @@ For each task in the `/implement` phase:
               Run after: /implement (all tasks) | Gate before: go-live
 
 ## Command Order
-SPECIFY → [GATE-1] → /checklist (optional) → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
-→ PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+/specify → [GATE-1] → /specify-brd → /specify-srd → /specify-doc {name}... → /checklist (optional)
+→ /validate → /analyze → /clarify → /plan-arch → /plan-hld
+→ /plan-lld (mvp+) → /plan-adr (mvp+) → /task → /implement → /release
