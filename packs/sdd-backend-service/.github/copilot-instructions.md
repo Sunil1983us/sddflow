@@ -17,7 +17,7 @@ Part 2 from Action 1 is a DRAFT. User must review every row and confirm
 "Constitution Part 2 finalized" before /validate. Manual edits after this
 are authoritative — never silently overwritten by a later /specify.
 
-## 11 Commands
+## Commands
 
 | Command | Verb | Does |
 |---|---|---|
@@ -32,7 +32,23 @@ are authoritative — never silently overwritten by a later /specify.
 | /plan-adr | PLAN-ADR | ADRs (mvp+ only) |
 | /task | TASK | Stories + Tasks + Jira |
 | /implement | IMPLEMENT | One task at a time |
+| /pre-review | PRE-REVIEW | Code review before PR; checklist → dev picks fixes → agent applies |
+| /address-review | ADDR-REVIEW | Address human PR comments; fix, reply, resolve threads, re-request review |
 | /release | RELEASE | UAT + deployment + go-live gate |
+
+## Document Review Gates (sdd review)
+
+After each SDD document is generated, submit it for stakeholder approval before
+the next document in the phase can proceed:
+
+```bash
+sdd review submit --doc brd   # push to Confluence + create Jira review task
+sdd review check  --doc brd   # poll outcome (exit 0=approved 1=revision 2=pending)
+sdd review apply  --doc brd   # re-push after addressing comments
+sdd review status             # dashboard: all documents across all phases
+```
+
+Sequence: BRD → SRD → Arch → HLD (specify) · LLD → ADR (planning) · Tasks · Runbook → Release
 
 ## Gates
 - GATE-1 (constitution Part 2 finalized) before /validate
@@ -43,6 +59,7 @@ are authoritative — never silently overwritten by a later /specify.
 - /plan-arch reviewed before /plan-hld
 - /plan-hld reviewed before /plan-lld or /task
 - /task (approved) before /implement
+- /pre-review (if enabled) before sdd pr create — runs ONCE per task
 - /implement (all tasks merged) before /release
 
 ## Pilot Scope — Skip These

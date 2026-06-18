@@ -37,6 +37,12 @@ Includes:
 - `sdd config init` / `sdd config test` / `sdd config fields`
 - `sdd jira push` / `sdd jira sync`
 - `sdd confluence push`
+- `sdd review submit` / `sdd review check` / `sdd review apply` / `sdd review status`
+- `sdd pr create`
+
+Agent commands (Claude Code / Copilot):
+- `/pre-review` — one-time code review before PR creation; developer picks which findings to fix
+- `/address-review` — address human PR review comments; replies to threads, requests re-review
 
 → Full reference: [`cli-python/README.md`](cli-python/README.md)
 
