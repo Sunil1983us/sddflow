@@ -238,9 +238,13 @@ def jira_sync(profile, feature):
     feature_name = feature or (manifest.get("project") or {}).get("feature", "")
     features_dir = Path(".specify") / "features" / feature_name
 
+    if not cfg.jira:
+        console.print("  [red]✗  No jira: section in .specify/integrations.yml[/red]")
+        raise SystemExit(1)
+
     tasks   = parse_tasks(features_dir)
     client  = JiraClient(session, prof.base_url)
-    project_key = cfg.jira.project_key  # type: ignore[union-attr]
+    project_key = cfg.jira.project_key
 
     console.print(f"  {'TASK ID':<12} {'Jira Key':<14} Status")
     console.print(f"  {'─'*12} {'─'*14} {'─'*20}")

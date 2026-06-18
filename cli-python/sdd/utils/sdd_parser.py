@@ -63,9 +63,11 @@ def _parse_stories_text(text: str) -> list[Story]:
 
         # MoSCoW bucket headers: ## Must Have / ## Should Have / etc.
         if re.match(r'^##\s+', line) and not line.startswith('###'):
-            header = re.match(r'^##\s+(.+)', line).group(1)
-            if any(k in header.lower() for k in ["must", "should", "could", "won"]):
-                current_moscow = _normalize_moscow(header)
+            m = re.match(r'^##\s+(.+)', line)
+            if m:
+                header = m.group(1)
+                if any(k in header.lower() for k in ["must", "should", "could", "won"]):
+                    current_moscow = _normalize_moscow(header)
             i += 1
             continue
 

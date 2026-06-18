@@ -1,57 +1,101 @@
-# SDD Integrations — project-level config (safe to commit — no secrets here)
-# Credentials live in ~/.sdd/config.yml as env var names
+# .specify/integrations.yml.example
+# ─────────────────────────────────────────────────────────────────────────────
+# Copy this file to .specify/integrations.yml and fill in your values.
+# This file is safe to commit — it contains no secrets, only env var names.
 #
-# Setup: run "sdd config init" to generate this file interactively, or
-#        copy this file to .specify/integrations.yml and fill in the values.
-#
-# Auth modes (configured in ~/.sdd/config.yml):
-#   basic  — Atlassian Cloud: email + API token
-#   pat    — Jira/Confluence Server 8.14+ / DC: Personal Access Token
-#   oauth2 — Cloud CI/CD: OAuth 2.0 Bearer token
+# Run "sdd config init" to generate this file interactively instead.
+# Run "sdd config fields" to discover custom field IDs for your Jira instance.
+# ─────────────────────────────────────────────────────────────────────────────
 
-profile: default   # references a profile in ~/.sdd/config.yml
+# Which auth profile to use (from ~/.sdd/config.yml).
+# Run "sdd config init" to create that file.
+profile: default
+
+
+# ── Jira ─────────────────────────────────────────────────────────────────────
 
 jira:
+  # Your Jira project key (the prefix on issue keys, e.g. MYPROJ-123)
   project_key: MYPROJ
 
   # Issue type names for the Feature → Story → Task hierarchy.
-  # Use "Epic" instead of "Feature" if your Jira project has no Feature type.
+  #
+  # These must exactly match the issue type names in your Jira project.
+  # Common alternatives:
+  #   feature: Epic       (if your project has no "Feature" type)
+  #   task:    Sub-task   (for classic company-managed projects)
+  #
+  # Run: Jira → Project Settings → Issue Types to see your type names.
   issue_hierarchy:
     feature: Feature
     story: Story
     task: Task
 
-  # How child issues link to their parent:
-  #   "parent"            — Next-gen / team-managed projects (default)
+  # How child issues link to their parent.
+  #
+  #   "parent"            — Next-gen / team-managed projects (default on Cloud)
   #   "customfield_10014" — Classic company-managed projects (Epic Link field)
+  #
+  # If you're unsure, try "parent" first. If parent links don't appear in Jira
+  # after a push, switch to "customfield_10014".
   parent_field: parent
 
   base_fields:
-    # Maps SDD MoSCoW priority to Jira priority names
+    # Maps SDD MoSCoW priority labels to Jira priority names.
+    # Jira priority names are case-sensitive and must match exactly.
     priority_map:
       must-have:   High
       should-have: Medium
       could-have:  Low
       wont-have:   Lowest
-    # Labels added to every issue created by sdd
-    labels: [sdd-generated]
-    # fix_version: v1.0   # optional — set to target release version
 
-  # Custom field IDs — run "sdd config fields" to discover IDs for your instance
-  # Story points field ID varies by Jira version and instance:
-  #   Cloud (most instances):    customfield_10016
-  #   Older Cloud / Server:      customfield_10028 or customfield_10004
+    # Labels added to every issue created by sdd jira push.
+    # The idempotency labels (sdd:STORY-001 etc.) are added automatically
+    # and do not need to be listed here.
+    labels: [sdd-generated]
+
+    # Optional: pin all issues to a Jira fix version / release.
+    # Must match an existing version name in your Jira project.
+    # fix_version: v1.0
+
+  # Custom field IDs — these vary by Jira instance.
+  # Run "sdd config fields" to list all custom fields for your instance.
+  #
+  # How to find the right ID:
+  #   1. Run: sdd config fields --project MYPROJ
+  #   2. Look for the field name in the output
+  #   3. Copy the ID (e.g. customfield_10016) into the section below
+  #
+  # story_points field ID by Jira version:
+  #   Jira Cloud (most instances):  customfield_10016
+  #   Jira Cloud (older):           customfield_10028 or customfield_10004
+  #   Jira Server / DC:             customfield_10002 (varies by config)
   custom_fields:
     story_points: customfield_10016
     # acceptance_criteria: customfield_10021
     # team:                customfield_10100
+    # sprint:              customfield_10020
+
+
+# ── Confluence ────────────────────────────────────────────────────────────────
 
 confluence:
+  # Your Confluence space key (visible in the space URL: /wiki/spaces/ENG)
   space_key: ENG
-  # parent_page_id: "123456"   # ID of "Projects" or "Specs" page (optional)
 
-  # Page title templates — {project} is replaced with the project name
-  # from manifest.yml at push time.
+  # ID of the parent page under which all SDD pages will be created.
+  # Leave commented out to create pages at the space root.
+  #
+  # How to find a page ID:
+  #   Open the page in Confluence → ··· menu → Page Information → URL contains
+  #   ?pageId=123456  ← that number is the ID
+  # parent_page_id: "123456"
+
+  # Page title templates for each SDD document type.
+  # {project} is replaced with the project name from manifest.yml at push time.
+  #
+  # Only documents listed here are pushed. Remove any you don't want published.
+  # Add extra entries if your team uses additional document types.
   page_map:
     brd:     "{project} — Business Requirements"
     srd:     "{project} — System Requirements"
@@ -60,3 +104,5 @@ confluence:
     lld:     "{project} — Low-Level Design"
     adr:     "{project} — Architecture Decisions"
     runbook: "{project} — Runbook"
+    # validate: "{project} — Validation Report"
+    # release:  "{project} — Release Notes"
