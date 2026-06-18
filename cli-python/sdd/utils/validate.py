@@ -1,4 +1,5 @@
 # Input validation for project/feature names.
+from pathlib import Path
 
 _INVALID_CHARS = ['"']
 
@@ -20,3 +21,17 @@ def assert_valid_name(value: str, label: str) -> None:
     error = validate_name(value, label)
     if error:
         raise ValueError(error)
+
+
+def safe_feature_path(base: Path, feature_name: str) -> Path:
+    """Return base / feature_name, raising ValueError if feature_name escapes base."""
+    if not feature_name:
+        raise ValueError(
+            "feature name is empty — pass --feature or set project.feature in manifest.yml"
+        )
+    resolved = (base / feature_name).resolve()
+    if not str(resolved).startswith(str(base.resolve())):
+        raise ValueError(
+            f"feature name '{feature_name}' is invalid — path escapes the features directory"
+        )
+    return base / feature_name

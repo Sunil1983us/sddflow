@@ -154,6 +154,52 @@ before the business sign-off:
 Saves to: `.specify/features/{feature}/checklists/{feature}-spec-quality.md`
 All CRITICAL items must be resolved before /validate can proceed.
 
+## Document Review Gates (sdd review)
+
+Each SDD document has a Jira-backed review gate. The next document in the phase
+cannot be submitted until the current one is approved.
+
+| Phase | Sequence | Reviewer |
+|---|---|---|
+| specify | BRD → SRD → Arch → HLD | PO → BA → Architect → Architect |
+| planning | LLD → ADR | Tech Lead → Architect |
+| tasks | Tasks | Scrum Master |
+| release | Runbook → Release | DevOps → Release Manager |
+
+After generating each document, submit it for review:
+```bash
+sdd review submit --doc brd      # push to Confluence + create Jira review task
+sdd review check  --doc brd      # poll: exit 0=approved 1=needs-revision 2=pending
+sdd review apply  --doc brd      # re-push after addressing reviewer comments
+sdd review status                # full dashboard for all documents
+```
+
+When `sdd review check` exits 1 (NEEDS REVISION): read reviewer comments, update
+the document, then run `sdd review apply` and ask reviewer to re-review.
+Configure reviewers in `.specify/integrations.yml` — see `integrations.yml.example`.
+
+## IMPLEMENT — Code Review Gate
+
+For each task in the `/implement` phase:
+
+1. Write and commit the implementation
+2. **Pre-review** (if `code_review.pre_review: true` in integrations.yml — default):
+   - Run `/pre-review [TASK-ID]`
+   - Agent analyses the diff (correctness, security, quality, performance)
+   - Numbered checklist presented — pick which findings to fix
+   - Agent applies selected fixes and commits
+   - Pre-review summary saved to `.specify/features/{feature}/.pre-review-{task}.md`
+3. **Create PR**: `sdd pr create --task TASK-ID`
+   - Pre-review summary is included in the PR body automatically
+   - If `code_review.pre_review: false`: PR is created directly without pre-review
+4. **Human review**: reviewer approves or adds inline comments on the PR
+5. **Address comments** (if reviewer requests changes):
+   - Run `/address-review [PR-number]`
+   - Agent shows unresolved comment threads as a numbered checklist
+   - Pick which to fix — agent applies fixes, pushes, replies to threads, requests re-review
+   - Repeat per review round until PR is approved
+6. PR merged → task complete
+
 ## VALIDATE and RELEASE — Bookends
 
 /validate   → Business sign-off on brd.md + srd.md
