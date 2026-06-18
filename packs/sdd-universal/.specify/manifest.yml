@@ -1,0 +1,36 @@
+# SDD Manifest — fill these 4 fields, everything else from context.md
+
+project:
+  name: ""           # REQUIRED
+  scope: "pilot"     # pilot | mvp | full  DEFAULT:pilot
+  feature: ""        # REQUIRED — output folder name
+  context_file: ""   # REQUIRED — file in .specify/contexts/
+
+# Project Type — auto | backend-service | frontend-spa | mobile | fullstack |
+#                cli | data-ml | serverless | library | iac | desktop
+#   auto: setup.sh detects from project files; or agent detects during /specify
+#   Set by setup.sh, or fill manually before running /specify
+project_type: "auto"
+
+pr_rules:
+  max_lines_per_pr: 400   # DEFAULT:400
+  max_files_per_pr: 5     # DEFAULT:5
+
+# Workflow Mode — github | local   DEFAULT: github
+#   github: branch + PR flow. CI runs on every PR push.
+#   local:  no git hosting needed (shared folder, Claude Desktop, etc.)
+#           Agent runs build/test/lint locally; "Task accepted" instead of "PR ready"
+
+# Reading Mode — auto | summary | full   DEFAULT: auto (from summary-rules.md)
+#   auto:    use .summary.md when present; fall back to full .md + generate summary
+#   summary: always use .summary.md; warn if missing
+#   full:    always read full .md — for deep debugging or initial migration
+# reading_mode: "auto"
+
+# Testing Style — paired | tdd | bdd   DEFAULT: paired
+#   paired: write test alongside implementation — same PR, never deferred
+#   tdd:    write failing test first → implement to pass → refactor
+#   bdd:    Given/When/Then specs drive tests, written before implementation
+# testing_style: "paired"
+
+sdd_version: "2.0.0"   # set by sdd init; used by sdd upgrade

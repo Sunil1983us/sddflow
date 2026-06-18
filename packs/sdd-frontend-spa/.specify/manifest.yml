@@ -1,0 +1,30 @@
+# SDD Manifest — fill these 4 fields, everything else from context.md
+
+project:
+  name: ""           # REQUIRED
+  scope: "pilot"     # pilot | mvp | full  DEFAULT:pilot
+  feature: ""        # REQUIRED — output folder name
+  context_file: ""   # REQUIRED — file in .specify/contexts/
+
+pr_rules:
+  max_lines_per_pr: 400   # DEFAULT:400
+  max_files_per_pr: 5     # DEFAULT:5
+
+# Reading Mode — auto | summary | full   DEFAULT: auto (from summary-rules.md)
+#   auto:    use .summary.md when present; fall back to full .md + generate
+#            summary if missing (see summary-rules.md → AI-2 Decision Tree)
+#   summary: always use .summary.md; warn if missing (strict token economy)
+#   full:    always read full .md — for deep debugging or initial migration
+# reading_mode: "auto"
+
+# Testing Style — paired | tdd | bdd   DEFAULT: paired
+#   paired: write test alongside implementation — same PR, never deferred
+#   tdd:    write failing test first → implement to pass → refactor (Red-Green-Refactor)
+#   bdd:    Given/When/Then specs drive tests, written before implementation
+# testing_style: "paired"
+
+# Project Type — this pack is optimised for frontend-spa
+# If using sdd-universal instead, set project_type: "frontend-spa" in its manifest.yml
+# project_type: "frontend-spa"
+
+sdd_version: "2.0.0"   # set by sdd init; used by sdd upgrade

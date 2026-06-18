@@ -1,0 +1,55 @@
+---
+description: SDD Framework — startup, commands, and governance
+alwaysApply: true
+---
+
+# SDD Framework
+
+## Startup (every session)
+Read these files in order before doing anything else:
+1. `.specify/manifest.yml` — project name, scope, feature, workflow mode
+2. `.specify/memory/constitution.md` — universal rules (Part 1) + project tech stack (Part 2)
+3. `.specify/memory/summary-rules.md` — reading mode (auto/summary/full)
+4. `.specify/memory/roles.yml` — RACI (who approves what)
+5. `.github/instructions/*.instructions.md` — language/file-type coding standards; apply each file's `applyTo` glob to any file you create or edit that matches it
+
+Confirm: project.name, scope, feature, constitution status (GATE-1 passed?).
+If constitution Part 2 is a DRAFT (not finalized) → remind the user to complete GATE-1 before /validate.
+
+## Running Commands
+To run any SDD command, read and follow the matching prompt file **exactly as written**:
+
+| Command | Prompt File |
+|---|---|
+| create-context | `.github/prompts/create-context.prompt.md` |
+| specify | `.github/prompts/specify.prompt.md` |
+| checklist *(optional)* | `.github/prompts/checklist.prompt.md` |
+| validate | `.github/prompts/validate.prompt.md` |
+| analyze | `.github/prompts/analyze.prompt.md` |
+| clarify | `.github/prompts/clarify.prompt.md` |
+| plan-arch | `.github/prompts/plan-arch.prompt.md` |
+| plan-hld | `.github/prompts/plan-hld.prompt.md` |
+| plan-lld *(mvp+ only)* | `.github/prompts/plan-lld.prompt.md` |
+| plan-adr *(mvp+ only)* | `.github/prompts/plan-adr.prompt.md` |
+| task | `.github/prompts/task.prompt.md` |
+| implement | `.github/prompts/implement.prompt.md` |
+| release | `.github/prompts/release.prompt.md` |
+
+**How to invoke in Cursor:** In the chat panel, type:
+`Read and follow .github/prompts/specify.prompt.md exactly`
+
+## Command Order
+SPECIFY → [GATE-1] → /checklist (optional) → VALIDATE → ANALYZE → CLARIFY
+→ PLAN-ARCH → PLAN-HLD → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+
+Each step requires the previous one reviewed and approved before proceeding.
+
+## Reading Mode (AI-2)
+Default: `auto` — use `.summary.md` when present; if missing, read the full `.md` and generate the summary. See `.specify/memory/summary-rules.md` for the full decision tree.
+
+## Core Rules (always enforced)
+- No code before context.md is updated and spec + TASK are approved
+- Constitution Part 2 must be finalized (GATE-1) before /validate
+- Every class/component has a paired test in the same PR
+- No hardcoded values — env vars only
+- PRs stay within the line/file limits in manifest.yml

@@ -1,31 +1,33 @@
-# SDD Framework (packs-v2) vs. GitHub spec-kit
+# SDD Framework (SDD packs) vs. GitHub spec-kit
 
 > A side-by-side comparison of our Spec-Driven Development framework
-> (`packs-v2/sdd-*`) against GitHub's open-source `spec-kit` project —
+> (`packs/sdd-*`) against GitHub's open-source `spec-kit` project —
 > for evaluating which fits an enterprise SDLC.
 
 ---
 
 ## TL;DR
 
-| | **GitHub spec-kit** | **packs-v2 SDD Framework** |
+| | **GitHub spec-kit** | **SDD Framework** |
 |---|---|---|
 | Designed for | Individual developer / small team, tool-agnostic | Enterprise teams with formal sign-off chains |
 | Commands | 9 — core: `constitution → specify → plan → tasks → taskstoissues → implement`; optional: `clarify`, `analyze`, `checklist` | 9–11 (`/specify` → `/release`) |
-| Spec artifacts per feature | spec.md, plan.md, research.md, data-model.md, tasks.md, checklists/ | BRD, SRD, Security-Design, API Spec, Data Model, Resilience, Arch, HLD, LLD, ADR, Stories, Tasks, QA Cases, Runbook, Release |
+| Spec artifacts per feature | spec.md, plan.md, research.md, data-model.md, tasks.md, checklists/ | BRD, SRD, Security-Design, API Spec, Data Model, Resilience, Arch, HLD, LLD, ADR, Stories, Tasks, QA Cases, Runbook, Release + checklists/{feature}-spec-quality.md |
 | Tech stack capture | Per-feature, inside plan.md | Once, in constitution.md Part 2 (20-concern table), GATE-1 finalized |
 | Governance / RACI | None | `roles.yml` — every gate has a named accountable role |
-| Hard gates | 2 (Constitution Check in plan.md, checklist completeness in implement.md) | Gate at every command transition (GATE-1, validate, AI-8 assumptions, clarify, etc.) |
+| Hard gates | 2 (Constitution Check in plan.md, checklist completeness in implement.md) | Gate at every command transition (GATE-1, /checklist CRITICAL items, validate, AI-8 assumptions, clarify, etc.) |
 | Business sign-off | Not modeled | `/validate` — Product Owner + Business Analyst sign-off on BRD/SRD |
-| Spec-quality checks | `/speckit.checklist` — on-demand "unit tests for English" for the spec (clarity/completeness/consistency) | Folded into `/analyze` + `/validate` + AI-8 assumption gate |
+| Spec-quality checks | `/speckit.checklist` — on-demand "unit tests for English" for the spec (clarity/completeness/consistency) | `/checklist` — CHK-NNN spec-quality gate (clarity, completeness, consistency, measurability) runs between GATE-1 and /validate; CRITICAL items block /validate |
 | Traceability | On-demand, advisory (`/speckit.analyze` — severity-ranked consistency audit across spec/plan/tasks) | Persistent matrix: Story → FR/NFR → Task → TC-NNN → R-NNN |
-| Task export | `/speckit.taskstoissues` — tasks.md → GitHub Issues | `/task` → Jira CSV |
+| Task export | `/speckit.taskstoissues` — tasks.md → GitHub Issues | `/taskstoissues` — tasks.md + stories.md → GitHub Issues markdown + `gh` shell script; `/task` → Jira CSV |
 | PR / CI governance | Left to the team's normal git workflow | Built-in `pr_rules` (max lines/files, SPLIT A/B/C), `quality-gate.yml`, and a configurable `workflow_mode: github \| local` |
-| Portability | Designed to run identically across many AI coding tools | Per-IDE prompt mirrors (`.github/prompts/`, `.claude/commands/`) |
+| Portability | Designed to run identically across many AI coding tools | Claude Code (`.claude/commands/`), Copilot (`.github/prompts/`), Cursor (`.cursor/rules/`), Windsurf (`.windsurfrules`), any AI via copy-paste; `setup.sh`/`setup.ps1` for one-command init; `sdd-universal` pack auto-detects project type (10 types) |
+| Project types | 1 (generic) | 5 packs: backend-service, frontend-spa, mobile, fullstack + `sdd-universal` (auto-detects cli, data-ml, serverless, library, iac, desktop + all 4 above) |
+| Bug management | None | `/bug-assess` (BUG-NNN with severity/root-cause/estimate) + `/bug-fix` (regression-test-first fix) |
 
 **Bottom line:** spec-kit is a lean, portable scaffold that turns "vibe
 coding" into structured, requirement-driven development for a single
-developer. packs-v2 SDD is that same idea taken further — it adds the
+developer. The SDD Framework takes that same idea further — it adds the
 governance layer (sign-offs, RACI, audit trail, PR/CI rules) that an
 enterprise team needs to run AI-assisted delivery as a *process*, not just
 a prompt template.
@@ -52,7 +54,7 @@ specs/
     checklists/
 ```
 
-### packs-v2/sdd-backend-service
+### packs/sdd-backend-service
 ```
 .specify/
   memory/
@@ -71,7 +73,7 @@ specs/
 .github/workflows/quality-gate.yml
 ```
 
-**Takeaway:** spec-kit produces one cohesive feature folder; packs-v2
+**Takeaway:** spec-kit produces one cohesive feature folder; SDD packs
 produces a *document set per feature* mirroring how a regulated SDLC
 already separates BRD/SRD/security/architecture/QA — useful when those
 documents need to be reviewed by different people or fed into existing
@@ -93,7 +95,7 @@ testable structure:
 - `[NEEDS CLARIFICATION]` inline markers for anything ambiguous — the
   spec is allowed to ship with these, resolved later by `/speckit.clarify`
 
-**packs-v2's BRD/SRD** spread the same information across two documents:
+**SDD Framework's BRD/SRD** spread the same information across two documents:
 - BRD: Business Objectives (`BO-NNN`) and Business Requirements (`BR-NNN`)
 - SRD: Functional/Non-Functional Requirements (`FR-NNN`/`NFR-NNN`),
   `[ASSUMPTION-NNN]` markers (must all be resolved before `/plan-arch`,
@@ -101,7 +103,7 @@ testable structure:
 
 **Takeaway:** spec-kit's single spec.md is *sharper per requirement* —
 every FR has Given/When/Then test scenarios baked in from the start.
-packs-v2 traces the same ideas (BO → BR → FR/NFR) but separates
+SDD packs traces the same ideas (BO → BR → FR/NFR) but separates
 "why we're building this" (business) from "what it must do"
 (functional/non-functional) into documents a Product Owner and a Tech
 Lead can review independently — which maps onto how most enterprises
@@ -129,7 +131,7 @@ already split business vs. technical sign-off.
 - `/speckit.checklist` — anytime; generates domain-specific
   requirement-quality checklists (e.g. `ux.md`, `security.md`)
 
-### packs-v2 — 9–11 commands (pilot scope shown)
+### SDD packs — 9–11 commands (pilot scope shown)
 
 1. `/specify` (also drafts constitution Part 2)
    — **GATE-1** — manual review/finalize constitution
@@ -144,7 +146,7 @@ already split business vs. technical sign-off.
 9. `/release` — UAT + deployment + go-live gate
 
 **Takeaway:** spec-kit's core path is 6 steps with 3 optional add-ons a
-developer can skip entirely. packs-v2's steps are *not* optional — each
+developer can skip entirely. SDD Framework's steps are *not* optional — each
 maps to a phase an enterprise SDLC already requires (business validation,
 risk analysis, architecture review, formal release/go-live) and each has
 a named owner in `roles.yml`.
@@ -170,7 +172,7 @@ Everything else is recommended but skippable — there's no concept of
   block anything (the *items it creates* feed implement.md's checklist
   check, #2 above)
 
-**packs-v2** treats *every* command transition as a gate, each mapped to
+**SDD packs** treats *every* command transition as a gate, each mapped to
 a role in `roles.yml`:
 - **GATE-1**: Tech Lead finalizes constitution Part 2 — nothing proceeds
   until done
@@ -184,7 +186,7 @@ a role in `roles.yml`:
   Go/No-Go across Tech Lead / Product Owner / Ops-SRE
 
 **Takeaway:** This is the single biggest differentiator. spec-kit assumes
-one person is driving and trusts them to read the docs. packs-v2 assumes
+one person is driving and trusts them to read the docs. SDD packs assumes
 a *team* with separation of duties — and encodes that separation directly
 into the agent's gate logic, so the agent itself enforces "don't proceed
 without sign-off," not just a human reviewer after the fact.
@@ -203,14 +205,14 @@ not persisted as a requirement→task map. Tasks carry `[US1]`/`[US2]`/`[P]`
 labels for which user story / parallelizability, which `/analyze` uses to
 spot coverage gaps.
 
-**packs-v2**: traceability is a *persistent matrix* maintained throughout
+**SDD packs**: traceability is a *persistent matrix* maintained throughout
 the lifecycle: `Story → FR/NFR → Task → TC-NNN (test case) → R-NNN
 (risk)`. Every task declares `Satisfies: FR-NNN/NFR-NNN` and `Verifies:
 TC-NNN` up front, and `/release` checks these are all closed before
 go-live.
 
 **Takeaway:** spec-kit's traceability is great for "show me what's covered
-right now, and what's inconsistent." packs-v2's is built for audit —
+right now, and what's inconsistent." SDD Framework's is built for audit —
 answering "prove every business requirement maps to a tested, released
 change" at any point in the lifecycle, which is what compliance/audit
 teams typically ask for.
@@ -222,7 +224,7 @@ teams typically ask for.
 **spec-kit** doesn't model this at all — PR size, review process, and CI
 are left entirely to the team's existing git conventions.
 
-**packs-v2** bakes this in:
+**SDD packs** bakes this in:
 - `pr_rules` in `manifest.yml`: `max_lines_per_pr` (400),
   `max_files_per_pr` (5) — agent estimates *before* coding and splits
   oversized tasks (SPLIT A/B/C) automatically
@@ -234,7 +236,7 @@ are left entirely to the team's existing git conventions.
   "PR ready," so the governance model works identically whether or not
   git hosting is available
 
-**Takeaway:** spec-kit assumes you already have PR/CI discipline. packs-v2
+**Takeaway:** spec-kit assumes you already have PR/CI discipline. SDD packs
 provides it out of the box and adapts to teams that don't even have
 GitHub access (e.g., business stakeholders working from a shared OneDrive
 folder via Claude Desktop).
@@ -265,14 +267,31 @@ To be fair, a few things spec-kit does better:
 - **`/speckit.taskstoissues`** — one command to turn tasks.md into GitHub
   Issues, native to teams already living in GitHub.
 
-These are reasonable enhancements we could selectively borrow into
-packs-v2 without giving up the governance/RACI layer — worth a future,
-low-risk iteration:
-- FR-### in `srd.md` with embedded Given/When/Then acceptance scenarios
-- `[NEEDS CLARIFICATION]` as a lighter-weight complement to
-  `[ASSUMPTION-NNN]` for in-line ambiguity flags
-- A `/speckit.checklist`-style spec-quality pass, run early (e.g. as part
-  of `/clarify`) to catch ambiguous requirements before `/validate`
+All items selectively borrowed into SDD packs — now fully implemented:
+
+**HIGH priority (implemented earlier):**
+- ✅ `/checklist` — CHK-NNN spec-quality gate with Clarity/Completeness/Consistency/Measurability; CRITICAL items block /validate
+- ✅ Given/When/Then acceptance scenarios — embedded in each UC in srd.md; drives TC-NNN traceability
+- ✅ `[NEEDS CLARIFICATION: ...]` — lighter-weight complement to `[ASSUMPTION-NNN]`; blocks /validate if unresolved
+- ✅ `/speckit.analyze` cross-artifact consistency — §8 Consistency Findings (CF-NNN) in /analyze
+
+**MEDIUM priority (now implemented):**
+- ✅ `/taskstoissues` — tasks.md + stories.md → GitHub Issues markdown + `gh` shell script
+- ✅ `/bug-assess` + `/bug-fix` — structured BUG-NNN assessment + regression-test-first fix workflow
+- ✅ `WHY-SDD.md` — philosophy doc in every pack (benefits, objections, who it's for)
+- ✅ Story MoSCoW priority — Must/Should/Could/Won't Have grouping in stories.md output
+
+**Phase 1 — Universal tool portability (implemented):**
+- ✅ Cursor adapter (`.cursor/rules/sdd-framework.mdc`)
+- ✅ Windsurf adapter (`.windsurfrules`)
+- ✅ `setup.sh` / `setup.ps1` one-command initializers
+- ✅ `QUICKSTART.md` per pack + Tool Compatibility table in PROMPT-GUIDE.md
+
+**Phase 2 — Universal pack (now implemented):**
+- ✅ `sdd-universal` pack — single entry point for all 10 project types
+- ✅ Auto-detect project type from project files (package.json, pom.xml, Cargo.toml, *.tf, etc.)
+- ✅ Per-type tech stack tables in `/specify` (10 types × complete concern rows)
+- ✅ Per-type doc-set table (pilot/mvp/full × 10 types)
 
 ---
 
@@ -285,7 +304,7 @@ configure, works everywhere.
 If the audience is **an enterprise team that needs AI-assisted delivery to
 slot into an existing SDLC** — with business sign-off, security review,
 named accountable owners, audit-ready traceability, and PR/CI governance
-that adapts to teams with or without GitHub access — packs-v2 SDD covers
+that adapts to teams with or without GitHub access — the SDD Framework covers
 everything spec-kit does (constitution-driven generation, structured
 specs, task breakdown, implementation) *and* adds the governance scaffold
 that turns "an AI that writes code from a spec" into "a process an

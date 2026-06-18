@@ -1,0 +1,8 @@
+# Claude Code internal directories
+.claude/worktrees/
+
+# Pack distributor output
+packs/dist/
+
+# Personal preferences (per-pack, gitignored at pack level too)
+**/CLAUDE.local.md

@@ -1,0 +1,116 @@
+name: Quality Gate (AI-5)
+# Enforces the constitution.md / manifest.yml rules at CI time:
+#  - PR size (max_lines_per_pr / max_files_per_pr from manifest.yml)
+#  - PR references TASK-NNN or CHG-NNN (constitution.md Git rule)
+#  - Build + tests + coverage gate (constitution Part 2 — Coverage Gate)
+#  - Secret scan (security-design.md §2)
+#  - Dependency / SCA scan (security-design.md §2)
+#
+# This is a starter workflow — adjust the build/test commands for your
+# Tech Stack (constitution.md Part 2). Defaults assume Java + Maven.
+#
+# Only applies when manifest.workflow_mode == "github". In "local" mode
+# (no GitHub), the agent runs these same checks itself during /implement
+# — see HOW-TO-USE.md "Workflow Mode".
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-size-check:
+    name: PR size + reference check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read PR limits from manifest.yml
+        id: limits
+        run: |
+          MAX_LINES=$(grep -A2 'pr_rules:' .specify/manifest.yml | grep max_lines_per_pr | grep -o '[0-9]\+')
+          MAX_FILES=$(grep -A2 'pr_rules:' .specify/manifest.yml | grep max_files_per_pr | grep -o '[0-9]\+')
+          echo "max_lines=${MAX_LINES:-400}" >> "$GITHUB_OUTPUT"
+          echo "max_files=${MAX_FILES:-5}" >> "$GITHUB_OUTPUT"
+
+      - name: Check changed files + lines
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          FILES_CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | wc -l)
+          LINES_CHANGED=$(git diff --shortstat "$BASE_SHA" "$HEAD_SHA" | grep -oE '[0-9]+ insertion|[0-9]+ deletion' | grep -oE '[0-9]+' | paste -sd+ | bc || echo 0)
+          echo "Files changed: $FILES_CHANGED (limit ${{ steps.limits.outputs.max_files }})"
+          echo "Lines changed: $LINES_CHANGED (limit ${{ steps.limits.outputs.max_lines }})"
+          if [ "$FILES_CHANGED" -gt "${{ steps.limits.outputs.max_files }}" ]; then
+            echo "::error::PR touches $FILES_CHANGED files — exceeds max_files_per_pr (${{ steps.limits.outputs.max_files }}). Split per the SPLIT A/B/C contract."
+            exit 1
+          fi
+          if [ "$LINES_CHANGED" -gt "${{ steps.limits.outputs.max_lines }}" ]; then
+            echo "::error::PR changes $LINES_CHANGED lines — exceeds max_lines_per_pr (${{ steps.limits.outputs.max_lines }}). Split per the SPLIT A/B/C contract."
+            exit 1
+          fi
+
+      - name: Check PR references TASK-NNN or CHG-NNN
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if ! echo "$PR_TITLE $PR_BODY" | grep -qE 'TASK-[0-9]+|CHG-[0-9]+'; then
+            echo "::error::PR title/body must reference TASK-NNN or CHG-NNN (constitution.md Git rule)."
+            exit 1
+          fi
+
+  build-test-coverage:
+    name: Build, test, coverage gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build + unit + integration tests
+        run: mvn -B verify
+
+      - name: Enforce coverage gate
+        run: |
+          # Coverage Gate value comes from constitution.md Part 2 — Tech Stack
+          # table. Configure jacoco-maven-plugin's <rules> to fail the build
+          # below that threshold (recommended), or check the report here.
+          echo "Coverage gate enforced via jacoco-maven-plugin <rules> in pom.xml"
+
+  secret-scan:
+    name: Secret scan (security-design.md §2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-scan:
+    name: Dependency / SCA scan (security-design.md §2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: OWASP Dependency Check
+        run: mvn -B org.owasp:dependency-check-maven:check
+        continue-on-error: true # remove once a baseline suppression file exists

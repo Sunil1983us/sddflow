@@ -1,0 +1,3 @@
+- Estimate before every task.
+- If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
+- After task: state files + lines + "PR ready" → wait for go.
