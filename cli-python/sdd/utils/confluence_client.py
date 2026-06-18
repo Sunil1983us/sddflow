@@ -60,7 +60,13 @@ class ConfluenceClient:
                 }
             },
         }
-        r = self._s.put(self._api(f"/content/{page_id}"), json=payload)
+        # expand=_links ensures the PUT response includes the webui URL,
+        # matching the create_page() response shape used by callers.
+        r = self._s.put(
+            self._api(f"/content/{page_id}"),
+            params={"expand": "_links"},
+            json=payload,
+        )
         r.raise_for_status()
         return r.json()
 

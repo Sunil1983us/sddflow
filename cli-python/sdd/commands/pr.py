@@ -10,6 +10,7 @@ from sdd.utils.integrations import load_integrations
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.sdd_parser import parse_tasks
 from sdd.utils.manifest import read_manifest
+from sdd.utils.validate import safe_feature_path
 
 console = Console()
 
@@ -60,7 +61,11 @@ def pr_create(task, base, profile, feature):
     feature_name = feature or proj.get("feature", "")
 
     # ── Find task in tasks.md ─────────────────────────────────────────────────
-    features_dir = Path(".specify") / "features" / feature_name
+    try:
+        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
     tasks        = parse_tasks(features_dir)
     matched      = [t for t in tasks if t.id.upper() == task.upper()]
     if not matched:

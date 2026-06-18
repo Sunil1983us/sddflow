@@ -115,9 +115,17 @@ def md_to_storage(md: str) -> str:
 
 def _inline(text: str) -> str:
     """Apply inline Markdown transforms to an already-escaped-free string."""
-    result = html.escape(text, quote=False)
+    # Extract links before escaping so we can escape label and URL separately.
+    # html.escape(quote=True) is required on the URL to prevent href injection
+    # (quote=False leaves " unescaped, allowing attribute break-out).
+    def _replace_link(m: re.Match) -> str:
+        label = html.escape(m.group(1), quote=True)
+        url   = html.escape(m.group(2), quote=True)
+        return f'<a href="{url}">{label}</a>'
+
+    result = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', _replace_link, text)
+    result = html.escape(result, quote=False)
     result = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', result)
     result = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<em>\1</em>', result)
     result = re.sub(r'`([^`]+)`', r'<code>\1</code>', result)
-    result = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', result)
     return result

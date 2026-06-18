@@ -32,8 +32,10 @@ class JiraClient:
         return r.json().get("issues", [])
 
     def find_by_label(self, project_key: str, label: str) -> dict | None:
+        safe_project = project_key.replace('"', '\\"')
+        safe_label   = label.replace('"', '\\"')
         issues = self.search(
-            f'project = "{project_key}" AND labels = "{label}"',
+            f'project = "{safe_project}" AND labels = "{safe_label}"',
             fields=["summary", "status", "issuetype", "labels", "parent"],
         )
         return issues[0] if issues else None

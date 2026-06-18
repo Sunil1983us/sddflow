@@ -9,6 +9,7 @@ from sdd.utils.jira_client import JiraClient
 from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.manifest import read_manifest
+from sdd.utils.validate import safe_feature_path
 
 console = Console()
 
@@ -149,7 +150,11 @@ def review_submit(doc, profile, feature):
         raise SystemExit(1)
 
     # ── Push to Confluence ────────────────────────────────────────────────────
-    features_dir = Path(".specify") / "features" / feature_name
+    try:
+        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
     md_path      = features_dir / f"{doc}.md"
     if not md_path.exists():
         console.print(f"  [red]✗  {md_path} not found — run the SDD command that generates it first[/red]")
@@ -306,7 +311,11 @@ def review_apply(doc, profile, feature):
     cf_client   = ConfluenceClient(session, prof.base_url)
 
     # Re-push updated doc
-    features_dir = Path(".specify") / "features" / feature_name
+    try:
+        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
     md_path      = features_dir / f"{doc}.md"
     page_url     = ""
     if md_path.exists():
