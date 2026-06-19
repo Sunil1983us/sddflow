@@ -1,0 +1,256 @@
+# Design Document
+# Feature: {Feature Name}
+> Version: 1.0 | Date: {date} | Scope: {pilot|mvp|full}
+
+---
+
+## References
+
+| Source | Sections / IDs Used |
+|---|---|
+| srd.summary.md | {sections/IDs referenced} |
+| clarify.summary.md | {resolved items applied} |
+| analyze.summary.md | {risk mitigations / NFR mapping applied} |
+
+---
+
+## 1. Architecture Overview
+
+### 1.1 Architecture Pattern
+{Chosen pattern: e.g. Hexagonal / Layered / Event-Driven / CQRS / Microservices}
+{One paragraph — why this pattern for this feature, what constraints drove it}
+
+### 1.2 System Layers
+
+| Layer | Package / Path | Responsibility |
+|---|---|---|
+| {e.g. Controller} | {e.g. controller/} | {responsibility} |
+| {e.g. Use Case} | {e.g. port/in/} | {responsibility} |
+| {e.g. Service} | {e.g. service/} | {responsibility} |
+| {e.g. Adapter} | {e.g. adapter/out/} | {responsibility} |
+| {e.g. Domain} | {e.g. domain/} | {responsibility} |
+
+### 1.3 Key Design Decisions
+
+| ID | Decision | Rationale |
+|---|---|---|
+| DEC-001 | {decision} | {why} |
+| DEC-002 | {decision} | {why} |
+
+### 1.4 NFR → Architecture Mapping
+
+| NFR-NNN | Requirement | Design Constraint Applied |
+|---|---|---|
+| NFR-{NNN} | {requirement} | {what design decision satisfies it} |
+
+### 1.5 Cross-Cutting Concerns
+
+| Concern | Approach |
+|---|---|
+| Authentication | {from constitution} |
+| Authorisation | {from constitution} |
+| Logging | Structured JSON + trace ID on every line |
+| Error Handling | Global handler + structured error envelope |
+| Idempotency | {approach if applicable} |
+| Observability | {metrics / tracing approach} |
+
+---
+
+## 2. Diagrams
+
+### 2.1 System Context (C4 L1)
+```mermaid
+C4Context
+    title System Context — {Feature Name}
+    Person(user, "{Actor}", "{description}")
+    System(thisSystem, "{This Service}", "{description}")
+    System_Ext(extA, "{External System A}", "{description}")
+    Rel(user, thisSystem, "{action}")
+    Rel(thisSystem, extA, "{call}")
+```
+
+### 2.2 Container Diagram (C4 L2)
+```mermaid
+C4Container
+    title Container Diagram — {Feature Name}
+    Person(user, "{Actor}")
+    Container(api, "{API / Service}", "{technology}", "{description}")
+    ContainerDb(db, "{Database}", "{technology}", "{description}")
+    Container_Ext(ext, "{External System}", "{technology}")
+    Rel(user, api, "{protocol}")
+    Rel(api, db, "reads/writes")
+    Rel(api, ext, "{protocol}")
+```
+
+### 2.3 Component Diagram (C4 L3)
+```mermaid
+graph TD
+    Controller["{Feature}Controller"]
+    UseCase["{Feature}UseCase"]
+    Service["{Feature}Service"]
+    RepoPort["{Repo}Port"]
+    Adapter["{Repo}Adapter"]
+    DB[("Database")]
+
+    Controller --> UseCase
+    UseCase --> Service
+    Service --> RepoPort
+    RepoPort --> Adapter
+    Adapter --> DB
+```
+
+### 2.4 Happy Path Sequence
+```mermaid
+sequenceDiagram
+    participant C as {Caller}
+    participant S as {This Service}
+    participant I as {Integration}
+    participant DB as {Database}
+
+    C->>S: {request}
+    S->>DB: persist initial state
+    S-->>C: {acknowledgement}
+    S->>I: {downstream call}
+    I-->>S: {result}
+    S->>DB: persist final state
+```
+
+### 2.5 Error / Failure Paths
+```mermaid
+sequenceDiagram
+    participant C as {Caller}
+    participant S as {This Service}
+
+    C->>S: {request with invalid data}
+    S-->>C: 400 Bad Request — {error code}
+
+    C->>S: {request, downstream fails}
+    S->>S: retry {N} times with backoff
+    S-->>C: 503 Service Unavailable — {error code}
+```
+
+### 2.6 State Machine (if applicable)
+```mermaid
+stateDiagram-v2
+    [*] --> {STATE_1}
+    {STATE_1} --> {STATE_2} : {trigger}
+    {STATE_2} --> {STATE_SUCCESS} : {trigger}
+    {STATE_2} --> {STATE_FAILURE} : {trigger}
+    {STATE_SUCCESS} --> [*]
+    {STATE_FAILURE} --> [*]
+```
+
+---
+
+## 3. API Design
+
+> {Skip this section for project types with no external API: iac, desktop-local, library (replace with Public Library API section)}
+
+### 3.1 API Style & Conventions
+
+| Property | Value |
+|---|---|
+| Style | {REST / GraphQL / gRPC / AsyncAPI — from constitution} |
+| Base URL | `{protocol}://{host}/api/v{version}` |
+| Auth | {Bearer JWT / API Key / mTLS — from constitution} |
+| Versioning | {URL path / header — approach} |
+| Idempotency | `Idempotency-Key` header required on all mutations |
+| Correlation | `X-Correlation-Id` (UUID v4) required on all requests |
+| Content-Type | `application/json` |
+
+### 3.2 Endpoints
+
+#### {METHOD} /api/v{N}/{resource}
+**Purpose:** {what this creates, retrieves, or triggers}
+**Auth:** required / none
+**Traceability:** FR-NNN, UC-NNN
+
+**Request:**
+```json
+{
+  "{field}": "{type} — {description}"
+}
+```
+
+**Response {2xx}:**
+```json
+{
+  "{field}": "{type} — {description}"
+}
+```
+
+**Error responses:**
+| HTTP | Error Code | When |
+|---|---|---|
+| 400 | VALIDATION_ERROR | {condition} |
+| 401 | UNAUTHORIZED | {condition} |
+| 404 | NOT_FOUND | {condition} |
+| 409 | DUPLICATE_REQUEST | Duplicate Idempotency-Key |
+| 500 | INTERNAL_ERROR | Unexpected failure |
+
+{Repeat block per endpoint}
+
+### 3.3 Shared Schemas
+
+```json
+{
+  "ErrorEnvelope": {
+    "errorCode": "string — unique code",
+    "message": "string — human readable",
+    "timestamp": "string — ISO 8601 UTC",
+    "traceId": "string — X-Correlation-Id echo"
+  }
+}
+```
+
+{Add other shared types / pagination conventions}
+
+### 3.4 Async / Event Contracts (if applicable)
+
+| Topic / Queue | Producer | Consumer | Schema | Retention |
+|---|---|---|---|---|
+| {name} | {service} | {service} | {schema ref} | {duration} |
+
+---
+
+## 4. Architecture Decisions (ADR)
+
+> One ADR block per key decision. Pilot: minimum 2 ADRs for the most critical decisions. MVP+: one ADR per DEC-NNN from §1.3.
+
+### ADR-001 — {Decision Title}
+**Status:** Accepted
+**Date:** {date}
+
+**Context:**
+{What situation required this decision? What forces were at play?}
+
+**Decision:**
+{What was decided — one clear statement.}
+
+**Rationale:**
+{Why this option over the alternatives.}
+
+**Alternatives Considered:**
+- **{Option A}:** rejected because {reason}
+- **{Option B}:** rejected because {reason}
+
+**Consequences:**
+- Positive: {benefit}
+- Negative: {tradeoff}
+- Risk: {risk + mitigation}
+
+**Review Date:** {when to revisit — e.g. "After pilot launch"}
+
+---
+
+{Repeat ADR block per key decision}
+
+---
+
+## Approvals
+
+| Role | Status | Date |
+|---|---|---|
+| Architect | Pending | |
+| Tech Lead | Pending | |
+| Stakeholder (HLD sign-off) | Pending | |

@@ -10,9 +10,11 @@ You are a Senior Solution Architect generating an extended specification documen
 ## Input
 
 Document name passed as argument — e.g.:
-`/specify-doc security` | `/specify-doc api-spec` | `/specify-doc data-model`
-`/specify-doc component-spec` | `/specify-doc ux-flow` | `/specify-doc screen-spec`
-`/specify-doc resilience` | `/specify-doc investigation`
+`/specify-doc security` | `/specify-doc data-model` | `/specify-doc component-spec`
+`/specify-doc ux-flow` | `/specify-doc screen-spec` | `/specify-doc resilience`
+`/specify-doc investigation`
+
+> **Note:** `api-spec` has moved to `/plan-design` (§3 API Design). Do not generate it here.
 
 If no argument given — list the remaining ungenerated documents for this scope and ask which to generate.
 
