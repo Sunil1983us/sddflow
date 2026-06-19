@@ -1,9 +1,8 @@
 # CLAUDE.md — Backend Service Pack
 # REST APIs, microservices, databases, messaging
-# 11-Command flow:
+# Command flow:
 # SPECIFY → [GATE-1: constitution finalized] → VALIDATE → ANALYZE → CLARIFY
-# → PLAN-ARCH → PLAN-HLD → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK
-# → IMPLEMENT → RELEASE
+# → PLAN-DESIGN → PLAN-LLD (mvp+) → TASK → IMPLEMENT → RELEASE
 
 ## CREATE-CONTEXT — Optional Pre-Phase (before SPECIFY)
 If `.specify/contexts/{feature}.md` does not exist yet, or is empty/a
@@ -47,9 +46,19 @@ default `auto` from summary-rules.md):
 in full regardless of reading_mode.
 See .specify/memory/summary-rules.md → AI-2 Reading Mode Decision Tree.
 
-## SPECIFY — Two Actions in Order
+## SPECIFY — Four Sub-Commands
 
-Action 1 — Generate constitution.md Part 2 from context (DRAFT):
+`/specify` generates the constitution only. Spec documents are generated
+**one at a time** using dedicated sub-commands — same pattern as `/plan-*`.
+
+| Command | What it generates | Gate |
+|---|---|---|
+| `/specify` | Constitution Part 2 (DRAFT) | — |
+| `/specify-brd` | Business Requirements Document | GATE-1 passed |
+| `/specify-srd` | Software Requirements Document | BRD approved |
+| `/specify-doc {name}` | Any extended doc (security, data-model, resilience, investigation) | SRD approved |
+
+**`/specify` (constitution):**
 - Read context file → extract all tech decisions
 - Fill Tech Stack table (Language, Framework, Build Tool, API Style,
   Messaging/Async, Serialisation, Schema, Data Store, Data Cache, DB
@@ -62,12 +71,14 @@ Action 1 — Generate constitution.md Part 2 from context (DRAFT):
 - Save updated constitution.md — Part 1 unchanged, Part 2 is a DRAFT
 - List any remaining `[MISSING — ask user]` rows as Open Items for GATE-1
 - State: "Constitution Part 2 generated — DRAFT. Review and finalize
-  every row (GATE-1) before running /validate."
+  every row (GATE-1), then run /specify-brd."
 
-Action 2 — Generate spec documents per scope:
-- pilot: brd, srd, security-design (§1 — pilot checklist only)
-- mvp: + api-spec, data-model, security-design (§1-2)
-- full: + resilience, investigation, security-design (§1-4 — STRIDE + DAST)
+**`/specify-brd` → `brd.md`** — gate: GATE-1 passed
+**`/specify-srd` → `srd.md`** — gate: BRD approved
+**`/specify-doc data-model`** → `data-model.md` (mvp+) — gate: SRD approved
+**`/specify-doc security`** → `security-design.md` — gate: SRD approved
+**`/specify-doc resilience`** → `resilience.md` (full) — gate: SRD approved
+**`/specify-doc investigation`** → `investigation.md` (full) — gate: SRD approved
 
 ## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
 After Action 1, constitution.md Part 2 is a DRAFT.
@@ -81,10 +92,10 @@ Summary (row diffs + version bump + change-rules.md Change Impact Matrix
 cross-reference) and WAITs for confirmation.
 No /validate, /analyze, or any later command may run until this gate passes.
 
-## 11-Command Gates
+## Command Gates
 <!-- shared:command-gates:start -->
-- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
-  → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-DESIGN
+  → PLAN-LLD (mvp+) → TASK → IMPLEMENT → RELEASE
 - Each gate requires the previous step complete and reviewed.
 <!-- shared:command-gates:end -->
 
@@ -105,8 +116,8 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 <!-- shared:never-do-core:start -->
 - Never run /validate before constitution Part 2 finalized (GATE-1)
 - Never run /analyze without validate.summary.md
-- Never run /plan-arch without clarify.summary.md
-- Never run /plan-arch while any spec doc has an unresolved
+- Never run /plan-design without clarify.summary.md
+- Never run /plan-design while any spec doc has an unresolved
   `[ASSUMPTION-NNN]` marker (AI-8)
 - Never run /implement without TASK (stories.md + tasks.md) approved
 - Never run /release before all tasks are "PR ready" and merged
@@ -120,30 +131,21 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 
 ## PLAN Sub-Commands
 
-PLAN is split into 4 sub-commands — each has its own review gate:
+PLAN is split into 2 sub-commands — each has its own review gate:
 
-- **`/plan-arch`** → Architecture decisions + plan.md
+- **`/plan-design`** → Single design document: Architecture + Diagrams + API Design + ADR entries
   - Gate: clarify.summary.md exists, all RESOLVED
   - Gate: no unresolved [ASSUMPTION-NNN] in any spec doc (AI-8)
-  - Also generates (now that arch.md exists): api-spec.md,
-    data-model.md (mvp+), security-design.md refinement,
-    resilience.md + investigation.md (full)
-  - Review: tech lead approves arch + plan
+  - Review: tech lead + architect + stakeholders
+  - Scope: all scopes (pilot, mvp, full)
 
-- **`/plan-hld`** → HLD + all Mermaid diagrams
-  - Gate: arch.md reviewed
-  - Review: stakeholders + tech lead
-  - Pilot: always run | MVP+: always run
-
-- **`/plan-lld`** → LLD + class/sequence diagrams
-  - Gate: hld.md reviewed
+- **`/plan-lld`** → Detailed technical design: class/sequence diagrams
+  - Gate: design.md reviewed
   - Scope check: SKIP if pilot — state skip reason
   - Review: senior developer
 
-- **`/plan-adr`** → Architecture Decision Records
-  - Gate: arch.md reviewed
-  - Scope check: SKIP if pilot — state skip reason
-  - Review: architect
+> `design.md` replaces the former arch.md, hld.md, api-spec.md, and adr.md.
+> `/plan-arch`, `/plan-hld`, `/plan-adr` redirect to `/plan-design` for backwards compatibility.
 
 ## /checklist — Optional Spec-Quality Gate (after GATE-1, before /validate)
 
@@ -218,5 +220,5 @@ For each task in the `/implement` phase:
 
 ## Command Order
 /specify → [GATE-1] → /specify-brd → /specify-srd → /specify-doc {name}... → /checklist (optional)
-→ /validate → /analyze → /clarify → /plan-arch → /plan-hld
-→ /plan-lld (mvp+) → /plan-adr (mvp+) → /task → /implement → /release
+→ /validate → /analyze → /clarify → /plan-design
+→ /plan-lld (mvp+) → /task → /implement → /release

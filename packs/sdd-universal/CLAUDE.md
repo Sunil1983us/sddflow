@@ -1,10 +1,9 @@
 # CLAUDE.md — Universal SDD Pack
 # Works for any project type: backend, frontend, mobile, fullstack,
 # CLI, data/ML, serverless, library, IaC, desktop
-# 11-Command flow:
+# Command flow:
 # SPECIFY → [GATE-1: constitution finalized] → VALIDATE → ANALYZE → CLARIFY
-# → PLAN-ARCH → PLAN-HLD → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK
-# → IMPLEMENT → RELEASE
+# → PLAN-DESIGN → PLAN-LLD (mvp+) → TASK → IMPLEMENT → RELEASE
 
 ## CREATE-CONTEXT — Optional Pre-Phase (before SPECIFY)
 If `.specify/contexts/{feature}.md` does not exist yet, or is empty/a
@@ -82,9 +81,9 @@ A later /specify re-run must propose changes for review — never silently
 overwrite a finalized Part 2.
 No /validate, /analyze, or any later command may run until this gate passes.
 
-## 11-Command Gates
-- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
-  → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+## Command Gates
+- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-DESIGN
+  → PLAN-LLD (mvp+) → TASK → IMPLEMENT → RELEASE
 - Each gate requires the previous step complete and reviewed.
 
 ## PR Contract
@@ -101,8 +100,8 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 ## Never Do
 - Never run /validate before constitution Part 2 finalized (GATE-1)
 - Never run /analyze without validate.summary.md
-- Never run /plan-arch without clarify.summary.md
-- Never run /plan-arch while any spec doc has an unresolved
+- Never run /plan-design without clarify.summary.md
+- Never run /plan-design while any spec doc has an unresolved
   `[ASSUMPTION-NNN]` marker (AI-8)
 - Never run /implement without TASK (stories.md + tasks.md) approved
 - Never run /release before all tasks are "PR ready" and merged
@@ -113,27 +112,21 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 
 ## PLAN Sub-Commands
 
-PLAN is split into 4 sub-commands — each has its own review gate:
+PLAN is split into 2 sub-commands — each has its own review gate:
 
-- **`/plan-arch`** → Architecture decisions + plan.md
+- **`/plan-design`** → Single design document: Architecture + Diagrams + API Design + ADR entries
   - Gate: clarify.summary.md exists, all RESOLVED
   - Gate: no unresolved [ASSUMPTION-NNN] in any spec doc (AI-8)
-  - Review: tech lead approves arch + plan
+  - Review: architect + tech lead + stakeholders
+  - Scope: all scopes (pilot, mvp, full)
 
-- **`/plan-hld`** → HLD + all Mermaid diagrams
-  - Gate: arch.md reviewed
-  - Review: stakeholders + tech lead
-  - Pilot: always run | MVP+: always run
-
-- **`/plan-lld`** → LLD + class/sequence diagrams
-  - Gate: hld.md reviewed
+- **`/plan-lld`** → Detailed technical design: class/sequence/package diagrams
+  - Gate: design.md reviewed
   - Scope check: SKIP if pilot — state skip reason
   - Review: senior developer
 
-- **`/plan-adr`** → Architecture Decision Records
-  - Gate: arch.md reviewed
-  - Scope check: SKIP if pilot — state skip reason
-  - Review: architect
+> `design.md` replaces the former arch.md, hld.md, api-spec.md, and adr.md.
+> `/plan-arch`, `/plan-hld`, `/plan-adr` redirect to `/plan-design` for backwards compatibility.
 
 ## /checklist — Optional Spec-Quality Gate (after GATE-1, before /validate)
 
@@ -208,5 +201,5 @@ For each task in the `/implement` phase:
 
 ## Command Order
 /specify → [GATE-1] → /specify-brd → /specify-srd → /specify-doc {name}... → /checklist (optional)
-→ /validate → /analyze → /clarify → /plan-arch → /plan-hld
-→ /plan-lld (mvp+) → /plan-adr (mvp+) → /task → /implement → /release
+→ /validate → /analyze → /clarify → /plan-design
+→ /plan-lld (mvp+) → /task → /implement → /release

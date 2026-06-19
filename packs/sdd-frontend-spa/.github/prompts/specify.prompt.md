@@ -61,19 +61,6 @@ unless the user has already reviewed Part 2. If the user says
 A later /specify re-run on an already-finalized Part 2 must propose
 changes for review — never silently overwrite finalized rows.
 
-## ACTION 2 — Generate spec documents per scope
-
-Read updated constitution.md
-Generate documents per manifest.scope (canonical doc inventory —
-the only correct list; see PROMPT-GUIDE.md):
-
-pilot:  brd → srd → security-design (§1 — pilot checklist)
-mvp:    + component-spec → ux-flow → api-spec (Backend API Contract —
-        Consumer) → security-design (§1-2)
-full:   + data-model (Frontend State & Storage Model) → resilience
-        (Frontend Resilience) → investigation (Production Debugging &
-        Error Tracking) → security-design (§1-4 — STRIDE + DAST)
-
 ## After GATE-1 — Generate Spec Documents
 
 Once constitution Part 2 is finalized, generate spec documents **one at a time** using the dedicated sub-commands:
@@ -82,7 +69,7 @@ Once constitution Part 2 is finalized, generate spec documents **one at a time**
 |---|---|---|
 | `/specify-brd` | Business Requirements | GATE-1 passed |
 | `/specify-srd` | Software Requirements | BRD approved |
-| `/specify-doc {name}` | Any extended doc (security, api-spec, data-model, etc.) | SRD approved |
+| `/specify-doc {name}` | Any extended doc (security, component-spec, ux-flow, data-model, etc.) | SRD approved |
 
 Run each command, review the output, get approval, then run the next one.
 
