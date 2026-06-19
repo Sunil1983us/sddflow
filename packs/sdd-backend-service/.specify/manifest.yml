@@ -26,7 +26,7 @@ pr_rules:
 #            summary if missing (see summary-rules.md → AI-2 Decision Tree)
 #   summary: always use .summary.md; warn if missing (strict token economy)
 #   full:    always read full .md — for deep debugging or initial migration
-# reading_mode: "auto"
+reading_mode: "auto"   # auto | summary | full — see summary-rules.md
 
 # Testing Style — paired | tdd | bdd   DEFAULT: paired
 #   paired: write test alongside implementation — same PR, never deferred

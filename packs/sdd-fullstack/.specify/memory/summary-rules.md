@@ -6,9 +6,18 @@ READING_MODE: auto
 #   auto:    use .summary.md when present; fall back to full .md if missing,
 #            then generate summary immediately (keeps AI-2 on track)
 #   summary: always use .summary.md; warn if missing (strict token economy)
-#   full:    always read full .md (deep debugging / initial migration only)
-# Override per project via manifest.yml → reading_mode
-# To change: edit these values, tell agent: "re-read summary-rules.md"
+#   full:    always read full .md — better quality / richer context at cost of tokens
+# Override per project via manifest.yml → reading_mode: "full"
+# To change: edit manifest.yml reading_mode or this file, then tell agent: "re-read summary-rules.md"
+#
+# ── PROMPT INSTRUCTION (apply every time this file is read) ─────────────────
+# 1. Check manifest.yml → reading_mode. If absent, use READING_MODE above.
+# 2. Apply the effective mode to EVERY feature-document read in this session:
+#    auto   → .summary.md if present, else full .md + generate summary
+#    summary→ .summary.md only; warn and stop if missing
+#    full   → always read full .md (set reading_mode: "full" in manifest.yml
+#             for a project that needs maximum quality over token economy)
+# ────────────────────────────────────────────────────────────────────────────
 
 ## AI-2 — Summary-First Rule (token economy, mandatory)
 After /specify, every command reads `.summary.md` files for prior

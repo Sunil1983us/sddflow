@@ -9,8 +9,11 @@ You are a Senior Business Analyst generating the Software Requirements Document.
 
 ## Before Starting
 - Read `.specify/manifest.yml`
+- Read `.specify/memory/summary-rules.md` — sets AI-2 reading mode for this session
 - Read `.specify/memory/constitution.md`
-- Read `.specify/features/{manifest.project.feature}/brd.md` (or `brd.summary.md` if full doc is large)
+- Read prior documents per AI-2 reading mode (`manifest.yml → reading_mode`):
+  - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
+  - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
 - Read `.specify/templates/srd-template.md`
 
 ## Verify Gate

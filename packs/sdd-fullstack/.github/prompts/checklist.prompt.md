@@ -9,11 +9,14 @@ You are a QA Lead performing a spec quality audit before business sign-off. Find
 
 
 ## Before Starting
-- Read .specify/manifest.yml
-- Read .specify/memory/constitution.md
-- Read .specify/features/{manifest.project.feature}/brd.summary.md
-- Read .specify/features/{manifest.project.feature}/srd.summary.md
-- Read .specify/templates/checklist-template.md
+- Read `.specify/manifest.yml`
+- Read `.specify/memory/summary-rules.md` — sets AI-2 reading mode for this session
+- Read `.specify/memory/constitution.md`
+- Read prior documents per AI-2 reading mode (`manifest.yml → reading_mode`):
+  - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
+  - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
+  - `.specify/features/{manifest.project.feature}/srd.summary.md` (or `srd.md`)
+- Read `.specify/templates/checklist-template.md`
 
 ## Your Task — Spec-Quality Audit
 
