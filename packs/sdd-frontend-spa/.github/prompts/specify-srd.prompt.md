@@ -14,29 +14,35 @@ You are a Senior Business Analyst generating the Software Requirements Document.
 - Read prior documents per AI-2 reading mode (`manifest.yml → reading_mode`):
   - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
   - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
+  - `.specify/features/{manifest.project.feature}/use-cases.summary.md` (or `use-cases.md`)
 - Read `.specify/templates/srd-template.md`
 
 ## Verify Gate
 
-`brd.md` must exist and be approved. Check:
+`use-cases.md` must exist and be approved (which implies `brd.md` is already approved). Check:
 ```bash
-sdd review check --doc brd
+sdd review check --doc use-cases
 ```
 Exit code 0 = approved. Any other exit code — STOP.
-State: "SPECIFY-SRD blocked — BRD is not yet approved. Check status with `sdd review check --doc brd`."
+State: "SPECIFY-SRD blocked — Use Cases are not yet approved. Run `/specify-uc` first, or check status with `sdd review check --doc use-cases`."
 
-If `sdd` CLI not configured: confirm `brd.md` exists, then ask:
-> "Has the BRD been reviewed and approved? Reply **'yes'** to proceed."
+If `sdd` CLI not configured: confirm `use-cases.md` exists, then ask:
+> "Have the Use Cases been reviewed and approved? Reply **'yes'** to proceed."
 
 ## Your Task
 
 Generate `srd.md` for the current feature:
 
 - Use `.specify/templates/srd-template.md` as the structure
-- Derive all content from `brd.md` — every SR-NNN must trace back to a FR-NNN or UC-NNN in BRD
-- Every software requirement: **SR-NNN**
-- Every use case: **UC-NNN** — each must include:
-  - ≥ 2 Given/When/Then acceptance scenarios written in domain language from the FR-NNN wording
+- Derive all content from `use-cases.md` and `brd.md`:
+  - Every FR-NNN must trace back to a UC-NNN from `use-cases.md` (and through it to BR-NNN in BRD)
+  - Main Path steps → FR-NNN (happy path requirements)
+  - Alternate Path steps → FR-NNN (variant requirements)
+  - Exception Path steps → FR-NNN (error handling requirements)
+  - After generating FRs, update the **Linked FR-NNN** column in each UC in `use-cases.md`
+- Every software requirement: **FR-NNN** with UC-NNN trace column
+- Every use case referenced: **UC-NNN** — include:
+  - ≥ 2 Given/When/Then acceptance scenarios written in domain language (MP + at least one AP or EP)
   - An **Independent Test** field: how to verify this UC end-to-end without coupling to implementation
 - NFRs must refine BRD NFRs with technical targets (latency budget, throughput ceiling, SLA tier)
 - Marker discipline (same as BRD — `[ASSUMPTION-NNN]` / `[NEEDS CLARIFICATION]`)

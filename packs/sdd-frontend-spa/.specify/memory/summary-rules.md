@@ -6,18 +6,9 @@ READING_MODE: auto
 #   auto:    use .summary.md when present; fall back to full .md if missing,
 #            then generate summary immediately (keeps AI-2 on track)
 #   summary: always use .summary.md; warn if missing (strict token economy)
-#   full:    always read full .md — better quality / richer context at cost of tokens
-# Override per project via manifest.yml → reading_mode: "full"
-# To change: edit manifest.yml reading_mode or this file, then tell agent: "re-read summary-rules.md"
-#
-# ── PROMPT INSTRUCTION (apply every time this file is read) ─────────────────
-# 1. Check manifest.yml → reading_mode. If absent, use READING_MODE above.
-# 2. Apply the effective mode to EVERY feature-document read in this session:
-#    auto   → .summary.md if present, else full .md + generate summary
-#    summary→ .summary.md only; warn and stop if missing
-#    full   → always read full .md (set reading_mode: "full" in manifest.yml
-#             for a project that needs maximum quality over token economy)
-# ────────────────────────────────────────────────────────────────────────────
+#   full:    always read full .md (deep debugging / initial migration only)
+# Override per project via manifest.yml → reading_mode
+# To change: edit these values, tell agent: "re-read summary-rules.md"
 
 ## AI-2 — Summary-First Rule (token economy, mandatory)
 After /specify, every command reads `.summary.md` files for prior
@@ -72,8 +63,15 @@ and may shift if a template gains new sections.
 - Any unresolved [ASSUMPTION-NNN] (Assumptions)
 - Success criteria
 
+### use-cases.summary.md
+- All ACT-NNN: name + type (Primary / Secondary / System)
+- All UC-NNN: title + actor(s) + priority + BR-NNN traces
+- AP/EP count per UC (e.g. "UC-001: 2 AP, 1 EP")
+- UC relationships (extends / includes) if any
+- Any unresolved [ASSUMPTION-NNN] or [NEEDS CLARIFICATION]
+
 ### srd.summary.md
-- Every FR-NNN + priority (Functional Requirements) — list all, no grouping
+- Every FR-NNN + priority + UC-NNN trace (Functional Requirements) — list all, no grouping
 - Every NFR-NNN + threshold value e.g. "NFR-001 P99 ≤ 500ms" (Non-Functional Requirements)
 - All integrations + direction + mock/real phase (Integrations)
 - All constraints (Constraints)

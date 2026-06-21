@@ -44,7 +44,7 @@ default `auto` from summary-rules.md):
 in full regardless of reading_mode.
 See .specify/memory/summary-rules.md → AI-2 Reading Mode Decision Tree.
 
-## SPECIFY — Four Sub-Commands
+## SPECIFY — Five Sub-Commands
 
 `/specify` generates the constitution only. Spec documents are generated
 **one at a time** using dedicated sub-commands — same pattern as `/plan-*`.
@@ -53,7 +53,8 @@ See .specify/memory/summary-rules.md → AI-2 Reading Mode Decision Tree.
 |---|---|---|
 | `/specify` | Constitution Part 2 (DRAFT) + project type | — |
 | `/specify-brd` | Business Requirements Document | GATE-1 passed |
-| `/specify-srd` | Software Requirements Document | BRD approved |
+| `/specify-uc` | Use Case Specification (Actors + UC-NNN with MP/AP/EP) | BRD approved |
+| `/specify-srd` | Software Requirements Document | Use Cases approved |
 | `/specify-doc {name}` | Any extended doc (security, api-spec, data-model, component-spec, ux-flow, screen-spec, resilience, investigation) | SRD approved |
 
 **`/specify` (constitution):**
@@ -200,6 +201,6 @@ For each task in the `/implement` phase:
   - Run after: /implement (all tasks) | Gate before: go-live
 
 ## Command Order
-/specify → [GATE-1] → /specify-brd → /specify-srd → /specify-doc {name}... → /checklist (optional)
+/specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd → /specify-doc {name}... → /checklist (optional)
 → /validate → /analyze → /clarify → /plan-design
 → /plan-lld (mvp+) → /task → /implement → /release

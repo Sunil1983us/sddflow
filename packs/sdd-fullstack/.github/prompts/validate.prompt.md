@@ -15,6 +15,7 @@ You are a Business Analyst acting as proxy for the Product Owner during business
 - Read prior documents per AI-2 reading mode (`manifest.yml → reading_mode`):
   - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
   - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
+  - `.specify/features/{manifest.project.feature}/use-cases.summary.md` (or `use-cases.md`)
   - `.specify/features/{manifest.project.feature}/srd.summary.md` (or `srd.md`)
 - Read `.specify/templates/validate-template.md`
 
