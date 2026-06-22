@@ -4,6 +4,57 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.6.0] — 2026-06-22
+
+### Added — `/change` command, stakeholder template improvements, context feature-hint
+
+#### `/change` — Type-aware, sequential change request command (all 5 packs)
+- New command `/change {description}` works at **any SDLC stage**, raised by any role
+- Classifies CR into one of 8 types: Business / Technical / Security / Data / UX / Performance / Operational / Defect
+- Detects current stage from documents present in `.specify/features/{feature}/`
+- Walks documents in dependency order, one at a time — reads actual content before deciding
+- Per document: **SKIP** (no impact), **ANNOTATE** (upstream approved), **UPDATE** (shows BEFORE/AFTER diff, stops for approval), **RERUN** (backup + regenerate, stops for confirmation), **INCORPORATE** (not yet created — built in when generated)
+- After all documents: proposes CHG-NNN implementation tasks, waits for approval before appending to `tasks.md`
+- Saves changeset record to `.specify/features/{feature}/changesets/CR-NNN.md`
+- New `changeset-template.md` — §1 type classification, §2 15-document walk table, §3 BEFORE/AFTER diffs, §4 CHG-NNN tasks, §5 approvals
+- New `change.prompt.md` (8-step prompt) and `change.md` (Claude Code command) distributed to all 5 packs + `_shared/full`
+- `change-rules.md` (all 5 packs) updated — CR type table, document walk actions table, Ripple-Forward Rule, updated dependency chain
+
+#### Stakeholder-driven template improvements — 20 fixes across all packs
+- **FIX-01** — Approvals tables pre-populated with correct role names per document (from `roles.yml`)
+- **FIX-02** — `analyze-template.md` — Complexity Context line added after Overall Complexity rating
+- **FIX-03** — `qa-testcases-template.md` — Type (E2E/Integration/Performance/Unit) and UAT Relevant (Yes/No) fields added to every TC-NNN; Coverage Summary updated
+- **FIX-04** — `release-template.md` — Environment Prerequisites column added to UAT Plan table
+- **FIX-05** — `release-template.md` — Smoke test rows: APM error rate check + monitoring alert check
+- **FIX-06** — `release-template.md` — Security checklist requires evidence artefact reference, not just "Yes"
+- **FIX-07** — `release-template.md` — Rollback Plan expanded to full step table (usable at all scopes)
+- **FIX-08** — `security-design-template.md` — Evidence column added to §1 pilot security checklist
+- **FIX-09** — `security-design-template.md` — Audit Trigger Events table added in §2 seeded from UC EP-NNN
+- **FIX-10** — `release-template.md` — §3 Deployment Plan: strategy selection table (rolling/blue-green/canary with NFR thresholds) + steps table
+- **FIX-11** — `validate-template.md` — §2 Business Requirements Review split into two columns: BA confirms FR mapping, PO confirms business intent
+- **FIX-12** — `validate-template.md` — §6 Change Requests table added (CR-NNN tracking within the validate document)
+- **FIX-13** — `use-cases-template.md` — [INFERRED: {basis}] marker instruction for AI-inferred steps
+- **FIX-14** — `use-cases-template.md` — §4 UC Relationships expanded with diagram + includes/extends table
+- **FIX-15** — `analyze-template.md` — Risk Register gains Mitigating Tasks column
+- **FIX-16** — `feature-story-template.md` — BUFFER story (10% of total SP) added to every sprint plan
+- **FIX-17** — `feature-story-template.md` — Cross-Sprint Dependencies table (blocking story relationships)
+- **FIX-18** — `security-design-template.md` — CVSS (qualitative) column added to §3 STRIDE table; THR ≥ 7.0 blocks /release
+- **FIX-19** — `brd-template.md` — §9 Investment Summary (T-shirt sizing, estimated cost, ROI/payback, cost of inaction)
+- **FIX-20** — `brd-template.md` — §6 Regulatory expanded with domain-aware seeding (PCI-DSS, HIPAA, GDPR, SOX, FedRAMP)
+
+#### `/create-context` — Feature-hint header (all 5 packs)
+- Raw notes files can now start with `# specify: {sentence describing what you are building}`
+- Agent extracts feature description → seeds §1 "What This Service Does" in context.md
+- Agent derives kebab-case feature-name from the sentence and confirms before saving
+- No more separate feature name declaration needed in chat
+
+#### Documentation updates
+- `SDLC-COMPLETE-GUIDE.md` (all packs) — rewritten: correct 5 SPECIFY sub-commands, 2 PLAN sub-commands (`/plan-design` + `/plan-lld`), `/create-context`, `/checklist`, `/change` added; dead commands (`/plan-arch`, `/plan-hld`, `/plan-adr`) removed; full checklist updated
+- `CHANGE-GUIDE.md` (all packs) — rewritten: `/change` command as primary workflow, CR types, Ripple-Forward Rule, quality check options, CHG task implementation guide
+- `examples/README.md` — updated command references to current commands
+
+---
+
 ## [2.5.0] — 2026-06-22
 
 ### Fixed — 19 SDLC review findings

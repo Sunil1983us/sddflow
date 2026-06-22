@@ -1,19 +1,22 @@
 # Complete SDLC Guide
-# SDD — Complete Command Reference, Constitution Generated from Context
+# SDD — Full Command Reference
 
 ---
 
 ## Overview
 
-You write one context file (or run `/create-context` first if you'd
-rather paste rough notes and have the agent draft it with you — see
-.specify/contexts/CONTEXT-GUIDE.md). Agent generates everything else.
-Constitution Part 2 is auto-generated as a DRAFT — you review and
-finalize it (GATE-1) before /validate runs. Manual edits after that
-point are authoritative.
-PLAN is split into 2 sub-commands — each reviewed separately.
-/validate (business sign-off) and /release (UAT/store-release/go-live)
-bookend the technical pipeline.
+Write one context file (or run `/create-context` first to turn rough notes into
+a structured file — the agent drafts it with you). From there, the agent generates
+every specification document, the design, the task list, and the release artefacts.
+
+Constitution Part 2 is generated as a DRAFT after `/specify` — you review and
+finalize it (GATE-1) before any later command can run. All manual edits are
+authoritative. `/validate` (business sign-off) and `/release` (UAT/go-live)
+bookend the pipeline.
+
+Use `/change` at any stage if a requirement changes — it reads existing documents
+one by one, shows only what needs updating, and waits for your approval before
+touching the next document.
 
 ---
 
@@ -21,244 +24,323 @@ bookend the technical pipeline.
 
 | # | Command | Does | Gate Before |
 |---|---|---|---|
-| 1 | `/specify` | Constitution Part 2 (DRAFT) + spec docs | None |
-| — | **GATE-1** | You finalize constitution Part 2 (manual) | After /specify |
-| 2 | `/validate` | Business sign-off on BRD/SRD | GATE-1 passed |
-| 3 | `/analyze` | Risks + dependencies + complexity | validate.summary.md |
-| 4 | `/clarify` | Questions → you answer | After /analyze |
-| 5 | `/plan-design` | Architecture + Diagrams + API Design + ADRs | clarify.summary.md, no open [ASSUMPTION-NNN] (AI-8) |
-| 6 | `/plan-lld` | LLD class/sequence diagrams (mvp+ only) | design.md reviewed |
-| 7 | `/task` | Stories + Tasks + Jira | design.md reviewed |
-| 10 | `/implement` | One task at a time | tasks approved |
-| 11 | `/release` | UAT + store-release plan + go-live gate | all tasks merged |
+| 0 | `/create-context` | Turn rough notes into context.md (optional pre-phase) | None |
+| 1 | `/specify` | Constitution Part 2 (DRAFT) | None |
+| — | **GATE-1** | You finalize constitution Part 2 (manual, blocking) | After /specify |
+| 2 | `/specify-brd` | Business Requirements Document | GATE-1 passed |
+| 3 | `/specify-uc` | Use Case Specification (Actors + UC-NNN) | BRD approved |
+| 4 | `/specify-srd` | Software Requirements Document | Use cases approved |
+| 5 | `/specify-doc {name}` | Extended docs: security, api-spec, data-model, resilience… | SRD approved |
+| 6 | `/checklist` | Spec quality gate (mandatory mvp+, optional pilot) | After specify docs |
+| 7 | `/validate` | Business sign-off on BRD + SRD | GATE-1 passed |
+| 8 | `/analyze` | Risks, dependencies, complexity | validate.summary.md exists |
+| 9 | `/clarify` | Open questions → you answer | After /analyze |
+| 10 | `/plan-design` | Architecture + Diagrams + API Design + ADR entries | clarify.summary.md, no unresolved [ASSUMPTION-NNN] |
+| 11 | `/plan-lld` | Detailed LLD: class/sequence diagrams (mvp+ only) | design.md reviewed |
+| 12 | `/task` | Stories + Tasks + Jira push | design.md reviewed |
+| 13 | `/implement` | One task at a time | tasks approved |
+| 14 | `/release` | UAT plan + deployment + go-live gate | all tasks merged |
+| — | `/change` | Raise a change request at ANY stage | Any stage |
 
 ---
 
-## /specify — Two Actions
+## /create-context — Optional Pre-Phase
 
-**Action 1 — Constitution Part 2 (DRAFT):**
-Reads context → fills Tech Stack:
-Language/Framework, Navigation, State Management, Local Storage/DB,
-API Client, Push Notifications, Crash/Analytics, Build Tool, Testing,
-Coverage Gate, Quality/Security, CI/CD, App Store Distribution, plus the
-remaining backend-style concerns adapted for mobile (see constitution.md
-Part 2 Tech Stack table)
+If you do not yet have a structured context file, run `/create-context` and paste
+your rough notes (any format — email, bullet points, doc excerpt). The agent drafts
+`context.md` against the template, lists missing information as plain questions, and
+iterates with you until it is ready.
 
-Also extracts: Core Principles (Offline-First, Accessible, Cross-Platform,
-Performant), Domain Rules, Never Do
-
-**Action 2 — Spec Documents (canonical doc inventory):**
+**Shortcut:** put this on the very first line of your notes file:
 ```
-pilot: brd → srd → security-design (§1)
-mvp:   + screen-spec → ux-flow → api-spec (Backend API Contract —
-         Consumer) → security-design (§1-2)
-full:  + data-model (Local Data & Cache Model) →
-         resilience (Mobile Resilience) →
-         investigation (Crash & Incident Triage) →
-         security-design (§1-4)
+# specify: I am building a payment processing microservice that handles
+credit card transactions for the checkout flow, integrated with Stripe
+```
+The agent extracts the feature name and seeds §1 "What This Service Does" from it.
+
+---
+
+## /specify — Five Sub-Commands
+
+`/specify` generates the constitution only. Spec documents are generated one at a
+time using dedicated sub-commands.
+
+| Command | Generates | Gate |
+|---|---|---|
+| `/specify` | Constitution Part 2 (DRAFT) | None |
+| `/specify-brd` | Business Requirements Document | GATE-1 passed |
+| `/specify-uc` | Use Case Specification (Actors + UC-NNN with MP/AP/EP) | BRD approved |
+| `/specify-srd` | Software Requirements Document | Use cases approved |
+| `/specify-doc {name}` | security / api-spec / data-model / resilience / investigation / ux-flow / component-spec / screen-spec | SRD approved |
+
+**Constitution Part 2 contents:**
+Tech Stack (Language, Framework, Build Tool, API Style, Messaging/Async, Serialisation,
+Schema, Data Store, Data Cache, DB Migration, Configuration, Secrets, Resilience,
+Observability, Logging, Testing, Coverage Gate, Quality/Security, Orchestration, CI/CD)
++ Core Principles, Domain Rules, Never Do
+
+**Spec document inventory by scope:**
+```
+pilot: brd → use-cases → srd → security-design (§1)
+mvp:   + api-spec → data-model → security-design (§1-2)
+full:  + resilience → investigation → security-design (§1-4)
 ```
 
 ---
 
 ## GATE-1 — Finalize Constitution Part 2 (manual, blocking)
 
-After Action 1, Part 2 is a DRAFT. Before any later command runs:
+After `/specify`, Part 2 is a DRAFT. No other command runs until this is done:
 1. Review every row (Tech Stack, Core Principles, Domain Rules, Never Do)
 2. Resolve `[MISSING — ask user]` markers
 3. Edit anything wrong — manual edits are AUTHORITATIVE
 4. Tell agent: "Constitution Part 2 finalized"
 
-A later /specify re-run proposes changes for review — never silently
-overwrites a finalized Part 2.
+A later `/specify` re-run proposes diffs for review — never silently overwrites
+a finalized Part 2.
+
+---
+
+## /checklist — Spec Quality Gate
+
+**Mandatory for mvp and full. Optional for pilot.**
+Run after all specify sub-commands, before `/validate`.
+
+Catches:
+- **CRITICAL** (block /validate): unresolved [NEEDS CLARIFICATION], unmeasured NFRs,
+  FRs with no acceptance scenario
+- **HIGH**: vague adjectives without a number, UCs without Independent Test
+- **MEDIUM**: terminology drift, missing Out of Scope items
+
+Saves to: `.specify/features/{feature}/checklists/{feature}-spec-quality.md`
 
 ---
 
 ## /validate — Business Sign-Off
 
-Reviewer: Product Owner (accountable) + Business Analyst (responsible) —
-see roles.yml.
+Reviewer: **Product Owner** (accountable) + **Business Analyst** (responsible)
 
-- Business Objective Trace: every BO-NNN → FR-NNN
-- Business Requirements Review: every BR-NNN reflected in SRD
-- Assumptions Sign-Off: every [ASSUMPTION-NNN] confirmed/rejected
-- Scope Confirmation: in/out of scope
-- Sign-off table: Approved / Changes Requested
-
-Outcome: "VALIDATE complete — ready for /analyze" or
-"VALIDATE incomplete — {N} items need changes."
+- §1 Business Objective Trace: every BO-NNN → FR-NNN
+- §2 Business Requirements Review: BA confirms FR mapping, PO confirms business intent
+- §3 Assumptions Sign-Off: every [ASSUMPTION-NNN] confirmed or rejected
+- §4 Scope Confirmation: in-scope / out-of-scope items
+- §5 Sign-off
+- §6 Change Requests raised during review (CR-NNN tracked here)
 
 ---
 
-## PLAN — 2 Sub-Commands
+## /analyze — Risk + Complexity
 
-```
-/plan-design  Architecture + Diagrams + API Design + ADR entries
-              Who reviews: Tech lead + Architect + Stakeholders
-              AI-8 gate: no unresolved [ASSUMPTION-NNN] anywhere
-              ↓
-/plan-lld     LLD + class/sequence diagrams (mvp+ only)
-              Who reviews: Senior developer
-```
+Reviewer: **Tech Lead** (accountable) + **Architect** (consulted, mvp+)
 
-**Pilot scope:** only /plan-design required.
-Agent auto-skips /plan-lld for pilot — states reason.
+- Risk register with probability × impact × FR/NFR link
+- Dependency map (internal + external)
+- Complexity ratings per area
+- Distributed systems consistency section (mvp+)
 
+---
+
+## /plan-design — Architecture + Design
+
+**Gate:** `clarify.summary.md` exists, all RESOLVED + no unresolved [ASSUMPTION-NNN]
+
+Produces `design.md` — single document covering:
+- Architecture decisions (component map, technology choices)
+- Sequence / flow diagrams (Mermaid)
+- API Design: endpoints, request/response shapes, error codes
+- ADR entries (Architecture Decision Records)
+- NFR → technology decision mapping
+
+Reviewer: Architect + Tech Lead + stakeholders (all scopes)
+
+> `design.md` replaces the former `arch.md`, `hld.md`, `api-spec.md`, and `adr.md`.
+> `/plan-arch`, `/plan-hld`, `/plan-adr` redirect to `/plan-design` for backwards compatibility.
+
+---
+
+## /plan-lld — Detailed LLD (mvp+ only)
+
+**Gate:** `design.md` reviewed
+
+Produces detailed technical design: class diagrams, sequence diagrams, package structure.
+Agent auto-skips and states reason if scope is pilot.
+
+Reviewer: Senior developer
 
 ---
 
 ## Pilot Flow
 ```
-/specify → [GATE-1] → /validate → /analyze → /clarify
+/create-context (if needed)
+→ /specify → [GATE-1]
+→ /specify-brd → /specify-uc → /specify-srd → /specify-doc security
+→ /checklist (optional)
+→ /validate → /analyze → /clarify
 → /plan-design (review)
 → /task (review) → /implement → /release
 ```
 
 ## MVP+ Flow
 ```
-/specify → [GATE-1] → /validate → /analyze → /clarify
+/create-context (if needed)
+→ /specify → [GATE-1]
+→ /specify-brd → /specify-uc → /specify-srd
+→ /specify-doc security → /specify-doc api-spec → /specify-doc data-model
+→ /checklist (mandatory)
+→ /validate → /analyze → /clarify
 → /plan-design (review) → /plan-lld (review)
 → /task (review) → /implement → /release
 ```
 
 ---
 
-## PR Rules (enforced at /implement)
-
-Every task before coding:
-1. Agent estimates lines
-2. If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time
-3. After task → state files + lines + "PR ready" → wait for go
-4. Confirm Verifies: TC-NNN now covered by the paired test
-
----
-
-## Feature → Story → Task (/task)
+## /task — Stories + Tasks
 
 ```
 FEATURE (from BRD)
-  └── STORY (As/I want/So that — linked to FRs)
+  └── STORY (As / I want / So that — linked to FRs, MoSCoW priority)
         ├── Story points + Sprint
         ├── Acceptance criteria
         └── TASK (one PR each)
               ├── Satisfies: FR/NFR | Verifies: TC-NNN
               ├── Estimated lines
-              └── PR strategy: single or SPLIT
+              └── PR strategy: single or SPLIT A/B/C
 ```
 
-Traceability matrix (QA-1): Story → FR → Task → TC-NNN → R-NNN.
-Jira CSV generated at /task — import before /implement starts.
+Traceability: Story → FR → Task → TC-NNN.
+Jira push: `sdd jira push` — import before `/implement` starts.
 
 ---
 
-## /release — UAT, Store Release, Go-Live
+## /implement — Code + PR
 
-Runs after /implement — all tasks "PR ready" and merged.
+Per task:
+1. Agent estimates lines — if over `max_lines_per_pr` → SPLIT, confirm, one part at a time
+2. Agent writes code + paired test
+3. `/pre-review` — agent analyses diff, presents numbered findings, you pick which to fix
+4. `sdd pr create --task TASK-NNN` — creates PR with pre-review summary in body
+5. Human review — approve or add inline comments
+6. `/address-review` — agent addresses unresolved threads, pushes fix, requests re-review
+7. PR merged → task complete
 
-1. Pre-Release Checklist (tests green, coverage, security checklist,
-   traceability — no FR/NFR without a passing test)
-2. UAT Plan — UC-NNN → tester (roles.yml) → device/OS target →
-   environment (staging/TestFlight/internal track) → result
-3. Store Release Plan — build + sign release artifact (CI build
-   container §OPS-7) → upload to TestFlight / Play Console internal
-   track → staged rollout (e.g. 10% → 50% → 100%) → OTA update push
-   (CodePush/EAS, if applicable) → smoke test on real device, each step
-   with owner + rollback-if-fails (constitution Part 1 — OPS-7)
-4. Post-Release Smoke Test (app launch/cold start, key happy-path flow,
-   crash-free rate target)
-5. Go-Live Gate — Tech Lead / Product Owner / Ops-SRE: Go/No-Go
-6. Business Objective Closure — BO-NNN → measured result → met?
-7. Rollback Plan (full detail in runbook.md §6 — staged rollout halt,
-   OTA rollback, store-listing rollback)
+**workflow_mode:**
+- `github`: "PR ready" → wait for go
+- `local`: run build/test/lint/coverage locally → report ✅/❌ → "Task accepted" → wait for go
 
 ---
 
-## Change Management
+## /release — UAT, Deployment, Go-Live
 
-Rule: context.md first — always.
+Runs after all tasks complete.
+
+1. Pre-Release Checklist (tests green, coverage, security evidence, traceability)
+2. UAT Plan — UC-NNN → tester → environment prerequisites → result
+3. Deployment Strategy — rolling / blue-green / canary (decision table keyed to NFRs)
+4. Deployment Steps — each with owner + rollback-if-fails
+5. Post-Deploy Smoke Test (including APM/monitoring checks)
+6. Go-Live Gate — Tech Lead / Product Owner / DevOps-SRE: Go / No-Go
+7. Business Objective Closure — BO-NNN → measured result → met?
+8. Rollback Plan — full step table
+
+---
+
+## /change — Change Requests at Any Stage
+
+Run `/change` whenever a requirement changes — at any point in the pipeline.
 
 ```
-Update context.md + CHANGELOG
-→ Re-run /specify for affected docs only
-→ Re-run /analyze if risk changed
-→ Append CHG-NNN tasks
-→ /implement CHG tasks (same PR rules)
-→ /release for the change set if it ships independently
+/change "payment gateway returns 402 for valid cards — missing retry requirement"
 ```
 
-See CHANGE-GUIDE.md for the full impact matrix and AI-8 assumption rule.
+The agent:
+1. Classifies the CR type (Business / Technical / Security / Data / UX / Performance / Operational / Defect)
+2. Detects current stage from existing documents
+3. Presents a walk plan — which documents to check, in order
+4. Reads each document one at a time
+5. Shows BEFORE / AFTER diff for anything that needs changing — STOPS and waits for your approval
+6. Skips documents with no impact, annotates approved upstream documents
+7. Creates CHG-NNN implementation tasks after all docs are resolved
+8. Saves a changeset record: `.specify/features/{feature}/changesets/CR-NNN.md`
+
+See `CHANGE-GUIDE.md` for the full CR type matrix and examples.
+
+---
+
+## PR Rules (enforced at /implement)
+
+- Estimate before every task
+- If > `max_lines_per_pr` → SPLIT A/B/C → confirm → one at a time
+- Paired test required for every PR
+- After task: "PR ready" (github mode) or "Task accepted" (local mode) → wait for go
 
 ---
 
 ## Full Checklist
 
 ### Setup
-- [ ] manifest.yml filled (4 fields)
-- [ ] roles.yml filled (RACI owners)
-- [ ] context.md written with tech stack section (directly, or via
-      `/create-context` from informal notes)
+- [ ] `manifest.yml` filled (project.name, scope, feature, context_file)
+- [ ] `roles.yml` filled (RACI owners per gate)
+- [ ] `context.md` written (directly or via `/create-context`)
 - [ ] Git initialised
 
 ### /specify
-- [ ] Constitution Part 2 generated (DRAFT) — Tech Stack table reviewed
-- [ ] All spec docs generated + .summary.md (brd, srd, security-design
-      §1, + screen-spec/ux-flow/api-spec §1-2 for mvp+,
-      + data-model/resilience/investigation/security-design §1-4 for full)
-- [ ] BRD + SRD reviewed
+- [ ] Constitution Part 2 generated (DRAFT) — Tech Stack table complete
+- [ ] `/specify-brd` — BRD reviewed by Product Owner
+- [ ] `/specify-uc` — Use Cases reviewed by BA + PO
+- [ ] `/specify-srd` — SRD reviewed by BA
+- [ ] `/specify-doc security` — security-design reviewed by Security Officer
+- [ ] Additional `/specify-doc` calls for api-spec, data-model (mvp+), resilience (full)
 
 ### GATE-1
-- [ ] Every Part 2 row reviewed, [MISSING] markers resolved
+- [ ] Every Part 2 row reviewed, `[MISSING]` markers resolved
 - [ ] "Constitution Part 2 finalized" confirmed
+
+### /checklist
+- [ ] All CRITICAL items resolved (blocks /validate if open)
+- [ ] HIGH items reviewed
 
 ### /validate
 - [ ] Every BO-NNN traced to FR-NNN
 - [ ] Every BR-NNN reflected in SRD
 - [ ] Every [ASSUMPTION-NNN] confirmed or rejected
 - [ ] Product Owner + Business Analyst sign-off
-- [ ] validate.summary.md = "VALIDATE complete"
 
 ### /analyze
-- [ ] Gated on validate.summary.md = "VALIDATE complete"
-- [ ] Risk register reviewed — every risk linked to FR/NFR (AR-3)
+- [ ] Risk register reviewed — every risk linked to FR/NFR
 - [ ] Complexity hotspots noted
 
 ### /clarify
-- [ ] All items answered
-- [ ] clarify.summary.md confirmed — all RESOLVED
+- [ ] All items answered and confirmed RESOLVED
+- [ ] `clarify.summary.md` generated
 
 ### /plan-design
 - [ ] AI-8: no unresolved [ASSUMPTION-NNN] anywhere
-- [ ] Architecture reviewed by tech lead
-- [ ] Diagrams complete
-- [ ] API Design locked
-- [ ] design.md reviewed
+- [ ] Architecture reviewed by Tech Lead + Architect
+- [ ] API Design section reviewed and locked
+- [ ] ADR entries approved
+- [ ] NFR → decision mapping complete
 
 ### /plan-lld (mvp+)
-- [ ] Class + sequence diagrams reviewed
+- [ ] Class + sequence diagrams reviewed by senior developer
 
 ### /task
-- [ ] Stories make business sense
+- [ ] Stories make business sense (Product Owner)
 - [ ] All tasks have estimated lines + Verifies: TC-NNN
 - [ ] Over-limit tasks marked SPLIT
-- [ ] Jira CSV imported
-- [ ] stories.md + tasks.md BOTH approved
+- [ ] `sdd jira push` run — Jira issues created
+- [ ] `stories.md` + `tasks.md` BOTH approved
 
 ### /implement
-- [ ] AI-7: .github/instructions/* applied to matching files
 - [ ] Each task estimated before coding
 - [ ] Each PR under line + file limits
 - [ ] Paired test every PR
-- [ ] All criteria confirmed per task
-- [ ] Confirm Verifies: TC-NNN covered by paired test
+- [ ] Pre-review run, findings addressed
 - [ ] Tests passing before merge
-- [ ] qa_cases/runbook (mvp+) generated
-- [ ] All tasks "PR ready" → "Ready for /release"
+- [ ] qa-testcases / runbook generated (mvp+), openapi (full)
 
 ### /release
-- [ ] Pre-release checklist green
+- [ ] Pre-release checklist green (including monitoring/APM evidence)
 - [ ] UAT plan executed, sign-off recorded
-- [ ] Store release plan reviewed (OPS-7 — TestFlight/Play Console,
-      staged rollout, OTA if applicable)
-- [ ] Post-release smoke test + crash-free rate target met
+- [ ] Deployment strategy selected, steps + rollback reviewed
 - [ ] Go-live gate: all roles "Go"
 - [ ] Business objective closure recorded
-- [ ] Rollback plan confirmed (runbook.md §6)
