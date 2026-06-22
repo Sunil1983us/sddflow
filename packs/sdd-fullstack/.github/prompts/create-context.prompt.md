@@ -59,7 +59,7 @@ Produce a numbered, plain-language checklist — one question per
 non-technical reader. Examples:
   1. (Tech Stack — Backend) What language/framework will the backend use?
      If you're not sure, say "not sure — recommend one" and the architect
-     can decide later at /plan-arch.
+     can decide later at /plan-design.
   2. (Tech Stack — Frontend) What framework will the frontend use? (e.g.
      React, Vue, Angular) If you're not sure, say "not sure — recommend
      one".

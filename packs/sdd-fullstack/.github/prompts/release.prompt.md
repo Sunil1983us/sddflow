@@ -42,7 +42,7 @@ Produce the release plan:
    (API/data) and frontend (screen/component) scenarios
 
 3. DEPLOYMENT PLAN
-   Steps from plan.md / arch.md: DB migrations, backend app deploy
+   Steps from design.md: DB migrations, backend app deploy
    strategy, frontend build + static asset deploy / CDN invalidation,
    smoke test, feature flag / traffic shift — each with owner and
    rollback-if-fails action

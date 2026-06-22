@@ -43,7 +43,7 @@ From context + constitution Part 2 + analyze.summary.md:
 - NFR → Decision mapping (arch-template §4a) for every NFR in
   analyze.summary.md §5
 
-Save: arch.md + arch.summary.md
+State: "This command has been replaced by `/plan-design`. Running `/plan-design` now..."
 
 ### Implementation Plan
 From arch.md:

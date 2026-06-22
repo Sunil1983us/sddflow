@@ -59,4 +59,4 @@ If CRITICAL items found:
 
 If no CRITICAL items:
   State: "CHECKLIST complete — spec quality gate passed. Ready for /validate.
-  ({N} HIGH, {N} MEDIUM items remain — address before /plan-arch)."
+  ({N} HIGH, {N} MEDIUM items remain — address before /plan-design)."

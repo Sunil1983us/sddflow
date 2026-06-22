@@ -40,7 +40,7 @@ Produce the release plan:
    roles.yml), device/OS target, environment, result checkbox
 
 3. STORE RELEASE PLAN
-   Steps from plan.md / arch.md: build + sign, staged rollout
+   Steps from design.md: build + sign, staged rollout
    percentage (Play Console) / TestFlight phase, OTA update push
    (CodePush/EAS, if applicable), smoke test on real device — each with
    owner and rollback-if-fails action (halt rollout / OTA rollback /

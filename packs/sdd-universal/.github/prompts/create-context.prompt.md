@@ -54,7 +54,7 @@ Produce a numbered, plain-language checklist — one question per
 non-technical reader. Examples:
   1. (Tech Stack) What programming language/framework will this use? If
      you're not sure, say "not sure — recommend one" and the architect can
-     decide later at /plan-arch.
+     decide later at /plan-design.
   2. (Actors) Who are the different types of people or systems that will
      use this? (e.g. "customer", "admin", "support team", "another
      internal service")

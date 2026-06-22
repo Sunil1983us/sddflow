@@ -74,7 +74,7 @@ Add all findings to the analyze.md §8 Consistency Findings table using
 CF-NNN IDs. Include in analyze.summary.md:
   - Count of CRITICAL CF-NNN items (if any, /clarify must address them)
   - Count of HIGH CF-NNN items
-  - Any constitution conflicts (must resolve before /plan-arch)
+  - Any constitution conflicts (must resolve before /plan-design)
 
 Save to: .specify/features/{manifest.project.feature}/analyze.md
 Save summary to: analyze.summary.md (max SUMMARY_MAX_LINES)

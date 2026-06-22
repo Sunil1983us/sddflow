@@ -41,7 +41,7 @@ Produce the release plan:
    roles.yml), browser/device target, environment, result checkbox
 
 3. STATIC DEPLOY PLAN
-   Steps from plan.md / arch.md: build static assets, deploy to
+   Steps from design.md: build static assets, deploy to
    CDN/object storage (constitution OPS-7), cache invalidation/purge for
    `index.html` vs hashed assets, feature flag / staged rollout (if
    applicable) — each with owner and rollback-if-fails action (CDN

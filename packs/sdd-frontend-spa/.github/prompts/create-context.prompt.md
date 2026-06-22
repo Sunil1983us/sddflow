@@ -54,7 +54,7 @@ Produce a numbered, plain-language checklist — one question per
 non-technical reader. Examples:
   1. (Tech Stack) What frontend framework will this use — React, Vue,
      Angular, something else? If you're not sure, say "not sure —
-     recommend one" and the architect can decide later at /plan-arch.
+     recommend one" and the architect can decide later at /plan-design.
   2. (Actors) Who are the different types of people who will use this
      app? (e.g. "customer", "admin", "support agent")
   3. (Endpoints) What backend APIs will this app call? (rough list is

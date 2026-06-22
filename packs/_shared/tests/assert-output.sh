@@ -98,8 +98,8 @@ check_gwt() {
 }
 
 check_mermaid() {
-  local file="$_file/hld.md"
-  printf "  %-52s" "hld.md — contains Mermaid diagram"
+  local file="$_file/design.md"
+  printf "  %-52s" "design.md — contains Mermaid diagram"
   if [[ ! -f "$file" ]]; then echo "SKIP (file absent)"; return; fi
   if grep -q '```mermaid' "$file"; then
     echo "PASS"; PASS=$((PASS+1))
@@ -145,8 +145,8 @@ check_file "srd.md exists"           "srd.md"
 check_file "validate.md exists"      "validate.md"
 check_file "analyze.md exists"       "analyze.md"
 check_file "clarify.md exists"       "clarify.md"
-check_file "arch.md exists"          "arch.md"
-check_file "hld.md exists"           "hld.md"
+check_file "design.md exists"          "design.md"
+check_file "lld.md exists (mvp+)"        "lld.md"
 check_file "stories.md exists"       "stories.md"
 check_file "tasks.md exists"         "tasks.md"
 check_file "release.md exists"       "release.md"
@@ -187,7 +187,7 @@ check "tasks.md has TASK-NNN"         "tasks.md" "TASK-[0-9]+"
 check_tasks_traceability
 
 echo ""
-echo "hld.md — diagrams:"
+echo "design.md — diagrams:"
 check_mermaid
 
 echo ""
@@ -201,7 +201,7 @@ check "release.md closes BO-NNN"      "release.md" "BO-[0-9]+"
 if [[ "$SCOPE" == "mvp" || "$SCOPE" == "full" ]]; then
   echo ""
   echo "MVP+ scope additional checks:"
-  check_file "api-spec.md exists"    "api-spec.md"
+  check_file "use-cases.md exists"          "use-cases.md"
   check_file "data-model.md exists"  "data-model.md"
   check_file "lld.md exists"         "lld.md"
   check_file "adr.md exists"         "adr.md"

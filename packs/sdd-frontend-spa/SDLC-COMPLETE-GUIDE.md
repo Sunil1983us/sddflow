@@ -1,5 +1,5 @@
 # Complete SDLC Guide
-# SDD — 11 Commands + GATE-1, Constitution Generated from Context
+# SDD — Complete Command Reference, Constitution Generated from Context
 
 ---
 
@@ -11,13 +11,13 @@ rather paste rough notes and have the agent draft it with you — see
 Constitution Part 2 is auto-generated as a DRAFT — you review and
 finalize it (GATE-1) before /validate runs. Manual edits after that
 point are authoritative.
-PLAN is split into 4 sub-commands — each reviewed separately.
+PLAN is split into 2 sub-commands — each reviewed separately.
 /validate (business sign-off) and /release (UAT/go-live) bookend the
 technical pipeline.
 
 ---
 
-## The 11 Commands
+## Command Flow
 
 | # | Command | Does | Gate Before |
 |---|---|---|---|

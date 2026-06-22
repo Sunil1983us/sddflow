@@ -55,7 +55,7 @@ non-technical reader. Examples:
   1. (Tech Stack) What state management library will this use — Redux
      Toolkit, Riverpod, Bloc, something else? If you're not sure, say
      "not sure — recommend one" and the architect can decide later at
-     /plan-arch.
+     /plan-design.
   2. (Tech Stack) Offline support needed? If yes, roughly what should
      still work without a connection (viewing data, queuing actions to
      sync later, both)?
