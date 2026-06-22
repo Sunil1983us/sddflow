@@ -103,8 +103,8 @@ VERSION: v1.1
 DOCS TO UPDATE:
   ✅ srd.md       — add FR-016
   ✅ api-spec.md  — add header to all endpoints
-  ⏭ arch.md      — not affected
-  ⏭ hld.md       — not affected
+  ⏭ design.md      — not affected
+  ⏭ design.md       — not affected
   ⏭ data-model   — not affected
 
 NEW TASKS:
@@ -171,11 +171,11 @@ PR rules enforced. Max 400 lines per PR.
 | Change | Re-run Commands |
 |---|---|
 | New field in request/response | /specify (api-spec only) → /task |
-| New endpoint | /specify (srd + api-spec) → /plan-arch (if structural) → /task |
-| New status/state | /specify (srd + api-spec + data-model) → /plan-hld (update diagram) → /task |
+| New endpoint | /specify (srd + api-spec) → /plan-design (if structural) → /task |
+| New status/state | /specify (srd + api-spec + data-model) → /plan-design (update diagram) → /task |
 | New business rule | /specify (srd) → /task |
-| Architecture change | /specify + /plan-arch + /plan-hld → /task |
-| New integration | /specify + /analyze (re-run) + /plan-arch → /task |
+| Architecture change | /specify + /plan-design → /task |
+| New integration | /specify + /analyze (re-run) + /plan-design → /task |
 | Scope upgrade | See scope upgrade section below |
 
 ---
@@ -189,7 +189,7 @@ Tell agent:
 "Scope upgraded to mvp. Re-read manifest.yml.
  Run /specify for newly enabled docs only: lld, api_spec
  Run /plan-lld (now enabled)
- Run /plan-adr (now enabled)
+ Run /plan-design (now enabled)
  Update /task with new tasks"
 ```
 

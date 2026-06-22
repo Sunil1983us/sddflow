@@ -103,8 +103,8 @@ VERSION: v1.1
 DOCS TO UPDATE:
   ✅ srd.md       — add FR-016
   ✅ api-spec.md  — add header to all endpoints
-  ⏭ arch.md      — not affected
-  ⏭ hld.md       — not affected
+  ⏭ design.md      — not affected
+  ⏭ design.md       — not affected
   ⏭ data-model   — not affected
 
 NEW TASKS:
@@ -170,17 +170,17 @@ PR rules enforced. Max 400 lines per PR.
 
 | Change | Re-run Commands |
 |---|---|
-| New field in request/response | /specify (api-spec only, mvp+) → /plan-arch (refine) → /task |
-| New endpoint | /specify (srd + api-spec) → /plan-arch (refine + if structural) → /task |
-| New status/state | /specify (srd + api-spec + data-model) → /plan-hld (update diagram) → /task |
+| New field in request/response | /specify (api-spec only, mvp+) → /plan-design (refine) → /task |
+| New endpoint | /specify (srd + api-spec) → /plan-design (refine) → /task |
+| New status/state | /specify (srd + api-spec + data-model) → /plan-design (update diagram) → /task |
 | New business rule | /specify (srd) → /task |
-| Architecture change | /specify + /plan-arch + /plan-hld → /task |
-| New integration | /specify + /analyze (re-run) + /plan-arch → /task |
-| New security control / regulation | /specify (security-design) → /plan-arch (refine) → /release (regulatory trace) |
+| Architecture change | /specify + /plan-design → /task |
+| New integration | /specify + /analyze (re-run) + /plan-design → /task |
+| New security control / regulation | /specify (security-design) → /plan-design (refine) → /release (regulatory trace) |
 | Scope upgrade | See scope upgrade section below |
 
 AI-8 applies on re-runs too: if any updated doc gets a new
-`[ASSUMPTION-NNN]`, run /clarify before /plan-arch.
+`[ASSUMPTION-NNN]`, run /clarify before /plan-design.
 
 ---
 
@@ -193,13 +193,13 @@ Tell agent:
 "Scope upgraded to mvp. Re-read manifest.yml.
  Run /specify for newly enabled docs only: component-spec, ux-flow,
    api-spec, security-design (§2 additions)
- Run /plan-arch to refine the newly generated docs against arch.md
+ Run /plan-design to update design.md with the new scope docs
  Run /plan-lld (now enabled)
- Run /plan-adr (now enabled)
+ Run /plan-design (now enabled)
  Update /task with new tasks"
 ```
 
-Scope upgrade to full additionally triggers /plan-arch refine of
+Scope upgrade to full additionally triggers /plan-design refine of
 component-spec, ux-flow, api-spec, data-model, resilience, investigation,
 and security-design (§3-4) as applicable per scope.
 

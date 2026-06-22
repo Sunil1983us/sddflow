@@ -28,9 +28,9 @@ technical pipeline.
 | 3 | `/analyze` | Risks + dependencies + complexity | validate.summary.md |
 | 4 | `/clarify` | Questions → you answer | After /analyze |
 | 5 | `
-| 6 | `/plan-hld` | HLD + Mermaid diagrams | arch.md reviewed |
-| 7 | `/plan-lld` | LLD (mvp+ only) | hld.md reviewed |
-| 8 | `/plan-adr` | ADRs (mvp+ only) | arch.md reviewed |
+| 6 | `/plan-lld` | HLD + Mermaid diagrams | design.md reviewed |
+| 7 | `/plan-lld` | LLD (mvp+ only) | design.md reviewed |
+| 8 | `/plan-design` | ADRs (mvp+ only) | design.md reviewed |
 | 9 | `/task` | Stories + Tasks + Jira | plan.md reviewed |
 | 10 | `/implement` | One task at a time (both layers) | tasks approved |
 | 11 | `/release` | UAT + deployment + go-live gate | all tasks merged |
@@ -96,47 +96,34 @@ Outcome: "VALIDATE complete — ready for /analyze" or
 
 ---
 
-## PLAN — 4 Sub-Commands
+## PLAN — 2 Sub-Commands
 
 ```
-/plan-arch   Architecture decisions + plan.md
-             + refine api-spec.md (mvp+ — align with port/adapter
-               contracts and frontend service layer — single shared
-               contract), component-spec.md/ux-flow.md (mvp+ — frontend
-               component tree + state architecture), data-model.md
-               (mvp+ — backend schema/persistence design),
-               security-design.md (all — both layers),
-               resilience.md + investigation.md (full — both layers)
-             Who reviews: Tech lead
-             AI-8 gate: no unresolved [ASSUMPTION-NNN] anywhere
-             ↓
-/plan-hld    HLD + all Mermaid diagrams
-             Who reviews: Stakeholders + tech lead
-             ↓
-/plan-lld    LLD + class/component diagrams (mvp+ only)
-             Who reviews: Senior developer (backend + frontend)
-             ↓
-/plan-adr    Architecture Decision Records (mvp+ only)
-             Who reviews: Architect
+/plan-design  Architecture + Diagrams + API Design + ADR entries
+              Who reviews: Tech lead + Architect + Stakeholders
+              AI-8 gate: no unresolved [ASSUMPTION-NNN] anywhere
+              ↓
+/plan-lld     LLD + class/sequence diagrams (mvp+ only)
+              Who reviews: Senior developer
 ```
 
-**Pilot scope:** only /plan-arch and /plan-hld required.
-Agent auto-skips /plan-lld and /plan-adr for pilot — states reason.
+**Pilot scope:** only /plan-design required.
+Agent auto-skips /plan-lld for pilot — states reason.
+
 
 ---
 
 ## Pilot Flow
 ```
 /specify → [GATE-1] → /validate → /analyze → /clarify
-→ /plan-arch (review) → /plan-hld (review)
+→ /plan-design (review)
 → /task (review) → /implement → /release
 ```
 
 ## MVP+ Flow
 ```
 /specify → [GATE-1] → /validate → /analyze → /clarify
-→ /plan-arch (review) → /plan-hld (review)
-→ /plan-lld (review) → /plan-adr (review)
+→ /plan-design (review) → /plan-lld (review)
 → /task (review) → /implement → /release
 ```
 
@@ -252,23 +239,15 @@ See CHANGE-GUIDE.md for the full impact matrix and AI-8 assumption rule.
 - [ ] All items answered
 - [ ] clarify.summary.md confirmed
 
-### /plan-arch
+### /plan-design
 - [ ] AI-8: no unresolved [ASSUMPTION-NNN] anywhere
 - [ ] Architecture reviewed by tech lead
-- [ ] plan.md reviewed
-- [ ] api-spec/component-spec/ux-flow/data-model/security-design/
-      resilience/investigation refined (where applicable)
-
-### /plan-hld
-- [ ] All diagrams correct
-- [ ] Stakeholders reviewed
+- [ ] Diagrams complete
+- [ ] API Design locked
+- [ ] design.md reviewed
 
 ### /plan-lld (mvp+)
-- [ ] Class + component diagrams reviewed by senior developer (backend +
-      frontend)
-
-### /plan-adr (mvp+)
-- [ ] All key decisions captured
+- [ ] Class + sequence diagrams reviewed
 
 ### /task
 - [ ] Stories make business sense
