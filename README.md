@@ -74,7 +74,7 @@ npx sdd-init init             # Node.js CLI
 # 3. Open in your AI tool and run /specify
 ```
 
-See the pack's own `QUICKSTART.md` for the full walkthrough.
+See the pack's own `GETTING-STARTED.md` for the full walkthrough.
 
 ---
 
@@ -102,9 +102,10 @@ CHANGELOG.md          # Version history
 
 | File | Purpose |
 |---|---|
-| `CLAUDE.md` | Agent startup checklist + 11-command flow |
-| `.specify/manifest.yml` | Project config: name, scope, feature, project_type |
-| `.specify/templates/` | 26 document templates for all SDD outputs |
+| `CLAUDE.md` | Agent startup checklist + full command flow |
+| `.specify/manifest.yml` | Project config: name, scope, feature, reading_mode |
+| `.specify/templates/` | 30+ document templates for all SDD outputs |
+| `.specify/memory/constitution.md` | Universal rules (Part 1) + tech stack DRAFT (Part 2) |
 | `.github/prompts/` | One prompt file per command (works in any AI tool) |
 | `.claude/commands/` | Claude Code native slash command wrappers |
 | `setup.sh` / `setup.ps1` | One-command initializer |

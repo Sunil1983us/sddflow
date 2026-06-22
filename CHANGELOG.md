@@ -4,6 +4,67 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.5.0] — 2026-06-22
+
+### Fixed — 19 SDLC review findings
+
+#### Traceability
+- `change-rules.md` — dependency chain now includes `use-cases` between `brd` and `srd`; references `design` instead of `arch`; AI-8 updated to point to `/plan-design`; new "New actor/use case" change type
+- `srd-template.md` — Functional Requirements table gains `UC Trace` column; References includes `use-cases.summary.md`
+- `brd-template.md` — Stakeholders table gains `ACT-ID` column populated by `/specify-uc`; Version History section added
+
+#### Testing
+- `task.prompt.md` — Exception Paths (EP-NNN-X) from `use-cases.md` now generate TC-NNN test cases; NFRs with measurable thresholds generate PERF-NNN load test tasks; boundary value analysis added
+- `qa-testcases-template.md` — new §7 Boundary & Exploratory Tests section
+
+#### Security & Analysis
+- `specify-doc.prompt.md` — full STRIDE/DREAD methodology for security doc generation (STRIDE per component, DREAD scoring, Critical/High/Medium/Low classification)
+- `analyze-template.md` — new §9 Distributed Systems Consistency section covering race conditions, saga failures, eventual consistency windows, at-least-once delivery
+
+#### Governance
+- `CLAUDE.md` (all packs) — `/checklist` mandatory for mvp+, optional for pilot; Document Review Gates table corrected (`BRD → Use Cases → SRD → Design`); Upgrading Scope section added
+- `constitution.md` (all packs) — Definition of Done table, Contract Testing row, Environments section (dev/mock/staging/prod) added to Part 1
+- New `constitution-amendment-template.md` — tracks Part 2 version bumps with diff table and impact matrix
+
+#### Documentation
+- All pack `README.md` files — rewritten with new 5 SPECIFY sub-commands, 2 PLAN sub-commands, updated document inventory table, scope upgrade guidance
+- All pack `GETTING-STARTED.md` files — updated command flow, `/specify-uc` explained, pilot and mvp+ paths shown correctly
+
+---
+
+## [2.4.0] — 2026-06-22
+
+### Added — `/specify-uc` Use Case Specification command
+
+- New command `/specify-uc` inserted between `/specify-brd` and `/specify-srd` in all 5 packs
+- New `use-cases-template.md` with:
+  - §1 Actor Registry (ACT-NNN: Primary / Secondary / System)
+  - §2 Use Case Index
+  - §3 Use Case Details per UC-NNN: Trigger, Preconditions, Postconditions, Main Path (MP), Alternate Paths (AP-NNN-X), Exception Paths (EP-NNN-X), Business Rules Applied, BR traces
+  - §4 Use Case Relationships (extends / includes)
+  - §5 Traceability Matrix (UC → BR)
+- New `specify-uc.prompt.md` and `specify-uc.md` Claude command in all 5 packs
+- `specify-srd.prompt.md` updated — gate now requires `use-cases.md` approved; SRD derives FR-NNN from UC MP/AP/EP paths; back-fills FR-NNN into use-cases.md
+- `validate.prompt.md` updated — reads `use-cases.summary.md` alongside BRD and SRD
+- `summary-rules.md` — added `use-cases.summary.md` required fields
+- All `CLAUDE.md` — SPECIFY table now shows 5 sub-commands; command order includes `/specify-uc`
+
+---
+
+## [2.3.0] — 2026-06-22
+
+### Added — Explicit `reading_mode` enforcement across all prompts
+
+- `summary-rules.md` (all 5 packs) — added PROMPT INSTRUCTION block: agents check `manifest.yml → reading_mode` every time they read this file and apply the effective mode to all feature document reads
+- `manifest.yml` (all 5 packs) — `reading_mode` uncommented and set to `"auto"` with inline comment explaining options
+- All prompts (`validate`, `analyze`, `clarify`, `plan-lld`, `task`, `release`, `checklist`, `implement`, `specify-srd`) — `summary-rules.md` added to Before Starting; feature doc reads use AI-2 conditional format: `auto`/`summary` → `.summary.md` | `full` → full `.md`
+- `summary-rules.md` — changed `full` mode description to "better quality / richer context at cost of tokens" (was "deep debugging / initial migration only")
+
+### Changed
+- All `CLAUDE.md` — AI-2 section explains three modes explicitly; notes that `reading_mode: "full"` in manifest provides maximum quality
+
+---
+
 ## [2.2.0] — 2026-06-18
 
 ### Added
