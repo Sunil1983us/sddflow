@@ -65,3 +65,9 @@ Out of Scope:
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

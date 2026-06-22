@@ -20,9 +20,13 @@ If no argument given — list the remaining ungenerated documents for this scope
 
 ## Before Starting
 - Read `.specify/manifest.yml`
+- Read `.specify/memory/summary-rules.md` — sets AI-2 reading mode for this session
 - Read `.specify/memory/constitution.md`
-- Read `.specify/features/{manifest.project.feature}/brd.summary.md`
-- Read `.specify/features/{manifest.project.feature}/srd.summary.md`
+- Read prior documents per AI-2 reading mode (`manifest.yml → reading_mode`):
+  - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
+  - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
+  - `.specify/features/{manifest.project.feature}/use-cases.summary.md` (or `use-cases.md`)
+  - `.specify/features/{manifest.project.feature}/srd.summary.md` (or `srd.md`)
 - Read `.specify/templates/{doc}-template.md`
 
 ## Verify Gate
@@ -49,10 +53,33 @@ Generate `{doc}.md`:
 - Save to: `.specify/features/{manifest.project.feature}/{doc}.md`
 - Write `.specify/features/{manifest.project.feature}/{doc}.summary.md` (max SUMMARY_MAX_LINES lines)
 
-**For `security` / `security-design`:** generate only the sections required by scope:
+**For `security` / `security-design`:**
+
+Scope-based sections:
 - `pilot` → §1 only (Threat Assessment + pilot security checklist)
-- `mvp` → §1–2 (+ OWASP Top 10 controls mapping)
-- `full` → §1–4 (+ STRIDE per flow + DAST requirements)
+- `mvp` → §1–2 (+ OWASP Top 10 controls mapping + STRIDE threat enumeration)
+- `full` → §1–4 (+ DAST requirements + penetration test scope)
+
+**Threat Modelling — STRIDE (mvp+):**
+For each service/component identified in `design.md`, enumerate threats using STRIDE:
+- **S**poofing — can an attacker impersonate an actor or component?
+- **T**ampering — can an attacker modify data in transit or at rest?
+- **R**epudiation — can an actor deny performing an action (no audit trail)?
+- **I**nformation Disclosure — can sensitive data be accessed by unauthorised parties?
+- **D**enial of Service — can an attacker make the service unavailable?
+- **E**levation of Privilege — can an actor gain higher access than authorised?
+
+Rate each identified threat using **DREAD**:
+| Factor | 1 (Low) | 2 (Medium) | 3 (High) |
+|---|---|---|---|
+| **D**amage | Minimal data loss | Service degradation | Data breach / full compromise |
+| **R**eproducibility | Difficult to repeat | Repeatable with effort | Trivially repeatable |
+| **E**xploitability | Expert attacker | Skilled attacker | Script kiddie / automated |
+| **A**ffected users | Single user | Group of users | All users |
+| **D**iscoverability | Hidden | Discoverable by probing | Publicly documented |
+
+Total DREAD score ≥ 10 → Critical; 7–9 → High; 4–6 → Medium; 1–3 → Low.
+Mitigations are required for all High/Critical threats before /plan-design.
 
 After saving, submit for review:
 ```bash

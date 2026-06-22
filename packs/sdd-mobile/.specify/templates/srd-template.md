@@ -8,16 +8,17 @@
 | Source | Sections / IDs Used |
 |---|---|
 | brd.summary.md | {sections/IDs referenced} |
+| use-cases.summary.md | {UC-NNN references} |
 | .specify/contexts/{feature}.md | {sections/IDs referenced} |
 
 ## 1. System Overview
 {One paragraph — what this system does technically.}
 
 ## 2. Functional Requirements
-| ID | Requirement | Source | Priority |
-|---|---|---|---|
-| FR-001 | {description} | BR-{NNN} | Must Have |
-| FR-002 | {description} | BR-{NNN} | Should Have |
+| ID | Requirement | UC Trace | Source | Priority |
+|---|---|---|---|---|
+| FR-001 | {description} | UC-{NNN} | BR-{NNN} | Must Have |
+| FR-002 | {description} | UC-{NNN} | BR-{NNN} | Should Have |
 
 ## 3. Non-Functional Requirements
 | ID | Category | Requirement |

@@ -26,8 +26,9 @@ sdd review check --doc use-cases
 Exit code 0 = approved. Any other exit code — STOP.
 State: "SPECIFY-SRD blocked — Use Cases are not yet approved. Run `/specify-uc` first, or check status with `sdd review check --doc use-cases`."
 
-If `sdd` CLI not configured: confirm `use-cases.md` exists, then ask:
-> "Have the Use Cases been reviewed and approved? Reply **'yes'** to proceed."
+If `sdd` CLI not configured:
+- If `use-cases.md` does NOT exist: state "SPECIFY-SRD blocked — `use-cases.md` not found. Run `/specify-uc` first to generate the Use Case Specification."
+- If `use-cases.md` exists: ask "Have the Use Cases been reviewed and approved? Reply **'yes'** to proceed."
 
 ## Your Task
 

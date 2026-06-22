@@ -44,6 +44,7 @@
 | Unit | Mock all external dependencies |
 | Naming | should_{expected}_when_{condition} |
 | Coverage | As specified in tech stack (Part 2) |
+| Contract | Consumer-driven contract tests (Pact / schema validation) for every outbound integration — in same PR as the adapter |
 
 ## Logging
 
@@ -71,6 +72,19 @@
 | PR ref | Every PR references TASK-NNN or CHG-NNN |
 | Merge | No direct commits to main or develop |
 
+## Definition of Done
+
+| Gate | Requirement |
+|---|---|
+| Tests green | All unit + integration tests pass in CI |
+| Coverage met | Meets coverage gate defined in Part 2 Tech Stack |
+| Linting clean | Zero linting errors (tool set in Part 2) |
+| Security scan clean | No new HIGH/CRITICAL findings (OWASP dependency check or equivalent) |
+| Pre-review passed | /pre-review completed; selected findings addressed |
+| No open TODOs | No `TODO` / `FIXME` / `HACK` comments in committed code |
+| PR description complete | References TASK-NNN; summarises change; lists test evidence |
+| Paired test exists | Every class/component changed has a test in the same PR |
+
 ## Containerization (OPS-7)
 
 | Rule | Detail |
@@ -91,6 +105,21 @@ If Tech Stack → Orchestration = Kubernetes, see
 .specify/templates/k8s-manifest-template.md for Deployment, Service,
 HPA, NetworkPolicy, ConfigMap, and Secret manifests matching the same
 rules — used instead of docker-compose.yml for cluster deployment.
+
+## Environments
+
+| Environment | Purpose | Config Source | Secrets Source |
+|---|---|---|---|
+| local-dev | Developer machine | application-local.yml / .env | .env (gitignored) |
+| mock | Agent testing with mock adapters | application-mock.yml | .env (gitignored) |
+| staging | Pre-production integration testing | Config server / env vars | Vault / secrets manager |
+| production | Live traffic | Config server / env vars | Vault / secrets manager |
+
+**Rules:**
+- Staging must mirror production configuration (same image, same config source, different secrets)
+- Never promote an image that has not passed staging
+- Local-dev must run with `docker-compose up` from a clean checkout (no manual setup steps)
+- Feature flags (if used): staging = production values by default; only override explicitly
 
 ## SDD Workflow
 

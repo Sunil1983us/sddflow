@@ -93,6 +93,18 @@ Summary (row diffs + version bump + change-rules.md Change Impact Matrix
 cross-reference) and WAITs for confirmation.
 No /validate, /analyze, or any later command may run until this gate passes.
 
+## Upgrading Scope
+
+To upgrade `pilot → mvp` or `mvp → full` after initial delivery:
+1. Update `manifest.yml` → `scope: mvp` (or `full`)
+2. Run `sdd review status` to see newly required documents
+3. Generate newly required spec docs: `/specify-doc {name}` for each (e.g. data-model, resilience)
+4. Generate `/plan-lld` if upgrading from pilot (skipped previously)
+5. Append new `CHG-NNN` tasks to `tasks.md` under a new Change Set heading
+6. All new documents go through the same review gates as the original spec
+
+Scope upgrade is a **Major amendment** to constitution Part 2 (version bump X.0).
+
 ## Command Gates
 <!-- shared:command-gates:start -->
 - SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-DESIGN
@@ -150,6 +162,7 @@ PLAN is split into 2 sub-commands — each has its own review gate:
 
 ## /checklist — Optional Spec-Quality Gate (after GATE-1, before /validate)
 
+**Mandatory for `mvp` and `full` scope. Optional for `pilot`.**
 Run `/checklist` after `/specify` + GATE-1 to catch spec quality issues
 before the business sign-off:
 - CRITICAL: unresolved [NEEDS CLARIFICATION], unmeasured NFRs, FRs without
@@ -167,8 +180,8 @@ cannot be submitted until the current one is approved.
 
 | Phase | Sequence | Reviewer |
 |---|---|---|
-| specify | BRD → SRD → Arch → HLD | PO → BA → Architect → Architect |
-| planning | LLD → ADR | Tech Lead → Architect |
+| specify | BRD → Use Cases → SRD → Design | PO → BA + PO → BA → Architect |
+| planning | LLD | Tech Lead |
 | tasks | Tasks | Scrum Master |
 | release | Runbook → Release | DevOps → Release Manager |
 
@@ -220,6 +233,6 @@ For each task in the `/implement` phase:
   - Run after: /implement (all tasks) | Gate before: go-live
 
 ## Command Order
-/specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd → /specify-doc {name}... → /checklist (optional)
+/specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd → /specify-doc {name}... → /checklist (mandatory mvp+, optional pilot)
 → /validate → /analyze → /clarify → /plan-design
 → /plan-lld (mvp+) → /task → /implement → /release

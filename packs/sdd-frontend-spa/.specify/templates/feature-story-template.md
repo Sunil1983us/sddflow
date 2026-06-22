@@ -92,6 +92,18 @@ Sprint 3:
 
 ---
 
+## Sprint Velocity Notes
+
+> Agent assigns stories to sprints based on:
+> - Team velocity: {N} story points per sprint — set in manifest.yml or ask user
+> - Dependencies: stories with upstream TASK dependencies must be in a later sprint
+> - Risk: HIGH complexity stories should not share a sprint with other HIGH stories
+> - Must Have stories always assigned before Should Have / Could Have
+
+If team velocity is unknown: use 20 story points per sprint as a default estimate and note "VERIFY VELOCITY WITH TEAM" in stories.md.
+
+---
+
 ## Traceability Matrix (QA-1)
 
 | Story | FRs | Tasks | Test Cases (TC-NNN) | Risks (R-NNN) | Sprint |

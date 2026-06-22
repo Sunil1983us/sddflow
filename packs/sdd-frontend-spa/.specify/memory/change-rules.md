@@ -3,15 +3,15 @@
 # Add CHANGELOG entry → run impact analysis → update affected docs → CHG-NNN tasks
 
 ## Document Dependency Chain
-context.md → brd → srd → validate → analyze → clarify → arch → plan
-→ component-spec / ux-flow / api-spec / data-model / security-design /
-resilience (refined post-arch)
+context.md → brd → use-cases → srd → validate → analyze → clarify → design
+→ component-spec / ux-flow / data-model / security-design / resilience (refined post-design)
 → hld → lld → tasks → release
 
 ## Change Impact Matrix
 | Change Type | Documents to Update |
 |---|---|
 | New field in request/response | api-spec only |
+| New actor / use case | use-cases + srd |
 | New screen/route | srd + ux-flow + component-spec + hld |
 | New component state | srd + component-spec + data-model + hld |
 | New business rule | srd + arch (if structural) |
@@ -22,12 +22,12 @@ resilience (refined post-arch)
 | Scope upgrade | manifest + newly enabled docs |
 | Bug fix / refactor | code only (CHG task, no doc update) |
 
-## AI-8 — No Unresolved Assumptions Before /plan-arch
-Before /plan-arch can run, every `[ASSUMPTION-NNN]` marker left in brd.md,
+## AI-8 — No Unresolved Assumptions Before /plan-design
+Before /plan-design can run, every `[ASSUMPTION-NNN]` marker left in brd.md,
 srd.md, component-spec.md, ux-flow.md, api-spec.md, data-model.md, or
 security-design.md must be resolved via /clarify (status
 RESOLVED/CONFIRMED/DECIDED in clarify.md) and the source doc updated with
-`<!-- Clarified: {ID} -->`. If any remain unresolved, /plan-arch must STOP
+`<!-- Clarified: {ID} -->`. If any remain unresolved, /plan-design must STOP
 and point back to /clarify.
 
 ## Impact Analysis Output Format
@@ -44,7 +44,7 @@ Append to tasks.md under: ## Change Set: v{N.N} — {date}
 
 ## What Never Changes on a Change Request
 - constitution.md Part 1
-- All templates (including security-design, runbook, validate, release,
+- All templates (including security-design, runbook, validate, release, use-cases,
   component-spec, ux-flow templates)
 - CLAUDE.md
 - copilot-instructions.md

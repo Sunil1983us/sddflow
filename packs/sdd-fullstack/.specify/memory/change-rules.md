@@ -3,13 +3,16 @@
 # Add CHANGELOG entry → run impact analysis → update affected docs → CHG-NNN tasks
 
 ## Document Dependency Chain
-context.md → brd → srd → analyze → arch → plan → hld → lld → tasks
+context.md → brd → use-cases → srd → validate → analyze → clarify → design
+→ data-model / security-design / resilience (refined post-design)
+→ hld → lld → tasks → release
 
 ## Change Impact Matrix
 | Change Type | Documents to Update |
 |---|---|
 | New field in request/response | api-spec only |
-| New endpoint | srd + api-spec + lld |
+| New endpoint | use-cases + srd + design (§3 API) + lld |
+| New actor / use case | use-cases + srd |
 | New status/state | srd + api-spec + data-model + hld |
 | New business rule | srd + arch (if structural) |
 | New DB table | data-model + arch + lld |
@@ -17,6 +20,14 @@ context.md → brd → srd → analyze → arch → plan → hld → lld → tas
 | New integration | srd + arch + api-spec + lld + analyze |
 | Scope upgrade | manifest + newly enabled docs |
 | Bug fix / refactor | code only (CHG task, no doc update) |
+
+
+## AI-8 — No Unresolved Assumptions Before /plan-design
+Before /plan-design can run, every `[ASSUMPTION-NNN]` marker left in brd.md,
+srd.md, data-model.md, or security-design.md must be resolved
+via /clarify (status RESOLVED/CONFIRMED/DECIDED in clarify.md) and the
+source doc updated with `<!-- Clarified: {ID} -->`. If any remain
+unresolved, /plan-design must STOP and point back to /clarify.
 
 ## Impact Analysis Output Format
 CHANGE: {description} | VERSION: v{N.N}
@@ -32,7 +43,8 @@ Append to tasks.md under: ## Change Set: v{N.N} — {date}
 
 ## What Never Changes on a Change Request
 - constitution.md Part 1
-- All templates
+- All templates (including security-design, runbook, validate, release, use-cases,
+  openapi templates)
 - CLAUDE.md
 - copilot-instructions.md
 - Documents NOT in the impact chain
