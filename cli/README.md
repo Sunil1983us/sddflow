@@ -5,14 +5,24 @@ No bash required. Works on Mac, Linux, and Windows.
 
 ## Install
 
-```bash
-# Run once without installing (recommended for first use)
-npx sdd-init init
+> **Note:** `sdd-init` has not been published to npm yet.
+> Use one of the methods below until it is released.
 
-# Or install globally
-npm install -g sdd-init
+```bash
+# Option 1 — Clone the repo and run directly (recommended)
+git clone https://github.com/sunil1983us/universalguide.git
+cd universalguide/cli
+npm install
+node bin/sdd.js init
+
+# Option 2 — Install globally from the local clone
+cd universalguide/cli
+npm install -g .
 sdd init
 ```
+
+**Alternative:** use `bash setup.sh` (Mac/Linux) or `.\setup.ps1` (Windows) instead —
+they do exactly the same thing as `sdd init` without needing Node.js or npm.
 
 ## Commands
 
