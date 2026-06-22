@@ -29,6 +29,19 @@ Accept:
 - Free text pasted in chat, and/or
 - A path to an existing file (any format)
 
+**Feature-hint header (optional):**
+If the raw file begins with a line in either of these formats:
+```
+# specify {feature-name}
+# specify {feature-name}: {one-line description}
+```
+Extract automatically:
+- `{feature-name}` → pre-fill as `manifest.project.feature` (skip asking)
+- `{description}` → seed §1 "What This Service Does" in context.md
+- Strip this header line before mapping the rest of the content onto the template
+
+If no header is present, continue as normal (ask for feature name if blank in manifest).
+
 ## Step 2 — Draft context.md
 Map the raw input onto every section of context-template.md:
   1. What This Service Does
