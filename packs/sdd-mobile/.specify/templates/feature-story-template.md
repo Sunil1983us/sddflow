@@ -114,6 +114,23 @@ Sprint 3:
 
 If team velocity is unknown: use 20 story points per sprint as a default estimate and note "VERIFY VELOCITY WITH TEAM" in stories.md.
 
+### BUFFER — Sprint {last sprint N}
+**Story Points:** {ceil(total SP × 0.10)} — 10% buffer for rework from review cycles
+**Purpose:** Absorbs review feedback, unexpected complexity, and sprint 1–N spillover.
+**Rule:** Reduce buffer only if team has ≥ 3 sprints of proven velocity data showing < 5% spillover.
+
+---
+
+## Cross-Sprint Dependencies
+
+> Stories that cannot start until another story in a prior sprint is complete. Generated from TASK `Dependencies:` fields.
+
+| Blocked Story | Depends On Story | Reason | Earliest Sprint Start |
+|---|---|---|---|
+| STORY-{N} | STORY-{M} (Sprint {X}) | {TASK-NNN depends on TASK-MMM output} | Sprint {X+1} |
+
+**Risk:** If a blocking story slips, all dependent stories shift by at least 1 sprint. Flag to Scrum Master immediately on any blocker slip.
+
 ---
 
 ## Traceability Matrix (QA-1)
@@ -134,4 +151,6 @@ to at least one UC-NNN so the business flow is fully covered.
 ## Approvals
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Product Owner (accountable — stories + scope approved) | Pending | |
+| Tech Lead (responsible — task accuracy + dependency review) | Pending | |
+| QA Lead (consulted — test case mapping confirmed, mvp+) | Pending | |

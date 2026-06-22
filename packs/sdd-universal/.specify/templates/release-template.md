@@ -21,17 +21,17 @@
 - [ ] All PRs referenced TASK-NNN/CHG-NNN (constitution Git rule)
 - [ ] Test suite green (unit + integration)
 - [ ] Coverage ≥ gate (constitution Part 2)
-- [ ] Security checklist passed (security-design.md section 1, +2 if mvp+)
+- [ ] Security checklist passed — see `security-design.md §1` signed by {security_officer} on {date} (evidence required, not self-attestation)
 - [ ] stories.md Traceability Matrix — every FR-NNN has ≥ 1 TC-NNN and is passing
 
 ---
 
 ## 2. UAT Plan
 
-| UC-NNN (from use-cases.md) | Scenario | Tester | Environment | Result |
-|---|---|---|---|---|
-| UC-001 | {happy path} | {role} | {staging} | [ ] Pass [ ] Fail |
-| UC-002 | {unhappy path} | {role} | {staging} | [ ] Pass [ ] Fail |
+| UC-NNN (from use-cases.md) | Scenario | Tester | Environment | Environment Prerequisites | Result |
+|---|---|---|---|---|---|
+| UC-001 | {happy path} | {role} | {staging} | {e.g. payment sandbox v2 configured, test card set loaded} | [ ] Pass [ ] Fail |
+| UC-002 | {unhappy path} | {role} | {staging} | {e.g. mock integration set to timeout mode} | [ ] Pass [ ] Fail |
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
@@ -39,10 +39,24 @@
 
 ## 3. Deployment Plan
 
+### Strategy Selection
+
+Choose deployment strategy based on NFR requirements:
+
+| Condition | Strategy | Rationale |
+|---|---|---|
+| Zero-downtime required (NFR mandates < 0.1% error rate during deploy) | Blue-Green | Full environment swap with instant traffic cut-over; rollback = flip DNS back |
+| Gradual rollout preferred + monitoring in place to catch error-rate spikes | Canary | Shift 5% → 25% → 100% traffic with automated rollback trigger |
+| No strict uptime NFR + simple single-instance service | Rolling | Default — replace instances one at a time; simplest operational model |
+
+**Selected strategy for this release:** {rolling | blue-green | canary} — Reason: {NFR-NNN or explicit decision}
+
+### Steps
+
 | Step | Action | Owner | Rollback If Fails |
 |---|---|---|---|
-| 1 | Deploy DB migrations (V{NNN}) | {role} | Run down-script (docs/runbook/local-setup.md §6) |
-| 2 | Deploy application — {strategy: rolling/blue-green/canary} | {role} | Redeploy previous image tag |
+| 1 | Deploy DB migrations (V{NNN}) | {role} | Run down-script (docs/runbook/local-setup.md §6 or §7 below for pilot) |
+| 2 | Deploy application — {selected strategy} | {role} | Redeploy previous image tag |
 | 3 | Smoke test (section 4) | {role} | Roll back step 2 |
 | 4 | Enable feature flag / traffic shift | {role} | Disable flag / revert traffic |
 
@@ -58,6 +72,8 @@
 | {key happy-path endpoint} | {expected response} | [ ] |
 | Logs show no ERROR within {N} min | true | [ ] |
 | {key NFR — e.g. P99 latency} | within target (NFR-{NNN}) | [ ] |
+| No new P1/P2 alerts in monitoring system within {N} min of deploy | Zero new alerts | [ ] |
+| Error rate in APM/dashboard | < 1% baseline | [ ] |
 
 ---
 
@@ -82,7 +98,19 @@
 
 ## 7. Rollback Plan
 
-{Summary — full detail in docs/runbook/local-setup.md §6}
+> **MVP+ scope:** Full rollback detail is in `docs/runbook/local-setup.md §6`. Summary below for quick reference.
+>
+> **Pilot scope:** Runbook not generated at pilot scope. Document your rollback steps here before proceeding to §5 Go-Live Gate. Minimum required:
+
+| Step | Action | Owner | Time Estimate |
+|---|---|---|---|
+| 1 | Revert application to previous image / deployment | {devops_sre} | {N} min |
+| 2 | Roll back DB migrations if any were applied (run V{NNN}__down.sql) | {devops_sre} | {N} min |
+| 3 | Verify health endpoint returns 200 on previous version | {devops_sre} | {N} min |
+| 4 | Notify stakeholders — rollback complete | {tech_lead} | {N} min |
+
+**Rollback decision owner:** Tech Lead — triggers rollback if smoke test fails or P1 alert fires within {N} min of go-live.
+**Maximum acceptable rollback time:** {N} minutes (from decision to stable previous state).
 
 ---
 
@@ -90,4 +118,7 @@
 
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| QA Lead (responsible — UAT sign-off) | Pending | |
+| Product Owner (accountable — go-live decision) | Pending | |
+| Tech Lead (consulted — technical readiness) | Pending | |
+| DevOps/SRE (consulted — deployment readiness) | Pending | |

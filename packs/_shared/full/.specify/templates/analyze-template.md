@@ -14,18 +14,20 @@
 ## 1. Executive Summary
 {2-3 sentences: overall complexity, biggest risks, key recommendation.}
 Overall Complexity: LOW | MEDIUM | HIGH
+Complexity Context: {1 sentence — e.g. "MEDIUM: 3 external integrations, 1 HIGH data-consistency risk, estimated 3–5 sprints at typical team velocity."}
 
 ---
 
 ## 2. Risk Register
 
-| ID | Risk | Likelihood | Impact | Linked FR/NFR (AR-3) | Mitigation |
-|---|---|---|---|---|---|
-| R-001 | {risk} | Low/Med/High | Low/Med/High/Critical | FR-{NNN} / NFR-{NNN} | {action} |
+| ID | Risk | Likelihood | Impact | Linked FR/NFR (AR-3) | Mitigation | Mitigating Tasks |
+|---|---|---|---|---|---|---|
+| R-001 | {risk} | Low/Med/High | Low/Med/High/Critical | FR-{NNN} / NFR-{NNN} | {action} | _(filled by /task)_ |
 
 Every risk must link to at least one FR-NNN or NFR-NNN it threatens — if
 none applies, link to the relevant Domain Rule from constitution Part 2.
 Carried into feature-story-template.md Traceability Matrix (R-NNN column).
+`Mitigating Tasks` is populated by `/task` — each TASK-NNN that directly addresses this risk is listed here, giving the tech lead a live link from risk to deliverable.
 
 ### High/Critical Risks — Detail
 
@@ -121,4 +123,5 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 ## Approvals
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Tech Lead (accountable) | Pending | |
+| Architect (consulted, mvp+) | Pending | |
