@@ -5,252 +5,178 @@
 
 ## The Fundamental Rule
 
-> Never change code directly.
-> Update context.md first.
-> Let the pipeline propagate.
+> A change request can be raised at ANY stage by ANY role.
+> Run /change — the agent reads existing documents one by one,
+> shows only what needs updating, and waits for your approval
+> before touching the next document.
 
 ---
 
-## The 3 Types of Change
+## The /change Command
 
-### Type 1 — Additive (new field, new rule, new endpoint)
-Something new added. Existing behaviour unchanged.
 ```
-Example: Add new field to response
-Example: Add new endpoint
-Example: Add new status/state
+/change "describe the change — what needs to change, why, and who is raising it"
 ```
+
+Examples:
+```
+/change "BA discovered a missing retry requirement for payment gateway 402 errors"
+/change "security team requires field-level encryption for card numbers — PCI finding"
+/change "wrong response shape in UC-003 — payload has orderId not order_id"
+/change "scope upgrade from pilot to mvp — add api-spec and data-model"
+```
+
+The agent:
+1. **Classifies** the CR type (one of 8 — see table below)
+2. **Detects current stage** from documents that exist in `.specify/features/{feature}/`
+3. **Presents a walk plan** — which documents to check in dependency order
+4. **Walks each document** one at a time — reads it, then decides:
+   - **SKIP** — CR has no impact; states reason; moves on immediately
+   - **ANNOTATE** — upstream approved document; adds CR reference note; moves on
+   - **UPDATE** — shows BEFORE / AFTER diff for the affected section only; **STOPS and waits for your approval**
+   - **RERUN** — major structural impact; explains why; saves backup; **STOPS and waits for confirmation**
+   - **INCORPORATE** — document not yet created; CR built in automatically when generated
+5. After all documents: proposes **CHG-NNN implementation tasks**
+6. Saves changeset record: `.specify/features/{feature}/changesets/CR-NNN.md`
+
+---
+
+## CR Types
+
+| Type | Raise when | Primary documents affected |
+|---|---|---|
+| Business | Missing requirement, wrong rule, scope change, new stakeholder | context → brd → use-cases → srd → validate |
+| Technical | New integration, tech stack change, architecture decision | context → constitution → design → lld |
+| Security | New regulation, vulnerability, compliance gap | context → brd §6 → srd (NFR) → security-design |
+| Data | New field, new entity, schema change, payload change | context → data-model → srd → api-spec → design |
+| UX | New screen, flow change, accessibility gap | context → use-cases → srd → design |
+| Performance | New NFR, SLA change, load target | context → srd (NFR) → analyze → resilience |
+| Operational | Deployment change, config change, runbook update | context → constitution → design → runbook |
+| Defect | Wrong spec, contradiction, error in existing document | from defect location forward in chain |
+
+---
+
+## Ripple-Forward Rule
+
+A CR only affects documents **downstream** from where it is raised.
+
+- Documents **upstream** (already approved) → **ANNOTATE** only; never re-opened unless the CR directly invalidates them
+- Documents **downstream** (already created) → walk and assess (UPDATE or SKIP)
+- Documents **not yet created** → **INCORPORATE** automatically when generated
+
+---
+
+## Document Dependency Chain
+
+```
+context.md → brd → use-cases → srd → security-design → api-spec → data-model
+→ validate → analyze → clarify → design → lld → qa-testcases → tasks → release
+```
+
+---
+
+## The 3 Types of Change (what triggers a CR)
+
+### Type 1 — Additive (new field, new rule, new endpoint, missing requirement)
+Something new that was not in scope before. Existing behaviour unchanged.
 
 ### Type 2 — Modification (change existing behaviour)
-Existing behaviour changes. May affect consumers.
-```
-Example: Change timeout value
-Example: Change business rule logic
-Example: Rename a status
-```
+Existing behaviour changes. May affect consumers, test cases, or API contracts.
 
 ### Type 3 — Scope Upgrade
-New capability cluster added.
-```
-Example: pilot → mvp (add resilience, LLD, ADRs)
-Example: Add investigation cases
-Example: Add new integration
-```
+New capability cluster added (e.g. pilot → mvp adds api-spec, data-model, LLD).
+
+For scope upgrades, update `manifest.yml` first, then run `/change "scope upgraded from pilot to mvp"`.
 
 ---
 
-## The Change Workflow
+## What /change Produces
 
-```
-C1  Update context.md + CHANGELOG entry
-        ↓
-C2  Impact analysis (which docs affected?)
-        ↓
-C3  Review gate — YOU approve impact list
-        ↓
-C4  Update ONLY affected documents
-        ↓
-C5  Append CHG-NNN tasks to tasks.md
-        ↓
-C6  Implement CHG tasks (same PR rules)
-```
+After the walk completes, you get:
+- **Updated documents** — only the sections that needed changing, with your approval on each
+- **CHG-NNN tasks** — implementation work created by the CR, appended to `tasks.md`
+- **Changeset record** — `CR-NNN.md` in `.specify/features/{feature}/changesets/` with full walk log, BEFORE/AFTER diffs, and approvals
 
 ---
 
-## C1 — Update Context First
+## Quality Check Options (at each UPDATE)
 
-```markdown
-## CHANGELOG
-
-### v1.1 — {date} — {author}
-- Added: {new capability}
-- Changed: {what changed and why}
-- Removed: {what removed}
-- Impact: {which documents need updating}
-```
-
-Also update the relevant section of context.md.
+When the agent shows a BEFORE/AFTER diff, reply with one of:
+- **`approved`** — apply this change and continue to the next document
+- **`modify: {your text}`** — apply your version instead, then continue
+- **`skip`** — leave this document unchanged and continue
+- **`stop`** — pause the walk here (resume with `/change resume CR-NNN`)
 
 ---
 
-## C2 — Impact Analysis
+## Which Documents Are Typically Affected
 
-### Claude Code
-```
-Read .specify/memory/change-rules.md
-Read .specify/contexts/{feature}.md — focus on latest CHANGELOG
-
-Perform impact analysis:
-  List documents to UPDATE (with reason)
-  List documents to SKIP
-  List new CHG-NNN tasks needed
-  Estimate total lines + PRs
-
-Do NOT change anything yet — analysis only.
-```
-
-### Copilot
-```
-@workspace Read change-rules.md + contexts/{f}.md changelog
-Impact analysis only — list update/skip/tasks.
-```
-
-**Example output:**
-```
-CHANGE: Add X-Priority header support
-VERSION: v1.1
-
-DOCS TO UPDATE:
-  ✅ srd.md       — add FR-016
-  ✅ api-spec.md  — add header to all endpoints
-  ⏭ design.md      — not affected
-  ⏭ design.md       — not affected
-  ⏭ data-model   — not affected
-
-NEW TASKS:
-  CHG-001: Add X-Priority to request record — est 20 lines
-  CHG-002: Update service to propagate header — est 40 lines
-  CHG-003: Update integration tests — est 60 lines
-
-TOTAL: 2 docs, 3 tasks, ~120 lines, 3 PRs
-```
-
----
-
-## C3 — Review Gate
-
-Review impact list before agent touches anything:
-- Right documents selected?
-- Correct tasks identified?
-- Estimate reasonable?
-
-Type "go" to proceed. Type "adjust: {what}" to correct.
-
----
-
-## C4 — Update Documents
-
-### Claude Code
-```
-Read change-rules.md + contexts/{f}.md (v{N.N} changes only)
-Update ONLY: {list from impact analysis}
-Preserve all existing content
-Mark each change: <!-- v{N.N} -->
-Regenerate .summary.md for each updated doc
-Show diff summary: "{doc}.md — {N} lines added in section {X}"
-```
-
----
-
-## C5 — Add Change Tasks
-
-```
-Read tasks.md
-Append at bottom:
-
-## Change Set: v{N.N} — {date} — {description}
-
-### CHG-001: {title}
-Satisfies: FR-{NNN} (updated)
-Estimated lines: {N} | PR: single
-Acceptance criteria:
-  - [ ] {criterion}
-```
-
----
-
-## C6 — Implement CHG Tasks
-
-Same as normal /implement — one task at a time.
-PR rules enforced. Max 400 lines per PR.
-
----
-
-## Which Commands to Re-Run Per Change Type
-
-| Change | Re-run Commands |
+| Change | Primary documents to update |
 |---|---|
-| New field in request/response | /specify (api-spec only, mvp+) → /plan-design (refine) → /task |
-| New endpoint | /specify (srd + api-spec) → /plan-design (refine) → /task |
-| New status/state | /specify (srd + api-spec + data-model) → /plan-design (update diagram) → /task |
-| New business rule | /specify (srd) → /task |
-| Architecture change | /specify + /plan-design → /task |
-| New integration | /specify + /analyze (re-run) + /plan-design → /task |
-| New security control / regulation | /specify (security-design) → /plan-design (refine) → /release (regulatory trace) |
-| Scope upgrade | See scope upgrade section below |
-
-AI-8 applies on re-runs too: if any updated doc gets a new
-`[ASSUMPTION-NNN]`, run /clarify before /plan-design.
-
----
-
-## Scope Upgrade
-
-```
-Edit manifest.yml: scope: "pilot" → "mvp"
-
-Tell agent:
-"Scope upgraded to mvp. Re-read manifest.yml.
- Run /specify for newly enabled docs only: component-spec, ux-flow,
-   api-spec, security-design (§2 additions)
- Run /plan-design to update design.md with the new scope docs
- Run /plan-lld (now enabled)
- Run /plan-design (now enabled)
- Update /task with new tasks"
-```
-
-Scope upgrade to full additionally triggers /plan-design refine of
-component-spec, ux-flow, api-spec, data-model, resilience, investigation,
-and security-design (§3-4) as applicable per scope.
-
-Optional: if `.specify/contexts/{feature}.raw.md` exists (saved by an
-earlier `/create-context` run) and the new scope needs information that
-was previously marked `[MISSING — ask user]`, re-run `/create-context` —
-it will re-read context.md + the raw notes and re-prompt only for the
-gaps relevant to the new scope.
+| New field in request/response | api-spec |
+| New endpoint | use-cases + srd + design + lld |
+| New actor or use case | use-cases + srd |
+| New status/state | srd + api-spec + data-model |
+| New business rule | srd |
+| New DB table | data-model + design + lld |
+| NFR change | srd + resilience |
+| New integration | srd + design + api-spec + lld + analyze |
+| New security control / regulation | security-design + srd |
+| Scope upgrade | manifest + newly enabled docs (INCORPORATE) |
+| Bug fix / refactor | code only (CHG task, no doc update) |
 
 ---
 
-## Change Impact By Document
+## After /change: Implement CHG Tasks
 
-| Change Type | Update | Skip |
-|---|---|---|
-| New field | api-spec | srd, arch, hld, data-model |
-| New endpoint | srd + api-spec + lld | arch, hld, data-model |
-| New status | srd + api-spec + data-model + hld | arch, lld |
-| New business rule | srd | all others |
-| New DB table | data-model + arch + lld | srd, api-spec, hld |
-| NFR change | srd + resilience | all others |
-| New integration | srd + arch + api-spec + lld + analyze | hld, data-model |
-| New security control / regulation | security-design + srd | arch, hld, data-model |
-| Bug fix / refactor | none | all (code only) |
+CHG-NNN tasks created by the CR are appended to `tasks.md` under:
+```
+## Change Set: CR-NNN — {date}
+```
 
-Every change above must also be reflected in /release §6 (Business
-Objective Closure) if it affects a BO-NNN metric, and in /release §2
-(UAT Plan) if it adds a new UC-NNN.
+Implement them the same way as regular TASK work:
+- One CHG task per PR (same line + file limits apply)
+- Same PR rules: estimate → code → pre-review → PR → human review → merge
 
 ---
 
 ## Git Conventions for Changes
 
 ```bash
-# Document updates
-git commit -m "docs(v1.1): update srd + api-spec for X-Priority"
+# Document updates (applied by /change)
+git commit -m "docs(CR-001): update srd + api-spec for payment retry requirement"
 
-# Change implementation
-git commit -m "feat(CHG-001): add X-Priority to request record"
-git commit -m "feat(CHG-002): propagate X-Priority through service"
-git commit -m "test(CHG-003): update integration tests for X-Priority"
+# CHG task implementation
+git commit -m "feat(CHG-001): add retry logic for 402 responses in payment gateway"
+git commit -m "test(CHG-002): add integration tests for payment retry flow"
+```
+
+---
+
+## Scope Upgrade Example
+
+```
+# 1. Edit manifest.yml
+scope: "mvp"
+
+# 2. Run /change
+/change "scope upgraded from pilot to mvp — need api-spec, data-model, LLD"
+
+# 3. /change will:
+#    - ANNOTATE upstream docs (context, brd, use-cases, srd, security §1)
+#    - INCORPORATE api-spec + data-model (not yet created)
+#    - UPDATE design.md to add LLD-scope sections
+#    - INCORPORATE lld (not yet created)
+#    - Propose CHG-NNN tasks for the new scope work
 ```
 
 ---
 
 ## What NEVER Changes on a Change Request
 
-- constitution.md Part 1
-- All templates (including validate-template, release-template,
-  runbook-template, security-design-template)
-- CLAUDE.md + copilot-instructions.md
-- roles.yml (unless reviewer/owner assignments change)
-- Documents NOT in the impact chain
-- Summary-rules.md (unless limit needs adjusting)
+- `constitution.md` Part 1
+- All templates (including security-design, runbook, validate, release, use-cases, openapi)
+- `CLAUDE.md` + `copilot-instructions.md`
+- `roles.yml` (unless reviewer/owner assignments change)
+- `summary-rules.md`
+- Documents **not** in the impact chain

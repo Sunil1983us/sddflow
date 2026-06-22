@@ -3,6 +3,10 @@ Feature: {manifest.project.feature}
 Version: v1.0 | Date: {date}
 Status: DRAFT
 
+> **Inference Marker:** Steps or paths not explicitly stated in `context.md` but derived by the agent are marked `[INFERRED: {basis}]`.
+> The Business Analyst reviews every `[INFERRED]` marker and either: confirms it (remove the marker), corrects it (update the step), or escalates it as a `[NEEDS CLARIFICATION]`.
+> Confirmed steps carry no marker. Only inferred content is flagged.
+
 ---
 
 ## §1 Actor Registry
@@ -134,15 +138,26 @@ Status: DRAFT
 
 ## §4 Use Case Relationships
 
+> Agent generates the complete relationship diagram from all UC-NNN in §3. Every `includes` and `extends` relationship is listed. If no relationships exist, state "No UC relationships — all use cases are independent."
+
 ```
-UC-001 ──includes──► UC-002     (UC-001 always triggers UC-002 as a sub-flow)
-UC-003 ──extends──►  UC-001     (UC-003 adds optional behaviour to UC-001)
+{Generated full relationship map — example structure:}
+
+UC-001 ──includes──► UC-003     (UC-001 always triggers UC-003 as a mandatory sub-flow)
+UC-002 ──includes──► UC-003     (UC-002 also always triggers UC-003)
+UC-004 ──extends──►  UC-001     (UC-004 adds optional behaviour to UC-001 at extension point EP-001A)
+UC-005 ──extends──►  UC-002     (UC-005 adds conditional behaviour when {condition})
 ```
 
-**includes** — UC-A always executes UC-B as part of its flow (mandatory sub-use-case)  
+**includes** — UC-A always executes UC-B as part of its flow (mandatory sub-use-case)
 **extends** — UC-A adds optional or conditional behaviour to UC-B (extension point)
 
-_(Remove this section if no UC relationships apply.)_
+| Relationship | Type | Trigger / Condition |
+|---|---|---|
+| UC-{A} → UC-{B} | includes | Always — {description} |
+| UC-{C} → UC-{D} | extends | When {condition} — at {extension point} |
+
+_(If no UC relationships apply: state "No relationships — all use cases are independent.")_
 
 ---
 
@@ -154,3 +169,11 @@ _(Remove this section if no UC relationships apply.)_
 | UC-002 | BR-003 | Medium | Integration flow |
 
 FR-NNN columns are populated by **/specify-srd** after this document is approved.
+
+---
+
+## Approvals
+| Role | Status | Date |
+|---|---|---|
+| Business Analyst (responsible — domain accuracy) | Pending | |
+| Product Owner (accountable — business scenario sign-off) | Pending | |

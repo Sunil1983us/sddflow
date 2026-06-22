@@ -14,16 +14,18 @@
 
 ## 1. Pilot Security Checklist (always)
 
-| Control | Requirement | Status |
-|---|---|---|
-| AuthN | All endpoints require auth (NFR-{NNN}) | {Yes/No} |
-| AuthZ | Role/scope check before business logic | {Yes/No} |
-| Input validation | All request fields validated (no raw passthrough) | {Yes/No} |
-| Secrets | No secrets in code/config/logs — env vars or vault | {Yes/No} |
-| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} |
-| Transport | TLS enforced — no plaintext HTTP | {Yes/No} |
-| Dependency check | No known-critical CVEs in dependencies | {Yes/No} |
-| Error responses | No stack traces / internals leaked to caller | {Yes/No} |
+| Control | Requirement | Status | Evidence |
+|---|---|---|---|
+| AuthN | All endpoints require auth (NFR-{NNN}) | {Yes/No} | {TC-NNN / TASK-NNN / scan on {date}} |
+| AuthZ | Role/scope check before business logic | {Yes/No} | {TC-NNN controller test + constitution rule reference} |
+| Input validation | All request fields validated (no raw passthrough) | {Yes/No} | {TC-NNN validation tests} |
+| Secrets | No secrets in code/config/logs — env vars or vault | {Yes/No} | {secret-scan tool run on {date}, report at {location}} |
+| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} | {log review / SAST result on {date}} |
+| Transport | TLS enforced — no plaintext HTTP | {Yes/No} | {TC-NNN / infrastructure config reference} |
+| Dependency check | No known-critical CVEs in dependencies | {Yes/No} | {{tool} scan on {date} — {N} critical, {N} high CVEs, all resolved/accepted} |
+| Error responses | No stack traces / internals leaked to caller | {Yes/No} | {TC-NNN error response tests} |
+
+> `Evidence` must reference a specific artefact (test case, scan report, task, or date). "Yes" without evidence is not accepted at mvp+ scope.
 
 ---
 
@@ -35,20 +37,33 @@
 | Dependency scan (SCA) | Block on critical/high CVEs | {tool} |
 | Secret scan | Block commit/PR containing secrets | {tool, e.g. gitleaks} |
 | Rate limiting | Per-client throttling on public endpoints | {approach} |
-| Audit logging | Security-relevant events logged with actor + outcome | {events list} |
+| Audit logging | Security-relevant events logged with actor + outcome | See trigger event list below |
+
+**Audit Trigger Events** — seed from use case Exception Paths (EP-NNN) in use-cases.md:
+
+| Event | Source EP/FR | Log Fields Required |
+|---|---|---|
+| Authentication failure | {EP-NNN — auth failed} | actor_id, endpoint, timestamp, reason |
+| Authorization denied | {EP-NNN — insufficient scope} | actor_id, resource, action, timestamp |
+| Input validation failure (security-relevant fields) | {EP-NNN — invalid input} | actor_id, field_name, timestamp |
+| {Additional event from EP-NNN} | {EP-NNN} | {fields} |
+
+> Populate this table from the Exception Paths in `use-cases.md §3`. Every EP that involves auth, data access, or external system failure is a candidate audit event.
 
 ---
 
 ## 3. Full — Threat Model (STRIDE)
 
-| ID | Component | Threat (STRIDE category) | Description | Mitigation | Residual Risk |
-|---|---|---|---|---|---|
-| THR-001 | {component} | Spoofing | {description} | {mitigation} | Low/Med/High |
-| THR-002 | {component} | Tampering | {description} | {mitigation} | Low/Med/High |
-| THR-003 | {component} | Repudiation | {description} | {mitigation} | Low/Med/High |
-| THR-004 | {component} | Information Disclosure | {description} | {mitigation} | Low/Med/High |
-| THR-005 | {component} | Denial of Service | {description} | {mitigation} | Low/Med/High |
-| THR-006 | {component} | Elevation of Privilege | {description} | {mitigation} | Low/Med/High |
+| ID | Component | Threat (STRIDE) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
+|---|---|---|---|---|---|---|
+| THR-001 | {component} | Spoofing | {description} | {mitigation} | {Critical 9-10 / High 7-8.9 / Med 4-6.9 / Low 0-3.9 or "QA"} | Low/Med/High |
+| THR-002 | {component} | Tampering | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-003 | {component} | Repudiation | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-004 | {component} | Information Disclosure | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-005 | {component} | Denial of Service | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-006 | {component} | Elevation of Privilege | {description} | {mitigation} | {CVSS} | Low/Med/High |
+
+> **CVSS column:** Use the [CVSS 3.1 calculator](https://www.first.org/cvss/calculator/3.1) for formal scoring, or use the qualitative band (Critical/High/Med/Low) and mark "QA" if formal scoring is out of scope. Any THR with CVSS ≥ 7.0 (High or Critical) must have a confirmed mitigation before /release.
 
 ### DAST
 
@@ -89,4 +104,5 @@
 
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Security Officer (accountable — controls adequacy) | Pending | |
+| Tech Lead (consulted — implementation feasibility) | Pending | |

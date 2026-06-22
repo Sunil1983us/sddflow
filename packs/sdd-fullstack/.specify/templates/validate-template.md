@@ -22,9 +22,11 @@
 
 ## 2. Business Requirements Review
 
-| BR-NNN | Requirement | Priority | Correctly Reflected in SRD? |
-|---|---|---|---|
-| BR-001 | {requirement} | Must Have | [ ] Yes  [ ] No — comment: |
+> Two-column sign-off: the Business Analyst confirms technical reflection; the Product Owner confirms business intent. Each signs only their column.
+
+| BR-NNN | Requirement | Priority | BA Confirms: FR-NNN satisfies BR-NNN? | PO Confirms: Intent matched? |
+|---|---|---|---|---|
+| BR-001 | {requirement} | Must Have | [ ] Yes  [ ] No — FR-{NNN} | [ ] Yes  [ ] No — comment: |
 
 ---
 
@@ -67,21 +69,30 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 | Product Owner | {name} | [ ] Approved  [ ] Changes Requested | |
 | Business Analyst | {name} | [ ] Approved  [ ] Changes Requested | |
 
-**If "Changes Requested":** list items below, update context.md, re-run /specify for affected docs, re-run /validate.
+---
 
-- {requested change 1}
+## 6. Change Requests (when §5 decision is "Changes Requested")
+
+> Each change gets a CR-NNN ID. Re-sign-off confirms every CR-NNN is resolved before /analyze proceeds.
+
+| CR-NNN | Description | Raised By | Affects Doc(s) | Owner | Resolution | Resolved Date |
+|---|---|---|---|---|---|---|
+| CR-001 | {change description} | {role} | {brd / srd / use-cases} | {owner} | {how resolved} | |
+
+**Re-sign-off:** All CR-NNN items resolved → update context.md → re-run `/specify` for affected docs → re-run `/validate`. PO and BA re-sign §5.
 
 ---
 
-## 6. Outcome
+## 7. Outcome
 
 State one of:
-- "VALIDATE complete — all objectives traced, all assumptions confirmed. Ready for /analyze."
-- "VALIDATE incomplete — {N} items need changes. Update context.md and re-run /specify before re-validating."
+- "VALIDATE complete — all objectives traced, all assumptions confirmed, no open CR-NNN. Ready for /analyze."
+- "VALIDATE incomplete — {N} CR-NNN items open. Resolve and re-validate before /analyze."
 
 ---
 
 ## Approvals
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Product Owner (accountable) | Pending | |
+| Business Analyst (responsible) | Pending | |
