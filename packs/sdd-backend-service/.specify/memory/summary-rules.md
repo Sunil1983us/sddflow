@@ -63,8 +63,15 @@ and may shift if a template gains new sections.
 - Any unresolved [ASSUMPTION-NNN] (Assumptions)
 - Success criteria
 
+### use-cases.summary.md
+- All ACT-NNN: name + type (Primary / Secondary / System)
+- All UC-NNN: title + actor(s) + priority + BR-NNN traces
+- AP/EP count per UC (e.g. "UC-001: 2 AP, 1 EP")
+- UC relationships (extends / includes) if any
+- Any unresolved [ASSUMPTION-NNN] or [NEEDS CLARIFICATION]
+
 ### srd.summary.md
-- Every FR-NNN + priority (Functional Requirements) — list all, no grouping
+- Every FR-NNN + priority + UC-NNN trace (Functional Requirements) — list all, no grouping
 - Every NFR-NNN + threshold value e.g. "NFR-001 P99 ≤ 500ms" (Non-Functional Requirements)
 - All integrations + direction + mock/real phase (Integrations)
 - All constraints (Constraints)

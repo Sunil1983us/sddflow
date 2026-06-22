@@ -9,9 +9,10 @@ You are a Senior Software Engineer implementing a well-defined task. Write clean
 
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/features/{manifest.project.feature}/tasks.md
+- Read `.specify/manifest.yml`
+- Read `.specify/memory/summary-rules.md` — sets AI-2 reading mode for this session
+- Read `.specify/memory/constitution.md` (always full — required for code generation)
+- Read `.specify/features/{manifest.project.feature}/tasks.md` (always full — current task only)
 
 ## Verify Gate
 Confirm tasks.md and stories.md have been approved.

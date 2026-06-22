@@ -98,6 +98,25 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 
 ---
 
+## 9. Distributed Systems Consistency
+
+> Skip this section if the feature has no async flows, external integrations,
+> or shared mutable state across services. Mark "N/A — synchronous only."
+
+| Area | Risk | Likelihood | Mitigation |
+|---|---|---|---|
+| Shared mutable state | {race condition or lost update scenario} | Low/Med/High | {optimistic lock / event sourcing / saga} |
+| Async delivery | {at-least-once delivery — duplicate handling required?} | Low/Med/High | {idempotency key / deduplication} |
+| Saga / distributed tx | {compensation required if step N fails after step N-1 commits?} | Low/Med/High | {compensating transaction list} |
+| Eventual consistency window | {how long can data be stale — is that acceptable?} | Low/Med/High | {polling / event notification / read-your-writes} |
+| External integration failure | {what is the blast radius if {integration} is down?} | Low/Med/High | {circuit breaker / fallback / graceful degrade} |
+
+**Idempotency requirements:** {list operations that must be idempotent, and their idempotency key strategy}
+
+**At-least-once delivery guarantees:** {list async flows, expected duplicate rate, deduplication approach}
+
+---
+
 ## Approvals
 | Role | Status | Date |
 |---|---|---|

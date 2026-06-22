@@ -9,19 +9,20 @@ You are a Staff Software Engineer producing the detailed technical design that d
 
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/summary-rules.md
-Read .specify/features/{manifest.project.feature}/plan.summary.md
-Read .specify/features/{manifest.project.feature}/arch.summary.md
-Read .specify/templates/lld-template.md
+- Read `.specify/manifest.yml`
+- Read `.specify/memory/summary-rules.md` — sets AI-2 reading mode for this session
+- Read `.specify/memory/constitution.md`
+- Read prior documents per AI-2 reading mode (`manifest.yml → reading_mode`):
+  - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
+  - `.specify/features/{manifest.project.feature}/design.summary.md` (or `design.md`)
+- Read `.specify/templates/lld-template.md`
 
 ## Scope Check
 If manifest.scope = pilot → STOP.
 State: "PLAN-LLD skipped — pilot scope. Proceed to PLAN-ADR or TASK."
 
 ## Verify Gate
-arch.md + hld.md must exist and be reviewed.
+design.md + design.md must exist and be reviewed.
 If missing — STOP. Run PLAN-ARCH and PLAN-HLD first.
 
 ## Your Task

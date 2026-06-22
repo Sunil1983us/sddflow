@@ -26,6 +26,11 @@ find full -type f | while read -r src; do
   rel="${src#full/}"
   for pack in ../sdd-*; do
     dest="$pack/$rel"
+    # sdd-universal has pack-specific setup.sh/setup.ps1 (with auto-detection)
+    # that must not be overwritten by the shared base versions.
+    if [[ "$pack" == *"sdd-universal"* && ( "$rel" == "setup.sh" || "$rel" == "setup.ps1" ) ]]; then
+      continue
+    fi
     if [ -f "$dest" ]; then
       if ! cmp -s "$src" "$dest"; then
         cp "$src" "$dest"

@@ -25,7 +25,7 @@ pr_rules:
 #   auto:    use .summary.md when present; fall back to full .md + generate summary
 #   summary: always use .summary.md; warn if missing
 #   full:    always read full .md — for deep debugging or initial migration
-# reading_mode: "auto"
+reading_mode: "auto"   # auto | summary | full — see summary-rules.md
 
 # Testing Style — paired | tdd | bdd   DEFAULT: paired
 #   paired: write test alongside implementation — same PR, never deferred

@@ -9,17 +9,18 @@ You are a Release Manager coordinating the go-live of a validated feature. Nothi
 
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/roles.yml
-Read .specify/features/{manifest.project.feature}/tasks.md
-Read .specify/features/{manifest.project.feature}/qa-testcases.summary.md
-  (mvp+ — skip if not present for pilot)
-Read .specify/features/{manifest.project.feature}/brd.summary.md
-Read .specify/features/{manifest.project.feature}/srd.summary.md
-Read docs/runbook/local-setup.md (mvp+ — for rollback summary, covers
-  both backend service and frontend deploy)
-Read .specify/templates/release-template.md
+- Read `.specify/manifest.yml`
+- Read `.specify/memory/summary-rules.md` — sets AI-2 reading mode for this session
+- Read `.specify/memory/constitution.md`
+- Read `.specify/memory/roles.yml`
+- Read `.specify/features/{manifest.project.feature}/tasks.md` (always full — task list)
+- Read prior documents per AI-2 reading mode (`manifest.yml → reading_mode`):
+  - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
+  - `.specify/features/{manifest.project.feature}/qa-testcases.summary.md` (or `qa-testcases.md`) — mvp+, skip if absent
+  - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
+  - `.specify/features/{manifest.project.feature}/srd.summary.md` (or `srd.md`)
+- Read `docs/runbook/local-setup.md` (mvp+ — for rollback summary, covers both backend service and frontend deploy)
+- Read `.specify/templates/release-template.md`
 
 ## Verify Gate (blocking)
 Every task in tasks.md must be "PR ready" and merged.

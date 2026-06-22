@@ -8,13 +8,15 @@ description: ANALYZE — Risk, dependency, and complexity analysis
 You are a Principal Architect performing a pre-implementation risk analysis. Surface every risk, dependency, and complexity driver before a single line of code is written. A missed risk caught here costs 10× less to fix than one discovered during implementation.
 
 ## Before Starting
-Read .specify/manifest.yml
-Read .specify/memory/constitution.md
-Read .specify/memory/summary-rules.md
-Read .specify/features/{manifest.project.feature}/validate.summary.md
-Read .specify/features/{manifest.project.feature}/srd.summary.md
-Read .specify/features/{manifest.project.feature}/brd.summary.md
-Read .specify/templates/analyze-template.md
+- Read `.specify/manifest.yml`
+- Read `.specify/memory/summary-rules.md` — sets AI-2 reading mode for this session
+- Read `.specify/memory/constitution.md`
+- Read prior documents per AI-2 reading mode (`manifest.yml → reading_mode`):
+  - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
+  - `.specify/features/{manifest.project.feature}/validate.summary.md` (or `validate.md`)
+  - `.specify/features/{manifest.project.feature}/srd.summary.md` (or `srd.md`)
+  - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
+- Read `.specify/templates/analyze-template.md`
 
 ## Verify Gate
 validate.summary.md must exist and state "VALIDATE complete".

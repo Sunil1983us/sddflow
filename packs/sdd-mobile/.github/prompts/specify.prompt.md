@@ -59,39 +59,16 @@ unless the user has already reviewed Part 2. If the user says
 A later /specify re-run on an already-finalized Part 2 must propose
 changes for review — never silently overwrite finalized rows.
 
-## ACTION 2 — Generate spec documents per scope
+## After GATE-1 — Generate Spec Documents
 
-Read updated constitution.md
-Generate documents per manifest.scope (canonical doc inventory —
-the only correct list; see PROMPT-GUIDE.md):
+Once constitution Part 2 is finalized, generate spec documents **one at a time** using the dedicated sub-commands:
 
-pilot:  brd → srd → security-design (§1 — pilot checklist)
-mvp:    + screen-spec → ux-flow → api-spec (Backend API Contract —
-        Consumer) → security-design (§1-2)
-full:   + data-model (Local Data & Cache Model) → resilience (Mobile
-        Resilience) → investigation (Crash & Incident Triage) →
-        security-design (§1-4 — STRIDE + MASVS)
+| Command | Document | Gate |
+|---|---|---|
+| `/specify-brd` | Business Requirements | GATE-1 passed |
+| `/specify-srd` | Software Requirements | BRD approved |
+| `/specify-doc {name}` | Any extended doc (security, screen-spec, ux-flow, data-model, etc.) | SRD approved |
 
-For each: read template → derive from context → save .md + .summary.md
-Mark all assumptions: [ASSUMPTION-NNN: ...]
-For every UC-NNN in srd.md: write at least 2 Given/When/Then acceptance
-  scenarios using domain language from the FR-NNN wording. Add an
-  "Independent Test" statement describing how to verify that UC end-to-end.
-  These become TC-NNN entries at /task — precision here saves QA inference.
-Marker discipline:
-  Use [ASSUMPTION-NNN: {what was assumed}] when a reasonable default was applied and the agent proceeded.
-  Use [NEEDS CLARIFICATION: {specific question}] when no safe default exists and a human decision is required before /validate can sign off.
-  Never leave a gap silently — always use one of the two markers.
-Every FR: FR-NNN | Every NFR: NFR-NNN
+Run each command, review the output, get approval, then run the next one.
 
-Templates to use:
-  screen-spec → screen-spec-template.md
-  ux-flow → ux-flow-template.md
-  api-spec → api-spec-template.md (Backend API Contract — Consumer)
-  data-model → data-model-template.md (Local Data & Cache Model)
-  resilience → resilience-template.md (Mobile Resilience)
-  investigation → investigation-template.md (Crash & Incident Triage)
-
-List generated + skipped.
-State: "SPECIFY complete. If GATE-1 not yet passed, finalize constitution
-Part 2 now. Then run /validate — ready for business sign-off."
+State: "Constitution Part 2 generated — DRAFT. Review and finalize every row (GATE-1), then run **/specify-brd**."

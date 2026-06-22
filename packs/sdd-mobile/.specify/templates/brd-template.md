@@ -18,9 +18,9 @@
 | BO-001 | {objective} | {how measured} |
 
 ## 3. Stakeholders (BA-3 — see .specify/memory/roles.yml for named owners)
-| Role | Team | Responsibility |
-|---|---|---|
-| Product Owner | {team} | Approves requirements, /validate + /release sign-off |
+| ACT-ID | Role | Team | Responsibility |
+|---|---|---|---|
+| _(set by /specify-uc)_ | Product Owner | {team} | Approves requirements, /validate + /release sign-off |
 | Business Analyst | {team} | Requirements accuracy, /validate |
 | Tech Lead | {team} | Reviews architecture, /analyze risk review |
 | Architect | {team} | /plan-adr review (mvp+) |
@@ -71,3 +71,9 @@ Out of Scope:
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

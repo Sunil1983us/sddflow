@@ -1,10 +1,9 @@
 # CLAUDE.md — Universal SDD Pack
 # Works for any project type: backend, frontend, mobile, fullstack,
 # CLI, data/ML, serverless, library, IaC, desktop
-# 11-Command flow:
+# Command flow:
 # SPECIFY → [GATE-1: constitution finalized] → VALIDATE → ANALYZE → CLARIFY
-# → PLAN-ARCH → PLAN-HLD → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK
-# → IMPLEMENT → RELEASE
+# → PLAN-DESIGN → PLAN-LLD (mvp+) → TASK → IMPLEMENT → RELEASE
 
 ## CREATE-CONTEXT — Optional Pre-Phase (before SPECIFY)
 If `.specify/contexts/{feature}.md` does not exist yet, or is empty/a
@@ -45,21 +44,39 @@ default `auto` from summary-rules.md):
 in full regardless of reading_mode.
 See .specify/memory/summary-rules.md → AI-2 Reading Mode Decision Tree.
 
-## SPECIFY — Two Actions in Order
+## SPECIFY — Five Sub-Commands
 
-See `.github/prompts/specify.prompt.md` for the full project-type-aware
-procedure. Summary:
+`/specify` generates the constitution only. Spec documents are generated
+**one at a time** using dedicated sub-commands — same pattern as `/plan-*`.
 
-Action 1 — Generate constitution.md Part 2 from context (DRAFT):
+| Command | What it generates | Gate |
+|---|---|---|
+| `/specify` | Constitution Part 2 (DRAFT) + project type | — |
+| `/specify-brd` | Business Requirements Document | GATE-1 passed |
+| `/specify-uc` | Use Case Specification (Actors + UC-NNN with MP/AP/EP) | BRD approved |
+| `/specify-srd` | Software Requirements Document | Use Cases approved |
+| `/specify-doc {name}` | Any extended doc (security, api-spec, data-model, component-spec, ux-flow, screen-spec, resilience, investigation) | SRD approved |
+
+> **Note for non-interactive project types** (data-pipeline, cli-tool, batch-processor):
+> `/specify-uc` is still required but produces a simplified document — system actors only
+> (ACT-NNN type = System or Operator), with Main Path describing the data/command flow rather
+> than user interactions. Exception Paths cover failure modes (timeout, data error, partial run).
+> Do not force a UI-centric template onto a non-interactive project.
+
+**`/specify` (constitution):**
   Resolve project_type (auto-detect if "auto" or unset)
-  Fill Tech Stack table appropriate for detected project_type
+  Fill Tech Stack table for the detected project_type
   Extract Core Principles, Domain Rules, Never Do
-  Save updated constitution.md — Part 1 unchanged, Part 2 is a DRAFT
+  Save constitution.md Part 2 as DRAFT
   State: "Constitution Part 2 generated — DRAFT. Review and finalize
-  every row (GATE-1) before running /validate."
+  every row (GATE-1), then run /specify-brd."
 
-Action 2 — Generate spec documents per project_type + scope:
-  See specify.prompt.md → Action 2 doc-set table
+**`/specify-brd` → `brd.md`** — gate: GATE-1 passed
+**`/specify-srd` → `srd.md`** — gate: BRD approved
+**`/specify-doc security`** → `security-design.md` — gate: SRD approved
+**`/specify-doc api-spec`** → `api-spec.md` (mvp+) — gate: SRD approved
+**`/specify-doc data-model`** → `data-model.md` (mvp+) — gate: SRD approved
+**`/specify-doc {name}`** → any other extended doc — gate: SRD approved
 
 ## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
 After Action 1, constitution.md Part 2 is a DRAFT.
@@ -71,9 +88,21 @@ A later /specify re-run must propose changes for review — never silently
 overwrite a finalized Part 2.
 No /validate, /analyze, or any later command may run until this gate passes.
 
-## 11-Command Gates
-- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
-  → PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+## Upgrading Scope
+
+To upgrade `pilot → mvp` or `mvp → full` after initial delivery:
+1. Update `manifest.yml` → `scope: mvp` (or `full`)
+2. Run `sdd review status` to see newly required documents
+3. Generate newly required spec docs: `/specify-doc {name}` for each (e.g. data-model, resilience)
+4. Generate `/plan-lld` if upgrading from pilot (skipped previously)
+5. Append new `CHG-NNN` tasks to `tasks.md` under a new Change Set heading
+6. All new documents go through the same review gates as the original spec
+
+Scope upgrade is a **Major amendment** to constitution Part 2 (version bump X.0).
+
+## Command Gates
+- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-DESIGN
+  → PLAN-LLD (mvp+) → TASK → IMPLEMENT → RELEASE
 - Each gate requires the previous step complete and reviewed.
 
 ## PR Contract
@@ -90,8 +119,8 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 ## Never Do
 - Never run /validate before constitution Part 2 finalized (GATE-1)
 - Never run /analyze without validate.summary.md
-- Never run /plan-arch without clarify.summary.md
-- Never run /plan-arch while any spec doc has an unresolved
+- Never run /plan-design without clarify.summary.md
+- Never run /plan-design while any spec doc has an unresolved
   `[ASSUMPTION-NNN]` marker (AI-8)
 - Never run /implement without TASK (stories.md + tasks.md) approved
 - Never run /release before all tasks are "PR ready" and merged
@@ -102,30 +131,25 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 
 ## PLAN Sub-Commands
 
-PLAN is split into 4 sub-commands — each has its own review gate:
+PLAN is split into 2 sub-commands — each has its own review gate:
 
-- **`/plan-arch`** → Architecture decisions + plan.md
+- **`/plan-design`** → Single design document: Architecture + Diagrams + API Design + ADR entries
   - Gate: clarify.summary.md exists, all RESOLVED
   - Gate: no unresolved [ASSUMPTION-NNN] in any spec doc (AI-8)
-  - Review: tech lead approves arch + plan
+  - Review: architect + tech lead + stakeholders
+  - Scope: all scopes (pilot, mvp, full)
 
-- **`/plan-hld`** → HLD + all Mermaid diagrams
-  - Gate: arch.md reviewed
-  - Review: stakeholders + tech lead
-  - Pilot: always run | MVP+: always run
-
-- **`/plan-lld`** → LLD + class/sequence diagrams
-  - Gate: hld.md reviewed
+- **`/plan-lld`** → Detailed technical design: class/sequence/package diagrams
+  - Gate: design.md reviewed
   - Scope check: SKIP if pilot — state skip reason
   - Review: senior developer
 
-- **`/plan-adr`** → Architecture Decision Records
-  - Gate: arch.md reviewed
-  - Scope check: SKIP if pilot — state skip reason
-  - Review: architect
+> `design.md` replaces the former arch.md, hld.md, api-spec.md, and adr.md.
+> `/plan-arch`, `/plan-hld`, `/plan-adr` redirect to `/plan-design` for backwards compatibility.
 
 ## /checklist — Optional Spec-Quality Gate (after GATE-1, before /validate)
 
+**Mandatory for `mvp` and `full` scope. Optional for `pilot`.**
 Run `/checklist` after `/specify` + GATE-1 to catch spec quality issues
 before the business sign-off:
 - CRITICAL: unresolved [NEEDS CLARIFICATION], unmeasured NFRs, FRs without
@@ -143,8 +167,8 @@ cannot be submitted until the current one is approved.
 
 | Phase | Sequence | Reviewer |
 |---|---|---|
-| specify | BRD → SRD → Arch → HLD | PO → BA → Architect → Architect |
-| planning | LLD → ADR | Tech Lead → Architect |
+| specify | BRD → Use Cases → SRD → Design | PO → BA + PO → BA → Architect |
+| planning | LLD | Tech Lead |
 | tasks | Tasks | Scrum Master |
 | release | Runbook → Release | DevOps → Release Manager |
 
@@ -196,5 +220,6 @@ For each task in the `/implement` phase:
   - Run after: /implement (all tasks) | Gate before: go-live
 
 ## Command Order
-SPECIFY → [GATE-1] → /checklist (optional) → VALIDATE → ANALYZE → CLARIFY → PLAN-ARCH → PLAN-HLD
-→ PLAN-LLD (mvp+) → PLAN-ADR (mvp+) → TASK → IMPLEMENT → RELEASE
+/specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd → /specify-doc {name}... → /checklist (mandatory mvp+, optional pilot)
+→ /validate → /analyze → /clarify → /plan-design
+→ /plan-lld (mvp+) → /task → /implement → /release
