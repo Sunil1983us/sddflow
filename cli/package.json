@@ -1,6 +1,6 @@
 {
   "name": "sdd-init",
-  "version": "2.0.0",
+  "version": "2.6.0",
   "description": "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs",
   "type": "module",
   "bin": {
@@ -9,16 +9,29 @@
   "engines": {
     "node": ">=18"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md"
+  ],
   "dependencies": {
     "chalk": "^5.3.0",
     "commander": "^12.0.0",
     "inquirer": "^9.2.0",
     "js-yaml": "^4.1.0"
   },
-  "keywords": ["sdd", "spec-driven-development", "ai", "sdlc", "claude"],
+  "keywords": ["sdd", "spec-driven-development", "ai", "sdlc", "claude", "llm", "specification"],
   "license": "MIT",
+  "author": {
+    "name": "Sunil Kumar",
+    "email": "sunil1983.us@gmail.com"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/sunil1983us/universalguide"
+  },
+  "homepage": "https://github.com/sunil1983us/universalguide",
+  "bugs": {
+    "url": "https://github.com/sunil1983us/universalguide/issues"
   }
 }

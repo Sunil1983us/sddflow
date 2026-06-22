@@ -25,20 +25,10 @@ Not sure which to use? See [`packs/CATALOG.md`](packs/CATALOG.md) for a decision
 Two CLIs are provided — identical behaviour, different runtimes. Both include
 Jira and Confluence integration.
 
-> **Note:** Neither CLI has been published to PyPI or npm yet.
-> Use the GitHub install commands below, or skip the CLI and use
-> `bash setup.sh` / `.\setup.ps1` instead — they work identically for `sdd init`.
-
 ### Python CLI — `sdd-init`
 
 ```bash
-# Install directly from GitHub (works without a PyPI release)
-pip install "git+https://github.com/sunil1983us/universalguide.git#subdirectory=cli-python"
-sdd init
-
-# Or clone the repo and install locally
-git clone https://github.com/sunil1983us/universalguide.git
-pip install ./universalguide/cli-python
+pip install sdd-init
 sdd init
 ```
 
@@ -59,11 +49,8 @@ Agent commands (Claude Code / Copilot):
 ### Node.js CLI — `sdd-init`
 
 ```bash
-# Clone the repo and run directly (npm publish pending)
-git clone https://github.com/sunil1983us/universalguide.git
-cd universalguide/cli
-npm install
-node bin/sdd.js init
+npm install -g sdd-init
+sdd init
 ```
 
 Includes:
@@ -94,8 +81,11 @@ cd your-project
 bash setup.sh                 # Mac / Linux — no install needed
 .\setup.ps1                   # Windows PowerShell — no install needed
 
-# Python CLI (install from GitHub first — see CLI Tools section above)
-sdd init
+# Python CLI
+pip install sdd-init && sdd init
+
+# Node.js CLI
+npm install -g sdd-init && sdd init
 
 # 3. Open in your AI tool and run /specify
 ```
