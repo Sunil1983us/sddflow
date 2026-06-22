@@ -7,7 +7,7 @@
 ## References
 | Source | Sections / IDs Used |
 |---|---|
-| api-spec.summary.md | {sections/IDs referenced} |
+| use-cases.summary.md | {sections/IDs referenced} |
 | srd.summary.md | {sections/IDs referenced} |
 
 ## 1. Test Coverage Summary
@@ -19,6 +19,7 @@
 | Auth | {N} | ✅ | — |
 | Unhappy Path | {N} | ✅ | — |
 | Performance | {N} | — | ✅ |
+| Boundary / Exploratory | {N} | — | ✅ |
 
 ---
 
@@ -102,7 +103,44 @@
 
 ---
 
-## 7. Postman Collection Structure
+## 7. Boundary & Exploratory Tests
+
+> Generated from boundary value analysis on FR-NNN inputs and exploratory
+> charters for high-complexity/high-risk areas.
+
+### TC-{N}: {Field} — Boundary Value
+**FR Trace:** FR-{NNN}
+**Given:** {field} at its minimum valid boundary value
+**When:** Request submitted
+**Then:** Accepted — boundary is inclusive
+
+### TC-{N+1}: {Field} — Off-By-One (below minimum)
+**Given:** {field} set to one below minimum valid value
+**When:** Request submitted
+**Then:** Rejected — 400 VALIDATION_ERROR
+
+### TC-{N+2}: {Field} — Maximum Boundary
+**Given:** {field} at its maximum valid boundary value
+**When:** Request submitted
+**Then:** Accepted — boundary is inclusive
+
+### TC-{N+3}: {Field} — Null / Empty Input
+**Given:** Optional {field} set to null or empty string
+**When:** Request submitted
+**Then:** {Accepted with default / Rejected — as per FR-NNN}
+
+---
+
+### Exploratory Charter EC-001: {High-Risk Area}
+**Charter:** Explore {feature area} to discover defects around {scenario}
+**Session length:** 60 min
+**Target:** FR-{NNN} / R-{NNN} (from analyze.md)
+**Areas to probe:** {state transitions}, {concurrent modifications}, {large payloads}
+**Debrief:** Document findings as TC-NNN entries if reproducible
+
+---
+
+## 8. Postman Collection Structure
 
 ```
 {Feature Name} Tests/
