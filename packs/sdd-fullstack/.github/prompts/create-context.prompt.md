@@ -31,17 +31,28 @@ Accept:
 - A path to an existing file (any format)
 
 **Feature-hint header (optional):**
-If the raw file begins with a line in either of these formats:
-```
-# specify {feature-name}
-# specify {feature-name}: {one-line description}
-```
-Extract automatically:
-- `{feature-name}` → pre-fill as `manifest.project.feature` (skip asking)
-- `{description}` → seed §1 "What This Service Does" in context.md
-- Strip this header line before mapping the rest of the content onto the template
+Place this as the very first line of your raw notes file so the agent
+knows what feature this is for before reading anything else:
 
-If no header is present, continue as normal (ask for feature name if blank in manifest).
+```
+# specify: {your sentence describing what you are building}
+```
+
+Example:
+```
+# specify: I am building a payment processing microservice that handles
+credit card transactions for the checkout flow, integrated with Stripe
+```
+
+When this header is present the agent:
+- Uses the sentence to seed §1 "What This Service Does" in context.md
+- Derives a short kebab-case `feature-name` from the sentence for
+  `manifest.project.feature` (e.g. `payment-processing`) and confirms it
+  with you before saving — you can override it
+- Strips the header line before mapping the rest of the file onto the template
+
+If no header is present, the agent continues as normal and asks for the
+feature name if blank in manifest.
 
 ## Step 2 — Draft context.md
 Map the raw input onto every section of context-template.md:
