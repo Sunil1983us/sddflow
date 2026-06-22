@@ -9,7 +9,7 @@ console = Console()
 # Version migration table — extend when releasing a new pack version.
 MIGRATIONS = [
     {
-        "from":        None,       # None = pre-versioning (no sdd_version field)
+        "from":        None,
         "to":          "2.0.0",
         "description": "Initial versioned release",
         "notes": [
@@ -19,7 +19,75 @@ MIGRATIONS = [
             "Detection order fix: mobile (react-native) now checked before fullstack",
             "Python CLI added alongside Node.js CLI (pip install sdd-init)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": SDD_VERSION},
+        "migrate": lambda m: {**m, "sdd_version": "2.0.0"},
+    },
+    {
+        "from":        "2.0.0",
+        "to":          "2.1.0",
+        "description": "Document-level review gates + PR automation",
+        "notes": [
+            "sdd review submit/check/apply/status commands added",
+            "sdd pr create command added",
+            "document_reviews + pr_automation sections added to integrations.yml",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.1.0"},
+    },
+    {
+        "from":        "2.1.0",
+        "to":          "2.2.0",
+        "description": "Code review gate (/pre-review + /address-review)",
+        "notes": [
+            "/pre-review agent command added — run before PR creation",
+            "/address-review agent command added — handles human PR comments",
+            "code_review section added to integrations.yml",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.2.0"},
+    },
+    {
+        "from":        "2.2.0",
+        "to":          "2.3.0",
+        "description": "Explicit reading_mode enforcement",
+        "notes": [
+            "reading_mode field added to manifest.yml (auto/summary/full)",
+            "All prompts now check reading_mode before reading feature docs",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.3.0"},
+    },
+    {
+        "from":        "2.3.0",
+        "to":          "2.4.0",
+        "description": "/specify-uc use case specification command",
+        "notes": [
+            "/specify-uc inserted between /specify-brd and /specify-srd",
+            "use-cases.md template added with actor registry, UC details, traceability",
+            "SRD now derives FR-NNN from UC paths",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.4.0"},
+    },
+    {
+        "from":        "2.4.0",
+        "to":          "2.5.0",
+        "description": "19 SDLC review findings fixed",
+        "notes": [
+            "change-rules.md dependency chain updated (use-cases between brd and srd)",
+            "task.prompt.md: EP-NNN exception paths generate TC-NNN test cases",
+            "security design: full STRIDE/DREAD methodology",
+            "CLAUDE.md: /checklist mandatory for mvp+",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.5.0"},
+    },
+    {
+        "from":        "2.5.0",
+        "to":          "2.6.0",
+        "description": "/change command + 20 stakeholder template improvements",
+        "notes": [
+            "/change command added — type-aware sequential change request system",
+            "changeset-template.md added to .specify/templates/",
+            "20 template fixes: approvals tables, BUFFER story, CVSS column, BRD investment summary",
+            "/create-context: feature-hint header (# specify: sentence) added",
+            "SDLC-COMPLETE-GUIDE.md and CHANGE-GUIDE.md rewritten",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.6.0"},
     },
 ]
 

@@ -6,7 +6,7 @@ import { readManifest, patchManifest, MANIFEST_PATH, SDD_VERSION } from '../util
 // Extend this when releasing a new pack version.
 const MIGRATIONS = [
   {
-    from: null,          // null = pre-versioning (v1.x, no sdd_version field)
+    from: null,
     to:   '2.0.0',
     description: 'Initial versioned release',
     notes: [
@@ -14,13 +14,76 @@ const MIGRATIONS = [
       'setup.sh/setup.ps1 rewritten to use js-yaml — eliminates injection bugs',
       'Input validation: project/feature names with " are now rejected early',
       'Detection order fix: mobile (react-native) now checked before fullstack',
-      'Cross-reference comment added to all 3 detection locations',
     ],
-    migrate: (manifest) => {
-      // Add sdd_version if missing — no other structural changes needed
-      manifest.sdd_version = SDD_VERSION;
-      return manifest;
-    },
+    migrate: (m) => { m.sdd_version = '2.0.0'; return m; },
+  },
+  {
+    from: '2.0.0',
+    to:   '2.1.0',
+    description: 'Document-level review gates + PR automation',
+    notes: [
+      'sdd review submit/check/apply/status commands added',
+      'sdd pr create command added',
+      'document_reviews + pr_automation sections added to integrations.yml',
+    ],
+    migrate: (m) => { m.sdd_version = '2.1.0'; return m; },
+  },
+  {
+    from: '2.1.0',
+    to:   '2.2.0',
+    description: 'Code review gate (/pre-review + /address-review)',
+    notes: [
+      '/pre-review agent command added — run before PR creation',
+      '/address-review agent command added — handles human PR comments',
+      'code_review section added to integrations.yml',
+    ],
+    migrate: (m) => { m.sdd_version = '2.2.0'; return m; },
+  },
+  {
+    from: '2.2.0',
+    to:   '2.3.0',
+    description: 'Explicit reading_mode enforcement',
+    notes: [
+      'reading_mode field added to manifest.yml (auto/summary/full)',
+      'All prompts now check reading_mode before reading feature docs',
+    ],
+    migrate: (m) => { m.sdd_version = '2.3.0'; return m; },
+  },
+  {
+    from: '2.3.0',
+    to:   '2.4.0',
+    description: '/specify-uc use case specification command',
+    notes: [
+      '/specify-uc inserted between /specify-brd and /specify-srd',
+      'use-cases.md template added with actor registry, UC details, traceability',
+      'SRD now derives FR-NNN from UC paths',
+    ],
+    migrate: (m) => { m.sdd_version = '2.4.0'; return m; },
+  },
+  {
+    from: '2.4.0',
+    to:   '2.5.0',
+    description: '19 SDLC review findings fixed',
+    notes: [
+      'change-rules.md dependency chain updated (use-cases between brd and srd)',
+      'task.prompt.md: EP-NNN exception paths generate TC-NNN test cases',
+      'security design: full STRIDE/DREAD methodology',
+      'CLAUDE.md: /checklist mandatory for mvp+',
+    ],
+    migrate: (m) => { m.sdd_version = '2.5.0'; return m; },
+  },
+  {
+    from: '2.5.0',
+    to:   '2.6.0',
+    description: '/change command + 20 stakeholder template improvements',
+    notes: [
+      '/change command added — type-aware sequential change request system',
+      'changeset-template.md added to .specify/templates/',
+      '20 template fixes: approvals tables, BUFFER story, CVSS column, BRD investment summary',
+      '/create-context: feature-hint header (# specify: sentence) added',
+      'SDLC-COMPLETE-GUIDE.md and CHANGE-GUIDE.md rewritten',
+    ],
+    migrate: (m) => { m.sdd_version = '2.6.0'; return m; },
   },
 ];
 

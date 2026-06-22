@@ -33,4 +33,4 @@ reading_mode: "auto"   # auto | summary | full — see summary-rules.md
 #   bdd:    Given/When/Then specs drive tests, written before implementation
 # testing_style: "paired"
 
-sdd_version: "2.0.0"   # set by sdd init; used by sdd upgrade
+sdd_version: "2.6.0"   # set by sdd init; used by sdd upgrade
