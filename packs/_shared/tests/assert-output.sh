@@ -14,9 +14,10 @@
 #
 # What this catches:
 #   - AI-generated documents that are missing required structural markers
-#     (BO-NNN, FR-NNN, UC-NNN, Satisfies:, MoSCoW headings, Mermaid blocks)
+#     (BO-NNN, FR-NNN, UC-NNN, ACT-NNN, Satisfies:, MoSCoW headings, Mermaid blocks)
 #   - Broken traceability: tasks that do not reference FR-NNN
-#   - Incomplete spec: use cases without Given/When/Then acceptance scenarios
+#   - Incomplete use cases: missing ACT-NNN actors or MP/AP/EP paths
+#   - Missing UC → FR trace in srd.md
 #   - Sign-off documents missing approval markers
 #
 # Run this after each /specify or /task to detect prompt drift (model updates
@@ -78,22 +79,33 @@ check_tasks_traceability() {
 }
 
 check_gwt() {
-  # srd.md must have Given/When/Then acceptance scenarios inside each UC.
-  local file="$_file/srd.md"
-  printf "  %-52s" "srd.md — Given/When/Then in use cases"
+  # use-cases.md must have MP/AP/EP paths inside each UC.
+  local file="$_file/use-cases.md"
+  printf "  %-52s" "use-cases.md — MP/AP/EP paths in use cases"
   if [[ ! -f "$file" ]]; then echo "SKIP (file absent)"; return; fi
 
-  local uc_count gwt_count
+  local uc_count path_count
   uc_count=$(grep -cE '^### UC-[0-9]+' "$file" || true)
-  # Count lines that contain a Given/When/Then cell in a table row
-  gwt_count=$(grep -cE 'Given|When|Then' "$file" || true)
+  path_count=$(grep -cE 'AP-[0-9]+-[0-9]+|EP-[0-9]+-[0-9]+|Main Path|Alternate Path|Exception Path' "$file" || true)
 
   if [[ "$uc_count" -eq 0 ]]; then
     echo "FAIL — no UC-NNN use cases found"; FAIL=$((FAIL+1))
-  elif [[ "$gwt_count" -gt 0 ]]; then
-    echo "PASS ($uc_count UCs, $gwt_count Given/When/Then lines)"; PASS=$((PASS+1))
+  elif [[ "$path_count" -gt 0 ]]; then
+    echo "PASS ($uc_count UCs, $path_count MP/AP/EP lines)"; PASS=$((PASS+1))
   else
-    echo "FAIL — $uc_count use cases but no Given/When/Then content"; FAIL=$((FAIL+1))
+    echo "FAIL — $uc_count use cases but no MP/AP/EP paths found"; FAIL=$((FAIL+1))
+  fi
+}
+
+check_use_cases_actors() {
+  # use-cases.md must have ACT-NNN actor definitions.
+  local file="$_file/use-cases.md"
+  printf "  %-52s" "use-cases.md — ACT-NNN actors defined"
+  if [[ ! -f "$file" ]]; then echo "SKIP (file absent)"; return; fi
+  if grep -qE 'ACT-[0-9]+' "$file"; then
+    echo "PASS"; PASS=$((PASS+1))
+  else
+    echo "FAIL — no ACT-NNN actor identifiers found"; FAIL=$((FAIL+1))
   fi
 }
 
@@ -141,12 +153,12 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "File presence (pilot scope):"
 check_file "brd.md exists"           "brd.md"
+check_file "use-cases.md exists"     "use-cases.md"
 check_file "srd.md exists"           "srd.md"
 check_file "validate.md exists"      "validate.md"
 check_file "analyze.md exists"       "analyze.md"
 check_file "clarify.md exists"       "clarify.md"
-check_file "design.md exists"          "design.md"
-check_file "lld.md exists (mvp+)"        "lld.md"
+check_file "design.md exists"        "design.md"
 check_file "stories.md exists"       "stories.md"
 check_file "tasks.md exists"         "tasks.md"
 check_file "release.md exists"       "release.md"
@@ -158,11 +170,16 @@ check "brd.md has BR-NNN requirement" "brd.md" "BR-[0-9]+"
 check "brd.md has MUST priority"     "brd.md" "MUST|Must Have|must"
 
 echo ""
+echo "use-cases.md — structural markers:"
+check_use_cases_actors
+check "use-cases.md has UC-NNN use case" "use-cases.md" "UC-[0-9]+"
+check_gwt
+
+echo ""
 echo "srd.md — structural markers:"
 check "srd.md has FR-NNN requirement" "srd.md" "FR-[0-9]+"
 check "srd.md has NFR-NNN requirement" "srd.md" "NFR-[0-9]+"
-check "srd.md has UC-NNN use case"   "srd.md" "UC-[0-9]+"
-check_gwt
+check "srd.md has UC trace (FR→UC)"  "srd.md" "UC-[0-9]+"
 
 echo ""
 echo "validate.md — sign-off:"
@@ -201,10 +218,9 @@ check "release.md closes BO-NNN"      "release.md" "BO-[0-9]+"
 if [[ "$SCOPE" == "mvp" || "$SCOPE" == "full" ]]; then
   echo ""
   echo "MVP+ scope additional checks:"
-  check_file "use-cases.md exists"          "use-cases.md"
-  check_file "data-model.md exists"  "data-model.md"
-  check_file "lld.md exists"         "lld.md"
-  check_file "adr.md exists"         "adr.md"
+  check_file "data-model.md exists"        "data-model.md"
+  check_file "lld.md exists"               "lld.md"
+  check "design.md has ADR entries"        "design.md" "ADR-[0-9]+|## Architecture Decision"
 fi
 
 if [[ "$SCOPE" == "full" ]]; then
