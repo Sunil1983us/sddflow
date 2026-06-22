@@ -27,9 +27,7 @@ Generate `brd.md` for the current feature:
 - Use `.specify/templates/brd-template.md` as the structure
 - Derive all content from the context file and constitution Part 2
 - Every business goal: **BG-NNN**
-- Every functional requirement: **FR-NNN**
 - Every non-functional requirement: **NFR-NNN** — must include a measurable target (e.g. "< 200ms p99", "99.9% uptime")
-- Every use case: **UC-NNN**
 - Marker discipline:
   - `[ASSUMPTION-NNN: {what}]` — safe default applied; needs sign-off
   - `[NEEDS CLARIFICATION: {question}]` — no safe default; human decision required before /validate
@@ -44,6 +42,6 @@ sdd review submit --doc brd
 If the CLI is not configured or the command fails, present the document and ask:
 > "BRD generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
 
-State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-srd** to generate the Software Requirements Document."
+State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-uc** to generate the Use Case Specification."
 
 **Stop — do not generate SRD or any other document in this turn.**

@@ -19,11 +19,11 @@ You are a Staff Software Engineer producing the detailed technical design that d
 
 ## Scope Check
 If manifest.scope = pilot → STOP.
-State: "PLAN-LLD skipped — pilot scope. Proceed to PLAN-ADR or TASK."
+State: "PLAN-LLD skipped — pilot scope. Proceed to /task."
 
 ## Verify Gate
-design.md + design.md must exist and be reviewed.
-If missing — STOP. Run PLAN-ARCH and PLAN-HLD first.
+design.md must exist and be reviewed.
+If missing — STOP. Run /plan-design first.
 
 ## Your Task
 Generate LLD with detailed technical diagrams in Mermaid.
@@ -52,8 +52,8 @@ Per layer — exact method names and types
 ### DTO/Record Definitions
 All request/response structures
 
-Save: docs/lld/lld.md
-Save: docs/lld/lld.summary.md (max SUMMARY_MAX_LINES)
+Save to: `.specify/features/{manifest.project.feature}/lld.md`
+Save: `.specify/features/{manifest.project.feature}/lld.summary.md` (max SUMMARY_MAX_LINES)
 
-State: "PLAN-LLD complete — review lld.md before PLAN-ADR"
+State: "PLAN-LLD complete — lld.md generated. Review, then run /task."
 Wait for review.

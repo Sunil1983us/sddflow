@@ -61,7 +61,7 @@ Scope-based sections:
 - `full` → §1–4 (+ DAST requirements + penetration test scope)
 
 **Threat Modelling — STRIDE (mvp+):**
-For each service/component identified in `design.md`, enumerate threats using STRIDE:
+For each service/component listed in constitution Part 2 Tech Stack (and identified from `srd.summary.md`), enumerate threats using STRIDE:
 - **S**poofing — can an attacker impersonate an actor or component?
 - **T**ampering — can an attacker modify data in transit or at rest?
 - **R**epudiation — can an actor deny performing an action (no audit trail)?

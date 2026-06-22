@@ -15,6 +15,7 @@ You are a QA Lead performing a spec quality audit before business sign-off. Find
 - Read prior documents per AI-2 reading mode (`manifest.yml → reading_mode`):
   - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
   - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
+  - `.specify/features/{manifest.project.feature}/use-cases.summary.md` (or `use-cases.md`)
   - `.specify/features/{manifest.project.feature}/srd.summary.md` (or `srd.md`)
 - Read `.specify/templates/checklist-template.md`
 
@@ -27,11 +28,11 @@ CHK-NNN item using the template. Check in this order:
 1. **Unresolved markers** — any `[NEEDS CLARIFICATION: ...]` in brd.md or srd.md
 2. **Unmeasured NFRs** — any NFR-NNN without a numeric threshold (e.g. "fast", "99.9%", "500ms" — the last two are fine, the first is not)
 3. **FR without acceptance scenario** — any FR-NNN in srd.md with no UC-NNN that covers it
-4. **UC without acceptance scenarios** — any UC-NNN with fewer than 2 Given/When/Then scenarios
+4. **UC without paths** — any UC-NNN in `use-cases.md` missing a Main Path (MP) or lacking at least one AP-NNN-X or EP-NNN-X
 
 ### HIGH checks (strongly recommended before /validate)
 5. **Vague adjectives** — scan for: fast, slow, scalable, performant, secure, reliable, simple, easy, intuitive, robust — each must be followed by a measurable value
-6. **UC without Independent Test** — any UC-NNN missing the "Independent Test" field
+6. **UC without Independent Test** — any UC-NNN in `use-cases.md` missing the "Independent Test" field
 7. **FR without source** — any FR-NNN with no BR-NNN source link
 
 ### MEDIUM checks

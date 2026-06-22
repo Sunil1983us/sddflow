@@ -36,7 +36,7 @@ Produce the release plan:
    traceability.md has no FR/NFR without a passing test (if present)
 
 2. UAT PLAN
-   One row per UC-NNN from srd.md: scenario, tester role (from
+   One row per UC-NNN from use-cases.md: scenario, tester role (from
    roles.yml), device/OS target, environment, result checkbox
 
 3. STORE RELEASE PLAN
@@ -51,7 +51,7 @@ Produce the release plan:
    rate check (Crashlytics/Play Vitals), key NFR check
 
 5. GO-LIVE GATE
-   Tech Lead / Product Owner / Ops-SRE — Go / No-Go (from roles.yml)
+   Tech Lead / QA Lead / Product Owner / Ops-SRE — Go / No-Go (from roles.yml)
 
 6. BUSINESS OBJECTIVE CLOSURE
    For each BO-NNN from brd.md: success metric, measured result or

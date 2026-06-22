@@ -13,7 +13,7 @@ You are a Principal Software Architect producing the complete technical design f
 - Read `.specify/memory/summary-rules.md`
 - Read `.specify/features/{manifest.project.feature}/clarify.summary.md`
 - Read `.specify/features/{manifest.project.feature}/analyze.summary.md`
-- Read all spec `.summary.md` files (brd, srd, security)
+- Read all spec `.summary.md` files (brd, use-cases, srd, security)
 - Read `.specify/templates/design-template.md`
 
 ## Verify Gate
@@ -23,7 +23,7 @@ You are a Principal Software Architect producing the complete technical design f
 If missing or unresolved — STOP. State: "PLAN-DESIGN blocked — run /clarify first."
 
 **2. AI-8 assumption check:**
-Scan `brd.md`, `srd.md`, and `security-design.md` for any remaining `[ASSUMPTION-NNN]` marker without a matching `<!-- Clarified: {ID} -->` note.
+Scan `brd.md`, `use-cases.md`, `srd.md`, and `security-design.md` for any remaining `[ASSUMPTION-NNN]` marker without a matching `<!-- Clarified: {ID} -->` note.
 If any remain — STOP. State: "PLAN-DESIGN blocked — unresolved assumptions: {list}. Run /clarify first."
 
 ## Your Task
@@ -45,8 +45,8 @@ Produce ALL diagrams in Mermaid (renders in GitHub, VS Code, Claude):
 - **System Context (C4 L1):** actors, this service, external systems
 - **Container Diagram (C4 L2):** service, database, cache, message broker, external
 - **Component Diagram (C4 L3):** internal components and their relationships
-- **Happy Path Sequence:** the primary flow end-to-end
-- **Error/Failure Paths:** validation errors, downstream failures, retries
+- **Happy Path Sequence:** the primary UC Main Path end-to-end (from `use-cases.md`)
+- **Error/Failure Paths:** UC Exception Paths (EP-NNN-X) — validation errors, downstream failures, retries
 - **State Machine:** if the feature has stateful entities (include if applicable)
 
 Every diagram must use actual names from the feature context, not placeholders.
@@ -56,7 +56,7 @@ Every diagram must use actual names from the feature context, not placeholders.
 > Skip for: `iac`, `library` (replace with Public Library API section), `desktop` with no backend calls.
 > For `frontend-spa` and `mobile`: document the API contract this component **consumes** (consumer view).
 
-From `srd.md` UC-NNN and FR-NNN:
+From `use-cases.md` UC-NNN flows and `srd.md` FR-NNN:
 - State API style, base URL, auth method, versioning from `constitution.md`
 - Define every endpoint: method, path, purpose, request schema, response schema, all error codes
 - Trace each endpoint back to FR-NNN / UC-NNN

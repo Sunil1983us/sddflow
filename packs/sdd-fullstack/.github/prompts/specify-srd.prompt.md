@@ -5,7 +5,7 @@ description: SPECIFY-SRD — Generate Software Requirements Document
 
 ## Persona
 
-You are a Senior Business Analyst generating the Software Requirements Document. SRD translates business requirements into verifiable software requirements with acceptance scenarios. The precision of your Given/When/Then scenarios here directly determines the quality of test cases generated later at /task.
+You are a Senior Business Analyst generating the Software Requirements Document. SRD translates business requirements into verifiable software requirements with acceptance scenarios. The precision of your FR derivation from UC paths here directly determines the quality of test cases generated later at /task.
 
 ## Before Starting
 - Read `.specify/manifest.yml`
@@ -42,9 +42,7 @@ Generate `srd.md` for the current feature:
   - Exception Path steps → FR-NNN (error handling requirements)
   - After generating FRs, update the **Linked FR-NNN** column in each UC in `use-cases.md`
 - Every software requirement: **FR-NNN** with UC-NNN trace column
-- Every use case referenced: **UC-NNN** — include:
-  - ≥ 2 Given/When/Then acceptance scenarios written in domain language (MP + at least one AP or EP)
-  - An **Independent Test** field: how to verify this UC end-to-end without coupling to implementation
+- Each FR-NNN must include its UC-NNN trace — no FR without a linked UC-NNN
 - NFRs must refine BRD NFRs with technical targets (latency budget, throughput ceiling, SLA tier)
 - Marker discipline (same as BRD — `[ASSUMPTION-NNN]` / `[NEEDS CLARIFICATION]`)
 - Save to: `.specify/features/{manifest.project.feature}/srd.md`
