@@ -1,4 +1,4 @@
-# SDD Prompt Guide — 11 Commands
+# SDD Prompt Guide — Command Reference
 # Claude Code Desktop + GitHub Copilot
 
 ---
@@ -22,10 +22,10 @@
 | `/validate` | `/validate` | `/validate` | Business sign-off on BRD/SRD |
 | `/analyze` | `/analyze` | `/analyze` | Risks + complexity |
 | `/clarify` | `/clarify` | `/clarify` | Questions → you answer |
-| `/plan-arch` | `/plan-arch` | `/plan-arch` | Architecture + plan + refine scope docs |
-| `/plan-hld` | `/plan-hld` | `/plan-hld` | HLD + diagrams |
+| `/plan-design` | `/plan-design` | `/plan-design` | Architecture + plan + refine scope docs |
+| `/plan-design` | `/plan-design` | `/plan-design` | HLD + diagrams |
 | `/plan-lld` | `/plan-lld` | `/plan-lld` | LLD (mvp+ only) |
-| `/plan-adr` | `/plan-adr` | `/plan-adr` | ADRs (mvp+ only) |
+| `/plan-design` | `/plan-design` | `/plan-design` | ADRs (mvp+ only) |
 | `/task` | `/task` | `/task` | Stories + Tasks + Jira |
 | `/implement` | `/implement TASK-NNN` | `/implement TASK-NNN` | Code one task |
 | `/release` | `/release` | `/release` | UAT + deployment + go-live gate |
@@ -52,15 +52,15 @@
 
 This pack ships a `.claude/commands/` directory with one Markdown file per
 command (`create-context.md`, `start.md`, `specify.md`, `validate.md`,
-`analyze.md`, `clarify.md`, `plan-arch.md`, `plan-hld.md`, `plan-lld.md`,
+`analyze.md`, `clarify.md`, `plan-design.md`, `plan-design.md`, `plan-lld.md`,
 `plan-adr.md`, `task.md`, `implement.md`, `release.md`). Claude Code
 auto-discovers these — nothing to install or configure.
 
 - Type `/start` at the beginning of every session — equivalent to STEP 0
   below (reads CLAUDE.md, manifest, constitution, summary-rules,
   change-rules, roles.yml, instructions).
-- Type `/specify`, `/validate`, `/analyze`, `/clarify`, `/plan-arch`,
-  `/plan-hld`, `/plan-lld`, `/plan-adr`, `/task`, `/release` to run each
+- Type `/specify`, `/validate`, `/analyze`, `/clarify`, `/plan-design`,
+  `/plan-design`, `/plan-lld`, `/plan-design`, `/task`, `/release` to run each
   command — Claude reads the matching `.github/prompts/<name>.prompt.md` and
   executes it.
 - `/implement TASK-NNN` passes the task ID through to the implement prompt.
@@ -89,7 +89,7 @@ The agent:
 2. Fills in what it can infer, marks the rest `[MISSING — ask user]`.
 3. Gives you a plain-language "Missing Information" checklist.
 4. You answer what you can — "not sure" is fine for technical questions
-   (the architect decides later at /plan-arch).
+   (the architect decides later at /plan-design).
 5. Repeat until you say "good enough, proceed" or nothing is missing.
 6. Saves `.specify/contexts/{feature}.md` — the file /specify reads.
 
@@ -143,10 +143,10 @@ If Part 2 generated but not finalized → remind: complete GATE-1 before
 | `/validate` | validate.md — all scopes |||
 | `/analyze` | analyze.md — all scopes |||
 | `/clarify` | clarify.md — all scopes |||
-| `/plan-arch` | arch.md, plan.md + refine the scope-scaled docs above | same | same |
-| `/plan-hld` | hld.md — all scopes |||
+| `/plan-design` | design.md, plan.md + refine the scope-scaled docs above | same | same |
+| `/plan-design` | design.md — all scopes |||
 | `/plan-lld` | skip | lld.md | lld.md |
-| `/plan-adr` | skip | ADRs | ADRs |
+| `/plan-design` | skip | ADRs | ADRs |
 | `/task` | stories.md, tasks.md, jira — all scopes |||
 | `/implement` | code + paired tests | + qa_cases, runbook | + qa_cases, runbook, openapi |
 | `/release` | release.md — all scopes |||
@@ -267,7 +267,7 @@ Checks (in order):
     UC-NNN missing "Independent Test" field
     FR-NNN missing BR-NNN source link
 
-  MEDIUM (fix before /plan-arch):
+  MEDIUM (fix before /plan-design):
     Terminology drift between brd.md and srd.md
     Missing Out of Scope section
     Unconfirmed ASSUMPTION-NNN markers
@@ -404,12 +404,12 @@ Read clarify.md with answers
 Update affected spec docs → mark: <!-- Clarified: {ID} -->
 Regenerate .summary.md for each updated doc
 Write clarify.summary.md — all items RESOLVED
-State: "CLARIFY complete — ready for /plan-arch"
+State: "CLARIFY complete — ready for /plan-design"
 ```
 
 ---
 
-## /plan-arch — Architecture + Plan + Refine Scope Docs
+## /plan-design — Architecture + Plan + Refine Scope Docs
 
 ```
 Read constitution.md + summary-rules.md
@@ -420,7 +420,7 @@ Read arch-template.md + plan-template.md
 AI-8 GATE CHECK: scan brd.md, srd.md, api-spec.md, data-model.md,
 security-design.md for any [ASSUMPTION-NNN] without a matching
 <!-- Clarified: {ID} --> note.
-  If any remain — STOP. State: "PLAN-ARCH blocked — unresolved
+  If any remain — STOP. State: "PLAN-DESIGN blocked — unresolved
   assumptions {list}. Run /clarify first."
 
 ARCHITECTURE:
@@ -441,33 +441,33 @@ IMPLEMENTATION PLAN:
   Test strategy per layer
   DB migration plan (if applicable)
 
-Save: arch.md + arch.summary.md
+Save: design.md + arch.summary.md
 Save: plan.md + plan.summary.md
 
-REFINE SCOPE-SCALED DOCS (now that arch.md exists):
+REFINE SCOPE-SCALED DOCS (now that design.md exists):
   mvp+: api-spec.md, data-model.md — align with ports/adapters + entity
-        design in arch.md
-  all:  security-design.md — align controls with arch.md cross-cutting
+        design in design.md
+  all:  security-design.md — align controls with design.md cross-cutting
         concerns section
-  full: resilience.md — align with arch.md integration list
-  full: investigation.md — align with arch.md flows
+  full: resilience.md — align with design.md integration list
+  full: investigation.md — align with design.md flows
   Re-save each refined doc + its .summary.md.
 
-State: "PLAN-ARCH complete — review arch.md + plan.md (+ refined scope
-docs) before PLAN-HLD"
-Wait for approval before /plan-hld.
+State: "PLAN-DESIGN complete — review design.md + plan.md (+ refined scope
+docs) before PLAN-DESIGN"
+Wait for approval before /plan-design.
 ```
 
 ---
 
-## /plan-hld — High Level Design + Diagrams
+## /plan-design — High Level Design + Diagrams
 
 ```
 Read constitution.md + summary-rules.md
 Read arch.summary.md + analyze.summary.md
 Read hld-template.md
 
-VERIFY: arch.md exists and reviewed. Stop if not.
+VERIFY: design.md exists and reviewed. Stop if not.
 
 Generate HLD — ALL diagrams in Mermaid:
 
@@ -487,13 +487,13 @@ Generate HLD — ALL diagrams in Mermaid:
     pilot: happy path only
     mvp+:  all flows including unhappy paths
 
-Save: docs/hld/hld.md + hld.summary.md
+Save: docs/hld/design.md + hld.summary.md
 
 If scope = pilot:
-  State: "PLAN-HLD complete — SKIP /plan-lld and /plan-adr
+  State: "PLAN-DESIGN complete — SKIP /plan-lld and /plan-design
           Scope is pilot. Ready for /task after review."
 Else:
-  State: "PLAN-HLD complete — review hld.md
+  State: "PLAN-DESIGN complete — review design.md
           Run /plan-lld next."
 Wait for review.
 ```
@@ -510,9 +510,9 @@ Read lld-template.md
 SCOPE CHECK:
   If scope = pilot → STOP.
   State: "/plan-lld skipped — pilot scope.
-          Run /plan-adr or proceed to /task."
+          Run /plan-design or proceed to /task."
 
-VERIFY: arch.md + hld.md exist. Stop if not.
+VERIFY: design.md + design.md exist. Stop if not.
 
 Generate LLD — all diagrams in Mermaid:
 
@@ -532,7 +532,7 @@ Wait for review.
 
 ---
 
-## /plan-adr — Architecture Decision Records (mvp+ only)
+## /plan-design — Architecture Decision Records (mvp+ only)
 
 ```
 Read constitution.md
@@ -541,11 +541,11 @@ Read adr-template.md
 
 SCOPE CHECK:
   If scope = pilot → STOP.
-  State: "/plan-adr skipped — pilot scope. Proceed to /task."
+  State: "/plan-design skipped — pilot scope. Proceed to /task."
 
-VERIFY: arch.md exists. Stop if not.
+VERIFY: design.md exists. Stop if not.
 
-One ADR per key decision (arch.md §4 DEC-NNN rows):
+One ADR per key decision (design.md §4 DEC-NNN rows):
   Pattern choice (hexagonal, layered, event-driven)
   Technology choice where alternatives existed
   Integration approach (sync vs async)
@@ -558,8 +558,8 @@ Each ADR format:
 
 Save: docs/architecture/adr/ADR-{NNN}-{title}.md
 Save: docs/architecture/decisions.md (index)
-Update arch.md §4 — fill ADR column for each DEC-NNN now covered.
-State: "/plan-adr complete — {N} ADRs. Ready for /task."
+Update design.md §4 — fill ADR column for each DEC-NNN now covered.
+State: "/plan-design complete — {N} ADRs. Ready for /task."
 ```
 
 ---
@@ -573,7 +573,7 @@ Read plan.summary.md + analyze.summary.md + clarify.summary.md
 Read feature-story-template.md + tasks-template.md + jira-export-template.md
 + qa-testcases-template.md
 
-VERIFY: hld.md exists and reviewed. Stop if not.
+VERIFY: design.md exists and reviewed. Stop if not.
 
 1. QA TEST CASES (mvp+; skip for pilot):
    For each FR-NNN (srd.summary.md) / endpoint (api-spec.summary.md):
@@ -764,6 +764,6 @@ Apply to all future summaries.
 ```
 manifest.yml updated: scope = {new}
 Re-read manifest.yml.
-Run /plan-lld and /plan-adr (now enabled).
+Run /plan-lld and /plan-design (now enabled).
 Then update /task with new tasks.
 ```

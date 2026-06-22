@@ -39,8 +39,9 @@ From context + constitution Part 2 + analyze.summary.md:
 - Identify cross-cutting concerns (auth, logging, error handling)
 - Risk mitigations from analyze.summary.md applied to design
 
-Save: .specify/features/{manifest.project.feature}/arch.md
-Save: .specify/features/{manifest.project.feature}/arch.summary.md
+This command has been replaced by `/plan-design`. Running `/plan-design` now...
+Save: .specify/features/{manifest.project.feature}/design.md
+Save: .specify/features/{manifest.project.feature}/design.summary.md
 
 ### Implementation Plan
 From arch.md:
@@ -73,7 +74,7 @@ arch.md (layer responsibilities, ports/adapters, component tree):
 Re-save each updated doc + its .summary.md.
 
 After all saved:
-State: "PLAN-ARCH complete — review arch.md + plan.md (and refined
+State: "PLAN-ARCH complete — review design.md + plan.md (and refined
 api-spec/component-spec/ux-flow/data-model/security-design/resilience/
-investigation) before PLAN-HLD"
+investigation) before reviewing /plan-design output"
 Wait for review.

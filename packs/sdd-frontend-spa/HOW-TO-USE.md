@@ -2,38 +2,47 @@
 
 ---
 
-## The 11 Commands
+No `.specify/contexts/{feature}.md` yet? Run `/create-context` first —
+paste rough notes and the agent drafts context.md with you, instead of
+writing it by hand. See `.specify/contexts/CONTEXT-GUIDE.md`.
+
+## Command Flow
 
 | Command | What It Does | Scope |
 |---|---|---|
-| `/specify` | Constitution Part 2 (DRAFT) + spec docs | Always |
+| `/specify` | Constitution Part 2 (DRAFT) only | Always |
 | **GATE-1** | You review + finalize constitution Part 2 (manual) | Always |
-| `/validate` | Business sign-off on BRD/SRD | Always |
-| `/analyze` | Risks + complexity + unknowns | Always |
+| `/specify-brd` | Business Requirements Document | Always |
+| `/specify-uc` | Use Case Specification (Actors + MP/AP/EP) | Always |
+| `/specify-srd` | Software Requirements Document | Always |
+| `/specify-doc {name}` | Extended docs (security, data-model, resilience…) | Scope-dependent |
+| `/checklist` | Spec quality gate | Mandatory mvp+, optional pilot |
+| `/validate` | Business sign-off on BRD + Use Cases + SRD | Always |
+| `/analyze` | Risks + complexity + distributed systems check | Always |
 | `/clarify` | Questions → you answer → update spec | Always |
-| `/plan-arch` | Component architecture + plan + refine scope docs | Always |
-| `/plan-hld` | HLD + all Mermaid diagrams | Always |
-| `/plan-lld` | LLD + component/class diagrams | MVP+ only |
-| `/plan-adr` | Architecture Decision Records | MVP+ only |
+| `/plan-design` | Architecture + Diagrams + API Design + ADRs | Always |
+| `/plan-lld` | LLD + class/sequence diagrams | MVP+ only |
 | `/task` | Feature → Story → Task + Jira CSV | Always |
 | `/implement` | Code one task at a time | Always |
 | `/release` | UAT + deployment plan + go-live gate | Always |
 
 ---
 
-## Command Flow
+## Command Flow Diagrams
 
 ### Pilot
 ```
-/specify → [GATE-1] → /validate → /analyze → /clarify
-→ /plan-arch → /plan-hld → /task → /implement → /release
+/specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd
+→ /checklist (optional) → /validate → /analyze → /clarify
+→ /plan-design → /task → /implement → /release
 ```
 
 ### MVP+
 ```
-/specify → [GATE-1] → /validate → /analyze → /clarify
-→ /plan-arch → /plan-hld → /plan-lld → /plan-adr
-→ /task → /implement → /release
+/specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd
+→ /specify-doc security → /specify-doc data-model
+→ /checklist (mandatory) → /validate → /analyze → /clarify
+→ /plan-design → /plan-lld → /task → /implement → /release
 ```
 
 ---
@@ -43,27 +52,28 @@
 ### Pilot — Demo / Proof of Concept
 ```yaml
 scope: "pilot"
-# Commands: 9 + GATE-1 (skip /plan-lld and /plan-adr)
-# /specify docs: BRD, SRD, Security-Design (§1)
-# /implement: code + tests only (no qa_cases/runbook)
+# /specify-doc: none (security-design §1 via /specify-srd)
+# /checklist: optional
+# /plan-lld: skipped
+# /implement: code + tests only
 ```
 
 ### MVP — First Production Release
 ```yaml
 scope: "mvp"
-# Commands: 11 + GATE-1 (all)
-# /specify docs: + Component-Spec, UX-Flow, Backend API Contract
-#   (Consumer), Security-Design (§1-2)
+# /specify-doc: security-design §1-2, data-model
+# /checklist: mandatory
+# /plan-lld: included
 # /implement: + QA cases, Runbook
 ```
 
 ### Full — Complete Production
 ```yaml
 scope: "full"
-# Commands: 11 + GATE-1 (all)
-# /specify docs: + Frontend State & Storage Model, Frontend Resilience,
-#   Production Debugging & Error Tracking, Security-Design (§1-4)
-# /implement: + QA cases, Runbook
+# /specify-doc: security-design §1-4, data-model, resilience, investigation
+# /checklist: mandatory
+# /plan-lld: included
+# /implement: + QA cases, Runbook, OpenAPI
 ```
 
 ---
@@ -75,19 +85,16 @@ scope: "full"
 | Extracted | From your context section |
 |---|---|
 | Language + Framework | Tech stack section |
-| Build Tool | Derived from framework |
-| State Management | Tech stack / architecture section |
-| Component Library/Design System | Tech stack section |
-| Routing | Tech stack section |
-| API Client | Tech stack / integrations |
-| Data Cache | Tech stack / NFR section |
-| Configuration + Secrets | Infrastructure section |
+| Build Tool | Derived from language |
+| API Style | Endpoint contracts |
+| Messaging | Integration section |
+| Database + Cache | Tech stack / integrations |
+| DB Migration | Derived from framework |
+| Config + Secrets | Infrastructure section |
 | Resilience | NFR section |
 | Observability + Logging | NFR / tech stack |
-| Testing + Coverage Gate | NFR section |
-| Linting/Formatting | Tech stack section |
-| Accessibility | NFR / domain constraints |
-| CI/CD + Hosting/CDN | Infrastructure |
+| Testing + Coverage | NFR section |
+| CI/CD + Orchestration | Infrastructure |
 | Core Principles | Domain + constraints |
 | Domain Rules | Business rules |
 | Never Do | Constraints |
@@ -98,7 +105,7 @@ scope: "full"
 
 ## GATE-1 — Finalize Constitution Part 2 (manual, blocking)
 
-After /specify Action 1, Part 2 is a DRAFT. Before /validate can run:
+After /specify, Part 2 is a DRAFT. Before /specify-brd can run:
 
 1. Open `.specify/memory/constitution.md` → Part 2
 2. Review every row — Tech Stack, Core Principles, Domain Rules, Never Do
@@ -115,17 +122,32 @@ never silently overwrite a finalized Part 2.
 
 | Command | Reviewer (see roles.yml) | Before Next |
 |---|---|---|
-| GATE-1 | Tech lead (accountable) | /validate |
+| GATE-1 | Tech lead (accountable) | /specify-brd |
+| /specify-brd | Product owner | /specify-uc |
+| /specify-uc | Business analyst + Product owner | /specify-srd |
+| /specify-srd | Business analyst | /validate |
 | /validate | Product owner + Business analyst | /analyze |
 | /analyze | Tech lead (+ architect, security officer consulted) | /clarify |
-| /clarify | Product owner (accountable), Business analyst (consulted) | /plan-arch |
-| /plan-arch | Tech lead (+ architect, UX lead consulted) | /plan-hld |
-| /plan-hld | Stakeholders + tech lead (+ UX lead) | /plan-lld or /task |
-| /plan-lld | Senior developer (frontend) | /plan-adr or /task |
-| /plan-adr | Architect | /task |
-| /task | Product owner + dev team (+ QA lead, UX lead consulted) | /implement |
-| /implement | Assigned developer (responsible), tech lead (accountable) — per PR | /release |
+| /clarify | Product owner (accountable), BA (consulted) | /plan-design |
+| /plan-design | Tech lead + architect + stakeholders | /plan-lld or /task |
+| /plan-lld | Senior developer | /task |
+| /task | Product owner + dev team (+ QA lead consulted) | /implement |
+| /implement | Assigned developer — per task PR | /release |
 | /release | QA lead (responsible), product owner (accountable) | go-live |
+
+---
+
+## Reading Mode — Quality vs Token Economy
+
+```yaml
+reading_mode: "auto"    # auto | summary | full
+```
+
+- **auto** (default): use `.summary.md` if present; fall back to full doc + auto-generate summary
+- **summary**: always use summary only; strict token economy
+- **full**: always read full `.md`; maximum quality at higher token cost
+
+Set `reading_mode: "full"` in `manifest.yml` for complex features where you want the agent to read every document completely.
 
 ---
 
@@ -138,35 +160,53 @@ full:  SUMMARY_MAX_LINES: 30
 ```
 Tell agent: "Summary rules updated — re-read summary-rules.md"
 
-After /specify, every command reads only `.summary.md` files (AI-2) —
-except /implement, which reads tasks.md + constitution.md in full.
+---
+
+## Workflow Mode — GitHub or Local
+
+```yaml
+workflow_mode: "github"   # github | local   DEFAULT: github
+```
+
+**github** (default) — branch + PR flow:
+- `/implement` ends each task with `"PR ready — {N} lines, {N} files"`
+- CI (`.github/workflows/quality-gate.yml`) runs build/test/coverage/
+  lint/secret-scan/SCA on every PR push
+- `/release` requires every task PR-approved and merged
+
+**local** — no git hosting required:
+- `/implement` runs build/test/coverage/lint locally, reports ✅/❌,
+  ends with `"Task accepted — {N} lines, {N} files"`
+- `/release` requires every task `"Task accepted"`
+
+Switch modes any time by editing `manifest.yml`.
 
 ---
 
 ## PR Rules
 ```yaml
 pr_rules:
-  max_lines_per_pr: 400   # change if needed
+  max_lines_per_pr: 400
   max_files_per_pr: 5
 ```
-Agent enforces automatically — estimates before every task.
 
 ---
 
 ## Upgrading Scope
-```
-1. Edit manifest.yml: scope: "pilot" → "mvp"
-2. Tell agent:
-   "Scope upgraded to mvp. Run /plan-lld and /plan-adr.
-    Then update /task with new tasks."
-```
+
+1. Edit `manifest.yml`: `scope: "pilot"` → `"mvp"` (or `"full"`)
+2. Run `sdd review status` to see newly required documents
+3. Generate new spec docs: `/specify-doc {name}` for each
+4. Run `/plan-lld` if upgrading from pilot
+5. Append `CHG-NNN` tasks to `tasks.md`
 
 ---
 
 ## File Ownership
+
 | File | Owner | Changes |
 |---|---|---|
-| manifest.yml | You | Per project (4 fields) |
+| manifest.yml | You | Per project |
 | contexts/{f}.md | You | Per feature |
 | .specify/memory/roles.yml | You | RACI owners per project |
 | constitution.md Part 1 | Framework | Never |

@@ -6,38 +6,43 @@ No `.specify/contexts/{feature}.md` yet? Run `/create-context` first —
 paste rough notes and the agent drafts context.md with you, instead of
 writing it by hand. See `.specify/contexts/CONTEXT-GUIDE.md`.
 
-## The 11 Commands
+## Command Flow
 
 | Command | What It Does | Scope |
 |---|---|---|
-| `/specify` | Constitution Part 2 (DRAFT) + spec docs | Always |
+| `/specify` | Constitution Part 2 (DRAFT) only | Always |
 | **GATE-1** | You review + finalize constitution Part 2 (manual) | Always |
-| `/validate` | Business sign-off on BRD/SRD | Always |
-| `/analyze` | Risks + complexity + unknowns | Always |
+| `/specify-brd` | Business Requirements Document | Always |
+| `/specify-uc` | Use Case Specification (Actors + MP/AP/EP) | Always |
+| `/specify-srd` | Software Requirements Document | Always |
+| `/specify-doc {name}` | Extended docs (security, data-model, resilience…) | Scope-dependent |
+| `/checklist` | Spec quality gate | Mandatory mvp+, optional pilot |
+| `/validate` | Business sign-off on BRD + Use Cases + SRD | Always |
+| `/analyze` | Risks + complexity + distributed systems check | Always |
 | `/clarify` | Questions → you answer → update spec | Always |
-| `/plan-arch` | Architecture + plan + refine scope docs | Always |
-| `/plan-hld` | HLD + all Mermaid diagrams | Always |
+| `/plan-design` | Architecture + Diagrams + API Design + ADRs | Always |
 | `/plan-lld` | LLD + class/sequence diagrams | MVP+ only |
-| `/plan-adr` | Architecture Decision Records | MVP+ only |
 | `/task` | Feature → Story → Task + Jira CSV | Always |
 | `/implement` | Code one task at a time | Always |
 | `/release` | UAT + deployment plan + go-live gate | Always |
 
 ---
 
-## Command Flow
+## Command Flow Diagrams
 
 ### Pilot
 ```
-/specify → [GATE-1] → /validate → /analyze → /clarify
-→ /plan-arch → /plan-hld → /task → /implement → /release
+/specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd
+→ /checklist (optional) → /validate → /analyze → /clarify
+→ /plan-design → /task → /implement → /release
 ```
 
 ### MVP+
 ```
-/specify → [GATE-1] → /validate → /analyze → /clarify
-→ /plan-arch → /plan-hld → /plan-lld → /plan-adr
-→ /task → /implement → /release
+/specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd
+→ /specify-doc security → /specify-doc data-model
+→ /checklist (mandatory) → /validate → /analyze → /clarify
+→ /plan-design → /plan-lld → /task → /implement → /release
 ```
 
 ---
@@ -47,24 +52,27 @@ writing it by hand. See `.specify/contexts/CONTEXT-GUIDE.md`.
 ### Pilot — Demo / Proof of Concept
 ```yaml
 scope: "pilot"
-# Commands: 9 + GATE-1 (skip /plan-lld and /plan-adr)
-# /specify docs: BRD, SRD, Security-Design (§1)
-# /implement: code + tests only (no qa_cases/runbook/openapi)
+# /specify-doc: none (security-design §1 via /specify-srd)
+# /checklist: optional
+# /plan-lld: skipped
+# /implement: code + tests only
 ```
 
 ### MVP — First Production Release
 ```yaml
 scope: "mvp"
-# Commands: 11 + GATE-1 (all)
-# /specify docs: + API Spec, Data Model, Security-Design (§1-2)
+# /specify-doc: security-design §1-2, data-model
+# /checklist: mandatory
+# /plan-lld: included
 # /implement: + QA cases, Runbook
 ```
 
 ### Full — Complete Production
 ```yaml
 scope: "full"
-# Commands: 11 + GATE-1 (all)
-# /specify docs: + Resilience, Investigation, Security-Design (§1-4)
+# /specify-doc: security-design §1-4, data-model, resilience, investigation
+# /checklist: mandatory
+# /plan-lld: included
 # /implement: + QA cases, Runbook, OpenAPI
 ```
 
@@ -97,7 +105,7 @@ scope: "full"
 
 ## GATE-1 — Finalize Constitution Part 2 (manual, blocking)
 
-After /specify Action 1, Part 2 is a DRAFT. Before /validate can run:
+After /specify, Part 2 is a DRAFT. Before /specify-brd can run:
 
 1. Open `.specify/memory/constitution.md` → Part 2
 2. Review every row — Tech Stack, Core Principles, Domain Rules, Never Do
@@ -114,17 +122,32 @@ never silently overwrite a finalized Part 2.
 
 | Command | Reviewer (see roles.yml) | Before Next |
 |---|---|---|
-| GATE-1 | Tech lead (accountable) | /validate |
+| GATE-1 | Tech lead (accountable) | /specify-brd |
+| /specify-brd | Product owner | /specify-uc |
+| /specify-uc | Business analyst + Product owner | /specify-srd |
+| /specify-srd | Business analyst | /validate |
 | /validate | Product owner + Business analyst | /analyze |
 | /analyze | Tech lead (+ architect, security officer consulted) | /clarify |
-| /clarify | Product owner (accountable), Business analyst (consulted) | /plan-arch |
-| /plan-arch | Tech lead (+ architect) | /plan-hld |
-| /plan-hld | Stakeholders + tech lead (+ UX lead for UI packs) | /plan-lld or /task |
-| /plan-lld | Senior developer | /plan-adr or /task |
-| /plan-adr | Architect | /task |
+| /clarify | Product owner (accountable), BA (consulted) | /plan-design |
+| /plan-design | Tech lead + architect + stakeholders | /plan-lld or /task |
+| /plan-lld | Senior developer | /task |
 | /task | Product owner + dev team (+ QA lead consulted) | /implement |
-| /implement | Assigned developer (responsible), tech lead (accountable) — per task (PR in github mode, "go" in local mode) | /release |
+| /implement | Assigned developer — per task PR | /release |
 | /release | QA lead (responsible), product owner (accountable) | go-live |
+
+---
+
+## Reading Mode — Quality vs Token Economy
+
+```yaml
+reading_mode: "auto"    # auto | summary | full
+```
+
+- **auto** (default): use `.summary.md` if present; fall back to full doc + auto-generate summary
+- **summary**: always use summary only; strict token economy
+- **full**: always read full `.md`; maximum quality at higher token cost
+
+Set `reading_mode: "full"` in `manifest.yml` for complex features where you want the agent to read every document completely.
 
 ---
 
@@ -136,9 +159,6 @@ mvp:   SUMMARY_MAX_LINES: 25
 full:  SUMMARY_MAX_LINES: 30
 ```
 Tell agent: "Summary rules updated — re-read summary-rules.md"
-
-After /specify, every command reads only `.summary.md` files (AI-2) —
-except /implement, which reads tasks.md + constitution.md in full.
 
 ---
 
@@ -154,46 +174,31 @@ workflow_mode: "github"   # github | local   DEFAULT: github
   lint/secret-scan/SCA on every PR push
 - `/release` requires every task PR-approved and merged
 
-**local** — no git hosting required (e.g. a shared/synced folder such as
-OneDrive, opened via Claude Desktop's "Code" tab — no GitHub or git
-needed at all):
-- `/implement` runs the same build/test/coverage/lint checks itself,
-  locally, reporting ✅/❌ for each, then ends each task with
-  `"Task accepted — {N} lines, {N} files"` — there is no CI pipeline
-  afterwards to catch issues
-- `.github/workflows/quality-gate.yml` does not run (no GitHub) — its
-  checks are covered by the agent's local run instead
+**local** — no git hosting required:
+- `/implement` runs build/test/coverage/lint locally, reports ✅/❌,
+  ends with `"Task accepted — {N} lines, {N} files"`
 - `/release` requires every task `"Task accepted"`
-- Review = the assigned reviewer (roles.yml) inspects the changed files
-  directly in the shared folder, then tells the agent "go"
-- Optional: `git init` locally for commit-level history — exclude `.git`
-  from any cloud sync (OneDrive/SharePoint sync can corrupt git's
-  internal files). Without local git, OneDrive's per-file version
-  history serves as the audit trail instead.
 
-Switch modes any time by editing `manifest.yml` — no other files change.
+Switch modes any time by editing `manifest.yml`.
 
 ---
 
 ## PR Rules
 ```yaml
 pr_rules:
-  max_lines_per_pr: 400   # change if needed
+  max_lines_per_pr: 400
   max_files_per_pr: 5
 ```
-Agent enforces automatically — estimates before every task. Applies in
-both workflow modes; see "Workflow Mode" above for what happens after
-the size check passes.
 
 ---
 
 ## Upgrading Scope
-```
-1. Edit manifest.yml: scope: "pilot" → "mvp"
-2. Tell agent:
-   "Scope upgraded to mvp. Run /plan-lld and /plan-adr.
-    Then update /task with new tasks."
-```
+
+1. Edit `manifest.yml`: `scope: "pilot"` → `"mvp"` (or `"full"`)
+2. Run `sdd review status` to see newly required documents
+3. Generate new spec docs: `/specify-doc {name}` for each
+4. Run `/plan-lld` if upgrading from pilot
+5. Append `CHG-NNN` tasks to `tasks.md`
 
 ---
 
@@ -201,7 +206,7 @@ the size check passes.
 
 | File | Owner | Changes |
 |---|---|---|
-| manifest.yml | You | Per project (4 fields) |
+| manifest.yml | You | Per project |
 | contexts/{f}.md | You | Per feature |
 | .specify/memory/roles.yml | You | RACI owners per project |
 | constitution.md Part 1 | Framework | Never |

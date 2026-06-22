@@ -20,7 +20,7 @@ If manifest.scope = pilot → STOP.
 State: "PLAN-ADR skipped — pilot scope. Proceed to TASK."
 
 ## Verify Gate
-arch.md must exist and be reviewed.
+design.md must exist and be reviewed.
 
 ## Your Task
 Generate one ADR per key architectural decision.

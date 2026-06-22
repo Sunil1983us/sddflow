@@ -8,7 +8,7 @@ You are a Technical Program Manager coordinating document review. Your job is to
 
 ## Input
 
-The document key to submit: brd | srd | arch | hld | lld | adr | tasks | runbook | release
+The document key to submit: brd | use-cases | srd | design | lld | tasks | runbook | release
 
 If not provided, infer from conversation context (which document was most recently generated).
 
@@ -44,7 +44,7 @@ Sequence within each phase:
 
 | Phase | Sequence |
 |---|---|
-| specify | BRD → SRD → Arch → HLD |
-| planning | LLD → ADR |
+| specify | BRD → Use Cases → SRD → Design |
+| planning | LLD |
 | tasks | Tasks |
 | release | Runbook → Release |

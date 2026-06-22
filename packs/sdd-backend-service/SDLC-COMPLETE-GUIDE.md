@@ -1,5 +1,5 @@
 # Complete SDLC Guide
-# SDD — 11 Commands + GATE-1, Constitution Generated from Context
+# SDD — Complete Command Reference, Constitution Generated from Context
 
 ---
 
@@ -11,13 +11,13 @@ rather paste rough notes and have the agent draft it with you — see
 Constitution Part 2 is auto-generated as a DRAFT — you review and
 finalize it (GATE-1) before /validate runs. Manual edits after that
 point are authoritative.
-PLAN is split into 4 sub-commands — each reviewed separately.
+PLAN is split into 2 sub-commands — each reviewed separately.
 /validate (business sign-off) and /release (UAT/go-live) bookend the
 technical pipeline.
 
 ---
 
-## The 11 Commands
+## Command Flow
 
 | # | Command | Does | Gate Before |
 |---|---|---|---|
@@ -26,7 +26,7 @@ technical pipeline.
 | 2 | `/validate` | Business sign-off on BRD/SRD | GATE-1 passed |
 | 3 | `/analyze` | Risks + dependencies + complexity | validate.summary.md |
 | 4 | `/clarify` | Questions → you answer | After /analyze |
-| 5 | `/plan-arch` | Architecture + plan.md + refine scope docs | clarify.summary.md, no open [ASSUMPTION-NNN] (AI-8) |
+| 5 | `
 | 6 | `/plan-hld` | HLD + Mermaid diagrams | arch.md reviewed |
 | 7 | `/plan-lld` | LLD (mvp+ only) | hld.md reviewed |
 | 8 | `/plan-adr` | ADRs (mvp+ only) | arch.md reviewed |

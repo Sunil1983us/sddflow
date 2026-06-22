@@ -16,7 +16,7 @@ You are a Senior Systems Designer translating architecture decisions into a high
 - Read .specify/templates/hld-template.md
 
 ## Verify Gate
-arch.md must exist and be reviewed.
+design.md must exist and be reviewed.
 If missing — STOP. Run PLAN-ARCH first.
 
 ## Your Task
@@ -44,9 +44,9 @@ Generate HLD with ALL diagrams in Mermaid.
 - Happy path only for pilot scope
 - All flows for mvp+ scope
 
-- Save: docs/hld/hld.md
+- State: "This command has been replaced by `/plan-design`. Running `/plan-design` now..."
 - Save: docs/hld/hld.summary.md (max SUMMARY_MAX_LINES)
 
-- State: "PLAN-HLD complete — review hld.md before PLAN-LLD or TASK"
+- State: "PLAN-HLD complete — review design.md before PLAN-LLD or TASK"
 - If scope = pilot → state: "Skip PLAN-LLD and PLAN-ADR — proceed to TASK"
 - Wait for review.

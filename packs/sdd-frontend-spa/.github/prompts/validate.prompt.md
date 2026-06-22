@@ -35,7 +35,7 @@ Produce a business sign-off report:
    If open CRITICAL CHK-NNN items found: warn:
    "WARNING: {N} CRITICAL spec-quality items still open (from /checklist).
    These should be resolved before sign-off — proceeding anyway will risk
-   finding ambiguities during /plan-arch."
+   finding ambiguities during /plan-design."
    (Do NOT block validate — /checklist is optional. Only NEEDS CLARIFICATION
    markers from Item 2 above are hard-blocking.)
 

@@ -78,25 +78,28 @@ a Constitution Amendment Summary, not a silent overwrite. Change is explicit and
 
 ---
 
-## The 11 Commands
+## The Command Flow
 
 SDD organizes development into commands that build on each other, each with a review gate:
 
 ```
-/specify  → [GATE-1: constitution finalized]
-/checklist (optional) → /validate → /analyze → /clarify
-/plan-arch → /plan-hld → /plan-lld (mvp+) → /plan-adr (mvp+)
+/specify → [GATE-1]
+/specify-brd → /specify-uc → /specify-srd → /specify-doc {name}...
+/checklist (mandatory mvp+, optional pilot) → /validate → /analyze → /clarify
+/plan-design → /plan-lld (mvp+)
 /task → /implement → /release
 ```
 
 Each gate requires the previous output to be reviewed before proceeding. This is not
 bureaucracy — it's quality control applied at the lowest-cost moment: before the code exists.
 
+`/specify-uc` captures **who** does **what** with the system (Actors), the **happy path**
+(Main Path), **alternatives** (Alternate Paths), and **failures** (Exception Paths).
+Every functional requirement in the SRD traces back to a UC step.
+
 ---
 
 ## Additional Commands
-
-Beyond the 11-command flow, SDD includes:
 
 | Command | When to use |
 |---|---|
@@ -132,4 +135,4 @@ bash setup.sh
 
 Fill in `.specify/contexts/{feature}.md`, then open your AI tool and type `/specify`.
 
-See [QUICKSTART.md](QUICKSTART.md) for the full walkthrough.
+See [GETTING-STARTED.md](GETTING-STARTED.md) for the full walkthrough.

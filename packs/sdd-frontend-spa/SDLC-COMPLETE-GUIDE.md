@@ -1,5 +1,5 @@
 # Complete SDLC Guide
-# SDD — 11 Commands + GATE-1, Constitution Generated from Context
+# SDD — Complete Command Reference, Constitution Generated from Context
 
 ---
 
@@ -11,13 +11,13 @@ rather paste rough notes and have the agent draft it with you — see
 Constitution Part 2 is auto-generated as a DRAFT — you review and
 finalize it (GATE-1) before /validate runs. Manual edits after that
 point are authoritative.
-PLAN is split into 4 sub-commands — each reviewed separately.
+PLAN is split into 2 sub-commands — each reviewed separately.
 /validate (business sign-off) and /release (UAT/go-live) bookend the
 technical pipeline.
 
 ---
 
-## The 11 Commands
+## Command Flow
 
 | # | Command | Does | Gate Before |
 |---|---|---|---|
@@ -26,11 +26,9 @@ technical pipeline.
 | 2 | `/validate` | Business sign-off on BRD/SRD | GATE-1 passed |
 | 3 | `/analyze` | Risks + dependencies + complexity | validate.summary.md |
 | 4 | `/clarify` | Questions → you answer | After /analyze |
-| 5 | `/plan-arch` | Component architecture + plan.md + refine scope docs | clarify.summary.md, no open [ASSUMPTION-NNN] (AI-8) |
-| 6 | `/plan-hld` | HLD + Mermaid diagrams | arch.md reviewed |
-| 7 | `/plan-lld` | LLD (mvp+ only) | hld.md reviewed |
-| 8 | `/plan-adr` | ADRs (mvp+ only) | arch.md reviewed |
-| 9 | `/task` | Stories + Tasks + Jira | hld.md reviewed |
+| 5 | `/plan-design` | Architecture + Diagrams + API Design + ADRs | clarify.summary.md, no open [ASSUMPTION-NNN] (AI-8) |
+| 6 | `/plan-lld` | LLD class/sequence diagrams (mvp+ only) | design.md reviewed |
+| 7 | `/task` | Stories + Tasks + Jira | design.md reviewed |
 | 10 | `/implement` | One task at a time | tasks approved |
 | 11 | `/release` | UAT + deployment + go-live gate | all tasks merged |
 
@@ -89,43 +87,34 @@ Outcome: "VALIDATE complete — ready for /analyze" or
 
 ---
 
-## PLAN — 4 Sub-Commands
+## PLAN — 2 Sub-Commands
 
 ```
-/plan-arch   Component architecture decisions + plan.md
-             + refine component-spec/ux-flow/api-spec (mvp+),
-               data-model/resilience/investigation (full),
-               security-design (all)
-             Who reviews: Tech lead
-             AI-8 gate: no unresolved [ASSUMPTION-NNN] anywhere
-             ↓
-/plan-hld    HLD + all Mermaid diagrams (component diagrams)
-             Who reviews: Stakeholders + tech lead
-             ↓
-/plan-lld    LLD + component/class diagrams (mvp+ only)
-             Who reviews: Senior developer (frontend)
-             ↓
-/plan-adr    Architecture Decision Records (mvp+ only)
-             Who reviews: Architect
+/plan-design  Architecture + Diagrams + API Design + ADR entries
+              Who reviews: Tech lead + Architect + Stakeholders
+              AI-8 gate: no unresolved [ASSUMPTION-NNN] anywhere
+              ↓
+/plan-lld     LLD + class/sequence diagrams (mvp+ only)
+              Who reviews: Senior developer
 ```
 
-**Pilot scope:** only /plan-arch and /plan-hld required.
-Agent auto-skips /plan-lld and /plan-adr for pilot — states reason.
+**Pilot scope:** only /plan-design required.
+Agent auto-skips /plan-lld for pilot — states reason.
+
 
 ---
 
 ## Pilot Flow
 ```
 /specify → [GATE-1] → /validate → /analyze → /clarify
-→ /plan-arch (review) → /plan-hld (review)
+→ /plan-design (review)
 → /task (review) → /implement → /release
 ```
 
 ## MVP+ Flow
 ```
 /specify → [GATE-1] → /validate → /analyze → /clarify
-→ /plan-arch (review) → /plan-hld (review)
-→ /plan-lld (review) → /plan-adr (review)
+→ /plan-design (review) → /plan-lld (review)
 → /task (review) → /implement → /release
 ```
 
@@ -228,23 +217,15 @@ See CHANGE-GUIDE.md for the full impact matrix and AI-8 assumption rule.
 - [ ] All items answered
 - [ ] clarify.summary.md confirmed
 
-### /plan-arch
+### /plan-design
 - [ ] AI-8: no unresolved [ASSUMPTION-NNN] anywhere
 - [ ] Architecture reviewed by tech lead
-- [ ] plan.md reviewed
-- [ ] NFR → Decision mapping complete (arch.md §4a)
-- [ ] component-spec/ux-flow/api-spec/data-model/resilience/investigation/
-      security-design refined (where applicable)
-
-### /plan-hld
-- [ ] All diagrams correct
-- [ ] Stakeholders reviewed
+- [ ] Diagrams complete
+- [ ] API Design locked
+- [ ] design.md reviewed
 
 ### /plan-lld (mvp+)
-- [ ] Component + class diagrams reviewed
-
-### /plan-adr (mvp+)
-- [ ] All key decisions captured, arch.md §4 ADR column filled
+- [ ] Class + sequence diagrams reviewed
 
 ### /task
 - [ ] Stories make business sense

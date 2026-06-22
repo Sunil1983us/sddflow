@@ -45,7 +45,7 @@ Produce the release plan:
    roles.yml), environment, result checkbox
 
 3. DEPLOYMENT PLAN
-   Steps from plan.md / arch.md: DB migrations, app deploy strategy,
+   Steps from design.md: DB migrations, app deploy strategy,
    smoke test, feature flag / traffic shift — each with owner and
    rollback-if-fails action
 

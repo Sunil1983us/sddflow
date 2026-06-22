@@ -10,7 +10,7 @@ identically whether or not this directory exists alongside them.
 
 Several sections of `CLAUDE.md` / `.github/copilot-instructions.md` /
 `PROMPT-GUIDE.md` are meant to be byte-identical across all `sdd-*` packs
-(the 11-command gate order, the PR contract, the core "Never Do" rules,
+(the command gate order, the PR contract, the core "Never Do" rules,
 etc.) — they describe the SDD process, not a tech stack. Today they're
 hand-copied into each pack and drift apart (e.g. one pack documents the
 `local` workflow_mode branch in its PR Contract, another doesn't).

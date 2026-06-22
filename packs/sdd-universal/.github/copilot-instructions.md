@@ -4,79 +4,93 @@
 Read .specify/manifest.yml + constitution.md + summary-rules.md +
 change-rules.md + roles.yml
 
-## SPECIFY — Two Actions
-- Action 1: Generate constitution.md Part 2 from context — DRAFT
-  (Tech Stack 20 concerns + Principles + Domain Rules + Never Do)
-- Action 2: Generate spec documents per scope:
-  - pilot: brd, srd, security-design (§1)
-  - mvp: + api-spec, data-model, security-design (§1-2)
-  - full: + resilience, investigation, security-design (§1-4)
+## SPECIFY — Five Sub-Commands
+`/specify` generates constitution Part 2 only (DRAFT). Spec documents are
+generated one at a time using dedicated sub-commands:
+
+| Command | Generates | Gate |
+|---|---|---|
+| `/specify` | Constitution Part 2 (DRAFT) | — |
+| `/specify-brd` | BRD | GATE-1 passed |
+| `/specify-uc` | Use Cases (ACT-NNN + UC-NNN with MP/AP/EP) | BRD approved |
+| `/specify-srd` | SRD | Use Cases approved |
+| `/specify-doc {name}` | security / data-model / resilience / investigation | SRD approved |
 
 ## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
-Part 2 from Action 1 is a DRAFT. User must review every row and confirm
-"Constitution Part 2 finalized" before /validate. Manual edits after this
-are authoritative — never silently overwritten by a later /specify.
+Part 2 is a DRAFT until the user reviews every row and confirms
+"Constitution Part 2 finalized". Manual edits after this are authoritative.
+Nothing after /specify runs until GATE-1 passes.
 
 ## Commands
 
 | Command | Verb | Does |
 |---|---|---|
-| /specify | SPECIFY | Constitution Part 2 (draft) + spec docs |
+| /specify | SPECIFY | Constitution Part 2 (DRAFT) |
 | — GATE-1 — | (manual) | User finalizes constitution Part 2 |
-| /validate | VALIDATE | Business sign-off on brd/srd |
-| /analyze | ANALYZE | Risks + complexity |
+| /specify-brd | SPECIFY-BRD | Business Requirements Document |
+| /specify-uc | SPECIFY-UC | Use Case Specification |
+| /specify-srd | SPECIFY-SRD | Software Requirements Document |
+| /specify-doc | SPECIFY-DOC | Extended spec documents |
+| /checklist | CHECKLIST | Spec quality gate (mandatory mvp+) |
+| /validate | VALIDATE | Business sign-off on BRD + Use Cases + SRD |
+| /analyze | ANALYZE | Risks + complexity + distributed systems |
 | /clarify | CLARIFY | Questions → you answer |
-| /plan-arch | PLAN-ARCH | Architecture + plan.md + api-spec/data-model/security/resilience refinement |
-| /plan-hld | PLAN-HLD | HLD + Mermaid diagrams |
+| /plan-design | PLAN-DESIGN | Architecture + Diagrams + API Design + ADRs |
 | /plan-lld | PLAN-LLD | LLD (mvp+ only) |
-| /plan-adr | PLAN-ADR | ADRs (mvp+ only) |
 | /task | TASK | Stories + Tasks + Jira |
 | /implement | IMPLEMENT | One task at a time |
-| /pre-review | PRE-REVIEW | Code review before PR; checklist → dev picks fixes → agent applies |
-| /address-review | ADDR-REVIEW | Address human PR comments; fix, reply, resolve threads, re-request review |
+| /pre-review | PRE-REVIEW | Code review before PR; checklist → dev picks fixes |
+| /address-review | ADDR-REVIEW | Address human PR comments; fix, reply, resolve |
 | /release | RELEASE | UAT + deployment + go-live gate |
 
 ## Document Review Gates (sdd review)
 
-After each SDD document is generated, submit it for stakeholder approval before
-the next document in the phase can proceed:
+After each SDD document is generated, submit it for stakeholder approval:
 
 ```bash
-sdd review submit --doc brd   # push to Confluence + create Jira review task
-sdd review check  --doc brd   # poll outcome (exit 0=approved 1=revision 2=pending)
-sdd review apply  --doc brd   # re-push after addressing comments
-sdd review status             # dashboard: all documents across all phases
+sdd review submit --doc brd        # push to Confluence + create Jira review task
+sdd review check  --doc brd        # poll outcome (exit 0=approved 1=revision 2=pending)
+sdd review apply  --doc brd        # re-push after addressing comments
+sdd review status                  # dashboard: all documents across all phases
 ```
 
-Sequence: BRD → SRD → Arch → HLD (specify) · LLD → ADR (planning) · Tasks · Runbook → Release
+Sequence: BRD → Use Cases → SRD → Design (specify) · LLD (planning) · Tasks · Runbook → Release
 
 ## Gates
-- GATE-1 (constitution Part 2 finalized) before /validate
+- GATE-1 (constitution Part 2 finalized) before /specify-brd
+- /specify-brd reviewed before /specify-uc
+- /specify-uc reviewed before /specify-srd
+- /specify-srd reviewed before /validate
 - /validate (sign-off) before /analyze
 - /analyze before /clarify
-- /clarify (all answered) before /plan-arch
-- AI-8: no unresolved [ASSUMPTION-NNN] in any spec doc before /plan-arch
-- /plan-arch reviewed before /plan-hld
-- /plan-hld reviewed before /plan-lld or /task
+- /clarify (all answered) before /plan-design
+- AI-8: no unresolved [ASSUMPTION-NNN] in any spec doc before /plan-design
+- /plan-design reviewed before /plan-lld or /task
 - /task (approved) before /implement
 - /pre-review (if enabled) before sdd pr create — runs ONCE per task
 - /implement (all tasks merged) before /release
 
 ## Pilot Scope — Skip These
 - /plan-lld → skip (state: pilot scope)
-- /plan-adr → skip (state: pilot scope)
+- /specify-doc data-model → skip (state: pilot scope)
+- /specify-doc resilience → skip (state: pilot scope)
 
 ## AI-7 — Apply Glob-Scoped Instructions
 Apply every `.github/instructions/*.instructions.md` file's `applyTo`
-glob to any matching file you create or edit (api/domain/tests/java).
-These model the Java/Spring reference stack (constitution Part 2 →
-Language/Framework) — if your stack differs, apply each rule's intent
-using that language's idioms and conventions, don't skip it.
+glob to any matching file you create or edit. These model the reference
+stack (constitution Part 2 → Language/Framework) — if your stack differs,
+apply each rule's intent using that language's idioms, don't skip it.
+
+## AI-2 — Reading Mode (token economy)
+After /specify, read `.summary.md` files for prior documents. Behaviour
+governed by `reading_mode` in manifest.yml (default: auto):
+- auto: use .summary.md if present; fallback to full + generate
+- summary: always use .summary.md; warn if missing
+- full: always read full .md (maximum quality)
+Exception: /implement always reads tasks.md + constitution.md in full.
 
 ## Summary
-After every doc: write .summary.md — max SUMMARY_MAX_LINES (AI-2:
-summary-first — read only .summary.md after /specify, except /implement
-which reads tasks.md + constitution.md in full)
+After every doc: write .summary.md — max SUMMARY_MAX_LINES.
 
 ## Never Do
 - Never code before context.md updated
