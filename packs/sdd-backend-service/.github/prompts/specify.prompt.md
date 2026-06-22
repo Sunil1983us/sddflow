@@ -92,7 +92,8 @@ Once constitution Part 2 is finalized, generate spec documents **one at a time**
 | Command | Document | Gate |
 |---|---|---|
 | `/specify-brd` | Business Requirements | GATE-1 passed |
-| `/specify-srd` | Software Requirements | BRD approved |
+| `/specify-uc` | Use Case Specification | BRD approved |
+| `/specify-srd` | Software Requirements | Use Cases approved |
 | `/specify-doc {name}` | Any extended doc (security, data-model, resilience, etc.) | SRD approved |
 
 Run each command, review the output, get approval, then run the next one.

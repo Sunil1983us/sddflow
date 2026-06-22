@@ -53,7 +53,7 @@ Produce a business sign-off report:
    owner to confirm or reject.
 
 3a. NEEDS CLARIFICATION SCAN (blocking)
-   Scan brd.md and srd.md for any `[NEEDS CLARIFICATION: ...]` markers.
+   Scan brd.md, use-cases.md, and srd.md for any `[NEEDS CLARIFICATION: ...]` markers.
    If any found: list each with its location and question.
    These are BLOCKING — business sign-off CANNOT proceed until every
    [NEEDS CLARIFICATION] is answered and replaced with either a confirmed

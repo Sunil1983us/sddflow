@@ -18,17 +18,20 @@
 | BO-001 | {objective} | {how measured} |
 
 ## 3. Stakeholders (BA-3 — see .specify/memory/roles.yml for named owners)
+
 | ACT-ID | Role | Team | Responsibility |
 |---|---|---|---|
 | _(set by /specify-uc)_ | Product Owner | {team} | Approves requirements, /validate + /release sign-off |
-| Business Analyst | {team} | Requirements accuracy, /validate |
-| Tech Lead | {team} | Reviews architecture, /analyze risk review |
-| Architect | {team} | /plan-adr review (mvp+) |
-| Senior Developer (Mobile) | {team} | /plan-lld review (mvp+), implements |
-| QA Lead | {team} | Test cases, UAT sign-off, /release |
-| Security Officer | {team} | security-design review (mvp+/full) |
-| DevOps/SRE | {team} | Runbook, app-store release pipeline, /release go-live |
-| UX Lead | {team} | screen-spec / ux-flow review |
+| _(set by /specify-uc)_ | Business Analyst | {team} | Requirements accuracy, /validate |
+| _(set by /specify-uc)_ | Tech Lead | {team} | Reviews architecture, /analyze risk review |
+| _(set by /specify-uc)_ | Architect | {team} | /plan-design (ADR entries) review (mvp+) |
+| _(set by /specify-uc)_ | Senior Developer | {team} | /plan-lld review (mvp+), implements |
+| _(set by /specify-uc)_ | QA Lead | {team} | Test cases, UAT sign-off, /release |
+| _(set by /specify-uc)_ | Security Officer | {team} | security-design review (mvp+/full) |
+| _(set by /specify-uc)_ | DevOps/SRE | {team} | Runbook, deployment, /release go-live |
+| _(set by /specify-uc)_ | UX Lead | {team} | UX/screen review (UI-facing features) |
+
+> ACT-NNN identifiers are assigned by `/specify-uc`. Human actors become Primary or Secondary actors; system integrations become System actors.
 
 ## 4. Business Context
 ### Problem Statement

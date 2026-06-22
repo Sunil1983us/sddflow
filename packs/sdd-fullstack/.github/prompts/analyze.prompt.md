@@ -15,6 +15,7 @@ You are a Principal Architect performing a pre-implementation risk analysis. Sur
   - `auto`/`summary` → `.summary.md` | `full` → full `.md` for richer context
   - `.specify/features/{manifest.project.feature}/validate.summary.md` (or `validate.md`)
   - `.specify/features/{manifest.project.feature}/srd.summary.md` (or `srd.md`)
+  - `.specify/features/{manifest.project.feature}/use-cases.summary.md` (or `use-cases.md`)
   - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
 - Read `.specify/templates/analyze-template.md`
 
@@ -54,7 +55,7 @@ RECOMMENDATION:
   - Tasks likely needing SPLIT (from complexity)
 
 CROSS-ARTIFACT CONSISTENCY CHECK (read-only):
-Scan brd.summary.md, srd.summary.md, and any available spec summaries for:
+Scan brd.summary.md, use-cases.summary.md, srd.summary.md, and any available spec summaries for:
 
   DUPLICATION: near-duplicate BR-NNN or FR-NNN entries (same behaviour,
   different wording) — flag for merge in /clarify

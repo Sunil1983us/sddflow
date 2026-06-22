@@ -37,7 +37,7 @@ Produce the release plan:
    (if present)
 
 2. UAT PLAN
-   One row per UC-NNN from srd.md: scenario, tester role (from
+   One row per UC-NNN from use-cases.md: scenario, tester role (from
    roles.yml), browser/device target, environment, result checkbox
 
 3. STATIC DEPLOY PLAN
@@ -54,7 +54,7 @@ Produce the release plan:
    NFR check (e.g. Core Web Vitals)
 
 5. GO-LIVE GATE
-   Tech Lead / Product Owner / Ops-SRE — Go / No-Go (from roles.yml)
+   Tech Lead / QA Lead / Product Owner / Ops-SRE — Go / No-Go (from roles.yml)
 
 6. BUSINESS OBJECTIVE CLOSURE
    For each BO-NNN from brd.md: success metric, measured result or

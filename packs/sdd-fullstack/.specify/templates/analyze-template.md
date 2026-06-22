@@ -7,8 +7,9 @@
 ## References
 | Source | Sections / IDs Used |
 |---|---|
-| srd.summary.md | {sections/IDs referenced} |
 | brd.summary.md | {sections/IDs referenced} |
+| use-cases.summary.md | {UC-NNN, EP-NNN-X exception paths referenced} |
+| srd.summary.md | {FR-NNN, NFR-NNN referenced} |
 
 ## 1. Executive Summary
 {2-3 sentences: overall complexity, biggest risks, key recommendation.}
@@ -93,7 +94,7 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 ### Severity Guide
 - **CRITICAL** — block /clarify: constitution conflict (FR/NFR violates a MUST rule); FR/NFR with zero UC coverage
 - **HIGH** — resolve in /clarify: duplicate or conflicting requirements; ambiguous security/performance attribute without threshold
-- **MEDIUM** — address before /plan-arch: terminology drift; missing non-functional task coverage; underspecified edge case
+- **MEDIUM** — address before /plan-design: terminology drift; missing non-functional task coverage; underspecified edge case
 - **LOW** — optional improvement: wording; minor redundancy
 
 ---

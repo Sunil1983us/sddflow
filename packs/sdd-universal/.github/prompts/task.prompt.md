@@ -29,7 +29,7 @@ If not — STOP and ask for PLAN-DESIGN approval first.
 - Skip if manifest.project.scope == pilot — tasks.md uses
   "Verifies: TBD — link at /implement" instead
 - Read qa-testcases-template.md
-- For each FR-NNN (srd.summary.md) / endpoint (api-spec.summary.md):
+- For each FR-NNN (srd.summary.md) / endpoint (design.summary.md §3 API Design):
   generate TC-NNN covering happy path, validation, auth, unhappy path,
   and performance per the template's categories
 - For each EP-NNN-X in `use-cases.md` (Exception Paths): generate a TC-NNN

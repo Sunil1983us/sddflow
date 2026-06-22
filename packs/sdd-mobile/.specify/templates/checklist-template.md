@@ -21,7 +21,7 @@
 ### Severity Guide
 - **CRITICAL** — blocks /validate: no measurable NFR target; FR has no acceptance scenario; [NEEDS CLARIFICATION] not resolved
 - **HIGH** — should fix before /validate: vague adjective without a number; FR missing a success condition; UC with < 2 acceptance scenarios
-- **MEDIUM** — fix before /plan-arch: terminology inconsistency; out-of-scope item not listed; assumption not marked
+- **MEDIUM** — fix before /plan-design: terminology inconsistency; out-of-scope item not listed; assumption not marked
 - **LOW** — improve before /task: wording improvement; minor redundancy
 
 ### Dimension Guide

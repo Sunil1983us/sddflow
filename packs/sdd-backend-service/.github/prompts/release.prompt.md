@@ -41,7 +41,7 @@ Produce the release plan:
    without a passing test (if present)
 
 2. UAT PLAN
-   One row per UC-NNN from srd.md: scenario, tester role (from
+   One row per UC-NNN from use-cases.md: scenario, tester role (from
    roles.yml), environment, result checkbox
 
 3. DEPLOYMENT PLAN
@@ -53,7 +53,7 @@ Produce the release plan:
    Health check, key happy-path endpoint, log check, key NFR check
 
 5. GO-LIVE GATE
-   Tech Lead / Product Owner / Ops-SRE — Go / No-Go (from roles.yml)
+   Tech Lead / QA Lead / Product Owner / Ops-SRE — Go / No-Go (from roles.yml)
 
 6. BUSINESS OBJECTIVE CLOSURE
    For each BO-NNN from brd.md: success metric, measured result or

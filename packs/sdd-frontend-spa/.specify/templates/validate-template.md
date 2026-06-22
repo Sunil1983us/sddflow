@@ -9,6 +9,7 @@
 | Source | Sections / IDs Used |
 |---|---|
 | brd.summary.md | {sections/IDs referenced} |
+| use-cases.summary.md | {UC-NNN actor + flow confirmed} |
 | srd.summary.md | {sections/IDs referenced} |
 
 ## 1. Business Objective Trace
@@ -34,6 +35,18 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 | ID | Assumption | Correct? | Comment |
 |---|---|---|---|
 | ASSUMPTION-001 | {assumption} | [ ] Yes [ ] No | |
+
+---
+
+## 3a. Use Case Business Review
+
+> Confirm that each UC-NNN in use-cases.md represents a real business scenario.
+
+| UC-ID | Title | Actor | Business Scenario Correct? | Missing Paths? |
+|---|---|---|---|---|
+| UC-001 | {title} | ACT-001 | [ ] Yes [ ] No | {any missing AP/EP from business view} |
+
+**Notes:** {anything the business wants to add or change in any use case}
 
 ---
 

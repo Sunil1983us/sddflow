@@ -20,13 +20,13 @@
 - [ ] Test suite green (unit + screen/component + E2E)
 - [ ] Coverage ≥ gate (constitution Part 2)
 - [ ] Security checklist passed (security-design.md section 1, +2 if mvp+)
-- [ ] traceability.md — no FR/NFR without a passing test
+- [ ] stories.md Traceability Matrix — every FR-NNN has ≥ 1 TC-NNN and is passing
 
 ---
 
 ## 2. UAT Plan
 
-| UC-NNN (from SRD) | Scenario | Tester | Device/OS Target | Environment | Result |
+| UC-NNN (from use-cases.md) | Scenario | Tester | Device/OS Target | Environment | Result |
 |---|---|---|---|---|---|
 | UC-001 | {happy path} | {role} | {e.g. iPhone 15 / iOS 17} | {staging/TestFlight} | [ ] Pass [ ] Fail |
 | UC-002 | {unhappy path — offline} | {role} | {e.g. Pixel 8 / Android 14} | {staging/internal track} | [ ] Pass [ ] Fail |
@@ -66,6 +66,7 @@
 |---|---|---|
 | Tech Lead | [ ] Go  [ ] No-Go | |
 | Product Owner | [ ] Go  [ ] No-Go | |
+| QA Lead | [ ] Go  [ ] No-Go | |
 | Ops/SRE | [ ] Go  [ ] No-Go | |
 
 ---
