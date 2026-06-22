@@ -8,7 +8,7 @@
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced} |
-| plan.summary.md | {sections/IDs referenced} |
+| design.summary.md | {sections/IDs referenced} |
 
 ## Feature Definition
 
@@ -21,6 +21,10 @@
 ---
 
 ## Stories
+
+> Stories are grouped by MoSCoW priority. The Scrum Master assigns each story to a priority bucket; all Must Have stories must be complete before Should Have stories begin.
+
+## Must Have Stories
 
 ### STORY-001: {Story Title}
 **As** {actor}
@@ -53,6 +57,8 @@
 
 ---
 
+## Should Have Stories
+
 ### STORY-003: {Story Title}
 **As** {actor}
 **I want** {capability}
@@ -65,6 +71,12 @@
 - [ ] {criterion}
 
 **Tasks:** TASK-006, TASK-007, TASK-008
+
+---
+
+## Could Have Stories
+
+_(No Could Have stories defined yet — add as scope expands)_
 
 ---
 
@@ -106,15 +118,16 @@ If team velocity is unknown: use 20 story points per sprint as a default estimat
 
 ## Traceability Matrix (QA-1)
 
-| Story | FRs | Tasks | Test Cases (TC-NNN) | Risks (R-NNN) | Sprint |
-|---|---|---|---|---|---|
-| STORY-001 | FR-001, FR-002 | TASK-001 to 003 | TC-001, TC-002 | R-001 | 1 |
-| STORY-002 | FR-003 | TASK-004, 005 | TC-003 | — | 1 |
-| STORY-003 | FR-004, FR-005 | TASK-006 to 008 | TC-004, TC-005 | R-002 | 2 |
+| Story | UC Traces | FRs | Tasks | Test Cases (TC-NNN) | Risks (R-NNN) | Sprint |
+|---|---|---|---|---|---|---|
+| STORY-001 | UC-001 | FR-001, FR-002 | TASK-001 to 003 | TC-001, TC-002 | R-001 | 1 |
+| STORY-002 | UC-001 | FR-003 | TASK-004, 005 | TC-003 | — | 1 |
+| STORY-003 | UC-002 | FR-004, FR-005 | TASK-006 to 008 | TC-004, TC-005 | R-002 | 2 |
 
 TC-NNN IDs come from qa-testcases.md (mvp+) — every FR must map to at
 least one TC-NNN before /release. R-NNN IDs come from analyze.summary.md
-§2 Risk Register — link only risks relevant to that story.
+§2 Risk Register. UC-NNN IDs from use-cases.md — every Story must trace
+to at least one UC-NNN so the business flow is fully covered.
 
 ---
 

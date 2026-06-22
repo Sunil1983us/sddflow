@@ -22,13 +22,13 @@
 - [ ] Coverage ≥ gate (constitution Part 2) — backend and frontend
 - [ ] Security checklist passed (security-design.md section 1, +2 if mvp+ —
       both server-side and client-side controls)
-- [ ] traceability.md — no FR/NFR without a passing test
+- [ ] stories.md Traceability Matrix — every FR-NNN has ≥ 1 TC-NNN and is passing
 
 ---
 
 ## 2. UAT Plan
 
-| UC-NNN (from SRD) | Scenario | Tester | Environment | Result |
+| UC-NNN (from use-cases.md) | Scenario | Tester | Environment | Result |
 |---|---|---|---|---|
 | UC-001 | {happy path — backend API} | {role} | {staging} | [ ] Pass [ ] Fail |
 | UC-002 | {happy path — frontend screen/flow} | {role} | {staging} | [ ] Pass [ ] Fail |
@@ -72,6 +72,7 @@
 |---|---|---|
 | Tech Lead | [ ] Go  [ ] No-Go | |
 | Product Owner | [ ] Go  [ ] No-Go | |
+| QA Lead | [ ] Go  [ ] No-Go | |
 | Ops/SRE | [ ] Go  [ ] No-Go | |
 
 ---

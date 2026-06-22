@@ -7,10 +7,14 @@
 ## References
 | Source | Sections / IDs Used |
 |---|---|
-| arch.summary.md | {sections/IDs referenced} |
-| plan.summary.md | {sections/IDs referenced} |
+| design.summary.md | {architecture pattern, layers, API design applied} |
 
 ## 1. Package Structure
+
+> **Note:** The structure below uses Java/Spring conventions as the reference example.
+> Adapt to your tech stack (Python: `src/{pkg}/`, TypeScript: `src/`, Go: `internal/{pkg}/`,
+> React: `src/components/{feature}/`) using the same layering intent from constitution Part 2.
+
 ```
 src/main/java/com/{org}/{service}/
 ├── controller/

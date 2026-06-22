@@ -20,13 +20,13 @@
 - [ ] Test suite green (unit + component + E2E)
 - [ ] Coverage ≥ gate (constitution Part 2)
 - [ ] Security checklist passed (security-design.md section 1, +2 if mvp+)
-- [ ] traceability.md — no FR/NFR without a passing test
+- [ ] stories.md Traceability Matrix — every FR-NNN has ≥ 1 TC-NNN and is passing
 
 ---
 
 ## 2. UAT Plan
 
-| UC-NNN (from SRD) | Scenario | Tester | Browser/Device Target | Environment | Result |
+| UC-NNN (from use-cases.md) | Scenario | Tester | Browser/Device Target | Environment | Result |
 |---|---|---|---|---|---|
 | UC-001 | {happy path} | {role} | {e.g. Chrome desktop / iOS Safari} | {staging} | [ ] Pass [ ] Fail |
 | UC-002 | {unhappy path} | {role} | {e.g. Firefox desktop / Android Chrome} | {staging} | [ ] Pass [ ] Fail |
@@ -67,6 +67,7 @@
 |---|---|---|
 | Tech Lead | [ ] Go  [ ] No-Go | |
 | Product Owner | [ ] Go  [ ] No-Go | |
+| QA Lead | [ ] Go  [ ] No-Go | |
 | Ops/SRE | [ ] Go  [ ] No-Go | |
 
 ---

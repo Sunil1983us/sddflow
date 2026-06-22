@@ -26,7 +26,7 @@
 | _(set by /specify-uc)_ | Product Owner | {team} | Approves requirements, /validate + /release sign-off |
 | _(set by /specify-uc)_ | Business Analyst | {team} | Requirements accuracy, /validate |
 | _(set by /specify-uc)_ | Tech Lead | {team} | Reviews architecture, /analyze risk review |
-| _(set by /specify-uc)_ | Architect | {team} | /plan-adr review (mvp+) |
+| _(set by /specify-uc)_ | Architect | {team} | /plan-design (ADR entries) review (mvp+) |
 | _(set by /specify-uc)_ | Senior Developer | {team} | /plan-lld review (mvp+), implements |
 | _(set by /specify-uc)_ | QA Lead | {team} | Test cases, UAT sign-off, /release |
 | _(set by /specify-uc)_ | Security Officer | {team} | security-design review (mvp+/full) |

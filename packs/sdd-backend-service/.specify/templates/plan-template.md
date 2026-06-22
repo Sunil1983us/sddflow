@@ -8,7 +8,7 @@
 
 | Source | Sections / IDs Used |
 |---|---|
-| arch.summary.md | {sections/IDs referenced} |
+| design.summary.md | {architecture pattern, layers, API design applied} |
 
 ## 1. Tech Stack (from constitution)
 

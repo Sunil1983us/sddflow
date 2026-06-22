@@ -7,7 +7,7 @@
 ## References
 | Source | Sections / IDs Used |
 |---|---|
-| plan.summary.md | {sections/IDs referenced} |
+| design.summary.md | {architecture, API design, implementation order applied} |
 
 ## Task Field Reference
 Every task includes:
@@ -199,6 +199,25 @@ Acceptance criteria:
   - [ ] No secrets in any committed file
   - [ ] If Orchestration = Kubernetes: `kubectl apply --dry-run=client
         -f k8s/` validates cleanly
+
+---
+
+## Phase G — Performance Tests (NFR-driven)
+
+> Generated for each NFR with a measurable threshold (from srd.md §3).
+> Tool is set from constitution Part 2 → Testing row (k6 / Gatling / Locust / JMeter).
+
+### PERF-001 — Load Test: {NFR-NNN title}
+Story: STORY-{NNN}
+Satisfies: NFR-{NNN} ({threshold, e.g. P99 ≤ 500ms at 100 TPS})
+Dependencies: TASK-012 (integration test green), staging environment ready
+Estimated lines: ~60 | PR: single
+Files: {perf/load-test-{nfr}.js or similar}
+Acceptance criteria:
+  - [ ] {N} concurrent virtual users sustained for 60 seconds
+  - [ ] P99 response ≤ {threshold}
+  - [ ] Error rate < 1%
+  - [ ] Results attached to PR
 
 ---
 

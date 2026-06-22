@@ -8,7 +8,8 @@
 
 | Source | Sections / IDs Used |
 |---|---|
-| srd.summary.md | {sections/IDs referenced} |
+| use-cases.summary.md | {UC-NNN flows, AP/EP paths — inform sequence diagrams} |
+| srd.summary.md | {FR-NNN, NFR-NNN applied} |
 | clarify.summary.md | {resolved items applied} |
 | analyze.summary.md | {risk mitigations / NFR mapping applied} |
 
