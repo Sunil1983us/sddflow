@@ -25,10 +25,20 @@ Not sure which to use? See [`packs/CATALOG.md`](packs/CATALOG.md) for a decision
 Two CLIs are provided — identical behaviour, different runtimes. Both include
 Jira and Confluence integration.
 
+> **Note:** Neither CLI has been published to PyPI or npm yet.
+> Use the GitHub install commands below, or skip the CLI and use
+> `bash setup.sh` / `.\setup.ps1` instead — they work identically for `sdd init`.
+
 ### Python CLI — `sdd-init`
 
 ```bash
-pip install sdd-init          # or: pipx install sdd-init
+# Install directly from GitHub (works without a PyPI release)
+pip install "git+https://github.com/sunil1983us/universalguide.git#subdirectory=cli-python"
+sdd init
+
+# Or clone the repo and install locally
+git clone https://github.com/sunil1983us/universalguide.git
+pip install ./universalguide/cli-python
 sdd init
 ```
 
@@ -49,13 +59,27 @@ Agent commands (Claude Code / Copilot):
 ### Node.js CLI — `sdd-init`
 
 ```bash
-npx sdd-init init             # no install required
+# Clone the repo and run directly (npm publish pending)
+git clone https://github.com/sunil1983us/universalguide.git
+cd universalguide/cli
+npm install
+node bin/sdd.js init
 ```
 
 Includes:
 - `sdd init` / `sdd upgrade`
 
 → Full reference: [`cli/README.md`](cli/README.md)
+
+### Alternative: setup scripts (no install needed)
+
+The shell scripts in each pack do exactly what `sdd init` does — use them if you
+prefer not to install the CLI:
+
+```bash
+bash setup.sh          # Mac / Linux
+.\setup.ps1            # Windows PowerShell
+```
 
 ---
 
@@ -65,11 +89,13 @@ Includes:
 # 1. Copy a pack into your project
 cp -r packs/sdd-universal/. your-project/
 
-# 2. Initialize
+# 2. Initialize (choose one)
 cd your-project
-sdd init                      # Python CLI
-# or
-npx sdd-init init             # Node.js CLI
+bash setup.sh                 # Mac / Linux — no install needed
+.\setup.ps1                   # Windows PowerShell — no install needed
+
+# Python CLI (install from GitHub first — see CLI Tools section above)
+sdd init
 
 # 3. Open in your AI tool and run /specify
 ```

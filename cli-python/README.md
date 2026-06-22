@@ -5,16 +5,22 @@ Mirrors the Node.js CLI exactly and adds Jira + Confluence integration.
 
 ## Install
 
-```bash
-# Run without installing (recommended for first use)
-pipx run sdd-init init
+> **Note:** `sdd-init` has not been published to PyPI yet.
+> Use one of the methods below until it is released.
 
-# Or install globally
-pip install sdd-init
+```bash
+# Option 1 — Install directly from GitHub (recommended)
+pip install "git+https://github.com/sunil1983us/universalguide.git#subdirectory=cli-python"
 sdd init
 
-# Or with pipx
-pipx install sdd-init
+# Option 2 — Clone the repo and install locally
+git clone https://github.com/sunil1983us/universalguide.git
+pip install ./universalguide/cli-python
+sdd init
+
+# Option 3 — Install in editable mode (for development / contributors)
+git clone https://github.com/sunil1983us/universalguide.git
+pip install -e ./universalguide/cli-python
 sdd init
 ```
 
