@@ -4,9 +4,30 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sdd-init"
-version = "2.0.0"
+version = "2.6.0"
 description = "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs"
+readme = "README.md"
 requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Sunil Kumar", email = "sunil1983.us@gmail.com" }
+]
+keywords = ["sdd", "spec-driven-development", "ai", "sdlc", "claude", "llm", "specification"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Utilities",
+]
 dependencies = [
     "click>=8.0",
     "pyyaml>=6.0",
@@ -14,14 +35,22 @@ dependencies = [
     "questionary>=2.0",
     "requests>=2.28",
 ]
-keywords = ["sdd", "spec-driven-development", "ai", "sdlc", "claude"]
-license = { text = "MIT" }
 
 [project.scripts]
 sdd = "sdd.__main__:cli"
 
 [project.urls]
+Homepage = "https://github.com/sunil1983us/universalguide"
 Repository = "https://github.com/sunil1983us/universalguide"
+"Bug Tracker" = "https://github.com/sunil1983us/universalguide/issues"
+Changelog = "https://github.com/sunil1983us/universalguide/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sdd"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "sdd/",
+    "README.md",
+    "pyproject.toml",
+]
