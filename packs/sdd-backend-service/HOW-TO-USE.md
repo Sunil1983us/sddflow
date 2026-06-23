@@ -101,10 +101,32 @@ A detailed guide for every command: what it is, exactly when to run it, what it 
 
 ---
 
-#### Filling `manifest.yml` — 4 required fields
+#### Initializing a project — `setup.sh` / `setup.ps1`
 
-Not a command — a one-time setup step. Open `.specify/manifest.yml` and fill:
+Not a slash command — a one-time shell script included in every pack.
+Run it once after copying/unzipping the pack into your project folder:
 
+```bash
+# Mac / Linux
+bash setup.sh
+
+# Windows
+.\setup.ps1
+```
+
+The script prompts for project name, feature name, and scope, then:
+- Fills the 4 required fields in `.specify/manifest.yml`
+- Creates `.specify/contexts/{feature}.md` as a structured placeholder
+- Creates `.specify/features/{feature}/` output directory
+
+**When:** Once, immediately after copying the pack. Before running `/specify`.
+
+You can also pass arguments directly to skip the prompts:
+```bash
+bash setup.sh --project "My Payments API" --feature "user-auth" --scope mvp
+```
+
+If you prefer to fill `manifest.yml` by hand instead:
 ```yaml
 project:
   name: "Your Service"          # Display name
@@ -113,7 +135,7 @@ project:
   context_file: "your-feature.md"   # File in .specify/contexts/
 ```
 
-**When:** Once, before running `/specify`.
+> **Note:** There is no `sdd init` command. The `sdd` CLI (`sdd review`, `sdd pr create`, `sdd upgrade`) is a planned future integration and is not required to use the framework. All review steps can be done manually — you review docs yourself, approve verbally or in your ticket tracker, and create PRs with your normal git workflow.
 
 ---
 
@@ -164,7 +186,7 @@ project:
 
 **Produces:** `.specify/features/{feature}/brd.md` + `brd.summary.md`
 
-**You do next:** Share `brd.md` with the Product Owner for review. When approved, tell the agent "BRD approved" to unlock `/specify-uc`. If changes needed: edit the document and run `sdd review apply --doc brd`.
+**You do next:** Share `brd.md` with the Product Owner for review. When approved, tell the agent "BRD approved" to unlock `/specify-uc`. If changes are needed: edit the document directly, then re-share with the reviewer.
 
 **Reviewer:** Product Owner
 
@@ -466,14 +488,11 @@ Agent analyses the diff for the completed task: correctness, security, quality, 
 
 Agent reads all unresolved comment threads on the PR, presents them as a numbered checklist, applies selected fixes, pushes, replies to threads, and requests re-review.
 
-#### `/submit-review --doc {name}` / `/check-review --doc {name}` — Jira Review Workflow
+#### `/submit-review --doc {name}` / `/check-review --doc {name}` — Review Workflow
 
-```bash
-sdd review submit --doc brd      # push to Confluence + create Jira review task
-sdd review check  --doc brd      # poll status: 0=approved 1=needs-revision 2=pending
-sdd review apply  --doc brd      # re-push after addressing reviewer comments
-sdd review status                # full dashboard for all documents
-```
+Slash commands that help manage the document review cycle — present the agent with reviewer comments and let it update the document.
+
+> **`sdd review` CLI** (`sdd review submit`, `sdd review check`, `sdd review apply`) is a planned Jira/Confluence integration and is not yet available. You can achieve the same result manually: share the document with your reviewer, collect their comments, ask the agent to address them, then re-share. The `/submit-review` and `/check-review` slash commands work independently of the CLI.
 
 ---
 
