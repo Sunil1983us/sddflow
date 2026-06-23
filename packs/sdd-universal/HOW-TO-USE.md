@@ -101,41 +101,37 @@ A detailed guide for every command: what it is, exactly when to run it, what it 
 
 ---
 
-#### Initializing a project — `setup.sh` / `setup.ps1`
+#### Initializing a project — `sdd init` (recommended) or `setup.sh`
 
-Not a slash command — a one-time shell script included in every pack.
-Run it once after copying/unzipping the pack into your project folder:
+**Option 1 — `sdd init` (recommended, requires the CLI):**
 
+Install the CLI once:
 ```bash
-# Mac / Linux
-bash setup.sh
-
-# Windows
-.\setup.ps1
+pip install sdd-init          # Python (any platform)
+# OR
+npm install -g sdd-init       # Node.js (any platform)
 ```
 
-The script prompts for project name, feature name, and scope, then:
-- Fills the 4 required fields in `.specify/manifest.yml`
-- Creates `.specify/contexts/{feature}.md` as a structured placeholder
-- Creates `.specify/features/{feature}/` output directory
-
-**When:** Once, immediately after copying the pack. Before running `/specify`.
-
-You can also pass arguments directly to skip the prompts:
+Then run in your project folder:
 ```bash
-bash setup.sh --project "My Payments API" --feature "user-auth" --scope mvp
+sdd init                      # interactive — prompts for name, feature, scope, type
+sdd init -p "My API" -f "payments" -s mvp   # non-interactive
 ```
 
-If you prefer to fill `manifest.yml` by hand instead:
-```yaml
-project:
-  name: "Your Service"          # Display name
-  scope: "pilot"                # pilot | mvp | full
-  feature: "your-feature"       # Output folder name — no spaces
-  context_file: "your-feature.md"   # File in .specify/contexts/
+`sdd init` auto-detects your project type, fills `manifest.yml` (including `sdd_version`), creates the context placeholder, and creates the feature output directory.
+
+**Option 2 — `bash setup.sh` (no install needed):**
+
+Every pack ships with a shell script as a zero-dependency fallback:
+```bash
+bash setup.sh                 # Mac / Linux — interactive
+.\setup.ps1                   # Windows — interactive
+bash setup.sh --project "My API" --feature "payments" --scope mvp  # non-interactive
 ```
 
-> **Note:** There is no `sdd init` command. The `sdd` CLI (`sdd review`, `sdd pr create`, `sdd upgrade`) is a planned future integration and is not required to use the framework. All review steps can be done manually — you review docs yourself, approve verbally or in your ticket tracker, and create PRs with your normal git workflow.
+Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI) and does not auto-detect project type.
+
+**When:** Once, immediately after copying the pack into your project. Before running `/specify`.
 
 ---
 
@@ -492,7 +488,15 @@ Agent reads all unresolved comment threads on the PR, presents them as a numbere
 
 Slash commands that help manage the document review cycle — present the agent with reviewer comments and let it update the document.
 
-> **`sdd review` CLI** (`sdd review submit`, `sdd review check`, `sdd review apply`) is a planned Jira/Confluence integration and is not yet available. You can achieve the same result manually: share the document with your reviewer, collect their comments, ask the agent to address them, then re-share. The `/submit-review` and `/check-review` slash commands work independently of the CLI.
+The `sdd` CLI adds Jira/Confluence integration on top of these slash commands:
+```bash
+sdd review submit --doc brd      # push to Confluence + create Jira review task
+sdd review check  --doc brd      # poll: exit 0=approved 1=needs-revision 2=pending
+sdd review apply  --doc brd      # re-push after addressing reviewer comments
+sdd review status                # full dashboard for all documents
+```
+Configure reviewers in `.specify/integrations.yml` — see `integrations.yml.example`.
+Without the CLI, share documents manually with reviewers and tell the agent the outcome.
 
 ---
 

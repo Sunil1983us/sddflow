@@ -38,4 +38,4 @@ reading_mode: "auto"   # auto | summary | full — see summary-rules.md
 # If using sdd-universal instead, set project_type: "backend-service" in its manifest.yml
 # project_type: "backend-service"
 
-sdd_version: "2.0.0"   # set by pack — do not change
+sdd_version: "2.0.0"   # set by sdd init; used by sdd upgrade
