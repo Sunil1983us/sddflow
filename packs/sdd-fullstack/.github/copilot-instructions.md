@@ -42,6 +42,7 @@ Nothing after /specify runs until GATE-1 passes.
 | /pre-review | PRE-REVIEW | Code review before PR; checklist → dev picks fixes |
 | /address-review | ADDR-REVIEW | Address human PR comments; fix, reply, resolve |
 | /release | RELEASE | UAT + deployment + go-live gate |
+| /orchestrate | ORCHESTRATE | Drive full pipeline automatically — pauses at every human gate |
 
 ## Document Review Gates (sdd review)
 

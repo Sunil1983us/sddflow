@@ -29,6 +29,7 @@
 | `/task` | `/task` | `/task` | Stories + Tasks + Jira |
 | `/implement` | `/implement TASK-NNN` | `/implement TASK-NNN` | Code one task |
 | `/release` | `/release` | `/release` | UAT + store-release plan + go-live gate |
+| `/orchestrate` | `/orchestrate` | `/orchestrate` | Drive full pipeline automatically (CLI + multi-agent) — `--list`, `--from STEP`, `--to STEP` |
 
 ---
 

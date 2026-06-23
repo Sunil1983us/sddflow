@@ -62,6 +62,18 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 
 ---
 
+## 4a. Security Design Sign-Off (mvp+ and full scope only)
+
+> Skip this section for `pilot` scope.
+
+| Status | Reviewer | Date |
+|---|---|---|
+| {see security-design.md sign-off marker} | {Security Officer — from roles.yml} | |
+
+**If status is `pending`:** Security Officer sign-off on `security-design.md` is required before `/analyze` can proceed.
+
+---
+
 ## 5. Sign-Off
 
 | Role | Name | Decision | Date |
@@ -87,6 +99,7 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 
 State one of:
 - "VALIDATE complete — all objectives traced, all assumptions confirmed, no open CR-NNN. Ready for /analyze."
+- "VALIDATE BLOCKED — Security Officer must approve security-design.md (§4a) before /analyze can proceed."
 - "VALIDATE incomplete — {N} CR-NNN items open. Resolve and re-validate before /analyze."
 
 ---
