@@ -81,6 +81,10 @@ You review every row and say "Constitution Part 2 finalized" (GATE-1).
 | `/plan-design` | Architecture + Diagrams + API Design + ADRs | all scopes |
 | `/plan-lld` | Detailed class/sequence design | mvp+ only |
 
+### Orchestrated Pipeline
+Run `/orchestrate` to drive the full pipeline from a single command.
+Pauses at every human gate. Supports `--list`, `--from STEP`, `--to STEP`.
+
 ### Full Command Order
 
 ```

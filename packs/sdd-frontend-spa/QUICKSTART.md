@@ -85,6 +85,9 @@ Run specify
 /task         → stories + tasks + Jira CSV
 /implement    → code one task at a time with PR rules
 /release      → UAT plan + go-live gate
+
+Or run everything at once:
+/orchestrate  → full pipeline, auto-sequenced, pauses at every gate
 ```
 
 Pick your scope in `manifest.yml`:

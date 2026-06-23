@@ -25,6 +25,7 @@ writing it by hand. See `.specify/contexts/CONTEXT-GUIDE.md`.
 | `/task` | Feature → Story → Task + Jira CSV | Always |
 | `/implement` | Code one task at a time | Always |
 | `/release` | UAT + deployment plan + go-live gate | Always |
+| `/orchestrate` | Drive full pipeline automatically — pauses at every human gate | Optional |
 
 ---
 

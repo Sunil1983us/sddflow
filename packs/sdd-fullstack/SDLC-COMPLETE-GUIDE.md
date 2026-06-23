@@ -40,6 +40,7 @@ touching the next document.
 | 12 | `/task` | Stories + Tasks + Jira push | design.md reviewed |
 | 13 | `/implement` | One task at a time | tasks approved |
 | 14 | `/release` | UAT plan + deployment + go-live gate | all tasks merged |
+| — | `/orchestrate` | Drive full pipeline automatically (CLI + multi-agent) — `--list`, `--from STEP`, `--to STEP` | Optional |
 | — | `/change` | Raise a change request at ANY stage | Any stage |
 
 ---

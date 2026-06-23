@@ -219,7 +219,16 @@ For each task in the `/implement` phase:
   - Review: qa lead, product owner, tech lead, devops/sre
   - Run after: /implement (all tasks) | Gate before: go-live
 
+## /orchestrate — Full Pipeline (optional)
+Run `/orchestrate` to drive the entire pipeline in one command.
+Supports `--list` (status dashboard), `--from STEP` (resume), `--to STEP` (stop early).
+Works in CLI (single-session) and multi-agent SDK modes.
+See `.github/prompts/orchestrate.prompt.md` for full reference.
+
 ## Command Order
+/orchestrate  ← runs everything below automatically
+
+— or step by step —
 /specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd → /specify-doc {name}... → /checklist (mandatory mvp+, optional pilot)
 → /validate → /analyze → /clarify → /plan-design
 → /plan-lld (mvp+) → /task → /implement → /release
