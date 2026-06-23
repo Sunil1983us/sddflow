@@ -133,9 +133,9 @@ extended docs required for this project_type × scope combination
 
 **Multi-agent mode:**
 > Spawn a sub-agent with this task:
-> "Read `.github/prompts/{step}.prompt.md` in full and execute every
->  instruction exactly as written. Project context: manifest at
->  `.specify/manifest.yml`, feature: {feature}."
+> "Invoke the `/{step}` skill (`.claude/commands/{step}.md`).
+>  Project: {project.name}, feature: {feature}.
+>  Arguments: {any step-specific args, e.g. TASK-NNN for /implement}."
 > Wait for the sub-agent to complete and return its output.
 > Read the output file it produced to verify completion.
 
