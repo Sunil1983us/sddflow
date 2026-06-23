@@ -99,6 +99,7 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 
 State one of:
 - "VALIDATE complete — all objectives traced, all assumptions confirmed, no open CR-NNN. Ready for /analyze."
+- "VALIDATE BLOCKED — Security Officer must approve security-design.md (§4a) before /analyze can proceed."
 - "VALIDATE incomplete — {N} CR-NNN items open. Resolve and re-validate before /analyze."
 
 ---
