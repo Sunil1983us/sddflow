@@ -19,6 +19,7 @@ program
   .option('-f, --feature <name>',  'First feature name')
   .option('-s, --scope <scope>',   'Scope: pilot | mvp | full', 'pilot')
   .option('-t, --type <type>',     'Project type (auto-detected if omitted)')
+  .option('--pack <pack>',         'Pack to scaffold (sdd-backend-service | sdd-frontend-spa | sdd-fullstack | sdd-mobile | sdd-universal)')
   .action(initCommand);
 
 program

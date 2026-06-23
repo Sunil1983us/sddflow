@@ -5,6 +5,10 @@ import inquirer from 'inquirer';
 import { detectProjectType, PROJECT_TYPES } from '../utils/detect.js';
 import { validateName, assertValidName } from '../utils/validate.js';
 import { patchManifest, MANIFEST_PATH, SDD_VERSION } from '../utils/manifest.js';
+import {
+  recommendedPack, scaffoldPack,
+  PACK_DESCRIPTIONS, ALL_PACKS, TYPE_TO_PACK,
+} from '../utils/scaffold.js';
 
 const SCOPES = ['pilot', 'mvp', 'full'];
 
@@ -17,10 +21,13 @@ ${chalk.bold('━━━━━━━━━━━━━━━━━━━━━━
 export async function initCommand(opts) {
   console.log(BANNER);
 
+  // ── Scaffold mode: no pack present yet ───────────────────────────────────
   if (!existsSync(MANIFEST_PATH)) {
-    console.error(chalk.red(`✗  ${MANIFEST_PATH} not found — run from the pack root directory.`));
-    process.exit(1);
+    await scaffoldMode(opts.type ?? null, opts.pack ?? null);
+    // After scaffold, manifest.yml now exists — continue with fill mode below
   }
+
+  // ── Fill mode: manifest.yml exists ───────────────────────────────────────
 
   // ── Project type ─────────────────────────────────────────────────────────
   let projectType = opts.type ?? null;
@@ -36,9 +43,7 @@ export async function initCommand(opts) {
         message: `  Use detected type ${chalk.cyan(detected)}?`,
         default: true,
       }]);
-      if (confirmed) {
-        projectType = detected;
-      }
+      if (confirmed) projectType = detected;
     } else {
       console.log(chalk.yellow('not detected'));
     }
@@ -91,7 +96,6 @@ export async function initCommand(opts) {
   const featureName = opts.feature  ?? answers.featureName;
   const scope       = answers.scope ?? opts.scope ?? 'pilot';
 
-  // Validate CLI-supplied values (inquirer validates interactive ones)
   assertValidName(projectName, 'Project name');
   assertValidName(featureName, 'Feature name');
 
@@ -103,7 +107,7 @@ export async function initCommand(opts) {
   console.log(`  Scope   : ${chalk.cyan(scope)}`);
   console.log('');
 
-  // ── Update manifest.yml via js-yaml (no string injection possible) ────────
+  // ── Update manifest.yml ───────────────────────────────────────────────────
   patchManifest({
     project: {
       name:         projectName,
@@ -121,7 +125,6 @@ export async function initCommand(opts) {
   mkdirSync(dirname(contextPath), { recursive: true });
 
   if (!existsSync(contextPath)) {
-    // Generate content directly — no placeholder substitution needed
     writeFileSync(contextPath, contextTemplate(featureName, projectName));
     console.log(`  ${chalk.green('✓')}  ${contextPath} created`);
   } else {
@@ -152,6 +155,97 @@ export async function initCommand(opts) {
   console.log('');
   console.log('  See QUICKSTART.md for the full walkthrough.');
   console.log('');
+}
+
+/**
+ * Scaffold mode — no pack in this directory.
+ * Detects project type, asks which pack to copy, copies it.
+ */
+async function scaffoldMode(projectType, packOverride) {
+  console.log(`  ${chalk.yellow('No SDD pack found in this directory.')}`);
+  console.log('');
+
+  // Detect type if not supplied
+  if (!projectType) {
+    process.stdout.write(chalk.dim('  Detecting project type... '));
+    projectType = detectProjectType('.');
+    if (projectType) {
+      console.log(chalk.green(projectType));
+    } else {
+      console.log(chalk.yellow('not detected'));
+    }
+  }
+
+  const rec = packOverride ?? recommendedPack(projectType);
+
+  let chosenPack;
+
+  if (packOverride) {
+    chosenPack = packOverride;
+    console.log(`  Pack: ${chalk.cyan(chosenPack)}  (from --pack flag)`);
+  } else {
+    const choices = buildPackChoices(projectType, rec);
+    const { selected } = await inquirer.prompt([{
+      type: 'list',
+      name: 'selected',
+      message: 'Which pack would you like to scaffold?',
+      choices,
+      pageSize: choices.length,
+    }]);
+
+    if (selected === '__all__') {
+      const { all } = await inquirer.prompt([{
+        type: 'list',
+        name: 'all',
+        message: 'Select pack:',
+        choices: ALL_PACKS.map(p => ({
+          name: `${p}  —  ${PACK_DESCRIPTIONS[p]}`,
+          value: p,
+        })),
+        pageSize: ALL_PACKS.length,
+      }]);
+      chosenPack = all;
+    } else {
+      chosenPack = selected;
+    }
+  }
+
+  console.log('');
+  process.stdout.write(`  Scaffolding ${chalk.cyan(chosenPack)}...`);
+
+  try {
+    const n = scaffoldPack(chosenPack, '.');
+    console.log(`  ${chalk.green('✓')}  ${chosenPack} scaffolded (${n} files copied)`);
+    console.log('');
+  } catch (err) {
+    console.log('');
+    console.error(chalk.red(`✗  ${err.message}`));
+    process.exit(1);
+  }
+}
+
+function buildPackChoices(projectType, rec) {
+  const choices = [];
+
+  if (rec !== 'sdd-universal') {
+    choices.push({
+      name: `${rec}  (${PACK_DESCRIPTIONS[rec]})  ← recommended for ${projectType}`,
+      value: rec,
+    });
+    choices.push({
+      name: `sdd-universal  (${PACK_DESCRIPTIONS['sdd-universal']})`,
+      value: 'sdd-universal',
+    });
+  } else {
+    const label = projectType ? `for ${projectType}` : 'when type is unclear';
+    choices.push({
+      name: `sdd-universal  (${PACK_DESCRIPTIONS['sdd-universal']})  ← recommended ${label}`,
+      value: 'sdd-universal',
+    });
+  }
+
+  choices.push({ name: 'Choose from all packs…', value: '__all__' });
+  return choices;
 }
 
 function contextTemplate(featureName, projectName) {
