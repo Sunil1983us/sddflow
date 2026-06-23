@@ -1,4 +1,4 @@
-# How To Use — SDD Pack
+# How To Use — SDD Mobile
 
 ---
 
@@ -8,32 +8,43 @@ writing it by hand. See `.specify/contexts/CONTEXT-GUIDE.md`.
 
 ---
 
-## Choosing the Right Pack
+## This Pack — sdd-mobile
 
-Five packs are available. Copy exactly one into your project.
+**For:** React Native and Flutter mobile applications (iOS + Android)
 
-| Pack | Best For | Auto-detect? |
-|---|---|---|
-| **sdd-universal** | Any project — not sure which to pick? Use this. | Yes — `setup.sh` detects project type from your files |
-| **sdd-backend-service** | REST APIs, microservices, databases, messaging | No — you chose this pack manually |
-| **sdd-frontend-spa** | React / Vue / Angular single-page applications | No — you chose this pack manually |
-| **sdd-fullstack** | Frontend + backend in the same repository | No — you chose this pack manually |
-| **sdd-mobile** | React Native or Flutter mobile apps | No — you chose this pack manually |
+Adds screen-level and UX flow design templates and enforces offline-first architecture, MASVS security principles, and App Store distribution planning. `/release` produces a store-release plan (TestFlight / Play Console) in addition to the standard deployment runbook.
 
-**Rule of thumb:** If you are unsure, use `sdd-universal`. Its `setup.sh` runs `detect_project_type()` which auto-detects your type from these signals (checked in this order):
+### Pack-Specific Templates
 
-| Signal detected | Resolved type |
+Included in addition to the 28 core spec templates:
+
+| Template | Use it for |
 |---|---|
-| `pubspec.yaml` present | `mobile` (Flutter) |
-| `react-native` in `package.json` | `mobile` (React Native) |
-| `package.json` **and** `pom.xml` both present | `fullstack` |
-| `pom.xml` present (no `package.json`) | `backend-service` |
-| `package.json` present (no `pom.xml`) | `frontend-spa` |
-| None of the above | `backend-service` (default) |
+| `screen-spec-template.md` | Screen layout, components, gestures, and interactions |
+| `ux-flow-template.md` | User journey flows and screen-to-screen transitions |
 
-> Mobile checks intentionally appear before fullstack: a React Native project with a pom.xml (e.g. a monorepo) must resolve to `mobile`, not `fullstack`.
+### Extended Documents Available
 
-If you copy one of the type-specific packs directly, `manifest.yml` → `project_type` is already set for you — no auto-detection needed.
+| Document | Command | Scope |
+|---|---|---|
+| Security Design (MASVS) | `/specify-doc security` | All scopes |
+| Screen Spec | `/specify-doc screen-spec` | mvp+ |
+| UX Flow | `/specify-doc ux-flow` | mvp+ |
+| Data Model | `/specify-doc data-model` | full only |
+| Resilience Plan | `/specify-doc resilience` | full only |
+| Technical Investigation | `/specify-doc investigation` | full only |
+
+### Mobile-Specific Rules
+
+The following rules are added to `constitution.md Never Do` by `/specify`:
+
+- **Offline-first** — assume no connectivity; design for offline and sync when connected
+- Never call APIs directly from screens — use a service/repository layer
+- Never request permissions on startup — request at the point of use
+- Never hardcode platform checks — use platform abstraction layers
+- **OWASP MASVS checklist** always applies to security design
+
+> Need a different pack? Run `sdd init --pack <name>` to switch. Use `sdd-universal` if you're unsure which pack fits your project.
 
 ---
 
@@ -227,18 +238,20 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 | Scope | Documents to generate |
 |---|---|
 | pilot | None required (Security Design §1 already in SRD) |
-| mvp | `/specify-doc security` then `/specify-doc data-model` |
-| full | `/specify-doc security` then `/specify-doc data-model` then `/specify-doc resilience` then `/specify-doc investigation` |
+| mvp | `/specify-doc security` → `/specify-doc screen-spec` → `/specify-doc ux-flow` |
+| full | `/specify-doc security` → `/specify-doc screen-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` → `/specify-doc resilience` → `/specify-doc investigation` |
 
 **When to run:** After SRD is approved, one at a time.
 
 **Prerequisites:** SRD approval + `srd.summary.md` exists.
 
 **Available document names:**
-- `security` → `security-design.md` (STRIDE threat model, §1-2 for mvp, §1-4 for full)
-- `data-model` → `data-model.md` (entities, relationships, PII handling)
-- `resilience` → `resilience.md` (circuit breakers, retry, bulkhead, SLA budget allocation)
-- `investigation` → `investigation.md` (spike / technical investigation for unknowns)
+- `security` → `security-design.md` (STRIDE + MASVS threat model, §1-2 for mvp, §1-4 for full)
+- `screen-spec` → `screen-spec.md` (screen layout, components, gestures, interactions) — **mvp+**
+- `ux-flow` → `ux-flow.md` (user journey flows, screen-to-screen transitions) — **mvp+**
+- `data-model` → `data-model.md` (local DB schema, sync model, PII handling) — **full only**
+- `resilience` → `resilience.md` (offline queue, retry, background sync) — **full only**
+- `investigation` → `investigation.md` (spike / technical investigation) — **full only**
 
 **You do next:** Review each doc. The agent presents it; you approve or request changes before generating the next one.
 
@@ -533,24 +546,31 @@ scope: "full"
 
 ## Constitution — How It Gets Filled
 
-/specify reads your context and extracts (as a DRAFT — see GATE-1):
+`/specify` reads your context and extracts these mobile-specific rows (as a DRAFT — see GATE-1):
 
 | Extracted | From your context section |
 |---|---|
-| Language + Framework | Tech stack section |
-| Build Tool | Derived from language |
-| API Style | Endpoint contracts |
-| Messaging | Integration section |
-| Database + Cache | Tech stack / integrations |
-| DB Migration | Derived from framework |
-| Config + Secrets | Infrastructure section |
-| Resilience | NFR section |
-| Observability + Logging | NFR / tech stack |
+| Language/Framework | Tech stack (React Native + TypeScript / Dart + Flutter / Expo) |
+| Navigation | Tech stack section |
+| State Management | Tech stack section |
+| Local Storage/DB | Tech stack / data section |
+| API Client | Integration section |
+| Build Tool | Derived from framework (EAS / Fastlane / Gradle + Xcode) |
+| Push Notifications | Integration section |
+| Crash/Analytics | Tech stack / NFR section |
+| Data Cache | Tech stack section |
+| Offline Sync | NFR section (offline-first design) |
+| Config + Secrets | Infrastructure section (Keychain/Keystore — never in bundle) |
+| Resilience | NFR section (retry, offline queue) |
+| Observability | NFR section (crash reporting, performance monitoring) |
+| Logging | NFR section (no sensitive data logged) |
 | Testing + Coverage | NFR section |
-| CI/CD + Orchestration | Infrastructure |
-| Core Principles | Domain + constraints |
-| Domain Rules | Business rules |
-| Never Do | Constraints |
+| Quality/Security | OWASP MASVS checklist (always applied) |
+| CI/CD | Infrastructure section (GitHub Actions / Fastlane / Bitrise) |
+| App Store Distribution | Infrastructure section (TestFlight / Play Console) |
+| Core Principles | Offline-First, Accessible, Cross-Platform, Performant (always) + domain |
+| Domain Rules | Mobile UX and business rules |
+| Never Do | Constraints + standard mobile rules (offline-first, no API in screens) |
 
 **Tip: richer context = better constitution draft.**
 

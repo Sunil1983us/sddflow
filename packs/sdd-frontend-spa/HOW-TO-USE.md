@@ -1,4 +1,4 @@
-# How To Use — SDD Pack
+# How To Use — SDD Frontend SPA
 
 ---
 
@@ -8,32 +8,43 @@ writing it by hand. See `.specify/contexts/CONTEXT-GUIDE.md`.
 
 ---
 
-## Choosing the Right Pack
+## This Pack — sdd-frontend-spa
 
-Five packs are available. Copy exactly one into your project.
+**For:** React, Vue, Angular, and Svelte single-page applications
 
-| Pack | Best For | Auto-detect? |
-|---|---|---|
-| **sdd-universal** | Any project — not sure which to pick? Use this. | Yes — `setup.sh` detects project type from your files |
-| **sdd-backend-service** | REST APIs, microservices, databases, messaging | No — you chose this pack manually |
-| **sdd-frontend-spa** | React / Vue / Angular single-page applications | No — you chose this pack manually |
-| **sdd-fullstack** | Frontend + backend in the same repository | No — you chose this pack manually |
-| **sdd-mobile** | React Native or Flutter mobile apps | No — you chose this pack manually |
+This pack adds component-level and UX flow design documents and enforces accessibility, component architecture, and SPA-specific tech concerns. It does not include backend or server-side concerns.
 
-**Rule of thumb:** If you are unsure, use `sdd-universal`. Its `setup.sh` runs `detect_project_type()` which auto-detects your type from these signals (checked in this order):
+### Pack-Specific Templates
 
-| Signal detected | Resolved type |
+Included in addition to the 28 core spec templates:
+
+| Template | Use it for |
 |---|---|
-| `pubspec.yaml` present | `mobile` (Flutter) |
-| `react-native` in `package.json` | `mobile` (React Native) |
-| `package.json` **and** `pom.xml` both present | `fullstack` |
-| `pom.xml` present (no `package.json`) | `backend-service` |
-| `package.json` present (no `pom.xml`) | `frontend-spa` |
-| None of the above | `backend-service` (default) |
+| `component-spec-template.md` | UI component specification — props, state, events, slots, accessibility |
+| `ux-flow-template.md` | User journey flows and screen-to-screen transitions |
 
-> Mobile checks intentionally appear before fullstack: a React Native project with a pom.xml (e.g. a monorepo) must resolve to `mobile`, not `fullstack`.
+### Extended Documents Available
 
-If you copy one of the type-specific packs directly, `manifest.yml` → `project_type` is already set for you — no auto-detection needed.
+| Document | Command | Scope |
+|---|---|---|
+| Security Design | `/specify-doc security` | All scopes |
+| Component Spec | `/specify-doc component-spec` | mvp+ |
+| UX Flow | `/specify-doc ux-flow` | mvp+ |
+| Data Model | `/specify-doc data-model` | full only |
+| Resilience Plan | `/specify-doc resilience` | full only |
+| Technical Investigation | `/specify-doc investigation` | full only |
+
+### SPA-Specific Rules
+
+The following rules are added to `constitution.md Never Do` by `/specify`:
+
+- Never call an API directly from a component — always go through a service layer
+- Never use inline styles — use the project's styling solution
+- Never ship a component without an axe-core accessibility check
+- Never use `any` type in TypeScript
+- Never log sensitive data to the console in production
+
+> Need a different pack? Run `sdd init --pack <name>` to switch. Use `sdd-universal` if you're unsure which pack fits your project.
 
 ---
 
@@ -227,8 +238,8 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 | Scope | Documents to generate |
 |---|---|
 | pilot | None required (Security Design §1 already in SRD) |
-| mvp | `/specify-doc security` then `/specify-doc data-model` |
-| full | `/specify-doc security` then `/specify-doc data-model` then `/specify-doc resilience` then `/specify-doc investigation` |
+| mvp | `/specify-doc security` → `/specify-doc component-spec` → `/specify-doc ux-flow` |
+| full | `/specify-doc security` → `/specify-doc component-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` → `/specify-doc resilience` → `/specify-doc investigation` |
 
 **When to run:** After SRD is approved, one at a time.
 
@@ -236,9 +247,11 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 **Available document names:**
 - `security` → `security-design.md` (STRIDE threat model, §1-2 for mvp, §1-4 for full)
-- `data-model` → `data-model.md` (entities, relationships, PII handling)
-- `resilience` → `resilience.md` (circuit breakers, retry, bulkhead, SLA budget allocation)
-- `investigation` → `investigation.md` (spike / technical investigation for unknowns)
+- `component-spec` → `component-spec.md` (component props, state, events, accessibility) — **mvp+**
+- `ux-flow` → `ux-flow.md` (user journey flows, screen transitions) — **mvp+**
+- `data-model` → `data-model.md` (client data structures, API response shapes) — **full only**
+- `resilience` → `resilience.md` (error boundaries, retry, offline handling) — **full only**
+- `investigation` → `investigation.md` (spike / technical investigation) — **full only**
 
 **You do next:** Review each doc. The agent presents it; you approve or request changes before generating the next one.
 
@@ -533,24 +546,29 @@ scope: "full"
 
 ## Constitution — How It Gets Filled
 
-/specify reads your context and extracts (as a DRAFT — see GATE-1):
+`/specify` reads your context and extracts these rows for the SPA tech stack (as a DRAFT — see GATE-1):
 
 | Extracted | From your context section |
 |---|---|
-| Language + Framework | Tech stack section |
-| Build Tool | Derived from language |
-| API Style | Endpoint contracts |
-| Messaging | Integration section |
-| Database + Cache | Tech stack / integrations |
-| DB Migration | Derived from framework |
-| Config + Secrets | Infrastructure section |
-| Resilience | NFR section |
-| Observability + Logging | NFR / tech stack |
-| Testing + Coverage | NFR section |
-| CI/CD + Orchestration | Infrastructure |
-| Core Principles | Domain + constraints |
-| Domain Rules | Business rules |
-| Never Do | Constraints |
+| Language + Framework | Tech stack (TypeScript/JavaScript + React/Vue/Angular/Svelte) |
+| Build Tool | Derived from framework (Vite / webpack / Next / Nuxt) |
+| State Management | Tech stack section |
+| Component Library | Tech stack / UI section |
+| Routing | Derived from framework |
+| API Client | Integration section |
+| Data Cache | Tech stack section |
+| Config + Secrets | Infrastructure section (secrets never bundled) |
+| Resilience | NFR section (error boundaries, retry) |
+| Observability | NFR section (Sentry / RUM) |
+| Logging | NFR / tech stack (structured console) |
+| Testing + Coverage | NFR section (Jest / Vitest + Testing Library) |
+| Linting/Formatting | Tech stack section (ESLint + Prettier) |
+| Accessibility | NFR section (WCAG 2.1 AA by default) |
+| CI/CD | Infrastructure section |
+| Hosting/CDN | Infrastructure section |
+| Core Principles | Component-First, Accessible, Performant (always) + domain |
+| Domain Rules | UX and business rules |
+| Never Do | Constraints + standard SPA rules (no API in components, no inline styles) |
 
 **Tip: richer context = better constitution draft.**
 

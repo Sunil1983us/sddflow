@@ -1,4 +1,4 @@
-# How To Use — SDD Pack
+# How To Use — SDD Backend Service
 
 ---
 
@@ -8,32 +8,31 @@ writing it by hand. See `.specify/contexts/CONTEXT-GUIDE.md`.
 
 ---
 
-## Choosing the Right Pack
+## This Pack — sdd-backend-service
 
-Five packs are available. Copy exactly one into your project.
+**For:** REST APIs, microservices, databases, and messaging systems
 
-| Pack | Best For | Auto-detect? |
-|---|---|---|
-| **sdd-universal** | Any project — not sure which to pick? Use this. | Yes — `setup.sh` detects project type from your files |
-| **sdd-backend-service** | REST APIs, microservices, databases, messaging | No — you chose this pack manually |
-| **sdd-frontend-spa** | React / Vue / Angular single-page applications | No — you chose this pack manually |
-| **sdd-fullstack** | Frontend + backend in the same repository | No — you chose this pack manually |
-| **sdd-mobile** | React Native or Flutter mobile apps | No — you chose this pack manually |
+Java/Spring Boot, Python/FastAPI, Go, Node.js, and similar server-side runtimes. This pack does not include UI-related templates — it focuses on backend concerns: API contracts, data persistence, messaging, and infrastructure.
 
-**Rule of thumb:** If you are unsure, use `sdd-universal`. Its `setup.sh` runs `detect_project_type()` which auto-detects your type from these signals (checked in this order):
+### Pack-Specific Templates
 
-| Signal detected | Resolved type |
+Included in addition to the 28 core spec templates:
+
+| Template | Use it for |
 |---|---|
-| `pubspec.yaml` present | `mobile` (Flutter) |
-| `react-native` in `package.json` | `mobile` (React Native) |
-| `package.json` **and** `pom.xml` both present | `fullstack` |
-| `pom.xml` present (no `package.json`) | `backend-service` |
-| `package.json` present (no `pom.xml`) | `frontend-spa` |
-| None of the above | `backend-service` (default) |
+| `openapi-template.md` | OpenAPI 3.x REST contract specification |
+| `k8s-manifest-template.md` | Kubernetes Deployment, Service, and ConfigMap manifests |
 
-> Mobile checks intentionally appear before fullstack: a React Native project with a pom.xml (e.g. a monorepo) must resolve to `mobile`, not `fullstack`.
+### Extended Documents Available
 
-If you copy one of the type-specific packs directly, `manifest.yml` → `project_type` is already set for you — no auto-detection needed.
+| Document | Command | Scope |
+|---|---|---|
+| Security Design | `/specify-doc security` | All scopes |
+| Data Model | `/specify-doc data-model` | mvp+ |
+| Resilience Plan | `/specify-doc resilience` | full only |
+| Technical Investigation | `/specify-doc investigation` | full only |
+
+> Need a different pack? Run `sdd init --pack <name>` to switch. Use `sdd-universal` if you're unsure which pack fits your project.
 
 ---
 
@@ -533,24 +532,27 @@ scope: "full"
 
 ## Constitution — How It Gets Filled
 
-/specify reads your context and extracts (as a DRAFT — see GATE-1):
+`/specify` reads your context and extracts these backend-specific rows (as a DRAFT — see GATE-1):
 
 | Extracted | From your context section |
 |---|---|
 | Language + Framework | Tech stack section |
-| Build Tool | Derived from language |
-| API Style | Endpoint contracts |
-| Messaging | Integration section |
-| Database + Cache | Tech stack / integrations |
-| DB Migration | Derived from framework |
-| Config + Secrets | Infrastructure section |
-| Resilience | NFR section |
-| Observability + Logging | NFR / tech stack |
-| Testing + Coverage | NFR section |
-| CI/CD + Orchestration | Infrastructure |
-| Core Principles | Domain + constraints |
-| Domain Rules | Business rules |
-| Never Do | Constraints |
+| Build Tool | Derived from language (Maven/Gradle/pip/go build/npm) |
+| API Style | Endpoint contracts (REST default) |
+| Messaging/Async | Integration section (Kafka/RabbitMQ/SQS) |
+| Serialisation | Message formats (JSON default) |
+| Schema | API contracts (OpenAPI/Proto/JSON Schema) |
+| Data Store + Cache | Tech stack / integrations |
+| DB Migration | Derived from framework (Flyway/Alembic/golang-migrate) |
+| Config + Secrets | Infrastructure section (env vars / Vault / SSM) |
+| Resilience | NFR section (Resilience4j / retry / circuit breaker) |
+| Observability + Logging | NFR / tech stack (structured JSON) |
+| Testing + Coverage | NFR section (80% default) |
+| Quality/Security | Pipeline section (SAST + SCA) |
+| Orchestration + CI/CD | Infrastructure (Kubernetes / ECS / GitHub Actions) |
+| Core Principles | Idempotency First (payments), Compliance First (regulated), Latency Budget (real-time) + Specification First, Test Discipline, Traceability |
+| Domain Rules | Business rules and integration contracts |
+| Never Do | Constraints + standard backend rules (no logic in controllers, no hardcoded values) |
 
 **Tip: richer context = better constitution draft.**
 
