@@ -28,3 +28,4 @@ reading_mode: "auto"   # auto | summary | full — see summary-rules.md
 # project_type: "mobile"
 
 sdd_version: "2.0.0"   # set by sdd init; used by sdd upgrade
+ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other

@@ -11,6 +11,22 @@ from sdd.utils.scaffold import (
     PACK_DESCRIPTIONS, ALL_PACKS, TYPE_TO_PACK,
 )
 
+AI_TOOLS = [
+    questionary.Choice("Claude Code    — type /specify",                                value="claude-code"),
+    questionary.Choice("GitHub Copilot — type /specify",                                value="copilot"),
+    questionary.Choice("Cursor         — chat: Read and follow the prompt file",        value="cursor"),
+    questionary.Choice("Windsurf       — chat: Run specify",                            value="windsurf"),
+    questionary.Choice("Other / not sure",                                              value="other"),
+]
+
+_AI_TOOL_NEXT_STEP: dict[str, str] = {
+    "claude-code": "Open this folder in Claude Code and type:  [bold]/specify[/bold]",
+    "copilot":     "Open in VS Code with Copilot Chat and type:  [bold]/specify[/bold]",
+    "cursor":      "In Cursor chat, type:\n     [bold]Read and follow .github/prompts/specify.prompt.md exactly[/bold]",
+    "windsurf":    "In Windsurf chat, type:  [bold]Run specify[/bold]",
+    "other":       "Copy [cyan].github/prompts/specify.prompt.md[/cyan] and paste into your AI tool",
+}
+
 console = Console()
 
 _BANNER = f"""
@@ -78,6 +94,11 @@ def init_command(project_name, feature_name, scope, project_type, pack):
             ],
         ).ask()
 
+    ai_tool = questionary.select(
+        "Which AI tool will you use?",
+        choices=AI_TOOLS,
+    ).ask()
+
     # Validate CLI-supplied values (questionary validates interactive ones)
     assert_valid_name(project_name, "Project name")
     assert_valid_name(feature_name, "Feature name")
@@ -88,6 +109,7 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     console.print(f"  Type    : [cyan]{project_type}[/cyan]")
     console.print(f"  Feature : [cyan]{feature_name}[/cyan]")
     console.print(f"  Scope   : [cyan]{scope}[/cyan]")
+    console.print(f"  AI tool : [cyan]{ai_tool}[/cyan]")
     console.print()
 
     # ── Update manifest.yml via PyYAML (no string injection possible) ─────────
@@ -100,6 +122,7 @@ def init_command(project_name, feature_name, scope, project_type, pack):
         },
         "project_type": project_type,
         "sdd_version":  SDD_VERSION,
+        "ai_tool":      ai_tool,
     })
     console.print(f"  [green]✓[/green]  {MANIFEST_PATH} filled")
 
@@ -119,6 +142,7 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     console.print(f"  [green]✓[/green]  {feature_dir}/ ready")
 
     # ── Done ──────────────────────────────────────────────────────────────────
+    next_step = _AI_TOOL_NEXT_STEP.get(ai_tool, _AI_TOOL_NEXT_STEP["other"])
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print(f"  [bold green]Setup complete![/bold green]  Next steps:")
@@ -128,12 +152,7 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     console.print("     Fill in: What it does, actors, key flows, tech stack, NFRs")
     console.print("     (or run /create-context to build it interactively)")
     console.print()
-    console.print("  2. Open in your AI tool and run /specify")
-    console.print()
-    console.print("     [bold]Claude Code[/bold]  →  /specify")
-    console.print("     [bold]Copilot[/bold]      →  /specify")
-    console.print("     [bold]Cursor[/bold]       →  Read and follow .github/prompts/specify.prompt.md")
-    console.print("     [bold]Windsurf[/bold]     →  Run specify")
+    console.print(f"  2. {next_step}")
     console.print()
     console.print("  See QUICKSTART.md for the full walkthrough.")
     console.print()
