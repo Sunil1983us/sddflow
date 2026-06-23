@@ -19,6 +19,8 @@ roles:
 gates:
   - gate: "Constitution Part 2 finalized"
     raci: { responsible: tech_lead, accountable: tech_lead, consulted: [architect], informed: [product_owner] }
+  - gate: "/specify-doc — security-design.md reviewed (mvp+ only)"
+    raci: { responsible: security_officer, accountable: security_officer, consulted: [tech_lead], informed: [product_owner] }
   - gate: "/validate — business sign-off"
     raci: { responsible: business_analyst, accountable: product_owner, consulted: [tech_lead], informed: [qa_lead] }
   - gate: "/analyze — risk review"
