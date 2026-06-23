@@ -81,6 +81,9 @@ Rate each identified threat using **DREAD**:
 Total DREAD score ≥ 10 → Critical; 7–9 → High; 4–6 → Medium; 1–3 → Low.
 Mitigations are required for all High/Critical threats before /plan-design.
 
+**Sign-off marker:** After saving security-design.md, insert the following line at the bottom of the file, directly above the `## Approvals` section:
+`<!-- security-sign-off: pending | reviewer: {security_officer from roles.yml} | date: {today's date} -->`
+
 After saving, submit for review:
 ```bash
 sdd review submit --doc {doc_key}

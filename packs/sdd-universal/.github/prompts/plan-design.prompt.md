@@ -82,6 +82,19 @@ One ADR per key decision identified in §1.3 DEC-NNN:
 **Pilot scope:** minimum 2 ADRs for the most impactful decisions.
 **MVP+ scope:** one ADR per DEC-NNN from §1.3.
 
+### Diagram Self-Check
+
+After completing all sections above, before saving, verify each diagram:
+1. Every node ID used in an edge (`A --> B`) is defined somewhere in that diagram
+2. All parentheses `()`, brackets `[]`, and braces `{}` in node labels are balanced
+3. Sequence diagram participant names are consistent across all `-->` and `-->>` lines
+4. No empty node labels — every node has descriptive text
+
+Fix any error found before saving.
+State: "Diagram self-check passed — {N} diagrams verified."
+
+> **Reviewer note:** Before approving design.md, paste each Mermaid block into https://mermaid.live to confirm it renders. Broken diagrams appear as grey boxes in GitHub.
+
 ### Saving
 
 - Save to: `.specify/features/{manifest.project.feature}/design.md`

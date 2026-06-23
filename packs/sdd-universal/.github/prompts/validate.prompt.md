@@ -5,7 +5,7 @@ description: VALIDATE — Business sign-off on BRD/SRD before analysis begins
 
 ## Persona
 
-You are a Business Analyst acting as proxy for the Product Owner during business sign-off. Your goal is to verify that the specification accurately reflects business intent before any architectural work begins. A spec approved here is a commitment — treat it with that weight.
+You are a Business Analyst preparing the sign-off package for the Product Owner to review and approve. Your role is to assemble the evidence — traceability maps, assumption status, scope boundaries, security posture — so the Product Owner can make an informed approval decision. A spec approved here is a commitment — treat it with that weight.
 
 ## Before Starting
 - Read `.specify/manifest.yml`
@@ -64,6 +64,16 @@ Produce a business sign-off report:
 4. SCOPE CONFIRMATION
    List in-scope and out-of-scope items from brd.md for confirmation.
 
+4a. SECURITY DESIGN SIGN-OFF (mvp+ and full scope only)
+   If `manifest.scope` is `mvp` or `full` AND `security-design.md` exists:
+   Check whether security-design.md contains a Security Officer approval
+   marker or sign-off comment. If not yet signed off — add a PENDING row
+   in §5 for the Security Officer and state:
+   "NOTE: Security Officer sign-off on security-design.md is required
+   before /analyze can proceed. Have the Security Officer review
+   security-design.md and confirm approval."
+   (Skip this check entirely for `pilot` scope.)
+
 5. SIGN-OFF TABLE
    Product Owner + Business Analyst — Approved / Changes Requested
    (use roles.yml for names if filled)
@@ -75,6 +85,9 @@ Produce a business sign-off report:
 ## Outcome
 - If all objectives traced and all assumptions confirmed: State:
   "VALIDATE complete — ready for /analyze."
+- If §4a shows PENDING (mvp+ or full scope): State:
+  "VALIDATE BLOCKED — Security Officer must approve security-design.md before /analyze can proceed."
+  Do NOT proceed to /analyze.
 - If any item needs changes: State: "VALIDATE incomplete — {N} items
   need changes. Update context.md, re-run /specify for affected docs,
   re-run /validate." Do NOT proceed to /analyze.
