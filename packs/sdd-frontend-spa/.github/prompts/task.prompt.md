@@ -57,6 +57,7 @@ For each story:
   Sprint assignment
 
 High-complexity items from analyze.summary.md → larger story point estimates
+At the top of stories.md, add this note: "Story points are AI estimates. Calibrate against team velocity before sprint planning."
 Save: stories.md + stories.summary.md
 
 ### 3. Task List

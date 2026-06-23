@@ -85,6 +85,9 @@ Present the report. WAIT for sign-off.
 ## Outcome
 If all objectives traced and all assumptions confirmed:
   State: "VALIDATE complete — ready for /analyze."
+If §4a shows PENDING (mvp+ or full scope):
+  State: "VALIDATE BLOCKED — Security Officer must approve security-design.md before /analyze can proceed."
+  Do NOT proceed to /analyze.
 If any item needs changes:
   State: "VALIDATE incomplete — {N} items need changes. Update
   context.md, re-run /specify for affected docs, re-run /validate."

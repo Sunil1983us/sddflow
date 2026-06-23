@@ -62,6 +62,18 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 
 ---
 
+## 4a. Security Design Sign-Off (mvp+ and full scope only)
+
+> Skip this section for `pilot` scope.
+
+| Status | Reviewer | Date |
+|---|---|---|
+| {see security-design.md sign-off marker} | {Security Officer — from roles.yml} | |
+
+**If status is `pending`:** Security Officer sign-off on `security-design.md` is required before `/analyze` can proceed.
+
+---
+
 ## 5. Sign-Off
 
 | Role | Name | Decision | Date |

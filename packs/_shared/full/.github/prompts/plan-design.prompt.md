@@ -84,7 +84,7 @@ One ADR per key decision identified in §1.3 DEC-NNN:
 
 ### Diagram Self-Check
 
-After generating all diagrams in §2, before saving, verify each one:
+After completing all sections above, before saving, verify each diagram:
 1. Every node ID used in an edge (`A --> B`) is defined somewhere in that diagram
 2. All parentheses `()`, brackets `[]`, and braces `{}` in node labels are balanced
 3. Sequence diagram participant names are consistent across all `-->` and `-->>` lines

@@ -102,6 +102,8 @@
 
 ## Approvals
 
+<!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->
+
 | Role | Status | Date |
 |---|---|---|
 | Security Officer (accountable — controls adequacy) | Pending | |

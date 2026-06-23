@@ -122,6 +122,8 @@
 *Pilot: sections 1a+1b only | MVP: + sections 2a+2b | Full: + sections 3-4 (both subsections)*
 
 ## Approvals
+<!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->
+
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
