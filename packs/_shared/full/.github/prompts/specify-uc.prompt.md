@@ -57,7 +57,10 @@ Generate `use-cases.md` for the current feature:
   - **Business Rules Applied:** BR-NNN list (from BRD)
   - **Linked FR-NNN:** leave as `_(filled by /specify-srd)_` — SRD populates this
   - **Non-Functional Constraints:** NFR-NNN if a specific NFR governs this UC's behaviour
-- §4 Use Case Relationships — document extends/includes if UCs compose
+- §4 Use Case Relationships — generate a Mermaid `graph LR` diagram showing all
+  `includes` (solid `-->`) and `extends` (dashed `-.->`) relationships across all
+  UC-NNN, plus a relationship table with trigger/condition for each link; if no
+  relationships exist, state "No relationships — all use cases are independent."
 - §5 Traceability Matrix — UC-NNN → BR-NNN (from BRD)
 - Marker discipline: `[ASSUMPTION-NNN]` for assumptions, `[NEEDS CLARIFICATION: {question}]` for gaps
 
