@@ -98,8 +98,15 @@ When the user says **"done"**:
 ```bash
 sdd review submit --doc use-cases
 ```
-If the CLI fails, present the document and ask:
+If the CLI fails or is not configured, present the document and ask:
 > "Use Cases generated. Review above and reply **'approved'** to continue, or provide feedback:"
+
+When the user replies **'approved'** in chat — run immediately:
+```bash
+sdd review approve --doc use-cases --local --by "chat" --note "approved in chat session"
+```
+This records the approval so `/specify-srd` can confirm the gate is met.
+If that command also fails, note: "Use Cases approved in chat ✓" and continue.
 
 State: "**Use Cases generated.** Review and approve, then run **/specify-srd** to continue."
 

@@ -118,8 +118,15 @@ When the user says **"done"**:
 ```bash
 sdd review submit --doc {doc_key}
 ```
-If the CLI fails, present the document and ask:
+If the CLI fails or is not configured, present the document and ask:
 > "{DOC} generated. Review it above and reply **'approved'** to continue, or provide feedback:"
+
+When the user replies **'approved'** in chat — run immediately:
+```bash
+sdd review approve --doc {doc_key} --local --by "chat" --note "approved in chat session"
+```
+This records the approval so the next gate check passes.
+If that command also fails, note: "{DOC} approved in chat ✓" and continue.
 
 Check what documents remain ungenerated for this scope.
 

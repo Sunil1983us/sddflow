@@ -1,5 +1,7 @@
 from __future__ import annotations
+from datetime import date
 from pathlib import Path
+import yaml
 import click
 from rich.console import Console
 
@@ -12,6 +14,35 @@ from sdd.utils.manifest import read_manifest
 from sdd.utils.validate import safe_feature_path
 
 console = Console()
+
+_LOCAL_APPROVALS_FILE = Path(".specify") / ".local-approvals.yml"
+
+
+# ── Local approval record (fallback when Jira not configured) ─────────────────
+
+def _load_local_approvals() -> dict:
+    if _LOCAL_APPROVALS_FILE.exists():
+        return yaml.safe_load(_LOCAL_APPROVALS_FILE.read_text()) or {}
+    return {}
+
+
+def _save_local_approval(doc: str, approved_by: str, note: str = "") -> None:
+    approvals = _load_local_approvals()
+    approvals[doc] = {
+        "approved_by": approved_by,
+        "approved_at": str(date.today()),
+        "note":        note,
+    }
+    _LOCAL_APPROVALS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _LOCAL_APPROVALS_FILE.write_text(
+        "# Local approval record — used when Jira is not configured\n"
+        "# Written by `sdd review approve --local` or AI fallback flow\n"
+        + yaml.dump(approvals, default_flow_style=False)
+    )
+
+
+def _is_locally_approved(doc: str) -> bool:
+    return doc in _load_local_approvals()
 
 
 # ── Text extraction ────────────────────────────────────────────────────────────
@@ -226,17 +257,36 @@ def review_submit(doc, profile, feature):
 def review_check(doc, profile):
     """Check review status. Exit codes: 0=approved 1=needs-revision 2=pending 3=not-submitted."""
     console.print()
+
+    # ── Local approval fast-path (no Jira needed) ─────────────────────────────
+    if _is_locally_approved(doc):
+        rec = _load_local_approvals()[doc]
+        console.print(
+            f"  [green]✓  {doc.upper()} — APPROVED[/green]  "
+            f"[dim](local — by {rec.get('approved_by', '?')} on {rec.get('approved_at', '?')})[/dim]"
+        )
+        console.print()
+        raise SystemExit(0)
+
+    # ── Jira check ────────────────────────────────────────────────────────────
     try:
         cfg     = load_integrations()
         prof    = load_profile(profile or cfg.profile)
         session = build_session(prof)
     except Exception as e:
-        console.print(f"  [red]✗  {e}[/red]")
-        raise SystemExit(1)
+        console.print(
+            f"  [dim]·  {doc.upper()} — NOT SUBMITTED[/dim]\n"
+            f"  [dim]   (Jira not configured; no local approval recorded)[/dim]\n"
+            f"  [dim]   Run `sdd review approve --doc {doc} --local` after in-chat approval.[/dim]"
+        )
+        raise SystemExit(3)
 
     if not cfg.jira:
-        console.print("  [red]✗  No jira: section in integrations.yml[/red]")
-        raise SystemExit(1)
+        console.print(
+            f"  [dim]·  {doc.upper()} — NOT SUBMITTED[/dim]\n"
+            f"  [dim]   No jira: section in integrations.yml and no local approval recorded.[/dim]"
+        )
+        raise SystemExit(3)
 
     client  = JiraClient(session, prof.base_url)
     status, comments = _get_review_status(doc, client, cfg.jira.project_key, cfg)
@@ -255,9 +305,9 @@ def review_check(doc, profile):
         console.print()
         for c in comments:
             author = (c.get("author") or {}).get("displayName", "Unknown")
-            date   = c.get("created", "")[:10]
+            created = c.get("created", "")[:10]
             text   = _extract_text(c.get("body", ""))
-            console.print(f"  [cyan]{author}[/cyan]  [dim]{date}[/dim]")
+            console.print(f"  [cyan]{author}[/cyan]  [dim]{created}[/dim]")
             for line in text.splitlines():
                 console.print(f"  {line}")
             console.print()
@@ -274,6 +324,43 @@ def review_check(doc, profile):
     console.print(f"     Run [cyan]sdd review submit --doc {doc}[/cyan] first.")
     console.print()
     raise SystemExit(3)
+
+
+# ── sdd review approve ─────────────────────────────────────────────────────────
+
+@review_command.command("approve")
+@click.option("--doc",      required=True,
+              help="Document key: brd, srd, use-cases, design, lld, ...")
+@click.option("--local",    is_flag=True, required=True,
+              help="Write a local approval record (fallback when Jira is not configured)")
+@click.option("--by",       default="chat",
+              help="Who approved — defaults to 'chat'")
+@click.option("--note",     default="",
+              help="Optional note (e.g. 'approved in chat session')")
+def review_approve(doc, local, by, note):
+    """Record a local approval for a document (used when Jira is not configured).
+
+    The AI calls this automatically after the user says 'approved' in chat
+    and sdd review submit is not available. This unblocks the next command.
+
+    Example (AI runs this):
+        sdd review approve --doc brd --local --by "Product Owner" --note "approved in chat"
+    """
+    if not local:
+        console.print("  [red]✗  Only --local approvals are supported by this command.[/red]")
+        raise SystemExit(1)
+
+    _save_local_approval(doc, by, note or "approved in chat session")
+
+    console.print()
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print(f"  [green]✓  {doc.upper()} — local approval recorded[/green]")
+    console.print(f"  By    : [cyan]{by}[/cyan]")
+    console.print(f"  Saved : {_LOCAL_APPROVALS_FILE}")
+    console.print()
+    console.print("  [dim]sdd review check will now return exit 0 for this document.[/dim]")
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print()
 
 
 # ── sdd review apply ───────────────────────────────────────────────────────────

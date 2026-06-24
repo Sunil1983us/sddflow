@@ -82,8 +82,15 @@ When the user says **"done"**:
 ```bash
 sdd review submit --doc srd
 ```
-If the CLI fails, present the document and ask:
+If the CLI fails or is not configured, present the document and ask:
 > "SRD generated. Review it above and reply **'approved'** to continue, or provide feedback:"
+
+When the user replies **'approved'** in chat — run immediately:
+```bash
+sdd review approve --doc srd --local --by "chat" --note "approved in chat session"
+```
+This records the approval so `/specify-doc` can confirm the gate is met.
+If that command also fails, note: "SRD approved in chat ✓" and continue.
 
 Determine the next document for this scope and project_type from the doc-set table in `specify.prompt.md`.
 

@@ -68,8 +68,15 @@ When the user says **"done"**:
 ```bash
 sdd review submit --doc brd
 ```
-If the CLI fails, present the document and ask:
+If the CLI fails or is not configured, present the document and ask:
 > "BRD generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
+
+When the user replies **'approved'** in chat — run immediately:
+```bash
+sdd review approve --doc brd --local --by "chat" --note "approved in chat session"
+```
+This records the approval so `/specify-uc` can confirm the gate is met.
+If that command also fails, note: "BRD approved in chat ✓" and continue.
 
 State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-uc** to generate the Use Case Specification."
 
