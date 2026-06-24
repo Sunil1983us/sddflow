@@ -5,8 +5,28 @@ import inquirer from 'inquirer';
 import { detectProjectType, PROJECT_TYPES } from '../utils/detect.js';
 import { validateName, assertValidName } from '../utils/validate.js';
 import { patchManifest, MANIFEST_PATH, SDD_VERSION } from '../utils/manifest.js';
+import {
+  recommendedPack, scaffoldPack,
+  PACK_DESCRIPTIONS, ALL_PACKS, TYPE_TO_PACK,
+} from '../utils/scaffold.js';
 
 const SCOPES = ['pilot', 'mvp', 'full'];
+
+const AI_TOOLS = [
+  { name: 'Claude Code    — type /specify',                             value: 'claude-code' },
+  { name: 'GitHub Copilot — type /specify',                             value: 'copilot' },
+  { name: 'Cursor         — chat: Read and follow the prompt file',     value: 'cursor' },
+  { name: 'Windsurf       — chat: Run specify',                         value: 'windsurf' },
+  { name: 'Other / not sure',                                           value: 'other' },
+];
+
+const AI_TOOL_NEXT_STEP = {
+  'claude-code': `Open this folder in Claude Code and type:  ${chalk.bold('/specify')}`,
+  'copilot':     `Open in VS Code with Copilot Chat and type:  ${chalk.bold('/specify')}`,
+  'cursor':      `In Cursor chat, type:\n     ${chalk.bold('Read and follow .github/prompts/specify.prompt.md exactly')}`,
+  'windsurf':    `In Windsurf chat, type:  ${chalk.bold('Run specify')}`,
+  'other':       `Copy ${chalk.cyan('.github/prompts/specify.prompt.md')} and paste into your AI tool`,
+};
 
 const BANNER = `
 ${chalk.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')}
@@ -17,10 +37,13 @@ ${chalk.bold('━━━━━━━━━━━━━━━━━━━━━━
 export async function initCommand(opts) {
   console.log(BANNER);
 
+  // ── Scaffold mode: no pack present yet ───────────────────────────────────
   if (!existsSync(MANIFEST_PATH)) {
-    console.error(chalk.red(`✗  ${MANIFEST_PATH} not found — run from the pack root directory.`));
-    process.exit(1);
+    await scaffoldMode(opts.type ?? null, opts.pack ?? null);
+    // After scaffold, manifest.yml now exists — continue with fill mode below
   }
+
+  // ── Fill mode: manifest.yml exists ───────────────────────────────────────
 
   // ── Project type ─────────────────────────────────────────────────────────
   let projectType = opts.type ?? null;
@@ -36,9 +59,7 @@ export async function initCommand(opts) {
         message: `  Use detected type ${chalk.cyan(detected)}?`,
         default: true,
       }]);
-      if (confirmed) {
-        projectType = detected;
-      }
+      if (confirmed) projectType = detected;
     } else {
       console.log(chalk.yellow('not detected'));
     }
@@ -91,7 +112,14 @@ export async function initCommand(opts) {
   const featureName = opts.feature  ?? answers.featureName;
   const scope       = answers.scope ?? opts.scope ?? 'pilot';
 
-  // Validate CLI-supplied values (inquirer validates interactive ones)
+  const { aiTool } = await inquirer.prompt([{
+    type: 'list',
+    name: 'aiTool',
+    message: 'Which AI tool will you use?',
+    choices: AI_TOOLS,
+    pageSize: AI_TOOLS.length,
+  }]);
+
   assertValidName(projectName, 'Project name');
   assertValidName(featureName, 'Feature name');
 
@@ -101,9 +129,10 @@ export async function initCommand(opts) {
   console.log(`  Type    : ${chalk.cyan(projectType)}`);
   console.log(`  Feature : ${chalk.cyan(featureName)}`);
   console.log(`  Scope   : ${chalk.cyan(scope)}`);
+  console.log(`  AI tool : ${chalk.cyan(aiTool)}`);
   console.log('');
 
-  // ── Update manifest.yml via js-yaml (no string injection possible) ────────
+  // ── Update manifest.yml ───────────────────────────────────────────────────
   patchManifest({
     project: {
       name:         projectName,
@@ -113,6 +142,7 @@ export async function initCommand(opts) {
     },
     project_type: projectType,
     sdd_version:  SDD_VERSION,
+    ai_tool:      aiTool,
   });
   console.log(`  ${chalk.green('✓')}  ${MANIFEST_PATH} filled`);
 
@@ -121,7 +151,6 @@ export async function initCommand(opts) {
   mkdirSync(dirname(contextPath), { recursive: true });
 
   if (!existsSync(contextPath)) {
-    // Generate content directly — no placeholder substitution needed
     writeFileSync(contextPath, contextTemplate(featureName, projectName));
     console.log(`  ${chalk.green('✓')}  ${contextPath} created`);
   } else {
@@ -134,6 +163,7 @@ export async function initCommand(opts) {
   console.log(`  ${chalk.green('✓')}  ${featureDir}/ ready`);
 
   // ── Done ──────────────────────────────────────────────────────────────────
+  const nextStep = AI_TOOL_NEXT_STEP[aiTool] ?? AI_TOOL_NEXT_STEP['other'];
   console.log('');
   console.log(chalk.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log(`  ${chalk.bold.green('Setup complete!')}  Next steps:`);
@@ -143,15 +173,101 @@ export async function initCommand(opts) {
   console.log('     Fill in: What it does, actors, key flows, tech stack, NFRs');
   console.log('     (or run /create-context to build it interactively)');
   console.log('');
-  console.log('  2. Open in your AI tool and run /specify');
-  console.log('');
-  console.log(`     ${chalk.bold('Claude Code')}  →  /specify`);
-  console.log(`     ${chalk.bold('Copilot')}      →  /specify`);
-  console.log(`     ${chalk.bold('Cursor')}        →  Read and follow .github/prompts/specify.prompt.md`);
-  console.log(`     ${chalk.bold('Windsurf')}     →  Run specify`);
+  console.log(`  2. ${nextStep}`);
   console.log('');
   console.log('  See QUICKSTART.md for the full walkthrough.');
   console.log('');
+}
+
+/**
+ * Scaffold mode — no pack in this directory.
+ * Detects project type, asks which pack to copy, copies it.
+ */
+async function scaffoldMode(projectType, packOverride) {
+  console.log(`  ${chalk.yellow('No SDD pack found in this directory.')}`);
+  console.log('');
+
+  // Detect type if not supplied
+  if (!projectType) {
+    process.stdout.write(chalk.dim('  Detecting project type... '));
+    projectType = detectProjectType('.');
+    if (projectType) {
+      console.log(chalk.green(projectType));
+    } else {
+      console.log(chalk.yellow('not detected'));
+    }
+  }
+
+  const rec = packOverride ?? recommendedPack(projectType);
+
+  let chosenPack;
+
+  if (packOverride) {
+    chosenPack = packOverride;
+    console.log(`  Pack: ${chalk.cyan(chosenPack)}  (from --pack flag)`);
+  } else {
+    const choices = buildPackChoices(projectType, rec);
+    const { selected } = await inquirer.prompt([{
+      type: 'list',
+      name: 'selected',
+      message: 'Which pack would you like to scaffold?',
+      choices,
+      pageSize: choices.length,
+    }]);
+
+    if (selected === '__all__') {
+      const { all } = await inquirer.prompt([{
+        type: 'list',
+        name: 'all',
+        message: 'Select pack:',
+        choices: ALL_PACKS.map(p => ({
+          name: `${p}  —  ${PACK_DESCRIPTIONS[p]}`,
+          value: p,
+        })),
+        pageSize: ALL_PACKS.length,
+      }]);
+      chosenPack = all;
+    } else {
+      chosenPack = selected;
+    }
+  }
+
+  console.log('');
+  process.stdout.write(`  Scaffolding ${chalk.cyan(chosenPack)}...`);
+
+  try {
+    const n = scaffoldPack(chosenPack, '.');
+    console.log(`  ${chalk.green('✓')}  ${chosenPack} scaffolded (${n} files copied)`);
+    console.log('');
+  } catch (err) {
+    console.log('');
+    console.error(chalk.red(`✗  ${err.message}`));
+    process.exit(1);
+  }
+}
+
+function buildPackChoices(projectType, rec) {
+  const choices = [];
+
+  if (rec !== 'sdd-universal') {
+    choices.push({
+      name: `${rec}  (${PACK_DESCRIPTIONS[rec]})  ← recommended for ${projectType}`,
+      value: rec,
+    });
+    choices.push({
+      name: `sdd-universal  (${PACK_DESCRIPTIONS['sdd-universal']})`,
+      value: 'sdd-universal',
+    });
+  } else {
+    const label = projectType ? `for ${projectType}` : 'when type is unclear';
+    choices.push({
+      name: `sdd-universal  (${PACK_DESCRIPTIONS['sdd-universal']})  ← recommended ${label}`,
+      value: 'sdd-universal',
+    });
+  }
+
+  choices.push({ name: 'Choose from all packs…', value: '__all__' });
+  return choices;
 }
 
 function contextTemplate(featureName, projectName) {

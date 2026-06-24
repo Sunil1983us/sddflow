@@ -1,4 +1,4 @@
-# How To Use — SDD Pack
+# How To Use — SDD Fullstack
 
 ---
 
@@ -8,32 +8,75 @@ writing it by hand. See `.specify/contexts/CONTEXT-GUIDE.md`.
 
 ---
 
-## Choosing the Right Pack
+## This Pack — sdd-fullstack
 
-Five packs are available. Copy exactly one into your project.
+**For:** Projects with a frontend and backend in the same repository
 
-| Pack | Best For | Auto-detect? |
-|---|---|---|
-| **sdd-universal** | Any project — not sure which to pick? Use this. | Yes — `setup.sh` detects project type from your files |
-| **sdd-backend-service** | REST APIs, microservices, databases, messaging | No — you chose this pack manually |
-| **sdd-frontend-spa** | React / Vue / Angular single-page applications | No — you chose this pack manually |
-| **sdd-fullstack** | Frontend + backend in the same repository | No — you chose this pack manually |
-| **sdd-mobile** | React Native or Flutter mobile apps | No — you chose this pack manually |
+Combines backend service and SPA concerns with a strict API-contract-first rule: `design.md §3 API Design` is the single source of truth for both layers. Backend implements the contract; frontend consumes it.
 
-**Rule of thumb:** If you are unsure, use `sdd-universal`. Its `setup.sh` runs `detect_project_type()` which auto-detects your type from these signals (checked in this order):
+### Pack-Specific Templates
 
-| Signal detected | Resolved type |
+Included in addition to the 28 core spec templates:
+
+| Template | Use it for |
 |---|---|
-| `pubspec.yaml` present | `mobile` (Flutter) |
-| `react-native` in `package.json` | `mobile` (React Native) |
-| `package.json` **and** `pom.xml` both present | `fullstack` |
-| `pom.xml` present (no `package.json`) | `backend-service` |
-| `package.json` present (no `pom.xml`) | `frontend-spa` |
-| None of the above | `backend-service` (default) |
+| `component-spec-template.md` | UI component specification — props, state, accessibility |
+| `ux-flow-template.md` | User journey flows and screen transitions |
+| `screen-spec-template.md` | Screen layout and interaction specification |
+| `openapi-template.md` | OpenAPI REST contract between frontend and backend |
 
-> Mobile checks intentionally appear before fullstack: a React Native project with a pom.xml (e.g. a monorepo) must resolve to `mobile`, not `fullstack`.
+### Extended Documents Available
 
-If you copy one of the type-specific packs directly, `manifest.yml` → `project_type` is already set for you — no auto-detection needed.
+| Document | Command | Scope |
+|---|---|---|
+| Security Design | `/specify-doc security` | All scopes |
+| Component Spec | `/specify-doc component-spec` | mvp+ |
+| UX Flow | `/specify-doc ux-flow` | mvp+ |
+| Data Model | `/specify-doc data-model` | mvp+ |
+| Resilience Plan | `/specify-doc resilience` | full only |
+| Technical Investigation | `/specify-doc investigation` | full only |
+
+### Fullstack Rules (always enforced)
+
+These rules are always applied by `/specify` and enforced during `/implement`:
+
+- **API contract is the source of truth** — `design.md §3 API Design` governs both layers; no divergence allowed
+- **Backend class max: 200 lines** — split at service boundaries if exceeded
+- **Frontend component max: 150 lines** — extract sub-components if exceeded
+- Both layers are tested independently + E2E tests cover both layers together
+- Implement the backend API before the frontend that consumes it
+
+> Need a different pack? Run `sdd init --pack <name>` to switch. Use `sdd-universal` if you're unsure which pack fits your project.
+
+---
+
+## Using With Your AI Tool
+
+The SDD pack works with any AI coding assistant. How you invoke a command depends on your tool:
+
+| AI Tool | How to run a command |
+|---|---|
+| **Claude Code** | Open the project folder in Claude Code and type the slash command, e.g. `/specify` |
+| **GitHub Copilot** | Open VS Code with Copilot Chat — type the slash command, e.g. `/specify` |
+| **Cursor** | In Cursor chat, type: `Read and follow .github/prompts/specify.prompt.md exactly` |
+| **Windsurf** | In Windsurf chat, type: `Run specify` |
+| **Other / not sure** | Open `.github/prompts/specify.prompt.md` and copy-paste its contents into your AI tool |
+
+### Where Each Tool Reads Its Instructions
+
+| AI Tool | Instruction source |
+|---|---|
+| Claude Code | `.claude/commands/{cmd}.md` — loaded automatically as native slash commands |
+| GitHub Copilot | `.github/copilot-instructions.md` + `.github/prompts/{cmd}.prompt.md` |
+| Cursor / Windsurf / Other | `.github/prompts/{cmd}.prompt.md` — reference or paste into chat |
+
+> Your selected AI tool is saved in `.specify/manifest.yml` as `ai_tool` (set during `sdd init`). You can change it anytime by editing that field — all prompt files in `.github/prompts/` work with any tool.
+
+### Switching AI Tool Mid-Project
+
+1. Edit `manifest.yml` → update `ai_tool:` to your new tool
+2. All `.github/prompts/` files remain available — any tool can reference them
+3. Claude Code `.claude/commands/` slash commands remain available if you return to Claude Code
 
 ---
 
@@ -101,19 +144,37 @@ A detailed guide for every command: what it is, exactly when to run it, what it 
 
 ---
 
-#### Filling `manifest.yml` — 4 required fields
+#### Initializing a project — `sdd init` (recommended) or `setup.sh`
 
-Not a command — a one-time setup step. Open `.specify/manifest.yml` and fill:
+**Option 1 — `sdd init` (recommended, requires the CLI):**
 
-```yaml
-project:
-  name: "Your Service"          # Display name
-  scope: "pilot"                # pilot | mvp | full
-  feature: "your-feature"       # Output folder name — no spaces
-  context_file: "your-feature.md"   # File in .specify/contexts/
+Install the CLI once:
+```bash
+pip install sdd-init          # Python (any platform)
+# OR
+npm install -g sdd-init       # Node.js (any platform)
 ```
 
-**When:** Once, before running `/specify`.
+Then run in your project folder:
+```bash
+sdd init                      # interactive — prompts for name, feature, scope, type
+sdd init -p "My API" -f "payments" -s mvp   # non-interactive
+```
+
+`sdd init` auto-detects your project type, fills `manifest.yml` (including `sdd_version`), creates the context placeholder, and creates the feature output directory.
+
+**Option 2 — `bash setup.sh` (no install needed):**
+
+Every pack ships with a shell script as a zero-dependency fallback:
+```bash
+bash setup.sh                 # Mac / Linux — interactive
+.\setup.ps1                   # Windows — interactive
+bash setup.sh --project "My API" --feature "payments" --scope mvp  # non-interactive
+```
+
+Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI) and does not auto-detect project type.
+
+**When:** Once, immediately after copying the pack into your project. Before running `/specify`.
 
 ---
 
@@ -164,7 +225,7 @@ project:
 
 **Produces:** `.specify/features/{feature}/brd.md` + `brd.summary.md`
 
-**You do next:** Share `brd.md` with the Product Owner for review. When approved, tell the agent "BRD approved" to unlock `/specify-uc`. If changes needed: edit the document and run `sdd review apply --doc brd`.
+**You do next:** Share `brd.md` with the Product Owner for review. When approved, tell the agent "BRD approved" to unlock `/specify-uc`. If changes are needed: edit the document directly, then re-share with the reviewer.
 
 **Reviewer:** Product Owner
 
@@ -209,8 +270,8 @@ project:
 | Scope | Documents to generate |
 |---|---|
 | pilot | None required (Security Design §1 already in SRD) |
-| mvp | `/specify-doc security` then `/specify-doc data-model` |
-| full | `/specify-doc security` then `/specify-doc data-model` then `/specify-doc resilience` then `/specify-doc investigation` |
+| mvp | `/specify-doc security` → `/specify-doc component-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` |
+| full | `/specify-doc security` → `/specify-doc component-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` → `/specify-doc resilience` → `/specify-doc investigation` |
 
 **When to run:** After SRD is approved, one at a time.
 
@@ -218,9 +279,11 @@ project:
 
 **Available document names:**
 - `security` → `security-design.md` (STRIDE threat model, §1-2 for mvp, §1-4 for full)
-- `data-model` → `data-model.md` (entities, relationships, PII handling)
-- `resilience` → `resilience.md` (circuit breakers, retry, bulkhead, SLA budget allocation)
-- `investigation` → `investigation.md` (spike / technical investigation for unknowns)
+- `component-spec` → `component-spec.md` (UI component props, state, accessibility) — **mvp+**
+- `ux-flow` → `ux-flow.md` (user journey flows, screen transitions) — **mvp+**
+- `data-model` → `data-model.md` (entities, relationships, API contracts) — **mvp+**
+- `resilience` → `resilience.md` (circuit breakers, retry, error boundaries — both layers) — **full only**
+- `investigation` → `investigation.md` (spike / technical investigation) — **full only**
 
 **You do next:** Review each doc. The agent presents it; you approve or request changes before generating the next one.
 
@@ -466,14 +529,99 @@ Agent analyses the diff for the completed task: correctness, security, quality, 
 
 Agent reads all unresolved comment threads on the PR, presents them as a numbered checklist, applies selected fixes, pushes, replies to threads, and requests re-review.
 
-#### `/submit-review --doc {name}` / `/check-review --doc {name}` — Jira Review Workflow
+#### `/submit-review --doc {name}` / `/check-review --doc {name}` — Review Workflow
+
+Slash commands that help manage the document review cycle — present the agent with reviewer comments and let it update the document.
+
+Without the CLI, share documents manually with reviewers and tell the agent the outcome (e.g. "BRD approved").
+
+---
+
+## Jira & Confluence Integration
+
+The `sdd` CLI connects your spec documents and tasks directly to your Atlassian workspace. This is optional — without it, share documents manually and tell the agent the review outcome.
+
+### One-Time Setup
+
+**Step 1 — Configure credentials:**
+```bash
+sdd config init
+```
+This interactive wizard asks for your Atlassian base URL, auth mode, and env var names. Saves the profile to `~/.sdd/config.yml` (no secrets — only env var names). Optionally creates `.specify/integrations.yml` for this project.
+
+**Step 2 — Export your API token:**
+```bash
+# Jira Cloud (basic auth — email + API token)
+export JIRA_API_TOKEN=your-api-token
+
+# Jira Server / Data Center (Personal Access Token)
+export JIRA_PAT=your-personal-access-token
+```
+Get your API token: Atlassian account → Security → API tokens → Create API token.
+
+**Step 3 — Test the connection:**
+```bash
+sdd config test
+```
+Expected output:
+```
+  ✓  Jira       — connected as Jane Smith
+  ✓  Confluence — connected as Jane Smith
+```
+A red ✗ means the env var is missing, the base URL is wrong, or the token is expired.
+
+**Step 4 — Discover your Jira custom field IDs:**
+```bash
+sdd config fields --project MYPROJ
+```
+Lists every custom field in your Jira instance. Find your `story_points` field (commonly `customfield_10016` on Jira Cloud) and update `.specify/integrations.yml → jira.custom_fields.story_points`.
+
+---
+
+### Jira — Push Stories and Tasks
+
+After `/task` generates `stories.md` and `tasks.md`:
+```bash
+sdd jira push                    # create/update Feature → Story → Task in Jira
+sdd jira push --dry-run          # preview the plan without calling the API
+sdd jira push --feature payments # push a specific feature (default: from manifest.yml)
+```
+Pushes are idempotent — re-running updates existing issues rather than creating duplicates (keyed on `sdd:STORY-001` labels).
+
+---
+
+### Confluence — Push Documents
+
+After generating a spec document:
+```bash
+sdd confluence push --doc brd    # push BRD to Confluence as a formatted page
+sdd confluence push --doc srd    # push SRD
+sdd confluence push --all        # push all documents listed in integrations.yml page_map
+```
+Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page.
+
+---
+
+### Document Review Workflow
+
+After generating each spec document, submit it for stakeholder review:
 
 ```bash
 sdd review submit --doc brd      # push to Confluence + create Jira review task
-sdd review check  --doc brd      # poll status: 0=approved 1=needs-revision 2=pending
+sdd review check  --doc brd      # poll: exit 0=APPROVED  1=NEEDS_REVISION  2=PENDING
 sdd review apply  --doc brd      # re-push after addressing reviewer comments
-sdd review status                # full dashboard for all documents
+sdd review status                # dashboard: all documents + their current review state
 ```
+
+**Review sequence is enforced:** BRD must be approved before SRD can be submitted; SRD before design; etc.
+
+**Handling a revision request:**
+1. `sdd review check --doc brd` exits 1 (NEEDS_REVISION)
+2. Run `/address-review --doc brd` — agent reads comments, proposes updates, you approve
+3. `sdd review apply --doc brd` — re-pushes the updated page to Confluence
+4. Reviewer re-approves → `sdd review check --doc brd` exits 0 (APPROVED)
+
+Configure reviewers (Jira accountId per document) in `.specify/integrations.yml`. Run `sdd config init` to generate this file interactively, or copy `.specify/integrations.yml.example` and edit it.
 
 ---
 
@@ -510,24 +658,44 @@ scope: "full"
 
 ## Constitution — How It Gets Filled
 
-/specify reads your context and extracts (as a DRAFT — see GATE-1):
+`/specify` fills three sections in the constitution Tech Stack table (as a DRAFT — see GATE-1):
 
+**Backend:**
 | Extracted | From your context section |
 |---|---|
-| Language + Framework | Tech stack section |
+| Language + Framework | Backend tech stack |
 | Build Tool | Derived from language |
-| API Style | Endpoint contracts |
-| Messaging | Integration section |
-| Database + Cache | Tech stack / integrations |
+| Messaging/Async | Integration section |
+| Schema | API contracts |
+| Data Store + Cache | Tech stack / integrations |
 | DB Migration | Derived from framework |
-| Config + Secrets | Infrastructure section |
 | Resilience | NFR section |
-| Observability + Logging | NFR / tech stack |
 | Testing + Coverage | NFR section |
-| CI/CD + Orchestration | Infrastructure |
-| Core Principles | Domain + constraints |
-| Domain Rules | Business rules |
-| Never Do | Constraints |
+
+**Frontend:**
+| Extracted | From your context section |
+|---|---|
+| Language + Framework | Frontend tech stack (TypeScript default) |
+| Build Tool | Derived from framework (Vite default) |
+| State Management | Tech stack section |
+| Component Library | Tech stack / UI section |
+| Routing | Derived from framework |
+| API Client | Integration section |
+| Data Cache | Tech stack section |
+| Testing + Coverage | NFR section |
+| Accessibility | NFR section (WCAG 2.1 AA default) |
+
+**Shared:**
+| Extracted | From your context section |
+|---|---|
+| API Style | Endpoint contracts (REST default) |
+| Serialisation | Message formats (JSON default) |
+| Config + Secrets | Infrastructure section |
+| Observability + Logging | NFR / tech stack |
+| Quality/Security | Pipeline section |
+| Orchestration + CI/CD | Infrastructure |
+
+Core Principles (API-contract-first, test-first, traceable), Domain Rules (both layers), and Never Do are extracted from domain constraints.
 
 **Tip: richer context = better constitution draft.**
 

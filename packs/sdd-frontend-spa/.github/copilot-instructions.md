@@ -14,7 +14,7 @@ generated one at a time using dedicated sub-commands:
 | `/specify-brd` | BRD | GATE-1 passed |
 | `/specify-uc` | Use Cases (ACT-NNN + UC-NNN with MP/AP/EP) | BRD approved |
 | `/specify-srd` | SRD | Use Cases approved |
-| `/specify-doc {name}` | security / data-model / resilience / investigation | SRD approved |
+| `/specify-doc {name}` | security / component-spec / ux-flow / data-model / resilience / investigation | SRD approved |
 
 ## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
 Part 2 is a DRAFT until the user reviews every row and confirms
@@ -73,6 +73,8 @@ Sequence: BRD → Use Cases → SRD → Design (specify) · LLD (planning) · Ta
 
 ## Pilot Scope — Skip These
 - /plan-lld → skip (state: pilot scope)
+- /specify-doc component-spec → skip (state: pilot scope)
+- /specify-doc ux-flow → skip (state: pilot scope)
 - /specify-doc data-model → skip (state: pilot scope)
 - /specify-doc resilience → skip (state: pilot scope)
 
@@ -98,6 +100,9 @@ After every doc: write .summary.md — max SUMMARY_MAX_LINES.
 - Never hardcode any value
 - Never skip paired test
 - Never run /release in local mode before all tasks show "Task accepted"
+- Never call an API directly from a component — service layer only
+- Never use inline styles — use the project styling solution
+- Never ship a component without an axe-core accessibility check
 
 ## PR Rule
 Estimate → split if >max_lines_per_pr → confirm → one at a time
