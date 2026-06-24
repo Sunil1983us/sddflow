@@ -89,14 +89,43 @@ non-technical reader. Examples:
   5. (Out of Scope) Anything people might assume is included but isn't,
      for this first version?
 
-STOP here. Show the draft context.md AND the checklist. Tell the user:
-  "Answer any of these you can — partial answers are fine, and 'not sure'
-  is a valid answer for technical questions (the architect will decide
-  later). Reply with your answers, or say 'good enough, proceed' to save
-  the draft as-is with the remaining [MISSING — ask user] markers for
-  later."
+STOP here. Show the draft context.md AND the checklist.
+
+### Confluence Draft Option (if Confluence is configured)
+Check whether `.specify/integrations.yml` exists and has a `confluence:` section.
+
+**If yes** — run:
+```bash
+sdd confluence draft --doc context
+```
+Then tell the user:
+> "I've pushed the draft to your Confluence space. Open the link above,
+> fill in the highlighted `[MISSING — ask user]` sections (you can share
+> it with stakeholders directly in Confluence), then run:
+> ```
+> sdd confluence pull --doc context
+> ```
+> to pull your changes back. Say **'done'** here when you have pulled,
+> and I'll continue from the updated file."
+
+If the `sdd confluence draft` command fails or Confluence is not configured,
+fall back to the in-chat iteration below.
+
+**If no Confluence** — tell the user:
+> "Answer any of these you can — partial answers are fine, and 'not sure'
+> is a valid answer for technical questions (the architect will decide
+> later). Reply with your answers, or say 'good enough, proceed' to save
+> the draft as-is with the remaining [MISSING — ask user] markers for
+> later."
 
 ## Step 4 — Iterate
+**Via Confluence (if pull was used):**
+- When the user says "done", read the updated `.specify/contexts/{feature}.md`
+- Note which `[MISSING — ask user]` markers were resolved vs still open
+- If any remain, show only those in a short updated checklist and ask again
+- Repeat until the user says "good enough, proceed"
+
+**Via chat (if no Confluence):**
 On each reply:
 - Update context.md, resolving `[MISSING — ask user]` markers for
   anything answered

@@ -70,6 +70,15 @@ class ConfluenceClient:
         r.raise_for_status()
         return r.json()
 
+    def get_page_with_body(self, page_id: str) -> dict:
+        """Fetch a page including its body in storage format."""
+        r = self._s.get(
+            self._api(f"/content/{page_id}"),
+            params={"expand": "body.storage,version,_links"},
+        )
+        r.raise_for_status()
+        return r.json()
+
     def upsert_page(self, space_key: str, title: str, body_html: str,
                     parent_id: str | None = None) -> tuple[dict, bool]:
         """Create or update a page. Returns (page_dict, was_created)."""
