@@ -145,6 +145,7 @@ Then assess: "Given this CR type and description, does this specific document ne
 ```
 → State: `{document}: ANNOTATED — approved document unchanged; CR reference added to Approvals.`
 → Record in changeset §2.
+→ **Regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines) to include the annotation.
 → Move to next document. No user input needed.
 
 **UPDATE NEEDED** (specific sections require change):
@@ -179,9 +180,9 @@ State:
 
 **STOP. Do not touch the next document until the user replies.**
 
-On **'approved'**: apply the change, record before/after in changeset §3, move to next.
-On **'modify: {text}'**: apply the user's text instead, record, move to next.
-On **'skip'**: record as SKIP (user decision), move to next.
+On **'approved'**: apply the change, record before/after in changeset §3, **regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines) to reflect the updated content, then move to next.
+On **'modify: {text}'**: apply the user's text instead, record, **regenerate `{document}.summary.md`**, then move to next.
+On **'skip'**: record as SKIP (user decision), move to next. Do NOT touch the summary.
 On **'stop'**: save current changeset progress, state which documents remain, stop.
 
 **RERUN NEEDED** (targeted section edit is insufficient — e.g., a new actor changes every UC, or a tech stack change affects the full design):
@@ -200,7 +201,7 @@ State:
 > Reply **'rerun'** to proceed, or **'update'** if you prefer targeted section edits instead."
 
 **STOP. Do not regenerate until user confirms.**
-On 'rerun': save backup, regenerate document with CR incorporated, record in changeset §2.
+On 'rerun': save backup, regenerate document with CR incorporated, **regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines), record in changeset §2.
 On 'update': switch to UPDATE mode for this document, show section diff.
 
 ---
