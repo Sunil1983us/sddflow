@@ -173,14 +173,14 @@ Why: {1-2 sentences — what in the CR drives this specific change}
 State:
 > "**Quality check required** for {document} — {section}.
 > Reply with one of:
-> - **'approved'** — apply this change and continue to the next document
+> - **'approved'** (or 'yes', 'LGTM', 'looks good') — apply this change and continue to the next document
 > - **'modify: {your text}'** — apply your version instead, then continue
 > - **'skip'** — leave this document unchanged and continue
 > - **'stop'** — pause the entire walk here (you can resume with /change resume CR-{NNN})"
 
 **STOP. Do not touch the next document until the user replies.**
 
-On **'approved'**: apply the change, then:
+On any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'** (case-insensitive): apply the change, then:
   1. Increment the version in the document header (e.g. 1.0 → 1.1, 1.2 → 1.3)
   2. Append a row to the document's `## Version History` table:
      `| {new version} | {today's date} | CR-{NNN} | {1-sentence summary of what changed} | CR-{NNN} |`
@@ -274,7 +274,7 @@ for formal approval — exactly like `sdd review submit` does for spec documents
 - If the command **fails or is not configured**: state:
   > "CR-{NNN} saved locally at `.specify/features/{feature}/changesets/CR-{NNN}.md`.
   > Share it with stakeholders for review. When they approve, run `sdd cr check --cr CR-{NNN}`
-  > to confirm, or reply **'approved'** here to continue."
+  > to confirm, or reply **'approved'** (or 'yes', 'LGTM', 'looks good') here to continue."
 
 ---
 
