@@ -487,15 +487,95 @@ Agent reads all unresolved comment threads on the PR, presents them as a numbere
 
 Slash commands that help manage the document review cycle — present the agent with reviewer comments and let it update the document.
 
-The `sdd` CLI adds Jira/Confluence integration on top of these slash commands:
+Without the CLI, share documents manually with reviewers and tell the agent the outcome (e.g. "BRD approved").
+
+---
+
+## Jira & Confluence Integration
+
+The `sdd` CLI connects your spec documents and tasks directly to your Atlassian workspace. This is optional — without it, share documents manually and tell the agent the review outcome.
+
+### One-Time Setup
+
+**Step 1 — Configure credentials:**
+```bash
+sdd config init
+```
+This interactive wizard asks for your Atlassian base URL, auth mode, and env var names. Saves the profile to `~/.sdd/config.yml` (no secrets — only env var names). Optionally creates `.specify/integrations.yml` for this project.
+
+**Step 2 — Export your API token:**
+```bash
+# Jira Cloud (basic auth — email + API token)
+export JIRA_API_TOKEN=your-api-token
+
+# Jira Server / Data Center (Personal Access Token)
+export JIRA_PAT=your-personal-access-token
+```
+Get your API token: Atlassian account → Security → API tokens → Create API token.
+
+**Step 3 — Test the connection:**
+```bash
+sdd config test
+```
+Expected output:
+```
+  ✓  Jira       — connected as Jane Smith
+  ✓  Confluence — connected as Jane Smith
+```
+A red ✗ means the env var is missing, the base URL is wrong, or the token is expired.
+
+**Step 4 — Discover your Jira custom field IDs:**
+```bash
+sdd config fields --project MYPROJ
+```
+Lists every custom field in your Jira instance. Find your `story_points` field (commonly `customfield_10016` on Jira Cloud) and update `.specify/integrations.yml → jira.custom_fields.story_points`.
+
+---
+
+### Jira — Push Stories and Tasks
+
+After `/task` generates `stories.md` and `tasks.md`:
+```bash
+sdd jira push                    # create/update Feature → Story → Task in Jira
+sdd jira push --dry-run          # preview the plan without calling the API
+sdd jira push --feature payments # push a specific feature (default: from manifest.yml)
+```
+Pushes are idempotent — re-running updates existing issues rather than creating duplicates (keyed on `sdd:STORY-001` labels).
+
+---
+
+### Confluence — Push Documents
+
+After generating a spec document:
+```bash
+sdd confluence push --doc brd    # push BRD to Confluence as a formatted page
+sdd confluence push --doc srd    # push SRD
+sdd confluence push --all        # push all documents listed in integrations.yml page_map
+```
+Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page.
+
+---
+
+### Document Review Workflow
+
+After generating each spec document, submit it for stakeholder review:
+
 ```bash
 sdd review submit --doc brd      # push to Confluence + create Jira review task
-sdd review check  --doc brd      # poll: exit 0=approved 1=needs-revision 2=pending
+sdd review check  --doc brd      # poll: exit 0=APPROVED  1=NEEDS_REVISION  2=PENDING
 sdd review apply  --doc brd      # re-push after addressing reviewer comments
-sdd review status                # full dashboard for all documents
+sdd review status                # dashboard: all documents + their current review state
 ```
-Configure reviewers in `.specify/integrations.yml` — see `integrations.yml.example`.
-Without the CLI, share documents manually with reviewers and tell the agent the outcome.
+
+**Review sequence is enforced:** BRD must be approved before SRD can be submitted; SRD before design; etc.
+
+**Handling a revision request:**
+1. `sdd review check --doc brd` exits 1 (NEEDS_REVISION)
+2. Run `/address-review --doc brd` — agent reads comments, proposes updates, you approve
+3. `sdd review apply --doc brd` — re-pushes the updated page to Confluence
+4. Reviewer re-approves → `sdd review check --doc brd` exits 0 (APPROVED)
+
+Configure reviewers (Jira accountId per document) in `.specify/integrations.yml`. Run `sdd config init` to generate this file interactively, or copy `.specify/integrations.yml.example` and edit it.
 
 ---
 
