@@ -99,14 +99,11 @@ Check whether `.specify/integrations.yml` exists and has a `confluence:` section
 sdd confluence draft --doc context
 ```
 Then tell the user:
-> "I've pushed the draft to your Confluence space. Open the link above,
-> fill in the highlighted `[MISSING — ask user]` sections (you can share
-> it with stakeholders directly in Confluence), then run:
-> ```
-> sdd confluence pull --doc context
-> ```
-> to pull your changes back. Say **'done'** here when you have pulled,
-> and I'll continue from the updated file."
+> "I've pushed the draft to your Confluence space — open the link above.
+> Fill in the highlighted `[MISSING — ask user]` sections (you can share
+> the page with stakeholders directly in Confluence).
+> When you're done editing, just say **'done'** here and I'll pull the
+> latest version automatically."
 
 If the `sdd confluence draft` command fails or Confluence is not configured,
 fall back to the in-chat iteration below.
@@ -119,11 +116,18 @@ fall back to the in-chat iteration below.
 > later."
 
 ## Step 4 — Iterate
-**Via Confluence (if pull was used):**
-- When the user says "done", read the updated `.specify/contexts/{feature}.md`
-- Note which `[MISSING — ask user]` markers were resolved vs still open
-- If any remain, show only those in a short updated checklist and ask again
-- Repeat until the user says "good enough, proceed"
+**Via Confluence (user says "done"):**
+1. Automatically run:
+   ```bash
+   sdd confluence pull --doc context
+   ```
+2. Read the updated `.specify/contexts/{feature}.md`
+3. Note which `[MISSING — ask user]` markers were resolved vs still open
+4. If any remain, show only those in a short updated checklist and say:
+   > "Still a few open items — answer what you can, or say 'good enough' to proceed."
+5. Repeat until user says "good enough, proceed" or no markers remain
+
+The user never needs to run `sdd confluence pull` manually — just say "done".
 
 **Via chat (if no Confluence):**
 On each reply:
