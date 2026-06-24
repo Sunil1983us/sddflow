@@ -122,10 +122,18 @@ fall back to the in-chat iteration below.
    sdd confluence pull --doc context
    ```
 2. Read the updated `.specify/contexts/{feature}.md`
-3. Note which `[MISSING — ask user]` markers were resolved vs still open
-4. If any remain, show only those in a short updated checklist and say:
+3. **Process Confluence comments** — if the file contains a `## Confluence Comments`
+   section (appended automatically by the pull command):
+   - Read every comment thread (footer comments AND inline comments)
+   - For each comment: identify which context section it refers to, incorporate
+     the feedback or answer into that section, remove the `[MISSING — ask user]`
+     marker if the comment resolves it
+   - After processing all comments, remove the `## Confluence Comments` section
+     from the file (it has been incorporated — do not leave it in context.md)
+4. Note which `[MISSING — ask user]` markers are still open after applying comments
+5. If any remain, show only those in a short updated checklist:
    > "Still a few open items — answer what you can, or say 'good enough' to proceed."
-5. Repeat until user says "good enough, proceed" or no markers remain
+6. Repeat until user says "good enough, proceed" or no markers remain
 
 The user never needs to run `sdd confluence pull` manually — just say "done".
 

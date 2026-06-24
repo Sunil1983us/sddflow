@@ -321,23 +321,56 @@ def confluence_pull(doc, profile, feature, page_id):
 
     markdown = cf_to_md(storage_body)
 
+    # Fetch comments (footer + inline) and append as a section the AI can read
+    console.print("  Fetching comments...")
+    try:
+        footer_comments  = client.get_page_comments(resolved_page_id)
+        inline_comments  = client.get_inline_comments(resolved_page_id)
+        all_comments     = footer_comments + inline_comments
+    except Exception:
+        all_comments = []
+
+    if all_comments:
+        lines = [
+            "",
+            "---",
+            "",
+            "## Confluence Comments",
+            "",
+            "> These comments were added in Confluence by reviewers or stakeholders.",
+            "> The AI will incorporate them into the document — do not edit this section manually.",
+            "",
+        ]
+        for i, c in enumerate(all_comments, 1):
+            kind = "inline" if c["type"] == "inline" else "comment"
+            lines.append(f"### {kind.capitalize()} {i} — {c['author']} ({c['created']})")
+            lines.append("")
+            lines.append(c["text"])
+            lines.append("")
+        markdown = markdown + "\n" + "\n".join(lines)
+
     doc_path = _resolve_doc_path(doc, feature_name)
     doc_path.parent.mkdir(parents=True, exist_ok=True)
 
     old_text = doc_path.read_text() if doc_path.exists() else ""
     doc_path.write_text(markdown + "\n")
 
-    added = len([l for l in markdown.splitlines() if l not in old_text.splitlines()])
+    body_lines   = len(cf_to_md(storage_body).splitlines())
+    comment_count = len(all_comments)
     console.print(f"  [green]✓[/green]  Saved to [bold]{doc_path}[/bold]")
-    console.print(f"  Lines    : {len(markdown.splitlines())}  (~{added} changed)")
+    console.print(f"  Body     : {body_lines} lines")
+    if comment_count:
+        console.print(f"  Comments : [yellow]{comment_count}[/yellow] (included for AI review)")
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print("  [bold green]Pull complete![/bold green]  The local file is now up to date.")
+    if comment_count:
+        console.print(f"  [yellow]{comment_count} Confluence comment(s)[/yellow] included —")
+        console.print("  tell the AI 'done' and it will incorporate them.")
     if doc == "context":
-        console.print("  Run [bold]/specify[/bold] (or tell the AI 'continue') to")
-        console.print("  generate the constitution from your updated context.")
+        console.print("  Say [bold]'done'[/bold] in chat — the AI will read the updates")
+        console.print("  and comments, then continue.")
     else:
-        console.print(f"  Tell the AI 'I updated the {doc} in Confluence, please continue'")
-        console.print("  to resume the SDD workflow from the updated document.")
+        console.print(f"  Say [bold]'done'[/bold] in chat to resume the SDD workflow.")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
