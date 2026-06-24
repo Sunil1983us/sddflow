@@ -75,7 +75,12 @@ sdd review submit --doc brd
 If the CLI fails or is not configured, present the document and ask:
 > "BRD generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
 
-When the user replies **'approved'** in chat — run immediately:
+When the user replies **'approved'** in chat:
+1. Update `brd.md` header: change `Status: Draft` → `Status: Approved` and set the date to today.
+2. Update the Approvals table: set both rows' Status to `Approved` and Date to today.
+3. Append a Version History row: `| 1.0 | {today} | {chat} | Approved in chat session | — |`
+4. Re-save `brd.md` and regenerate `brd.summary.md`.
+5. Run immediately:
 ```bash
 sdd review approve --doc brd --local --by "chat" --note "approved in chat session"
 ```

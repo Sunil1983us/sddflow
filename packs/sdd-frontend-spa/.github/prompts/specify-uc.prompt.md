@@ -106,7 +106,12 @@ sdd review submit --doc use-cases
 If the CLI fails or is not configured, present the document and ask:
 > "Use Cases generated. Review above and reply **'approved'** to continue, or provide feedback:"
 
-When the user replies **'approved'** in chat — run immediately:
+When the user replies **'approved'** in chat:
+1. Update `use-cases.md` header: change `Status: DRAFT` → `Status: APPROVED` and set the date to today.
+2. Update the Approvals table: set both rows' Status to `Approved` and Date to today.
+3. Append a Version History row: `| 1.0 | {today} | {chat} | Approved in chat session | — |`
+4. Re-save `use-cases.md` and regenerate `use-cases.summary.md`.
+5. Run immediately:
 ```bash
 sdd review approve --doc use-cases --local --by "chat" --note "approved in chat session"
 ```

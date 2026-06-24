@@ -177,3 +177,9 @@ FR-NNN columns are populated by **/specify-srd** after this document is approved
 |---|---|---|
 | Business Analyst (responsible — domain accuracy) | Pending | |
 | Product Owner (accountable — business scenario sign-off) | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

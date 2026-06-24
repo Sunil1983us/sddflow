@@ -85,7 +85,12 @@ sdd review submit --doc srd
 If the CLI fails or is not configured, present the document and ask:
 > "SRD generated. Review it above and reply **'approved'** to continue, or provide feedback:"
 
-When the user replies **'approved'** in chat — run immediately:
+When the user replies **'approved'** in chat:
+1. Update `srd.md` header: change `Status: Draft` → `Status: Approved` and set the date to today.
+2. Update the Approvals table: set the reviewer row's Status to `Approved` and Date to today.
+3. Append a Version History row: `| 1.0 | {today} | {chat} | Approved in chat session | — |`
+4. Re-save `srd.md` and regenerate `srd.summary.md`.
+5. Run immediately:
 ```bash
 sdd review approve --doc srd --local --by "chat" --note "approved in chat session"
 ```

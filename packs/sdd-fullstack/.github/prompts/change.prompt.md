@@ -180,9 +180,15 @@ State:
 
 **STOP. Do not touch the next document until the user replies.**
 
-On **'approved'**: apply the change, record before/after in changeset §3, **regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines) to reflect the updated content, then move to next.
-On **'modify: {text}'**: apply the user's text instead, record, **regenerate `{document}.summary.md`**, then move to next.
-On **'skip'**: record as SKIP (user decision), move to next. Do NOT touch the summary.
+On **'approved'**: apply the change, then:
+  1. Increment the version in the document header (e.g. 1.0 → 1.1, 1.2 → 1.3)
+  2. Append a row to the document's `## Version History` table:
+     `| {new version} | {today's date} | CR-{NNN} | {1-sentence summary of what changed} | CR-{NNN} |`
+  3. Record before/after in changeset §3
+  4. **Regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines)
+  5. Move to next document.
+On **'modify: {text}'**: apply the user's text instead, perform the same version bump + Version History + summary steps, then move to next.
+On **'skip'**: record as SKIP (user decision), move to next. Do NOT touch version, history, or summary.
 On **'stop'**: save current changeset progress, state which documents remain, stop.
 
 **RERUN NEEDED** (targeted section edit is insufficient — e.g., a new actor changes every UC, or a tech stack change affects the full design):
@@ -201,7 +207,12 @@ State:
 > Reply **'rerun'** to proceed, or **'update'** if you prefer targeted section edits instead."
 
 **STOP. Do not regenerate until user confirms.**
-On 'rerun': save backup, regenerate document with CR incorporated, **regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines), record in changeset §2.
+On 'rerun': save backup, regenerate document with CR incorporated, then:
+  1. Increment the version in the document header (e.g. 1.0 → 2.0 for a rerun)
+  2. Append a row to the document's `## Version History` table:
+     `| {new version} | {today's date} | CR-{NNN} | Full regeneration — {1-sentence reason} | CR-{NNN} |`
+  3. **Regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines)
+  4. Record in changeset §2.
 On 'update': switch to UPDATE mode for this document, show section diff.
 
 ---
