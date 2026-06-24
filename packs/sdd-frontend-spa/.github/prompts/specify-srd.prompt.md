@@ -90,14 +90,14 @@ Submit to Jira (with or without Confluence):
 sdd review submit --doc srd
 ```
 If the command succeeds, tell the user:
-> "SRD submitted for Jira review. Reply **'approved'** once the reviewer approves."
+> "SRD submitted for Jira review. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once the reviewer approves."
 
 If the CLI fails or is not configured, present the document and ask:
-> "SRD generated. Review it above and reply **'approved'** to continue, or provide feedback:"
+> "SRD generated. Review it above and reply **'approved'** (or 'yes', 'LGTM') to continue, or provide feedback:"
 
 **Step C — On approval (any path: Jira, Confluence+Jira, or chat)**
 
-When the user replies **'approved'**:
+When the user replies with any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'**, or any similar affirmative (case-insensitive):
 1. Run `sdd review check --doc srd` to verify:
    - Exit 0 → confirmed. Proceed.
    - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
