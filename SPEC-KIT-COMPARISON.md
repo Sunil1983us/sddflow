@@ -11,8 +11,8 @@
 | | **GitHub spec-kit** | **SDD Framework** |
 |---|---|---|
 | Designed for | Individual developer / small team, tool-agnostic | Enterprise teams with formal sign-off chains |
-| Commands | 9 — core: `constitution → specify → plan → tasks → taskstoissues → implement`; optional: `clarify`, `analyze`, `checklist` | 9–11 (`/specify` → `/release`) |
-| Spec artifacts per feature | spec.md, plan.md, research.md, data-model.md, tasks.md, checklists/ | BRD, SRD, Security-Design, API Spec, Data Model, Resilience, Arch, HLD, LLD, ADR, Stories, Tasks, QA Cases, Runbook, Release + checklists/{feature}-spec-quality.md |
+| Commands | 9 — core: `constitution → specify → plan → tasks → taskstoissues → implement`; optional: `clarify`, `analyze`, `checklist` | 13 core (`/specify` → `/release`) + optional `/orchestrate`, `/pre-review`, `/address-review` |
+| Spec artifacts per feature | spec.md, plan.md, research.md, data-model.md, tasks.md, checklists/ | BRD, Use Cases, SRD, Security-Design, API Spec, Data Model, Resilience, Design (Arch+HLD+ADR), LLD, Stories, Tasks, QA Cases, Runbook, Release + checklists/{feature}-spec-quality.md |
 | Tech stack capture | Per-feature, inside plan.md | Once, in constitution.md Part 2 (20-concern table), GATE-1 finalized |
 | Governance / RACI | None | `roles.yml` — every gate has a named accountable role |
 | Hard gates | 2 (Constitution Check in plan.md, checklist completeness in implement.md) | Gate at every command transition (GATE-1, /checklist CRITICAL items, validate, AI-8 assumptions, clarify, etc.) |
@@ -21,7 +21,12 @@
 | Traceability | On-demand, advisory (`/speckit.analyze` — severity-ranked consistency audit across spec/plan/tasks) | Persistent matrix: Story → FR/NFR → Task → TC-NNN → R-NNN |
 | Task export | `/speckit.taskstoissues` — tasks.md → GitHub Issues | `/taskstoissues` — tasks.md + stories.md → GitHub Issues markdown + `gh` shell script; `/task` → Jira CSV |
 | PR / CI governance | Left to the team's normal git workflow | Built-in `pr_rules` (max lines/files, SPLIT A/B/C), `quality-gate.yml`, and a configurable `workflow_mode: github \| local` |
-| Portability | Designed to run identically across many AI coding tools | Claude Code (`.claude/commands/`), Copilot (`.github/prompts/`), Cursor (`.cursor/rules/`), Windsurf (`.windsurfrules`), any AI via copy-paste; `setup.sh`/`setup.ps1` for one-command init; `sdd-universal` pack auto-detects project type (10 types) |
+| Code review | None | `/pre-review` — AI reviews diff before PR (numbered findings, dev picks fixes); `/address-review` — AI addresses human PR comments, replies to threads, requests re-review |
+| CLI / setup | `bash scripts/bash/setup.sh` / PowerShell equivalent | `pip install sdd-init` or `npm install -g sdd-init` — interactive wizard: project name, scope, AI tool, scaffolds pack automatically |
+| AI tool selection | Tool-agnostic (same prompt works in any AI) | `sdd init` prompts for tool (Claude Code / Copilot / Cursor / Windsurf / Other); saves as `ai_tool` in `manifest.yml`; shows personalized next-step instruction |
+| Jira / Confluence | None | `sdd config init/test/fields` → `sdd jira push` / `sdd confluence push`; `sdd review submit/check/apply/status` — Jira-backed stakeholder approval for every SDD document |
+| Full pipeline automation | None | `/orchestrate` — drives entire pipeline from a single command; pauses at every human gate; supports `--list`, `--from STEP`, `--to STEP` |
+| Portability | Designed to run identically across many AI coding tools | Claude Code (`.claude/commands/`), Copilot (`.github/copilot-instructions.md` + `.github/prompts/`), Cursor, Windsurf (`.windsurfrules`), any AI via copy-paste; `sdd init` selects AI tool interactively |
 | Project types | 1 (generic) | 5 packs: backend-service, frontend-spa, mobile, fullstack + `sdd-universal` (auto-detects cli, data-ml, serverless, library, iac, desktop + all 4 above) |
 | Bug management | None | `/bug-assess` (BUG-NNN with severity/root-cause/estimate) + `/bug-fix` (regression-test-first fix) |
 
@@ -131,19 +136,27 @@ already split business vs. technical sign-off.
 - `/speckit.checklist` — anytime; generates domain-specific
   requirement-quality checklists (e.g. `ux.md`, `security.md`)
 
-### SDD packs — 9–11 commands (pilot scope shown)
+### SDD packs — 13 commands (pilot scope shown)
 
-1. `/specify` (also drafts constitution Part 2)
-   — **GATE-1** — manual review/finalize constitution
-2. `/validate` — business sign-off
-3. `/analyze` — risk/complexity
-4. `/clarify` — resolve open questions
-5. `/plan-arch` — architecture + plan
-6. `/plan-hld` — HLD + diagrams
-   (`/plan-lld`, `/plan-adr` — MVP+ only)
-7. `/task` — Feature → Story → Task + Jira CSV
-8. `/implement` — one task at a time, PR rules enforced
-9. `/release` — UAT + deployment + go-live gate
+1. `/specify` — drafts constitution Part 2 (DRAFT)
+   — **GATE-1** — manual review/finalize constitution Part 2
+2. `/specify-brd` — Business Requirements Document
+3. `/specify-uc` — Use Case Specification (Actors + MP/AP/EP)
+4. `/specify-srd` — Software Requirements Document
+5. `/specify-doc {name}` — extended docs: security, data-model, component-spec, ux-flow, screen-spec, resilience, investigation (scope-dependent)
+6. `/checklist` — spec quality gate (mandatory mvp+, optional pilot)
+7. `/validate` — business sign-off on BRD + Use Cases + SRD
+8. `/analyze` — risk/complexity + consistency audit
+9. `/clarify` — resolve open questions
+10. `/plan-design` — Architecture + Diagrams + API Design + ADRs (all scopes)
+    `/plan-lld` — detailed class/sequence design (mvp+ only)
+11. `/task` — Feature → Story → Task + Jira CSV
+12. `/implement` — one task at a time, PR rules enforced
+    `/pre-review` — AI code review before PR; numbered findings → dev picks fixes
+    `/address-review` — address human PR comments; fix, reply, resolve threads
+13. `/release` — UAT + deployment + go-live gate
+
+**Optional:** `/orchestrate` — drives the full pipeline automatically from a single command; pauses at every human gate; supports `--list`, `--from STEP`, `--to STEP`.
 
 **Takeaway:** spec-kit's core path is 6 steps with 3 optional add-ons a
 developer can skip entirely. SDD Framework's steps are *not* optional — each
@@ -243,12 +256,66 @@ folder via Claude Desktop).
 
 ---
 
-## 7. Where spec-kit Has the Edge
+## 7. CLI Setup & Enterprise Integration — Jira / Confluence
+
+**spec-kit** has no CLI and no integration with issue tracking or documentation platforms. Setup is manual (copy templates, fill in yaml) and all artifact storage relies on the team's git workflow.
+
+**SDD Framework** ships a full CLI (`sdd`) and an enterprise integration layer:
+
+### Installation & Setup
+
+```bash
+pip install sdd-init          # or: npm install -g sdd-init
+sdd init                      # interactive wizard: project name, scope, AI tool
+                              # → copies the right pack, fills manifest.yml, done
+```
+
+`sdd init` prompts for 5 things: project name, scope (pilot/mvp/full), feature name, project type, and which AI tool you'll use (Claude Code / GitHub Copilot / Cursor / Windsurf / Other). It then scaffolds the correct pack into your project and outputs a personalized "what to do next" message matched to your AI tool.
+
+### Jira & Confluence Connection
+
+```bash
+sdd config init               # interactive wizard → ~/.sdd/config.yml
+export JIRA_API_TOKEN=...     # Cloud: email + token; Server: JIRA_PAT; CI: JIRA_ACCESS_TOKEN
+sdd config test               # pings Jira + Confluence → reports ✓ or ✗ per service
+sdd config fields --project MYPROJ   # discover custom field IDs
+```
+
+Auth modes: `basic` (Jira Cloud — email + API token), `pat` (Jira Server/DC — personal access token), `oauth2` (CI/CD — access token).
+
+### Pushing Artifacts
+
+```bash
+sdd jira push                 # push stories + tasks → Jira issues
+sdd jira push --dry-run       # preview without creating issues
+sdd confluence push --doc brd # publish one SDD document to Confluence
+sdd confluence push --all     # publish all SDD documents
+```
+
+### Stakeholder Review Workflow
+
+After each document is generated, submit it for formal sign-off:
+
+```bash
+sdd review submit --doc brd   # push to Confluence + create Jira review task
+sdd review check  --doc brd   # poll: exit 0=approved 1=needs-revision 2=pending
+sdd review apply  --doc brd   # re-push after addressing reviewer comments
+sdd review status             # full dashboard across all documents and phases
+```
+
+Review sequence is enforced: BRD → Use Cases → SRD → Design → LLD → Tasks → Runbook → Release. Each document must be approved before the next can be submitted. When `sdd review check` exits 1 (needs revision), the agent reads reviewer comments, updates the document, runs `sdd review apply`, and asks the reviewer to re-review.
+
+**Takeaway:** spec-kit assumes the team already manages Jira and Confluence separately from the AI tool. SDD Framework brings the AI tool *into* that workflow — every spec doc is pushed to Confluence automatically, every review becomes a Jira task with a named reviewer, and the agent won't advance to the next phase until the current document is approved in Jira.
+
+---
+
+## 8. Where spec-kit Has the Edge
 
 To be fair, a few things spec-kit does better:
-- **Portability** — one set of templates designed to behave identically
-  across Claude, Copilot, Cursor, Windsurf, etc., with bash/PowerShell
-  helper scripts.
+- **Portability (first mover)** — one set of templates designed to behave
+  identically across Claude, Copilot, Cursor, Windsurf, etc., from day one.
+  SDD now matches this via `.github/prompts/` portable prompt files + `sdd init`
+  AI tool selection — but spec-kit was there first.
 - **Lower ceremony** — a solo developer can go idea → working code in
   under an hour with 6 core commands and no role setup.
 - **`[NEEDS CLARIFICATION]` inline markers** — lighter-weight than a
@@ -293,9 +360,23 @@ All items selectively borrowed into SDD packs — now fully implemented:
 - ✅ Per-type tech stack tables in `/specify` (10 types × complete concern rows)
 - ✅ Per-type doc-set table (pilot/mvp/full × 10 types)
 
+**Phase 3 — CLI, AI tool selection & enterprise integration (now implemented):**
+- ✅ `sdd init` Python CLI (`pip install sdd-init`) + Node.js CLI (`npm install -g sdd-init`)
+- ✅ AI tool selection in `sdd init` (claude-code / copilot / cursor / windsurf / other); stored as `ai_tool` in `manifest.yml`; personalized Done message per tool
+- ✅ `sdd config init` / `sdd config test` / `sdd config fields` — Jira + Confluence connection wizard, connectivity test (✓/✗ per service), custom field discovery
+- ✅ `sdd jira push` — push stories + tasks → Jira issues (with `--dry-run` and `--feature` flags)
+- ✅ `sdd confluence push` — publish SDD documents to Confluence (`--doc`, `--all`)
+- ✅ `sdd review submit/check/apply/status` — Jira-backed stakeholder approval workflow; enforces review sequence; revision handling with re-push
+- ✅ `/specify-brd`, `/specify-uc`, `/specify-srd`, `/specify-doc {name}` — SPECIFY split into 5 sub-commands (one document at a time)
+- ✅ `/plan-design` — replaces `/plan-arch` + `/plan-hld` + `/plan-adr` (single design document)
+- ✅ `/pre-review` — AI code review before PR; numbered findings → dev picks which to fix
+- ✅ `/address-review` — address human PR comments; fix, reply to threads, request re-review
+- ✅ `/orchestrate` — full pipeline driver; supports `--list`, `--from STEP`, `--to STEP`; works in single-session and multi-agent SDK modes
+- ✅ Per-pack HOW-TO-USE.md — tailored per pack: pack-specific templates, extended docs, tech stack, AI tool usage guide, Jira/Confluence integration steps
+
 ---
 
-## 8. The Pitch
+## 9. The Pitch
 
 If the audience is **individual developers or small startup teams**:
 spec-kit's simplicity is a genuine strength — fewer steps, no roles to
