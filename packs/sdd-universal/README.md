@@ -17,13 +17,20 @@ you review and finalize it (GATE-1) before work continues.
 ## Quick Start
 
 ```bash
+# Recommended: use the CLI
+pip install sdd-init    # or: npm install -g sdd-init
+sdd init                # interactive: project name, scope, AI tool — copies pack automatically
+
+# OR: manual setup
 unzip sdd-universal.zip -d my-project
 cd my-project
 git init
 # Write .specify/contexts/my-feature.md  (or run /create-context)
 # Fill .specify/manifest.yml (4 fields)
-claude    # Claude Code — type /start, then begin
-# OR open VS Code + GitHub Copilot Chat
+
+# Then start your AI tool
+claude                  # Claude Code: type /specify
+# OR open VS Code + GitHub Copilot Chat: type /specify
 ```
 
 ---
@@ -36,7 +43,6 @@ Must include a Tech Stack section:
 ## Tech Stack
 | Concern | Choice |
 |---|---|
-| Concern | Choice |
 | Language | {your language} |
 | Framework | {your framework} |
 | Database | {your DB} |
@@ -104,7 +110,7 @@ Pauses at every human gate. Supports `--list`, `--from STEP`, `--to STEP`.
 #### MVP+ (full path)
 ```
 /specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd
-→ /specify-doc security → /specify-doc data-model
+→ /specify-doc security → /specify-doc api-spec → /specify-doc data-model
 → /checklist (mandatory) → /validate → /analyze → /clarify
 → /plan-design → /plan-lld → /task → /implement → /release
 ```
@@ -119,7 +125,7 @@ Pauses at every human gate. Supports `--list`, `--from STEP`, `--to STEP`.
 | `/specify-brd` | BRD | same | same |
 | `/specify-uc` | Use Cases | same | same |
 | `/specify-srd` | SRD + Security-Design §1 | + §1-2 | + §1-4 |
-| `/specify-doc` | — | data-model | + resilience, investigation |
+| `/specify-doc` | security | + api-spec, data-model | + resilience, investigation |
 | `/checklist` | Optional | Mandatory | Mandatory |
 | `/validate` | Validation report | same | same |
 | `/analyze` | Analysis report | same | same |

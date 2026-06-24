@@ -14,7 +14,7 @@ generated one at a time using dedicated sub-commands:
 | `/specify-brd` | BRD | GATE-1 passed |
 | `/specify-uc` | Use Cases (ACT-NNN + UC-NNN with MP/AP/EP) | BRD approved |
 | `/specify-srd` | SRD | Use Cases approved |
-| `/specify-doc {name}` | security / data-model / resilience / investigation | SRD approved |
+| `/specify-doc {name}` | security / api-spec / data-model / component-spec / ux-flow / screen-spec / resilience / investigation | SRD approved |
 
 ## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
 Part 2 is a DRAFT until the user reviews every row and confirms
@@ -73,6 +73,7 @@ Sequence: BRD → Use Cases → SRD → Design (specify) · LLD (planning) · Ta
 
 ## Pilot Scope — Skip These
 - /plan-lld → skip (state: pilot scope)
+- /specify-doc api-spec → skip (state: pilot scope)
 - /specify-doc data-model → skip (state: pilot scope)
 - /specify-doc resilience → skip (state: pilot scope)
 

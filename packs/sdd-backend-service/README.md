@@ -16,13 +16,20 @@ you review and finalize it (GATE-1) before work continues.
 ## Quick Start
 
 ```bash
+# Recommended: use the CLI
+pip install sdd-init    # or: npm install -g sdd-init
+sdd init                # interactive: project name, scope, AI tool — copies pack automatically
+
+# OR: manual setup
 unzip sdd-backend-service.zip -d my-project
 cd my-project
 git init
 # Write .specify/contexts/my-feature.md  (or run /create-context)
 # Fill .specify/manifest.yml (4 fields)
-claude    # Claude Code — type /start, then begin
-# OR open VS Code + GitHub Copilot Chat
+
+# Then start your AI tool
+claude                  # Claude Code: type /specify
+# OR open VS Code + GitHub Copilot Chat: type /specify
 ```
 
 ---
@@ -119,7 +126,7 @@ Pauses at every human gate. Supports `--list`, `--from STEP`, `--to STEP`.
 | `/specify-brd` | BRD | same | same |
 | `/specify-uc` | Use Cases | same | same |
 | `/specify-srd` | SRD + Security-Design §1 | + §1-2 | + §1-4 |
-| `/specify-doc` | — | data-model | + resilience, investigation |
+| `/specify-doc` | security | + data-model | + resilience, investigation |
 | `/checklist` | Optional | Mandatory | Mandatory |
 | `/validate` | Validation report | same | same |
 | `/analyze` | Analysis report | same | same |
