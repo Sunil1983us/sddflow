@@ -1,6 +1,6 @@
 # Clarification Report — {Feature Name}
-> Version: {spec version} | Date: {date}
-> Status: OPEN — fill all answers before PLAN begins
+> Version: {spec version} | Status: OPEN | Date: {date} | Author: {author}
+> Fill all answers before PLAN begins
 
 ---
 
@@ -86,3 +86,9 @@ All items must be resolved before PLAN begins.
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

@@ -15,16 +15,15 @@ This is an OPTIONAL pre-phase for users who do not yet have a structured
 directly.
 
 ## Before Starting
-Read .specify/manifest.yml (if filled — confirm project.feature)
-Read .specify/templates/context-template.md
-Read .specify/contexts/CONTEXT-GUIDE.md
+- Read .specify/manifest.yml (if filled — confirm project.feature)
+- Read .specify/templates/context-template.md
+- Read .specify/contexts/CONTEXT-GUIDE.md
 
 ## Step 1 — Gather Raw Input
 If the user has not already provided notes in this conversation, ask:
   "Paste anything you have — notes, an email, a requirements doc, bullet
-  points, even rough/incomplete thoughts. Any format is fine. Cover both
-  backend and frontend if you can, but partial info for either side is OK.
-  Or give me the path to an existing file with this information."
+  points, even rough/incomplete thoughts. Any format is fine. Or give me
+  the path to an existing file with this information."
 
 Accept:
 - Free text pasted in chat, and/or
@@ -66,45 +65,79 @@ Map the raw input onto every section of context-template.md:
   8. Constraints
   9. Out of Scope
   10. Open Questions
-  11. Tech Stack (Backend, Frontend, Shared)
+  11. Tech Stack
 
 For each section:
 - Fill in anything the raw input states or clearly implies. Mark
   agent-inferred content with "(inferred — confirm)".
 - If a section has nothing to go on, write `[MISSING — ask user]`.
-- For section 11 (Tech Stack), fill the Backend, Frontend, and Shared
-  sub-tables separately — a fullstack feature needs both layers covered.
-  If the user only described one layer, mark every row in the other
-  layer's sub-table `[MISSING — ask user]` rather than guessing.
 
 ## Step 3 — Missing Information Checklist
 Produce a numbered, plain-language checklist — one question per
 `[MISSING — ask user]` marker, grouped by section, written for a
 non-technical reader. Examples:
-  1. (Tech Stack — Backend) What language/framework will the backend use?
-     If you're not sure, say "not sure — recommend one" and the architect
-     can decide later at /plan-design.
-  2. (Tech Stack — Frontend) What framework will the frontend use? (e.g.
-     React, Vue, Angular) If you're not sure, say "not sure — recommend
-     one".
-  3. (Actors) Who are the different types of people or systems that will
+  1. (Tech Stack) What programming language/framework will this use? If
+     you're not sure, say "not sure — recommend one" and the architect can
+     decide later at /plan-design.
+  2. (Actors) Who are the different types of people or systems that will
      use this? (e.g. "customer", "admin", "support team", "another
      internal service")
-  4. (NFRs) Roughly how many users/requests per day? Any uptime
+  3. (NFRs) Roughly how many users/requests per day? Any uptime
      requirement (e.g. "must be up during business hours" vs "24/7")?
-  5. (Constraints) Any rules you must follow (legal, security, "must use
+  4. (Constraints) Any rules you must follow (legal, security, "must use
      our existing X system", budget/timeline)?
-  6. (Out of Scope) Anything people might assume is included but isn't,
+  5. (Out of Scope) Anything people might assume is included but isn't,
      for this first version?
 
-STOP here. Show the draft context.md AND the checklist. Tell the user:
-  "Answer any of these you can — partial answers are fine, and 'not sure'
-  is a valid answer for technical questions (the architect will decide
-  later). Reply with your answers, or say 'good enough, proceed' to save
-  the draft as-is with the remaining [MISSING — ask user] markers for
-  later."
+STOP here. Show the draft context.md AND the checklist.
+
+### Confluence Draft Option (if Confluence is configured)
+Check whether `.specify/integrations.yml` exists and has a `confluence:` section.
+
+**If yes** — run:
+```bash
+sdd confluence draft --doc context
+```
+Then tell the user:
+> "I've pushed the draft to your Confluence space — open the link above.
+> Fill in the highlighted `[MISSING — ask user]` sections (you can share
+> the page with stakeholders directly in Confluence).
+> When you're done editing, just say **'done'** here and I'll pull the
+> latest version automatically."
+
+If the `sdd confluence draft` command fails or Confluence is not configured,
+fall back to the in-chat iteration below.
+
+**If no Confluence** — tell the user:
+> "Answer any of these you can — partial answers are fine, and 'not sure'
+> is a valid answer for technical questions (the architect will decide
+> later). Reply with your answers, or say 'good enough, proceed' to save
+> the draft as-is with the remaining [MISSING — ask user] markers for
+> later."
 
 ## Step 4 — Iterate
+**Via Confluence (user says "done"):**
+1. Automatically run:
+   ```bash
+   sdd confluence pull --doc context
+   ```
+2. Read the updated `.specify/contexts/{feature}.md`
+3. **Process Confluence comments** — if the file contains a `## Confluence Comments`
+   section (appended automatically by the pull command):
+   - Read every comment thread (footer comments AND inline comments)
+   - For each comment: identify which context section it refers to, incorporate
+     the feedback or answer into that section, remove the `[MISSING — ask user]`
+     marker if the comment resolves it
+   - After processing all comments, remove the `## Confluence Comments` section
+     from the file (it has been incorporated — do not leave it in context.md)
+4. Note which `[MISSING — ask user]` markers are still open after applying comments
+5. If any remain, show only those in a short updated checklist:
+   > "Still a few open items — answer what you can, or say 'good enough' to proceed."
+6. Repeat until user says "good enough, proceed" or no markers remain
+
+The user never needs to run `sdd confluence pull` manually — just say "done".
+
+**Via chat (if no Confluence):**
 On each reply:
 - Update context.md, resolving `[MISSING — ask user]` markers for
   anything answered
@@ -128,24 +161,23 @@ If yes, save the raw input verbatim to `.specify/contexts/{feature}.raw.md`
 with this header:
 ```
 # Pre-context notes — reference only
-# Not read by /specify or any other SDD command
+# Not read by /specify or any other SDD command (AI-2)
 # Source for .specify/contexts/{feature}.md — regenerate via /create-context
 ```
 
-State: "Context file ready at .specify/contexts/{feature}.md
-({N} of {M} sections complete, {K} still marked [MISSING — ask user]).
-Run /specify to generate constitution Part 2 + spec docs."
-If any `[MISSING — ask user]` markers remain, add: "Note: /specify Action 1
-will carry forward any remaining [MISSING — ask user] markers into
-constitution Part 2 — resolve them before later commands rely on that
-section."
+- State: "Context file ready at .specify/contexts/{feature}.md
+  ({N} of {M} sections complete, {K} still marked [MISSING — ask user]).
+  Run /specify to generate constitution Part 2 (DRAFT) + spec docs."
+- If any `[MISSING — ask user]` markers remain, add: "Note: /specify
+  Action 1 will carry forward any remaining [MISSING — ask user] markers
+  into constitution Part 2 — resolve them at GATE-1."
 
 ## Never Do
-Never invent business rules, NFR numbers, or constraints not stated or
-reasonably inferable — use `[MISSING — ask user]` instead
-Never skip the Missing Information Checklist, even if the draft looks
-complete
-Never overwrite an existing `.specify/contexts/{feature}.md` without
-confirming with the user first (offer to show a diff / merge instead)
-Never read `.specify/contexts/{feature}.raw.md` in any command other than
-/create-context — it is reference-only
+- Never invent business rules, NFR numbers, or constraints not stated or
+  reasonably inferable — use `[MISSING — ask user]` instead
+- Never skip the Missing Information Checklist, even if the draft looks
+  complete
+- Never overwrite an existing `.specify/contexts/{feature}.md` without
+  confirming with the user first (offer to show a diff / merge instead)
+- Never read `.specify/contexts/{feature}.raw.md` in any command other than
+  /create-context (AI-2 — it is reference-only)

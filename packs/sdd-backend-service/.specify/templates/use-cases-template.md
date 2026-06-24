@@ -138,26 +138,38 @@ Status: DRAFT
 
 ## §4 Use Case Relationships
 
-> Agent generates the complete relationship diagram from all UC-NNN in §3. Every `includes` and `extends` relationship is listed. If no relationships exist, state "No UC relationships — all use cases are independent."
+> Agent generates the Mermaid diagram and relationship table from all UC-NNN in §3.
+> Every `includes` and `extends` relationship is shown. If no relationships exist,
+> state "No UC relationships — all use cases are independent."
 
+### Relationship Diagram
+
+```mermaid
+graph LR
+  UC001["UC-001: {Title}"] -->|includes| UC003["UC-003: {Title}"]
+  UC002["UC-002: {Title}"] -->|includes| UC003
+  UC004["UC-004: {Title}"] -.->|extends| UC001
+  UC005["UC-005: {Title}"] -.->|extends| UC002
+
+  style UC003 fill:#e8f4e8,stroke:#5a9e5a
+  style UC001 fill:#e8eef8,stroke:#5a7abf
+  style UC002 fill:#e8eef8,stroke:#5a7abf
+  style UC004 fill:#f8f4e8,stroke:#b8a040
+  style UC005 fill:#f8f4e8,stroke:#b8a040
 ```
-{Generated full relationship map — example structure:}
 
-UC-001 ──includes──► UC-003     (UC-001 always triggers UC-003 as a mandatory sub-flow)
-UC-002 ──includes──► UC-003     (UC-002 also always triggers UC-003)
-UC-004 ──extends──►  UC-001     (UC-004 adds optional behaviour to UC-001 at extension point EP-001A)
-UC-005 ──extends──►  UC-002     (UC-005 adds conditional behaviour when {condition})
-```
+**Legend:**
+- `──►` solid arrow = **includes** — UC-A always executes UC-B (mandatory sub-use-case)
+- `- - ►` dashed arrow = **extends** — UC-A adds optional/conditional behaviour to UC-B
 
-**includes** — UC-A always executes UC-B as part of its flow (mandatory sub-use-case)
-**extends** — UC-A adds optional or conditional behaviour to UC-B (extension point)
+### Relationship Table
 
 | Relationship | Type | Trigger / Condition |
 |---|---|---|
 | UC-{A} → UC-{B} | includes | Always — {description} |
 | UC-{C} → UC-{D} | extends | When {condition} — at {extension point} |
 
-_(If no UC relationships apply: state "No relationships — all use cases are independent.")_
+_(If no UC relationships apply: replace diagram and table with "No relationships — all use cases are independent.")_
 
 ---
 
@@ -177,3 +189,9 @@ FR-NNN columns are populated by **/specify-srd** after this document is approved
 |---|---|---|
 | Business Analyst (responsible — domain accuracy) | Pending | |
 | Product Owner (accountable — business scenario sign-off) | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

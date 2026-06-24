@@ -1,6 +1,6 @@
 # System Requirements Document (SRD)
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ---
 
@@ -67,3 +67,9 @@ corresponding use case step does not fully specify the required system behaviour
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

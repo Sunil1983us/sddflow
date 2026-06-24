@@ -152,6 +152,9 @@ below). If the gate requires human confirmation:
 6. On feedback / "changes requested": loop — re-execute the step with
    feedback, then re-present the gate
 
+**Approval signals:** At any document approval gate, the following are all accepted (case-insensitive):
+**'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'**, or any similar affirmative — in addition to the named gate keyword shown in the gate message.
+
 ### Never skip a gate
 
 Gates exist because the next step depends on decisions only a human can
@@ -196,28 +199,28 @@ On confirmation: mark GATE-1 `[✅]`.
 - Check: `brd.md` exists
 - If exists → mark `[✅]`, skip
 - Execute, then gate:
-> "BRD generated. Review it and reply **'brd approved'** to continue,
+> "BRD generated. Review it and reply **'brd approved'** (or 'approved', 'yes', 'LGTM') to continue,
 > or provide feedback:"
 
 **[specify-uc]**
 - Check: `use-cases.md` exists
 - Execute, then gate:
-> "Use Cases generated. Review and reply **'use-cases approved'** or feedback:"
+> "Use Cases generated. Review and reply **'use-cases approved'** (or 'approved', 'yes', 'LGTM') or feedback:"
 
 **[specify-srd]**
 - Check: `srd.md` exists
 - Execute, then gate:
-> "SRD generated. Review and reply **'srd approved'** or feedback:"
+> "SRD generated. Review and reply **'srd approved'** (or 'approved', 'yes', 'LGTM') or feedback:"
 
 **[specify-doc — extended docs]**
 For each extended doc required by this scope × project_type (from dashboard):
 - Check: `{doc}.md` exists
 - Execute, then gate:
-> "{DOC} generated. Review and reply **'{doc} approved'** or feedback:"
+> "{DOC} generated. Review and reply **'{doc} approved'** (or 'approved', 'yes', 'LGTM') or feedback:"
 - For `security-design.md` specifically: verify the
   `<!-- security-sign-off:` marker is present and remind:
 > "Security Officer must update the sign-off marker in security-design.md
-> before /validate can unblock. Reply **'security approved'** when done."
+> before /validate can unblock. Reply **'security approved'** (or 'approved', 'yes') when done."
 
 **[checklist]**
 - Scope rule: mandatory for `mvp` and `full`; optional for `pilot`
@@ -236,14 +239,14 @@ For each extended doc required by this scope × project_type (from dashboard):
 - Check: `validate.md` exists and contains "VALIDATE complete"
 - Execute, then gate:
 > "Validate report ready. Product Owner and Business Analyst must sign off.
-> Reply **'validate approved'** once §5 Sign-Off is complete, or provide
+> Reply **'validate approved'** (or 'approved', 'yes', 'LGTM') once §5 Sign-Off is complete, or provide
 > feedback:"
 
 **[analyze]**
 - Check: `analyze.md` exists
 - Execute, then gate:
 > "Analysis complete. Tech Lead reviews risks and consistency findings.
-> Reply **'analyze reviewed'** to proceed to /clarify:"
+> Reply **'analyze reviewed'** (or 'approved', 'yes') to proceed to /clarify:"
 
 **[clarify]**
 - Check: `clarify.md` exists and `clarify.summary.md` states "CLARIFY complete"
@@ -263,14 +266,14 @@ For each extended doc required by this scope × project_type (from dashboard):
 - Check: `design.md` exists
 - Execute, then gate:
 > "design.md generated. Tech Lead + Architect review.
-> Reply **'design approved'** to continue or provide feedback:"
+> Reply **'design approved'** (or 'approved', 'yes', 'LGTM') to continue or provide feedback:"
 
 **[plan-lld]**
 - Scope rule: skip if `scope == pilot` → mark `[—]`
 - Check: `lld.md` exists
 - Execute, then gate:
 > "LLD generated. Senior Developer reviews.
-> Reply **'lld approved'** to continue or feedback:"
+> Reply **'lld approved'** (or 'approved', 'yes', 'LGTM') to continue or feedback:"
 
 ---
 
@@ -281,7 +284,7 @@ For each extended doc required by this scope × project_type (from dashboard):
 - Execute (generates qa-testcases.md, stories.md, tasks.md, jira export),
   then gate:
 > "stories.md and tasks.md generated. Scrum Master + PO review both.
-> Reply **'tasks approved'** to proceed to /implement, or feedback:"
+> Reply **'tasks approved'** (or 'approved', 'yes', 'LGTM') to proceed to /implement, or feedback:"
 
 ---
 
@@ -302,7 +305,7 @@ For each TASK-NNN in `tasks.md` (in order, one at a time):
 
 **Human PR review gate:**
 > "PR created for TASK-NNN. Awaiting human reviewer approval.
-> Reply **'pr approved'** when merged, or **'changes requested'** to
+> Reply **'pr approved'** (or 'approved', 'yes', 'merged') when merged, or **'changes requested'** to
 > run /address-review:"
 
 **[address-review PR-NNN]** — only if 'changes requested':
@@ -321,9 +324,9 @@ After ALL tasks merged:
 **[release]**
 - Execute, then gate:
 > "Release package ready. QA Lead + PO + Tech Lead + DevOps sign off.
-> Reply **'go-live approved'** to complete the pipeline:"
+> Reply **'go-live approved'** (or 'approved', 'yes', 'LGTM') to complete the pipeline:"
 
-On 'go-live approved':
+On 'go-live approved' (or any affirmative):
 > "Pipeline complete. All gates passed. Project {project.name} / {feature}
 > delivered at {scope} scope."
 > Display final dashboard with all steps `[✅]`.

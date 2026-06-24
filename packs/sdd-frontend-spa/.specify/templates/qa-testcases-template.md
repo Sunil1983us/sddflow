@@ -1,6 +1,6 @@
 # QA Test Cases
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ---
 
@@ -171,3 +171,9 @@
 |---|---|---|
 | QA Lead (accountable — test case completeness) | Pending | |
 | Tech Lead (consulted — coverage against FR-NNN) | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

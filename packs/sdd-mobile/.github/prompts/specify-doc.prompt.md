@@ -84,12 +84,61 @@ Mitigations are required for all High/Critical threats before /plan-design.
 **Sign-off marker:** After saving security-design.md, insert the following line at the bottom of the file, directly above the `## Approvals` section:
 `<!-- security-sign-off: pending | reviewer: {security_officer from roles.yml} | date: {today's date} -->`
 
-After saving, submit for review:
+### Stakeholder Review and Approval
+
+**Step A — Stakeholder commenting (Confluence only)**
+
+Check whether `.specify/integrations.yml` has a `confluence:` section.
+
+If yes — push draft:
+```bash
+sdd confluence draft --doc {doc_key}
+```
+Tell the user:
+> "{DOC} draft pushed to Confluence — open the link above. Relevant
+> stakeholders can comment on any section. Say **'done'** when reviewed
+> and I'll pull the comments, incorporate them, then submit for formal approval."
+
+When the user says **"done"**:
+1. Run automatically:
+   ```bash
+   sdd confluence pull --doc {doc_key}
+   ```
+2. If the pulled file contains a `## Confluence Comments` section:
+   - Map each comment to the section or marker it addresses
+   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers
+   - Update `{doc}.md`, remove the comments section, re-save `{doc}.md` and `{doc}.summary.md`
+3. Submit for formal approval (continue to Step B).
+
+**Step B — Formal submission**
+
+Submit to Jira (with or without Confluence):
 ```bash
 sdd review submit --doc {doc_key}
 ```
-If the CLI is not configured or the command fails, present the document and ask:
-> "{DOC} generated. Review it above and reply **'approved'** to continue, or provide feedback:"
+If the command succeeds, tell the user:
+> "{DOC} submitted for Jira review. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once the reviewer approves."
+
+If the CLI fails or is not configured, present the document and ask:
+> "{DOC} generated. Review it above and reply **'approved'** (or 'yes', 'LGTM') to continue, or provide feedback:"
+
+**Step C — On approval (any path: Jira, Confluence+Jira, or chat)**
+
+When the user replies with any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'**, or any similar affirmative (case-insensitive):
+1. Run `sdd review check --doc {doc_key}` to verify:
+   - Exit 0 → confirmed. Proceed.
+   - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
+   - CLI not available → skip check and proceed.
+2. Update `{doc}.md`:
+   - Header: `Status: Draft` → `Status: Approved`, date → today.
+   - Approvals table: all Pending rows → `Approved` + today's date.
+   - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
+3. Re-save `{doc}.md` and regenerate `{doc}.summary.md`.
+4. Record locally:
+```bash
+sdd review approve --doc {doc_key} --local --by "{jira or chat}" --note "approved"
+```
+If that also fails, note: "{DOC} approved ✓" and continue.
 
 Check what documents remain ungenerated for this scope.
 

@@ -57,19 +57,77 @@ Generate `use-cases.md` for the current feature:
   - **Business Rules Applied:** BR-NNN list (from BRD)
   - **Linked FR-NNN:** leave as `_(filled by /specify-srd)_` — SRD populates this
   - **Non-Functional Constraints:** NFR-NNN if a specific NFR governs this UC's behaviour
-- §4 Use Case Relationships — document extends/includes if UCs compose
+- §4 Use Case Relationships — generate a Mermaid `graph LR` diagram showing all
+  `includes` (solid `-->`) and `extends` (dashed `-.->`) relationships across all
+  UC-NNN, plus a relationship table with trigger/condition for each link; if no
+  relationships exist, state "No relationships — all use cases are independent."
 - §5 Traceability Matrix — UC-NNN → BR-NNN (from BRD)
 - Marker discipline: `[ASSUMPTION-NNN]` for assumptions, `[NEEDS CLARIFICATION: {question}]` for gaps
 
 Save to: `.specify/features/{manifest.project.feature}/use-cases.md`
 Write `.specify/features/{manifest.project.feature}/use-cases.summary.md` (max SUMMARY_MAX_LINES lines)
 
-After saving, submit for review:
+**Back-fill BRD §3 Stakeholders:** after assigning all ACT-NNN identifiers, update `brd.md`
+§3 — replace each `_(set by /specify-uc)_` cell in the ACT-ID column with the correct
+`ACT-NNN` for that role. If a BRD stakeholder role has no corresponding actor (e.g. no UX
+Lead defined), leave that cell as `_(N/A)_`. Save `brd.md` and regenerate `brd.summary.md`.
+
+### Stakeholder Review and Approval
+
+**Step A — Stakeholder commenting (Confluence only)**
+
+Check whether `.specify/integrations.yml` has a `confluence:` section.
+
+If yes — push draft:
+```bash
+sdd confluence draft --doc use-cases
+```
+Tell the user:
+> "Use Case Specification draft pushed to Confluence — open the link above.
+> Business and QA stakeholders can comment on individual use cases or paths.
+> Say **'done'** when reviewed and I'll pull the comments, incorporate them,
+> then submit for formal approval."
+
+When the user says **"done"**:
+1. Run automatically:
+   ```bash
+   sdd confluence pull --doc use-cases
+   ```
+2. If the pulled file contains a `## Confluence Comments` section:
+   - Map each comment to the UC-NNN or path (MP/AP/EP) it addresses
+   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers
+   - Update `use-cases.md`, remove the comments section, re-save `use-cases.md` and `use-cases.summary.md`
+3. Submit for formal approval (continue to Step B).
+
+**Step B — Formal submission**
+
+Submit to Jira (with or without Confluence):
 ```bash
 sdd review submit --doc use-cases
 ```
-If the CLI is not configured or the command fails, present the document and ask:
-> "Use Cases generated. Review above and reply **'approved'** to continue, or provide feedback:"
+If the command succeeds, tell the user:
+> "Use Cases submitted for Jira review. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once the reviewer approves."
+
+If the CLI fails or is not configured, present the document and ask:
+> "Use Cases generated. Review above and reply **'approved'** (or 'yes', 'LGTM') to continue, or provide feedback:"
+
+**Step C — On approval (any path: Jira, Confluence+Jira, or chat)**
+
+When the user replies with any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'**, or any similar affirmative (case-insensitive):
+1. Run `sdd review check --doc use-cases` to verify:
+   - Exit 0 → confirmed. Proceed.
+   - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
+   - CLI not available → skip check and proceed.
+2. Update `use-cases.md`:
+   - Header: `Status: DRAFT` → `Status: APPROVED`, date → today.
+   - Approvals table: all Pending rows → `Approved` + today's date.
+   - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
+3. Re-save `use-cases.md` and regenerate `use-cases.summary.md`.
+4. Record locally:
+```bash
+sdd review approve --doc use-cases --local --by "{jira or chat}" --note "approved"
+```
+If that also fails, note: "Use Cases approved ✓" and continue.
 
 State: "**Use Cases generated.** Review and approve, then run **/specify-srd** to continue."
 

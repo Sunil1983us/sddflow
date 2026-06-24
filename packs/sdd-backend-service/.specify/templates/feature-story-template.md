@@ -1,6 +1,6 @@
 # Feature and Story Breakdown
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ---
 
@@ -154,3 +154,9 @@ to at least one UC-NNN so the business flow is fully covered.
 | Product Owner (accountable — stories + scope approved) | Pending | |
 | Tech Lead (responsible — task accuracy + dependency review) | Pending | |
 | QA Lead (consulted — test case mapping confirmed, mvp+) | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

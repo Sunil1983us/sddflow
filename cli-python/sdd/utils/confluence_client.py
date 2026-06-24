@@ -1,5 +1,13 @@
 from __future__ import annotations
+import html
+import re
 import requests
+
+
+def _strip_html(text: str) -> str:
+    """Remove HTML tags and unescape entities (for comment bodies)."""
+    text = re.sub(r'<[^>]+>', ' ', text)
+    return html.unescape(text).strip()
 
 
 class ConfluenceClient:
@@ -69,6 +77,82 @@ class ConfluenceClient:
         )
         r.raise_for_status()
         return r.json()
+
+    def get_page_with_body(self, page_id: str) -> dict:
+        """Fetch a page including its body in storage format."""
+        r = self._s.get(
+            self._api(f"/content/{page_id}"),
+            params={"expand": "body.storage,version,_links"},
+        )
+        r.raise_for_status()
+        return r.json()
+
+    def get_page_comments(self, page_id: str) -> list[dict]:
+        """Return all footer comments on a page (newest first).
+
+        Each item has: author (display name), created, body (plain text).
+        Inline comments are fetched separately via get_inline_comments().
+        """
+        r = self._s.get(
+            self._api(f"/content/{page_id}/child/comment"),
+            params={"expand": "body.view,version,ancestors", "limit": 100},
+        )
+        r.raise_for_status()
+        results = r.json().get("results", [])
+        comments = []
+        for c in results:
+            author = (
+                c.get("version", {}).get("by", {}).get("displayName", "Unknown")
+            )
+            created = c.get("version", {}).get("when", "")
+            body_html = c.get("body", {}).get("view", {}).get("value", "")
+            body_text = _strip_html(body_html)
+            if body_text.strip():
+                comments.append({
+                    "author":  author,
+                    "created": created[:10] if created else "",
+                    "text":    body_text.strip(),
+                    "type":    "comment",
+                })
+        return comments
+
+    def get_inline_comments(self, page_id: str) -> list[dict]:
+        """Return unresolved inline (annotation) comments on a page."""
+        r = self._s.get(
+            self._api(f"/content/{page_id}/child/comment"),
+            params={
+                "expand":   "body.view,version,extensions.inlineProperties",
+                "limit":    100,
+                "location": "inline",
+            },
+        )
+        if r.status_code == 400:
+            return []
+        r.raise_for_status()
+        results = r.json().get("results", [])
+        comments = []
+        for c in results:
+            resolved = (
+                c.get("extensions", {})
+                 .get("resolution", {})
+                 .get("status", "") == "resolved"
+            )
+            if resolved:
+                continue
+            author = (
+                c.get("version", {}).get("by", {}).get("displayName", "Unknown")
+            )
+            created = c.get("version", {}).get("when", "")
+            body_html = c.get("body", {}).get("view", {}).get("value", "")
+            body_text = _strip_html(body_html)
+            if body_text.strip():
+                comments.append({
+                    "author":  author,
+                    "created": created[:10] if created else "",
+                    "text":    body_text.strip(),
+                    "type":    "inline",
+                })
+        return comments
 
     def upsert_page(self, space_key: str, title: str, body_html: str,
                     parent_id: str | None = None) -> tuple[dict, bool]:

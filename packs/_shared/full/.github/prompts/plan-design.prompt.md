@@ -100,12 +100,62 @@ State: "Diagram self-check passed — {N} diagrams verified."
 - Save to: `.specify/features/{manifest.project.feature}/design.md`
 - Write `.specify/features/{manifest.project.feature}/design.summary.md` (max SUMMARY_MAX_LINES lines)
 
-After saving, submit for review:
+### Stakeholder Review and Approval
+
+**Step A — Stakeholder commenting (Confluence only)**
+
+Check whether `.specify/integrations.yml` has a `confluence:` section.
+
+If yes — push draft:
+```bash
+sdd confluence draft --doc design
+```
+Tell the user:
+> "Design document draft pushed to Confluence — open the link above.
+> Tech Lead and Architect can comment on architecture decisions, diagrams,
+> and API contracts. Say **'done'** when reviewed and I'll pull the
+> comments, incorporate them, then submit for formal approval."
+
+When the user says **"done"**:
+1. Run automatically:
+   ```bash
+   sdd confluence pull --doc design
+   ```
+2. If the pulled file contains a `## Confluence Comments` section:
+   - Map each comment to the DEC-NNN, endpoint, or ADR it addresses
+   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers
+   - Update `design.md`, remove the comments section, re-save `design.md` and `design.summary.md`
+3. Submit for formal approval (continue to Step B).
+
+**Step B — Formal submission**
+
+Submit to Jira (with or without Confluence):
 ```bash
 sdd review submit --doc design
 ```
-If CLI not configured or fails, present the document and ask:
-> "Design document generated. Review it above and reply **'approved'** to continue, or provide feedback:"
+If the command succeeds, tell the user:
+> "Design document submitted for Jira review. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once the reviewer approves."
+
+If the CLI fails or is not configured, present the document and ask:
+> "Design document generated. Review it above and reply **'approved'** (or 'yes', 'LGTM', 'looks good') to continue, or provide feedback:"
+
+**Step C — On approval (any path: Jira, Confluence+Jira, or chat)**
+
+When the user replies with any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'**, or any similar affirmative (case-insensitive):
+1. Run `sdd review check --doc design` to verify:
+   - Exit 0 → confirmed. Proceed.
+   - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
+   - CLI not available → skip check and proceed.
+2. Update `design.md`:
+   - Header: `Status: Draft` → `Status: Approved`, date → today.
+   - Approvals table: all Pending rows → `Approved` + today's date.
+   - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
+3. Re-save `design.md` and regenerate `design.summary.md`.
+4. Record locally:
+```bash
+sdd review approve --doc design --local --by "{jira or chat}" --note "approved"
+```
+If that also fails, note: "Design approved ✓" and continue.
 
 **If `manifest.scope` is `mvp` or `full`:**
 State: "**design.md generated.** Review in Confluence/Jira (or above), then run **/plan-lld** for the detailed technical design."

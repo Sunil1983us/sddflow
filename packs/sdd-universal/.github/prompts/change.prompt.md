@@ -26,6 +26,7 @@ Read:
 - `.specify/memory/constitution.md` — Part 2 domain context (tech stack, domain rules)
 
 Scan `.specify/features/{feature}/changesets/` for existing CR-NNN files.
+If the `changesets/` directory does not exist, treat it as empty — do NOT create it yet (it is created in Step 7).
 Assign: **CR-{NNN}** — next available number (CR-001 if no prior changesets).
 
 ---
@@ -144,6 +145,7 @@ Then assess: "Given this CR type and description, does this specific document ne
 ```
 → State: `{document}: ANNOTATED — approved document unchanged; CR reference added to Approvals.`
 → Record in changeset §2.
+→ **Regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines) to include the annotation.
 → Move to next document. No user input needed.
 
 **UPDATE NEEDED** (specific sections require change):
@@ -171,16 +173,22 @@ Why: {1-2 sentences — what in the CR drives this specific change}
 State:
 > "**Quality check required** for {document} — {section}.
 > Reply with one of:
-> - **'approved'** — apply this change and continue to the next document
+> - **'approved'** (or 'yes', 'LGTM', 'looks good') — apply this change and continue to the next document
 > - **'modify: {your text}'** — apply your version instead, then continue
 > - **'skip'** — leave this document unchanged and continue
 > - **'stop'** — pause the entire walk here (you can resume with /change resume CR-{NNN})"
 
 **STOP. Do not touch the next document until the user replies.**
 
-On **'approved'**: apply the change, record before/after in changeset §3, move to next.
-On **'modify: {text}'**: apply the user's text instead, record, move to next.
-On **'skip'**: record as SKIP (user decision), move to next.
+On any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'** (case-insensitive): apply the change, then:
+  1. Increment the version in the document header (e.g. 1.0 → 1.1, 1.2 → 1.3)
+  2. Append a row to the document's `## Version History` table:
+     `| {new version} | {today's date} | CR-{NNN} | {1-sentence summary of what changed} | CR-{NNN} |`
+  3. Record before/after in changeset §3
+  4. **Regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines)
+  5. Move to next document.
+On **'modify: {text}'**: apply the user's text instead, perform the same version bump + Version History + summary steps, then move to next.
+On **'skip'**: record as SKIP (user decision), move to next. Do NOT touch version, history, or summary.
 On **'stop'**: save current changeset progress, state which documents remain, stop.
 
 **RERUN NEEDED** (targeted section edit is insufficient — e.g., a new actor changes every UC, or a tech stack change affects the full design):
@@ -199,7 +207,12 @@ State:
 > Reply **'rerun'** to proceed, or **'update'** if you prefer targeted section edits instead."
 
 **STOP. Do not regenerate until user confirms.**
-On 'rerun': save backup, regenerate document with CR incorporated, record in changeset §2.
+On 'rerun': save backup, regenerate document with CR incorporated, then:
+  1. Increment the version in the document header (e.g. 1.0 → 2.0 for a rerun)
+  2. Append a row to the document's `## Version History` table:
+     `| {new version} | {today's date} | CR-{NNN} | Full regeneration — {1-sentence reason} | CR-{NNN} |`
+  3. **Regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines)
+  4. Record in changeset §2.
 On 'update': switch to UPDATE mode for this document, show section diff.
 
 ---
@@ -234,7 +247,10 @@ Note: "CHG-{N} tasks listed above will be incorporated when `/task` runs."
 
 ## Step 7 — Save Changeset Record
 
-Create: `.specify/features/{feature}/changesets/CR-{NNN}.md`
+**Create the directory first** (if it does not exist):
+`.specify/features/{feature}/changesets/`
+
+Then create: `.specify/features/{feature}/changesets/CR-{NNN}.md`
 Use: `.specify/templates/changeset-template.md`
 
 Populate:
@@ -243,6 +259,22 @@ Populate:
 - §3 Before/After for every UPDATE or RERUN
 - §4 CHG-NNN tasks
 - §5 Approvals (leave signature rows empty for human completion)
+
+### Submit for Stakeholder Review
+
+After saving the changeset record, run automatically:
+```bash
+sdd cr submit --cr CR-{NNN}
+```
+
+This pushes the CR record to Confluence (for stakeholder comments) and creates a Jira review task
+for formal approval — exactly like `sdd review submit` does for spec documents.
+
+- If the command **succeeds**: note the Confluence URL and Jira task key for the Step 8 summary.
+- If the command **fails or is not configured**: state:
+  > "CR-{NNN} saved locally at `.specify/features/{feature}/changesets/CR-{NNN}.md`.
+  > Share it with stakeholders for review. When they approve, run `sdd cr check --cr CR-{NNN}`
+  > to confirm, or reply **'approved'** (or 'yes', 'LGTM', 'looks good') here to continue."
 
 ---
 
@@ -263,6 +295,12 @@ Document walk:
 
 CHG tasks created: {N} ({CHG-NNN list})
 Changeset record: .specify/features/{feature}/changesets/CR-{NNN}.md
+{if sdd cr submit succeeded}
+Confluence review : {page URL}
+Jira review task  : {task key — e.g. PROJ-42}
+Stakeholders can comment on Confluence; reviewer approves in Jira.
+Check status: sdd cr check --cr CR-{NNN}
+{/if}
 ────────────────────────────────────
 Ready to continue from: {next command — e.g. /validate, /analyze, /plan-design, /implement}
 ```

@@ -1,6 +1,6 @@
 # Design Document
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Scope: {pilot|mvp|full}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author} | Scope: {pilot|mvp|full}
 
 ---
 
@@ -255,3 +255,9 @@ stateDiagram-v2
 | Architect | Pending | |
 | Tech Lead | Pending | |
 | Stakeholder (HLD sign-off) | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

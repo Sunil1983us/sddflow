@@ -1,6 +1,6 @@
 # Analysis Report
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ---
 
@@ -125,3 +125,9 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 |---|---|---|
 | Tech Lead (accountable) | Pending | |
 | Architect (consulted, mvp+) | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |
