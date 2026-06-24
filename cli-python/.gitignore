@@ -1,0 +1,9 @@
+# Bundled packs — copied in by publish.sh at build time, not stored in repo
+sdd/packs/
+
+# Build artefacts
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+.pytest_cache/

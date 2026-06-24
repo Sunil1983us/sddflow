@@ -47,6 +47,8 @@ Changelog = "https://github.com/sunil1983us/universalguide/blob/main/CHANGELOG.m
 
 [tool.hatch.build.targets.wheel]
 packages = ["sdd"]
+# include the bundled pack files so `sdd init` works after pip install
+artifacts = ["sdd/packs/**"]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -54,3 +56,4 @@ include = [
     "README.md",
     "pyproject.toml",
 ]
+
