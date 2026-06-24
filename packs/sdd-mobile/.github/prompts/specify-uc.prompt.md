@@ -64,6 +64,11 @@ Generate `use-cases.md` for the current feature:
 Save to: `.specify/features/{manifest.project.feature}/use-cases.md`
 Write `.specify/features/{manifest.project.feature}/use-cases.summary.md` (max SUMMARY_MAX_LINES lines)
 
+**Back-fill BRD §3 Stakeholders:** after assigning all ACT-NNN identifiers, update `brd.md`
+§3 — replace each `_(set by /specify-uc)_` cell in the ACT-ID column with the correct
+`ACT-NNN` for that role. If a BRD stakeholder role has no corresponding actor (e.g. no UX
+Lead defined), leave that cell as `_(N/A)_`. Save `brd.md` and regenerate `brd.summary.md`.
+
 ### Confluence Stakeholder Review (before formal approval)
 
 Check whether `.specify/integrations.yml` has a `confluence:` section.

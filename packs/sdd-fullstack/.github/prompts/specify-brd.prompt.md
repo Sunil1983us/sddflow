@@ -10,6 +10,7 @@ You are a Senior Business Analyst generating the Business Requirements Document 
 ## Before Starting
 - Read `.specify/manifest.yml`
 - Read `.specify/memory/constitution.md`
+- Read `.specify/memory/roles.yml` — use named owners to populate §3 Stakeholders
 - Read `.specify/contexts/{manifest.project.context_file}`
 - Read `.specify/templates/brd-template.md`
 
@@ -26,6 +27,9 @@ Generate `brd.md` for the current feature:
 
 - Use `.specify/templates/brd-template.md` as the structure
 - Derive all content from the context file and constitution Part 2
+- **§3 Stakeholders:** read `roles.yml` and fill each row's Name/Team column with the named
+  person from that file. Leave the ACT-ID column as `_(set by /specify-uc)_` — those
+  identifiers are assigned when actors are defined. Omit roles not present in `roles.yml`.
 - Every business goal: **BG-NNN**
 - Every non-functional requirement: **NFR-NNN** — must include a measurable target (e.g. "< 200ms p99", "99.9% uptime")
 - Marker discipline:
