@@ -6,6 +6,7 @@ from sdd.commands.config import config_command
 from sdd.commands.jira import jira_command
 from sdd.commands.confluence import confluence_command
 from sdd.commands.review import review_command
+from sdd.commands.cr import cr_command
 from sdd.commands.pr import pr_command
 
 
@@ -21,6 +22,7 @@ cli.add_command(config_command,      name="config")
 cli.add_command(jira_command,        name="jira")
 cli.add_command(confluence_command,  name="confluence")
 cli.add_command(review_command,      name="review")
+cli.add_command(cr_command,          name="cr")
 cli.add_command(pr_command,          name="pr")
 
 

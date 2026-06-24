@@ -244,6 +244,22 @@ Populate:
 - §4 CHG-NNN tasks
 - §5 Approvals (leave signature rows empty for human completion)
 
+### Submit for Stakeholder Review
+
+After saving the changeset record, run automatically:
+```bash
+sdd cr submit --cr CR-{NNN}
+```
+
+This pushes the CR record to Confluence (for stakeholder comments) and creates a Jira review task
+for formal approval — exactly like `sdd review submit` does for spec documents.
+
+- If the command **succeeds**: note the Confluence URL and Jira task key for the Step 8 summary.
+- If the command **fails or is not configured**: state:
+  > "CR-{NNN} saved locally at `.specify/features/{feature}/changesets/CR-{NNN}.md`.
+  > Share it with stakeholders for review. When they approve, run `sdd cr check --cr CR-{NNN}`
+  > to confirm, or reply **'approved'** here to continue."
+
 ---
 
 ## Step 8 — Summary
@@ -263,6 +279,12 @@ Document walk:
 
 CHG tasks created: {N} ({CHG-NNN list})
 Changeset record: .specify/features/{feature}/changesets/CR-{NNN}.md
+{if sdd cr submit succeeded}
+Confluence review : {page URL}
+Jira review task  : {task key — e.g. PROJ-42}
+Stakeholders can comment on Confluence; reviewer approves in Jira.
+Check status: sdd cr check --cr CR-{NNN}
+{/if}
 ────────────────────────────────────
 Ready to continue from: {next command — e.g. /validate, /analyze, /plan-design, /implement}
 ```
