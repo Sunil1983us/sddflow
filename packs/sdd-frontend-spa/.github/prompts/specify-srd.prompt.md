@@ -40,13 +40,21 @@ Generate `srd.md` for the current feature:
   - Main Path steps → FR-NNN (happy path requirements)
   - Alternate Path steps → FR-NNN (variant requirements)
   - Exception Path steps → FR-NNN (error handling requirements)
-  - After generating FRs, update the **Linked FR-NNN** column in each UC in `use-cases.md`
 - Every software requirement: **FR-NNN** with UC-NNN trace column
 - Each FR-NNN must include its UC-NNN trace — no FR without a linked UC-NNN
 - NFRs must refine BRD NFRs with technical targets (latency budget, throughput ceiling, SLA tier)
 - Marker discipline (same as BRD — `[ASSUMPTION-NNN]` / `[NEEDS CLARIFICATION]`)
 - Save to: `.specify/features/{manifest.project.feature}/srd.md`
 - Write `.specify/features/{manifest.project.feature}/srd.summary.md` (max SUMMARY_MAX_LINES lines)
+
+**Back-fill use-cases.md with FR-NNN links (mandatory after saving srd.md):**
+
+Read the FULL `use-cases.md` file (not the summary — back-filling requires exact text matching).
+For every UC-NNN in `use-cases.md`, collect all FR-NNN derived from that UC's paths, then:
+1. In **§2 Use Case Index** table: replace `_(filled by /specify-srd)_` in the `FR Traces (SRD)` column with the comma-separated list of FR-NNN (e.g. `FR-001, FR-002, FR-003`).
+2. In **§3 Use Case Details** for each UC block: replace `**Linked FR-NNN:** _(filled by /specify-srd)_` with `**Linked FR-NNN:** FR-001, FR-002, FR-003`.
+3. Save `use-cases.md`.
+4. Regenerate `use-cases.summary.md` (max SUMMARY_MAX_LINES lines).
 
 ### Confluence Stakeholder Review (before formal approval)
 

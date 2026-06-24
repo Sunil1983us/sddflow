@@ -1,6 +1,6 @@
 # Validation Report — Business Sign-Off
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 > Run after: Constitution Part 2 finalized | Gate before: /analyze
 
 ---
@@ -109,3 +109,9 @@ State one of:
 |---|---|---|
 | Product Owner (accountable) | Pending | |
 | Business Analyst (responsible) | Pending | |
+
+## Version History
+
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |
