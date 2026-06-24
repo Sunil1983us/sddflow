@@ -64,11 +64,41 @@ Generate `use-cases.md` for the current feature:
 Save to: `.specify/features/{manifest.project.feature}/use-cases.md`
 Write `.specify/features/{manifest.project.feature}/use-cases.summary.md` (max SUMMARY_MAX_LINES lines)
 
-After saving, submit for review:
+### Confluence Stakeholder Review (before formal approval)
+
+Check whether `.specify/integrations.yml` has a `confluence:` section.
+
+**If yes** — push draft for stakeholder review:
+```bash
+sdd confluence draft --doc use-cases
+```
+Tell the user:
+> "Use Case Specification draft pushed to Confluence — open the link above.
+> Business and QA stakeholders can comment on individual use cases or paths.
+> Say **'done'** when reviewed and I'll pull the latest, incorporate
+> comments, then submit for formal approval."
+
+When the user says **"done"**:
+1. Run automatically:
+   ```bash
+   sdd confluence pull --doc use-cases
+   ```
+2. If the pulled file contains a `## Confluence Comments` section:
+   - Map each comment to the UC-NNN or path (MP/AP/EP) it addresses
+   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers it answers
+   - Update `use-cases.md` with the resolved content
+   - Remove the `## Confluence Comments` section after processing
+   - Re-save `use-cases.md` and `use-cases.summary.md`
+3. Then submit for formal approval:
+   ```bash
+   sdd review submit --doc use-cases
+   ```
+
+**If no Confluence** — submit directly:
 ```bash
 sdd review submit --doc use-cases
 ```
-If the CLI is not configured or the command fails, present the document and ask:
+If the CLI fails, present the document and ask:
 > "Use Cases generated. Review above and reply **'approved'** to continue, or provide feedback:"
 
 State: "**Use Cases generated.** Review and approve, then run **/specify-srd** to continue."

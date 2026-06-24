@@ -35,11 +35,40 @@ Generate `brd.md` for the current feature:
 - Save to: `.specify/features/{manifest.project.feature}/brd.md`
 - Write `.specify/features/{manifest.project.feature}/brd.summary.md` (max SUMMARY_MAX_LINES lines)
 
-After saving, submit for review:
+### Confluence Stakeholder Review (before formal approval)
+
+Check whether `.specify/integrations.yml` has a `confluence:` section.
+
+**If yes** — push draft immediately so stakeholders can comment:
+```bash
+sdd confluence draft --doc brd
+```
+Tell the user:
+> "BRD draft pushed to Confluence — open the link above. Stakeholders can
+> add comments or inline annotations on any section. Say **'done'** when
+> everyone has reviewed and I'll pull the latest version, incorporate all
+> comments, then submit for formal approval."
+
+When the user says **"done"**:
+1. Run automatically:
+   ```bash
+   sdd confluence pull --doc brd
+   ```
+2. If the pulled file contains a `## Confluence Comments` section:
+   - For each comment: resolve the `[NEEDS CLARIFICATION]` or `[ASSUMPTION-NNN]` it addresses
+   - Update `brd.md` with the resolved content
+   - Remove the `## Confluence Comments` section after processing all comments
+   - Re-save `brd.md` and `brd.summary.md`
+3. Then submit for formal approval:
+   ```bash
+   sdd review submit --doc brd
+   ```
+
+**If no Confluence** — submit directly:
 ```bash
 sdd review submit --doc brd
 ```
-If the CLI is not configured or the command fails, present the document and ask:
+If the CLI fails, present the document and ask:
 > "BRD generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
 
 State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-uc** to generate the Use Case Specification."

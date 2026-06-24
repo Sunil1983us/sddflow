@@ -48,11 +48,41 @@ Generate `srd.md` for the current feature:
 - Save to: `.specify/features/{manifest.project.feature}/srd.md`
 - Write `.specify/features/{manifest.project.feature}/srd.summary.md` (max SUMMARY_MAX_LINES lines)
 
-After saving, submit for review:
+### Confluence Stakeholder Review (before formal approval)
+
+Check whether `.specify/integrations.yml` has a `confluence:` section.
+
+**If yes** — push draft for stakeholder review:
+```bash
+sdd confluence draft --doc srd
+```
+Tell the user:
+> "SRD draft pushed to Confluence — open the link above. Technical and
+> business stakeholders can comment on individual requirements (FR-NNN /
+> NFR-NNN). Say **'done'** when reviewed and I'll pull the latest,
+> incorporate comments, then submit for formal approval."
+
+When the user says **"done"**:
+1. Run automatically:
+   ```bash
+   sdd confluence pull --doc srd
+   ```
+2. If the pulled file contains a `## Confluence Comments` section:
+   - Map each comment to the FR-NNN or NFR-NNN it addresses
+   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers it answers
+   - Update `srd.md` with the resolved content
+   - Remove the `## Confluence Comments` section after processing
+   - Re-save `srd.md` and `srd.summary.md`
+3. Then submit for formal approval:
+   ```bash
+   sdd review submit --doc srd
+   ```
+
+**If no Confluence** — submit directly:
 ```bash
 sdd review submit --doc srd
 ```
-If the CLI is not configured or the command fails, present the document and ask:
+If the CLI fails, present the document and ask:
 > "SRD generated. Review it above and reply **'approved'** to continue, or provide feedback:"
 
 Determine the next document for this scope and project_type from the doc-set table in `specify.prompt.md`.
