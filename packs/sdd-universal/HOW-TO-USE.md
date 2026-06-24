@@ -52,6 +52,36 @@ If you already know your project type, using the matching pack gives you a more 
 
 ---
 
+## Using With Your AI Tool
+
+The SDD pack works with any AI coding assistant. How you invoke a command depends on your tool:
+
+| AI Tool | How to run a command |
+|---|---|
+| **Claude Code** | Open the project folder in Claude Code and type the slash command, e.g. `/specify` |
+| **GitHub Copilot** | Open VS Code with Copilot Chat — type the slash command, e.g. `/specify` |
+| **Cursor** | In Cursor chat, type: `Read and follow .github/prompts/specify.prompt.md exactly` |
+| **Windsurf** | In Windsurf chat, type: `Run specify` |
+| **Other / not sure** | Open `.github/prompts/specify.prompt.md` and copy-paste its contents into your AI tool |
+
+### Where Each Tool Reads Its Instructions
+
+| AI Tool | Instruction source |
+|---|---|
+| Claude Code | `.claude/commands/{cmd}.md` — loaded automatically as native slash commands |
+| GitHub Copilot | `.github/copilot-instructions.md` + `.github/prompts/{cmd}.prompt.md` |
+| Cursor / Windsurf / Other | `.github/prompts/{cmd}.prompt.md` — reference or paste into chat |
+
+> Your selected AI tool is saved in `.specify/manifest.yml` as `ai_tool` (set during `sdd init`). You can change it anytime by editing that field — all prompt files in `.github/prompts/` work with any tool.
+
+### Switching AI Tool Mid-Project
+
+1. Edit `manifest.yml` → update `ai_tool:` to your new tool
+2. All `.github/prompts/` files remain available — any tool can reference them
+3. Claude Code `.claude/commands/` slash commands remain available if you return to Claude Code
+
+---
+
 ## Command Flow
 
 | Command | What It Does | Scope |
