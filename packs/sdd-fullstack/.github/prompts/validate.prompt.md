@@ -52,6 +52,14 @@ Produce a business sign-off report:
    List every `[ASSUMPTION-NNN]` from brd.md and srd.md for the business
    owner to confirm or reject.
 
+**When the user corrects or rejects an assumption (§3):**
+For each `[ASSUMPTION-NNN]` the owner marks as incorrect:
+1. Update the source spec document (brd.md or srd.md) — replace the assumption with the confirmed value
+2. Increment the document's version in its header (e.g. 1.0 → 1.1)
+3. Append to the document's `## Version History`:
+   `| {new version} | {today} | /validate | ASSUMPTION-{NNN} corrected during business sign-off: {what changed} | — |`
+4. Regenerate the document's `.summary.md` (max SUMMARY_MAX_LINES lines)
+
 3a. NEEDS CLARIFICATION SCAN (blocking)
    Scan brd.md, use-cases.md, and srd.md for any `[NEEDS CLARIFICATION: ...]` markers.
    If any found: list each with its location and question.
@@ -81,11 +89,43 @@ Produce a business sign-off report:
 
 Save to: .specify/features/{manifest.project.feature}/validate.md
 Save summary to: validate.summary.md (max SUMMARY_MAX_LINES)
-Present the report. WAIT for sign-off.
+Present the report.
+
+### Stakeholder Review and Approval
+
+**Step B — Formal submission**
+
+Submit to Jira:
+```bash
+sdd review submit --doc validate
+```
+If the command succeeds, tell the user:
+> "Validate report submitted for Jira review. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once the Product Owner and Business Analyst approve."
+
+If the CLI fails or is not configured, present the document and ask:
+> "Validate report generated. Review §1–§5 above and reply **'approved'** (or 'yes', 'LGTM', 'looks good') to continue, or provide feedback:"
+
+**Step C — On approval (any path: Jira or chat)**
+
+When the user replies with any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'**, or any similar affirmative (case-insensitive):
+1. Run `sdd review check --doc validate` to verify:
+   - Exit 0 → confirmed. Proceed.
+   - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
+   - CLI not available → skip check and proceed.
+2. Update `validate.md`:
+   - Header: `Status: Draft` → `Status: Approved`, date → today.
+   - Approvals table: all Pending rows → `Approved` + today's date.
+   - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
+3. Re-save `validate.md` and regenerate `validate.summary.md`.
+4. Record locally:
+```bash
+sdd review approve --doc validate --local --by "{jira or chat}" --note "approved"
+```
+If that also fails, note: "Validate approved ✓" and continue.
 
 ## Outcome
 If all objectives traced and all assumptions confirmed:
-  State: "VALIDATE complete — ready for /analyze."
+  State: "**VALIDATE complete** — ready for /analyze."
 If §4a shows PENDING (mvp+ or full scope):
   State: "VALIDATE BLOCKED — Security Officer must approve security-design.md before /analyze can proceed."
   Do NOT proceed to /analyze.
