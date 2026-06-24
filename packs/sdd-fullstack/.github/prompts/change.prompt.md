@@ -26,6 +26,7 @@ Read:
 - `.specify/memory/constitution.md` — Part 2 domain context (tech stack, domain rules)
 
 Scan `.specify/features/{feature}/changesets/` for existing CR-NNN files.
+If the `changesets/` directory does not exist, treat it as empty — do NOT create it yet (it is created in Step 7).
 Assign: **CR-{NNN}** — next available number (CR-001 if no prior changesets).
 
 ---
@@ -234,7 +235,10 @@ Note: "CHG-{N} tasks listed above will be incorporated when `/task` runs."
 
 ## Step 7 — Save Changeset Record
 
-Create: `.specify/features/{feature}/changesets/CR-{NNN}.md`
+**Create the directory first** (if it does not exist):
+`.specify/features/{feature}/changesets/`
+
+Then create: `.specify/features/{feature}/changesets/CR-{NNN}.md`
 Use: `.specify/templates/changeset-template.md`
 
 Populate:
