@@ -69,19 +69,21 @@ Write `.specify/features/{manifest.project.feature}/use-cases.summary.md` (max S
 `ACT-NNN` for that role. If a BRD stakeholder role has no corresponding actor (e.g. no UX
 Lead defined), leave that cell as `_(N/A)_`. Save `brd.md` and regenerate `brd.summary.md`.
 
-### Confluence Stakeholder Review (before formal approval)
+### Stakeholder Review and Approval
+
+**Step A — Stakeholder commenting (Confluence only)**
 
 Check whether `.specify/integrations.yml` has a `confluence:` section.
 
-**If yes** — push draft for stakeholder review:
+If yes — push draft:
 ```bash
 sdd confluence draft --doc use-cases
 ```
 Tell the user:
 > "Use Case Specification draft pushed to Confluence — open the link above.
 > Business and QA stakeholders can comment on individual use cases or paths.
-> Say **'done'** when reviewed and I'll pull the latest, incorporate
-> comments, then submit for formal approval."
+> Say **'done'** when reviewed and I'll pull the comments, incorporate them,
+> then submit for formal approval."
 
 When the user says **"done"**:
 1. Run automatically:
@@ -90,33 +92,39 @@ When the user says **"done"**:
    ```
 2. If the pulled file contains a `## Confluence Comments` section:
    - Map each comment to the UC-NNN or path (MP/AP/EP) it addresses
-   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers it answers
-   - Update `use-cases.md` with the resolved content
-   - Remove the `## Confluence Comments` section after processing
-   - Re-save `use-cases.md` and `use-cases.summary.md`
-3. Then submit for formal approval:
-   ```bash
-   sdd review submit --doc use-cases
-   ```
+   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers
+   - Update `use-cases.md`, remove the comments section, re-save `use-cases.md` and `use-cases.summary.md`
+3. Submit for formal approval (continue to Step B).
 
-**If no Confluence** — submit directly:
+**Step B — Formal submission**
+
+Submit to Jira (with or without Confluence):
 ```bash
 sdd review submit --doc use-cases
 ```
+If the command succeeds, tell the user:
+> "Use Cases submitted for Jira review. Reply **'approved'** once the reviewer approves."
+
 If the CLI fails or is not configured, present the document and ask:
 > "Use Cases generated. Review above and reply **'approved'** to continue, or provide feedback:"
 
-When the user replies **'approved'** in chat:
-1. Update `use-cases.md` header: change `Status: DRAFT` → `Status: APPROVED` and set the date to today.
-2. Update the Approvals table: set both rows' Status to `Approved` and Date to today.
-3. Append a Version History row: `| 1.0 | {today} | {chat} | Approved in chat session | — |`
-4. Re-save `use-cases.md` and regenerate `use-cases.summary.md`.
-5. Run immediately:
+**Step C — On approval (any path: Jira, Confluence+Jira, or chat)**
+
+When the user replies **'approved'**:
+1. Run `sdd review check --doc use-cases` to verify:
+   - Exit 0 → confirmed. Proceed.
+   - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
+   - CLI not available → skip check and proceed.
+2. Update `use-cases.md`:
+   - Header: `Status: DRAFT` → `Status: APPROVED`, date → today.
+   - Approvals table: all Pending rows → `Approved` + today's date.
+   - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
+3. Re-save `use-cases.md` and regenerate `use-cases.summary.md`.
+4. Record locally:
 ```bash
-sdd review approve --doc use-cases --local --by "chat" --note "approved in chat session"
+sdd review approve --doc use-cases --local --by "{jira or chat}" --note "approved"
 ```
-This records the approval so `/specify-srd` can confirm the gate is met.
-If that command also fails, note: "Use Cases approved in chat ✓" and continue.
+If that also fails, note: "Use Cases approved ✓" and continue.
 
 State: "**Use Cases generated.** Review and approve, then run **/specify-srd** to continue."
 

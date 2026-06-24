@@ -56,19 +56,21 @@ For every UC-NNN in `use-cases.md`, collect all FR-NNN derived from that UC's pa
 3. Save `use-cases.md`.
 4. Regenerate `use-cases.summary.md` (max SUMMARY_MAX_LINES lines).
 
-### Confluence Stakeholder Review (before formal approval)
+### Stakeholder Review and Approval
+
+**Step A — Stakeholder commenting (Confluence only)**
 
 Check whether `.specify/integrations.yml` has a `confluence:` section.
 
-**If yes** — push draft for stakeholder review:
+If yes — push draft:
 ```bash
 sdd confluence draft --doc srd
 ```
 Tell the user:
 > "SRD draft pushed to Confluence — open the link above. Technical and
 > business stakeholders can comment on individual requirements (FR-NNN /
-> NFR-NNN). Say **'done'** when reviewed and I'll pull the latest,
-> incorporate comments, then submit for formal approval."
+> NFR-NNN). Say **'done'** when reviewed and I'll pull the comments,
+> incorporate them, then submit for formal approval."
 
 When the user says **"done"**:
 1. Run automatically:
@@ -77,33 +79,39 @@ When the user says **"done"**:
    ```
 2. If the pulled file contains a `## Confluence Comments` section:
    - Map each comment to the FR-NNN or NFR-NNN it addresses
-   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers it answers
-   - Update `srd.md` with the resolved content
-   - Remove the `## Confluence Comments` section after processing
-   - Re-save `srd.md` and `srd.summary.md`
-3. Then submit for formal approval:
-   ```bash
-   sdd review submit --doc srd
-   ```
+   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers
+   - Update `srd.md`, remove the comments section, re-save `srd.md` and `srd.summary.md`
+3. Submit for formal approval (continue to Step B).
 
-**If no Confluence** — submit directly:
+**Step B — Formal submission**
+
+Submit to Jira (with or without Confluence):
 ```bash
 sdd review submit --doc srd
 ```
+If the command succeeds, tell the user:
+> "SRD submitted for Jira review. Reply **'approved'** once the reviewer approves."
+
 If the CLI fails or is not configured, present the document and ask:
 > "SRD generated. Review it above and reply **'approved'** to continue, or provide feedback:"
 
-When the user replies **'approved'** in chat:
-1. Update `srd.md` header: change `Status: Draft` → `Status: Approved` and set the date to today.
-2. Update the Approvals table: set the reviewer row's Status to `Approved` and Date to today.
-3. Append a Version History row: `| 1.0 | {today} | {chat} | Approved in chat session | — |`
-4. Re-save `srd.md` and regenerate `srd.summary.md`.
-5. Run immediately:
+**Step C — On approval (any path: Jira, Confluence+Jira, or chat)**
+
+When the user replies **'approved'**:
+1. Run `sdd review check --doc srd` to verify:
+   - Exit 0 → confirmed. Proceed.
+   - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
+   - CLI not available → skip check and proceed.
+2. Update `srd.md`:
+   - Header: `Status: Draft` → `Status: Approved`, date → today.
+   - Approvals table: all Pending rows → `Approved` + today's date.
+   - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
+3. Re-save `srd.md` and regenerate `srd.summary.md`.
+4. Record locally:
 ```bash
-sdd review approve --doc srd --local --by "chat" --note "approved in chat session"
+sdd review approve --doc srd --local --by "{jira or chat}" --note "approved"
 ```
-This records the approval so `/specify-doc` can confirm the gate is met.
-If that command also fails, note: "SRD approved in chat ✓" and continue.
+If that also fails, note: "SRD approved ✓" and continue.
 
 Determine the next document for this scope and project_type from the doc-set table in `specify.prompt.md`.
 

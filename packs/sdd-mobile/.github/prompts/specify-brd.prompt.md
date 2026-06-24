@@ -39,19 +39,20 @@ Generate `brd.md` for the current feature:
 - Save to: `.specify/features/{manifest.project.feature}/brd.md`
 - Write `.specify/features/{manifest.project.feature}/brd.summary.md` (max SUMMARY_MAX_LINES lines)
 
-### Confluence Stakeholder Review (before formal approval)
+### Stakeholder Review and Approval
+
+**Step A — Stakeholder commenting (Confluence only)**
 
 Check whether `.specify/integrations.yml` has a `confluence:` section.
 
-**If yes** — push draft immediately so stakeholders can comment:
+If yes — push draft immediately:
 ```bash
 sdd confluence draft --doc brd
 ```
 Tell the user:
 > "BRD draft pushed to Confluence — open the link above. Stakeholders can
-> add comments or inline annotations on any section. Say **'done'** when
-> everyone has reviewed and I'll pull the latest version, incorporate all
-> comments, then submit for formal approval."
+> comment on any section. Say **'done'** when reviewed and I'll pull the
+> comments, incorporate them, then submit for formal approval."
 
 When the user says **"done"**:
 1. Run automatically:
@@ -59,33 +60,39 @@ When the user says **"done"**:
    sdd confluence pull --doc brd
    ```
 2. If the pulled file contains a `## Confluence Comments` section:
-   - For each comment: resolve the `[NEEDS CLARIFICATION]` or `[ASSUMPTION-NNN]` it addresses
-   - Update `brd.md` with the resolved content
-   - Remove the `## Confluence Comments` section after processing all comments
-   - Re-save `brd.md` and `brd.summary.md`
-3. Then submit for formal approval:
-   ```bash
-   sdd review submit --doc brd
-   ```
+   - Resolve each `[NEEDS CLARIFICATION]` or `[ASSUMPTION-NNN]` it answers
+   - Update `brd.md`, remove the comments section, re-save `brd.md` and `brd.summary.md`
+3. Submit for formal approval (continue to Step B).
 
-**If no Confluence** — submit directly:
+**Step B — Formal submission**
+
+Submit to Jira (with or without Confluence):
 ```bash
 sdd review submit --doc brd
 ```
-If the CLI fails or is not configured, present the document and ask:
-> "BRD generated. Review it above and reply **'approved'** to continue, or provide feedback to revise:"
+If the command succeeds, tell the user:
+> "BRD submitted for Jira review. Reply **'approved'** once the reviewer approves."
 
-When the user replies **'approved'** in chat:
-1. Update `brd.md` header: change `Status: Draft` → `Status: Approved` and set the date to today.
-2. Update the Approvals table: set both rows' Status to `Approved` and Date to today.
-3. Append a Version History row: `| 1.0 | {today} | {chat} | Approved in chat session | — |`
-4. Re-save `brd.md` and regenerate `brd.summary.md`.
-5. Run immediately:
+If the CLI fails or is not configured, present the document and ask:
+> "BRD generated. Review it above and reply **'approved'** to continue, or provide feedback:"
+
+**Step C — On approval (any path: Jira, Confluence+Jira, or chat)**
+
+When the user replies **'approved'**:
+1. Run `sdd review check --doc brd` to verify:
+   - Exit 0 → confirmed. Proceed.
+   - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
+   - CLI not available → skip check and proceed.
+2. Update `brd.md`:
+   - Header: `Status: Draft` → `Status: Approved`, date → today.
+   - Approvals table: all Pending rows → `Approved` + today's date.
+   - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
+3. Re-save `brd.md` and regenerate `brd.summary.md`.
+4. Record locally:
 ```bash
-sdd review approve --doc brd --local --by "chat" --note "approved in chat session"
+sdd review approve --doc brd --local --by "{jira or chat}" --note "approved"
 ```
-This records the approval so `/specify-uc` can confirm the gate is met.
-If that command also fails, note: "BRD approved in chat ✓" and continue.
+If that also fails, note: "BRD approved ✓" and continue.
 
 State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-uc** to generate the Use Case Specification."
 
