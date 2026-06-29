@@ -46,12 +46,12 @@
 
 | ID | Component | Threat (STRIDE category) | Description | Mitigation | Residual Risk |
 |---|---|---|---|---|---|
-| THR-001 | {component} | Spoofing | {description, e.g. token theft via XSS} | {mitigation, e.g. httpOnly cookie + CSP} | Low/Med/High |
-| THR-002 | {component} | Tampering | {description, e.g. tampered client-side state/localStorage} | {mitigation, e.g. server-side re-validation, SEC-7 classification} | Low/Med/High |
-| THR-003 | {component} | Repudiation | {description} | {mitigation} | Low/Med/High |
-| THR-004 | {component} | Information Disclosure | {description, e.g. sensitive data cached in browser storage} | {mitigation, e.g. data-model.md §6 classification — no sensitive data in localStorage} | Low/Med/High |
-| THR-005 | {component} | Denial of Service | {description, e.g. third-party script outage blocking render} | {mitigation, e.g. resilience.md error boundary + async loading} | Low/Med/High |
-| THR-006 | {component} | Elevation of Privilege | {description, e.g. client-side-only route guard bypass} | {mitigation, e.g. server-side authZ enforcement — never trust client routing} | Low/Med/High |
+| THR-{NNN} | {component} | Spoofing | {description, e.g. token theft via XSS} | {mitigation, e.g. httpOnly cookie + CSP} | Low/Med/High |
+| THR-{NNN} | {component} | Tampering | {description, e.g. tampered client-side state/localStorage} | {mitigation, e.g. server-side re-validation, SEC-7 classification} | Low/Med/High |
+| THR-{NNN} | {component} | Repudiation | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Information Disclosure | {description, e.g. sensitive data cached in browser storage} | {mitigation, e.g. data-model.md §6 classification — no sensitive data in localStorage} | Low/Med/High |
+| THR-{NNN} | {component} | Denial of Service | {description, e.g. third-party script outage blocking render} | {mitigation, e.g. resilience.md error boundary + async loading} | Low/Med/High |
+| THR-{NNN} | {component} | Elevation of Privilege | {description, e.g. client-side-only route guard bypass} | {mitigation, e.g. server-side authZ enforcement — never trust client routing} | Low/Med/High |
 
 ### DAST
 | Target | Tool | Frequency |

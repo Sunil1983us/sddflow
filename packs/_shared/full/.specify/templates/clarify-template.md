@@ -12,7 +12,7 @@
 
 ## AMBIGUITIES — AMB-NNN
 
-### AMB-001: {Topic}
+### AMB-{NNN}: {Topic}
 **Found in:** {document + section}
 **The ambiguity:** {two valid interpretations}
 **Option A:** {interpretation 1}
@@ -23,7 +23,7 @@
 
 ## GAPS — GAP-NNN
 
-### GAP-001: {Topic}
+### GAP-{NNN}: {Topic}
 **Needed for:** {which design decision}
 **The gap:** {what is missing}
 **Your answer:** {FILL THIS}
@@ -32,7 +32,7 @@
 
 ## CONFLICTS — CON-NNN
 
-### CON-001: {Topic}
+### CON-{NNN}: {Topic}
 **Conflict between:** FR-{NNN} and {rule/FR}
 **The conflict:** {describe contradiction}
 **Your resolution:** {FILL THIS}
@@ -41,7 +41,7 @@
 
 ## ASSUMPTIONS — ASM-NNN
 
-### ASM-001: {Topic}
+### ASM-{NNN}: {Topic}
 **Assumption:** {what was assumed}
 **Found in:** {document + section}
 **Basis:** {why assumed}
@@ -51,7 +51,7 @@
 
 ## OPEN QUESTIONS — OQ-NNN
 
-### OQ-001: {Topic}
+### OQ-{NNN}: {Topic}
 **Question:** {decision needed}
 **Impact:** {what cannot be designed without this}
 **Options:** {list if applicable}
@@ -72,10 +72,10 @@
 
 | ID | Type | Item | Status |
 |---|---|---|---|
-| AMB-001 | Ambiguity | {topic} | OPEN |
-| GAP-001 | Gap | {topic} | OPEN |
-| ASM-001 | Assumption | {topic} | OPEN |
-| OQ-001 | Open Question | {topic} | OPEN |
+| AMB-{NNN} | Ambiguity | {topic} | OPEN |
+| GAP-{NNN} | Gap | {topic} | OPEN |
+| ASM-{NNN} | Assumption | {topic} | OPEN |
+| OQ-{NNN} | Open Question | {topic} | OPEN |
 | R-{NNN} | High/Critical Risk | {topic} | OPEN |
 
 Status: OPEN → RESOLVED / CONFIRMED / DECIDED / CORRECTED

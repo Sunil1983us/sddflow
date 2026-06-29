@@ -45,12 +45,12 @@
 
 | ID | Component | Threat (STRIDE category) | Description | Mitigation | Residual Risk |
 |---|---|---|---|---|---|
-| THR-001 | {component} | Spoofing | {description} | {mitigation} | Low/Med/High |
-| THR-002 | {component} | Tampering | {description, e.g. APK/IPA tamper or repackaging} | {mitigation, e.g. code obfuscation + tamper detection} | Low/Med/High |
-| THR-003 | {component} | Repudiation | {description} | {mitigation} | Low/Med/High |
-| THR-004 | {component} | Information Disclosure | {description, e.g. cached PII on lost/stolen device} | {mitigation, e.g. encrypted local storage} | Low/Med/High |
-| THR-005 | {component} | Denial of Service | {description} | {mitigation} | Low/Med/High |
-| THR-006 | {component} | Elevation of Privilege | {description, e.g. jailbreak bypass} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Spoofing | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Tampering | {description, e.g. APK/IPA tamper or repackaging} | {mitigation, e.g. code obfuscation + tamper detection} | Low/Med/High |
+| THR-{NNN} | {component} | Repudiation | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Information Disclosure | {description, e.g. cached PII on lost/stolen device} | {mitigation, e.g. encrypted local storage} | Low/Med/High |
+| THR-{NNN} | {component} | Denial of Service | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Elevation of Privilege | {description, e.g. jailbreak bypass} | {mitigation} | Low/Med/High |
 
 ### OWASP MASVS Reference
 | MASVS Category | Applies? | Notes |

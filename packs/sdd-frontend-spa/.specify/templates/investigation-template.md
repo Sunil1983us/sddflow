@@ -51,12 +51,12 @@
 
 | ID | Trigger | Severity | SLA |
 |---|---|---|---|
-| INV-001 | {what causes this — e.g. spike in JS error rate on /checkout} | High | {time to resolve} |
-| INV-002 | {what causes this — e.g. Core Web Vitals regression after deploy} | Medium | {time to resolve} |
+| INV-{NNN} | {what causes this — e.g. spike in JS error rate on /checkout} | High | {time to resolve} |
+| INV-{NNN} | {what causes this — e.g. Core Web Vitals regression after deploy} | Medium | {time to resolve} |
 
 ---
 
-## 5. Investigation Case: INV-001 — {Title}
+## 5. Investigation Case: INV-{NNN} — {Title}
 
 **Trigger:** {exact condition that triggers investigation — alert/threshold}
 **Detected by:** {error-tracking alert / RUM dashboard / user report}
@@ -82,7 +82,7 @@ boundary, add test case}
 
 ---
 
-## 6. Investigation Case: INV-002 — {Title}
+## 6. Investigation Case: INV-{NNN} — {Title}
 
 **Trigger:** {condition}
 **Detected by:** {method}

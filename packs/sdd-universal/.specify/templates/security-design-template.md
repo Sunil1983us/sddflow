@@ -56,12 +56,12 @@
 
 | ID | Component | Threat (STRIDE) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
 |---|---|---|---|---|---|---|
-| THR-001 | {component} | Spoofing | {description} | {mitigation} | {Critical 9-10 / High 7-8.9 / Med 4-6.9 / Low 0-3.9 or "QA"} | Low/Med/High |
-| THR-002 | {component} | Tampering | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-003 | {component} | Repudiation | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-004 | {component} | Information Disclosure | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-005 | {component} | Denial of Service | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-006 | {component} | Elevation of Privilege | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {component} | Spoofing | {description} | {mitigation} | {Critical 9-10 / High 7-8.9 / Med 4-6.9 / Low 0-3.9 or "QA"} | Low/Med/High |
+| THR-{NNN} | {component} | Tampering | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {component} | Repudiation | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {component} | Information Disclosure | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {component} | Denial of Service | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {component} | Elevation of Privilege | {description} | {mitigation} | {CVSS} | Low/Med/High |
 
 > **CVSS column:** Use the [CVSS 3.1 calculator](https://www.first.org/cvss/calculator/3.1) for formal scoring, or use the qualitative band (Critical/High/Med/Low) and mark "QA" if formal scoring is out of scope. Any THR with CVSS ≥ 7.0 (High or Critical) must have a confirmed mitigation before /release.
 

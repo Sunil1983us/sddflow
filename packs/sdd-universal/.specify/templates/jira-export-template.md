@@ -9,17 +9,17 @@
 ```
 Epic: {Feature Name}
   │
-  ├── Story: STORY-001 — {title}
-  │     Task: TASK-001 — {title}
-  │     Task: TASK-002 — {title}
+  ├── Story: STORY-{NNN} — {title}
+  │     Task: TASK-{NNN} — {title}
+  │     Task: TASK-{NNN} — {title}
   │
-  ├── Story: STORY-002 — {title}
-  │     Task: TASK-003 — {title}
-  │     Task: TASK-004 — {title}
+  ├── Story: STORY-{NNN} — {title}
+  │     Task: TASK-{NNN} — {title}
+  │     Task: TASK-{NNN} — {title}
   │
-  └── Story: STORY-003 — {title}
-        Task: TASK-005 — {title}
-        Task: TASK-006 — {title}
+  └── Story: STORY-{NNN} — {title}
+        Task: TASK-{NNN} — {title}
+        Task: TASK-{NNN} — {title}
 ```
 
 ---
@@ -29,15 +29,15 @@ Epic: {Feature Name}
 ```csv
 Issue Type,Summary,Epic Link,Parent,Sprint,Story Points,Priority,Labels,Acceptance Criteria
 Epic,{Feature Name},,,,, High,{project},All stories delivered and tested
-Story,{STORY-001 title},{Feature},{Feature},Sprint 1,3,High,{label},"{criterion 1}; {criterion 2}"
-Task,{TASK-001 title},{Feature},STORY-001,Sprint 1,1,High,{label},"{criterion}"
-Task,{TASK-002 title},{Feature},STORY-001,Sprint 1,1,High,{label},"{criterion}"
-Story,{STORY-002 title},{Feature},{Feature},Sprint 1,5,High,{label},"{criterion}"
-Task,{TASK-003 title},{Feature},STORY-002,Sprint 1,1,High,{label},"{criterion}"
-Task,{TASK-004 title},{Feature},STORY-002,Sprint 1,2,High,{label},"{criterion}"
-Story,{STORY-003 title},{Feature},{Feature},Sprint 2,3,High,{label},"{criterion}"
-Task,{TASK-005 title},{Feature},STORY-003,Sprint 2,1,High,{label},"{criterion}"
-Task,{TASK-006 title},{Feature},STORY-003,Sprint 2,1,High,{label},"{criterion}"
+Story,{STORY-{NNN} title},{Feature},{Feature},Sprint 1,3,High,{label},"{criterion 1}; {criterion 2}"
+Task,{TASK-{NNN} title},{Feature},STORY-{NNN},Sprint 1,1,High,{label},"{criterion}"
+Task,{TASK-{NNN} title},{Feature},STORY-{NNN},Sprint 1,1,High,{label},"{criterion}"
+Story,{STORY-{NNN} title},{Feature},{Feature},Sprint 1,5,High,{label},"{criterion}"
+Task,{TASK-{NNN} title},{Feature},STORY-{NNN},Sprint 1,1,High,{label},"{criterion}"
+Task,{TASK-{NNN} title},{Feature},STORY-{NNN},Sprint 1,2,High,{label},"{criterion}"
+Story,{STORY-{NNN} title},{Feature},{Feature},Sprint 2,3,High,{label},"{criterion}"
+Task,{TASK-{NNN} title},{Feature},STORY-{NNN},Sprint 2,1,High,{label},"{criterion}"
+Task,{TASK-{NNN} title},{Feature},STORY-{NNN},Sprint 2,1,High,{label},"{criterion}"
 ```
 
 ---

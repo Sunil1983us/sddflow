@@ -15,7 +15,7 @@
 ## 2. Business Objectives
 | ID | Objective | Success Metric |
 |---|---|---|
-| BO-001 | {objective} | {how measured} |
+| BO-{NNN} | {objective} | {how measured} |
 
 ## 3. Stakeholders (BA-3 — see .specify/memory/roles.yml for named owners)
 
@@ -47,8 +47,8 @@ Out of Scope:
 ## 5. Business Requirements
 | ID | Requirement | Priority |
 |---|---|---|
-| BR-001 | {description} | Must Have |
-| BR-002 | {description} | Should Have |
+| BR-{NNN} | {description} | Must Have |
+| BR-{NNN} | {description} | Should Have |
 
 ## 6. Regulatory and Compliance
 | Regulation | Requirement | Impact |
@@ -61,7 +61,7 @@ Out of Scope:
 > - `[ASSUMPTION-NNN: ...]` — agent made a reasonable default and proceeded; business owner confirms/rejects at /validate
 > - `[NEEDS CLARIFICATION: {specific question}]` — no safe default; human must answer before /validate sign-off
 
-- [ASSUMPTION-001] {assumption made due to gap in context}
+- [ASSUMPTION-{NNN}] {assumption made due to gap in context}
 - Use [NEEDS CLARIFICATION: {specific question}] inline on any BR-NNN where a required detail is missing
 
 ## 8. Success Criteria

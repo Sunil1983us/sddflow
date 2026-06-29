@@ -72,8 +72,8 @@ graph TD
 ## 4. Key Design Decisions
 | ID | Decision | Rationale | Alternatives Rejected |
 |---|---|---|---|
-| DEC-001 | {what was decided} | {why} | {what was rejected and why} |
-| DEC-002 | {what was decided} | {why} | {what was rejected and why} |
+| DEC-{NNN} | {what was decided} | {why} | {what was rejected and why} |
+| DEC-{NNN} | {what was decided} | {why} | {what was rejected and why} |
 
 > **Pilot scope:** fill DEC-NNN only — ADRs are generated later by `/plan-adr` (mvp+ only).
 > **MVP+ scope:** `/plan-adr` converts each HIGH-impact DEC-NNN into a full ADR-NNN record.

@@ -28,8 +28,8 @@
 
 | UC-NNN (from use-cases.md) | Scenario | Tester | Device/OS Target | Environment | Result |
 |---|---|---|---|---|---|
-| UC-001 | {happy path} | {role} | {e.g. iPhone 15 / iOS 17} | {staging/TestFlight} | [ ] Pass [ ] Fail |
-| UC-002 | {unhappy path — offline} | {role} | {e.g. Pixel 8 / Android 14} | {staging/internal track} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {happy path} | {role} | {e.g. iPhone 15 / iOS 17} | {staging/TestFlight} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {unhappy path — offline} | {role} | {e.g. Pixel 8 / Android 14} | {staging/internal track} | [ ] Pass [ ] Fail |
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
@@ -75,7 +75,7 @@
 
 | BO-NNN | Success Metric (from BRD) | Measured Result | Met? |
 |---|---|---|---|
-| BO-001 | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
+| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
 
 ---
 

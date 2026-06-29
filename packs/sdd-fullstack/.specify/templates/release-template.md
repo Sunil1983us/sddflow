@@ -30,9 +30,9 @@
 
 | UC-NNN (from use-cases.md) | Scenario | Tester | Environment | Result |
 |---|---|---|---|---|
-| UC-001 | {happy path — backend API} | {role} | {staging} | [ ] Pass [ ] Fail |
-| UC-002 | {happy path — frontend screen/flow} | {role} | {staging} | [ ] Pass [ ] Fail |
-| UC-003 | {unhappy path} | {role} | {staging} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {happy path — backend API} | {role} | {staging} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {happy path — frontend screen/flow} | {role} | {staging} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {unhappy path} | {role} | {staging} | [ ] Pass [ ] Fail |
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
@@ -81,7 +81,7 @@
 
 | BO-NNN | Success Metric (from BRD) | Measured Result | Met? |
 |---|---|---|---|
-| BO-001 | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
+| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
 
 ---
 

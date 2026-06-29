@@ -35,8 +35,8 @@
 
 | ID | Decision | Rationale |
 |---|---|---|
-| DEC-001 | {decision} | {why} |
-| DEC-002 | {decision} | {why} |
+| DEC-{NNN} | {decision} | {why} |
+| DEC-{NNN} | {decision} | {why} |
 
 ### 1.4 NFR → Architecture Mapping
 
@@ -221,7 +221,7 @@ stateDiagram-v2
 
 > One ADR block per key decision. Pilot: minimum 2 ADRs for the most critical decisions. MVP+: one ADR per DEC-NNN from §1.3.
 
-### ADR-001 — {Decision Title}
+### ADR-{NNN} — {Decision Title}
 **Status:** Accepted
 **Date:** {date}
 

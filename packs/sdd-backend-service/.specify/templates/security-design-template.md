@@ -43,12 +43,12 @@
 
 | ID | Component | Threat (STRIDE category) | Description | Mitigation | Residual Risk |
 |---|---|---|---|---|---|
-| THR-001 | {component} | Spoofing | {description} | {mitigation} | Low/Med/High |
-| THR-002 | {component} | Tampering | {description} | {mitigation} | Low/Med/High |
-| THR-003 | {component} | Repudiation | {description} | {mitigation} | Low/Med/High |
-| THR-004 | {component} | Information Disclosure | {description} | {mitigation} | Low/Med/High |
-| THR-005 | {component} | Denial of Service | {description} | {mitigation} | Low/Med/High |
-| THR-006 | {component} | Elevation of Privilege | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Spoofing | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Tampering | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Repudiation | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Information Disclosure | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Denial of Service | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {component} | Elevation of Privilege | {description} | {mitigation} | Low/Med/High |
 
 ### DAST
 

@@ -16,7 +16,7 @@
 
 | BO-NNN (from BRD) | Objective | Success Metric | Addressed By (FR-NNN) | Reviewer Confirms |
 |---|---|---|---|---|
-| BO-001 | {objective} | {metric} | FR-{NNN}, FR-{NNN} | [ ] |
+| BO-{NNN} | {objective} | {metric} | FR-{NNN}, FR-{NNN} | [ ] |
 
 ---
 
@@ -26,7 +26,7 @@
 
 | BR-NNN | Requirement | Priority | BA Confirms: FR-NNN satisfies BR-NNN? | PO Confirms: Intent matched? |
 |---|---|---|---|---|
-| BR-001 | {requirement} | Must Have | [ ] Yes  [ ] No — FR-{NNN} | [ ] Yes  [ ] No — comment: |
+| BR-{NNN} | {requirement} | Must Have | [ ] Yes  [ ] No — FR-{NNN} | [ ] Yes  [ ] No — comment: |
 
 ---
 
@@ -36,7 +36,7 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 
 | ID | Assumption | Correct? | Comment |
 |---|---|---|---|
-| ASSUMPTION-001 | {assumption} | [ ] Yes [ ] No | |
+| ASSUMPTION-{NNN} | {assumption} | [ ] Yes [ ] No | |
 
 ---
 
@@ -46,7 +46,7 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 
 | UC-ID | Title | Actor | Business Scenario Correct? | Missing Paths? |
 |---|---|---|---|---|
-| UC-001 | {title} | ACT-001 | [ ] Yes [ ] No | {any missing AP/EP from business view} |
+| UC-{NNN} | {title} | ACT-{NNN} | [ ] Yes [ ] No | {any missing AP/EP from business view} |
 
 **Notes:** {anything the business wants to add or change in any use case}
 
@@ -89,7 +89,7 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 
 | CR-NNN | Description | Raised By | Affects Doc(s) | Owner | Resolution | Resolved Date |
 |---|---|---|---|---|---|---|
-| CR-001 | {change description} | {role} | {brd / srd / use-cases} | {owner} | {how resolved} | |
+| CR-{NNN} | {change description} | {role} | {brd / srd / use-cases} | {owner} | {how resolved} | |
 
 **Re-sign-off:** All CR-NNN items resolved → update context.md → re-run `/specify` for affected docs → re-run `/validate`. PO and BA re-sign §5.
 

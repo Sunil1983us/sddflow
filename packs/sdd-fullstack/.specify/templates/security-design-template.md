@@ -71,21 +71,21 @@
 
 | ID | Component | Threat (STRIDE category) | Description | Mitigation | Residual Risk |
 |---|---|---|---|---|---|
-| THR-001 | {backend component} | Spoofing | {description} | {mitigation} | Low/Med/High |
-| THR-002 | {backend component} | Tampering | {description} | {mitigation} | Low/Med/High |
-| THR-003 | {backend component} | Repudiation | {description} | {mitigation} | Low/Med/High |
-| THR-004 | {backend component} | Information Disclosure | {description} | {mitigation} | Low/Med/High |
-| THR-005 | {backend component} | Denial of Service | {description} | {mitigation} | Low/Med/High |
-| THR-006 | {backend component} | Elevation of Privilege | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {backend component} | Spoofing | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {backend component} | Tampering | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {backend component} | Repudiation | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {backend component} | Information Disclosure | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {backend component} | Denial of Service | {description} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {backend component} | Elevation of Privilege | {description} | {mitigation} | Low/Med/High |
 
 ### 3b. Client-Side Threats
 
 | ID | Component | Threat (STRIDE category) | Description | Mitigation | Residual Risk |
 |---|---|---|---|---|---|
-| THR-101 | {frontend component} | Spoofing | {e.g. phishing via UI clone} | {mitigation} | Low/Med/High |
-| THR-102 | {frontend component} | Tampering | {e.g. DOM/storage tampering} | {mitigation} | Low/Med/High |
-| THR-103 | {frontend component} | Information Disclosure | {e.g. token leak via XSS} | {mitigation, CSP + sanitization} | Low/Med/High |
-| THR-104 | {frontend component} | Elevation of Privilege | {e.g. client-side route guard bypass} | {server-side authZ as source of truth} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Spoofing | {e.g. phishing via UI clone} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Tampering | {e.g. DOM/storage tampering} | {mitigation} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Information Disclosure | {e.g. token leak via XSS} | {mitigation, CSP + sanitization} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Elevation of Privilege | {e.g. client-side route guard bypass} | {server-side authZ as source of truth} | Low/Med/High |
 
 ### DAST
 | Target | Tool | Frequency |
