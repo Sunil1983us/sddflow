@@ -3,9 +3,10 @@
 # Run this once after copying the pack into your project directory.
 
 param(
-  [string]$Project = "",
-  [string]$Scope   = "",
-  [string]$Feature = ""
+  [string]$Project  = "",
+  [string]$Scope    = "",
+  [string]$Feature  = "",
+  [string]$PlanMode = ""
 )
 
 Write-Host ""
@@ -26,21 +27,38 @@ if (-not $Scope) {
   $Scope = if ($ScopeInput) { $ScopeInput } else { "pilot" }
 }
 
+if (-not $PlanMode) {
+  Write-Host ""
+  Write-Host "Plan document style:"
+  Write-Host "  unified  — One combined design.md covering architecture, diagrams,"
+  Write-Host "             API design and decisions in one place."
+  Write-Host "             Good for: small teams, fast delivery, single review gate."
+  Write-Host ""
+  Write-Host "  separate — Three focused documents reviewed one by one:"
+  Write-Host "             arch.md -> hld.md -> adr.md (mvp+ only)"
+  Write-Host "             Good for: larger teams, separate approvals, detailed audit trail."
+  Write-Host ""
+  $PlanModeInput = Read-Host "Plan mode [unified]"
+  $PlanMode = if ($PlanModeInput) { $PlanModeInput } else { "unified" }
+}
+
 Write-Host ""
 Write-Host "Setting up:"
-Write-Host "  Project : $Project"
-Write-Host "  Feature : $Feature"
-Write-Host "  Scope   : $Scope"
+Write-Host "  Project   : $Project"
+Write-Host "  Feature   : $Feature"
+Write-Host "  Scope     : $Scope"
+Write-Host "  Plan mode : $PlanMode"
 Write-Host ""
 
 # --- Update manifest.yml ---
 $ManifestPath = ".specify\manifest.yml"
 if (Test-Path $ManifestPath) {
   $content = Get-Content $ManifestPath -Raw
-  $content = $content -replace 'name:\s*""',         "name: `"$Project`""
-  $content = $content -replace 'scope:\s*"pilot"',   "scope: `"$Scope`""
-  $content = $content -replace 'feature:\s*""',      "feature: `"$Feature`""
-  $content = $content -replace 'context_file:\s*""', "context_file: `"$Feature.md`""
+  $content = $content -replace 'name:\s*""',                "name: `"$Project`""
+  $content = $content -replace 'scope:\s*"pilot"',          "scope: `"$Scope`""
+  $content = $content -replace 'feature:\s*""',             "feature: `"$Feature`""
+  $content = $content -replace 'context_file:\s*""',        "context_file: `"$Feature.md`""
+  $content = $content -replace 'plan_mode:\s*"unified"',    "plan_mode: `"$PlanMode`""
   Set-Content $ManifestPath $content
   Write-Host "  [OK]  .specify\manifest.yml filled"
 } else {

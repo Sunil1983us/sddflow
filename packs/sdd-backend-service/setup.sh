@@ -16,11 +16,14 @@ PROJECT_NAME=""
 SCOPE=""
 FEATURE_NAME=""
 
+PLAN_MODE=""
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --project) PROJECT_NAME="$2"; shift 2;;
-    --scope)   SCOPE="$2";        shift 2;;
-    --feature) FEATURE_NAME="$2"; shift 2;;
+    --project)    PROJECT_NAME="$2"; shift 2;;
+    --scope)      SCOPE="$2";        shift 2;;
+    --feature)    FEATURE_NAME="$2"; shift 2;;
+    --plan-mode)  PLAN_MODE="$2";    shift 2;;
     *) echo "Unknown option: $1"; exit 1;;
   esac
 done
@@ -44,11 +47,27 @@ if [[ -z "$SCOPE" ]]; then
   SCOPE="${SCOPE:-pilot}"
 fi
 
+if [[ -z "$PLAN_MODE" ]]; then
+  echo ""
+  echo "Plan document style:"
+  echo "  unified  — One combined design.md covering architecture, diagrams,"
+  echo "             API design and decisions in one place."
+  echo "             Good for: small teams, fast delivery, single review gate."
+  echo ""
+  echo "  separate — Three focused documents reviewed one by one:"
+  echo "             arch.md → hld.md → adr.md (mvp+ only)"
+  echo "             Good for: larger teams, separate approvals, detailed audit trail."
+  echo ""
+  read -r -p "Plan mode [unified]: " PLAN_MODE
+  PLAN_MODE="${PLAN_MODE:-unified}"
+fi
+
 echo ""
 echo "Setting up:"
-echo "  Project : $PROJECT_NAME"
-echo "  Feature : $FEATURE_NAME"
-echo "  Scope   : $SCOPE"
+echo "  Project   : $PROJECT_NAME"
+echo "  Feature   : $FEATURE_NAME"
+echo "  Scope     : $SCOPE"
+echo "  Plan mode : $PLAN_MODE"
 echo ""
 
 # --- Update manifest.yml ---
@@ -63,6 +82,7 @@ content = re.sub(r'name:\s*""', 'name: "$PROJECT_NAME"', content)
 content = re.sub(r'scope:\s*"pilot"', 'scope: "$SCOPE"', content)
 content = re.sub(r'feature:\s*""', 'feature: "$FEATURE_NAME"', content)
 content = re.sub(r'context_file:\s*""', 'context_file: "$FEATURE_NAME.md"', content)
+content = re.sub(r'plan_mode:\s*"unified"', 'plan_mode: "$PLAN_MODE"', content)
 with open("$MANIFEST", "w") as f:
     f.write(content)
 PYEOF

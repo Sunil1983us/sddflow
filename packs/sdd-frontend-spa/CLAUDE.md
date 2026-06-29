@@ -193,21 +193,26 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 
 ## PLAN Sub-Commands
 
-PLAN is split into 2 sub-commands — each has its own review gate:
+PLAN adapts to your `plan_mode` setting in `manifest.yml` (set during `setup.sh`).
 
-- **`/plan-design`** → Single design document: Architecture + Component Diagrams + API Design + ADR entries
-  - Gate: clarify.summary.md exists, all RESOLVED
-  - Gate: no unresolved [ASSUMPTION-NNN] in any spec doc (AI-8)
+**Unified mode (`plan_mode: unified`)** — one combined document, one review gate:
+- **`/plan-design`** → `design.md`: Architecture + Component Diagrams + API Design + ADR entries
+  - Gate: clarify.summary.md exists, all RESOLVED; no unresolved [ASSUMPTION-NNN] (AI-8)
   - Review: tech lead + architect + stakeholders
   - Scope: all scopes (pilot, mvp, full)
 
-- **`/plan-lld`** → Detailed technical design: component/class diagrams
-  - Gate: design.md reviewed
-  - Scope check: SKIP if pilot — state skip reason
-  - Review: senior developer (frontend)
+**Separate mode (`plan_mode: separate`)** — three focused documents, reviewed individually:
+- **`/plan-arch`** → `arch.md`: Architecture pattern, layers, key decisions — Step 1 of 3
+  - Gate: clarify.summary.md exists, all RESOLVED; no unresolved [ASSUMPTION-NNN] (AI-8)
+- **`/plan-hld`** → `hld.md`: Component + sequence diagrams (C4 context, component, state) — Step 2 of 3
+  - Gate: arch.md approved
+- **`/plan-adr`** → `adr.md`: Architecture Decision Records — Step 3 of 3 (mvp+ only; skipped at pilot)
+  - Gate: hld.md approved
 
-> `design.md` replaces the former arch.md, hld.md, api-spec.md, and adr.md.
-> `/plan-arch`, `/plan-hld`, `/plan-adr` redirect to `/plan-design` for backwards compatibility.
+**Both modes:**
+- **`/plan-lld`** → Detailed technical design: component/class diagrams (mvp+ only; SKIP if pilot)
+  - Unified gate: design.md approved
+  - Separate gate: adr.md approved (mvp+) or hld.md approved (pilot)
 
 ## /checklist — Optional Spec-Quality Gate (after GATE-1, before /validate)
 

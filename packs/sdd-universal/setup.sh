@@ -16,13 +16,15 @@ PROJECT_NAME=""
 SCOPE=""
 FEATURE_NAME=""
 PROJECT_TYPE_ARG=""
+PLAN_MODE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --project) PROJECT_NAME="$2"; shift 2;;
-    --scope)   SCOPE="$2";        shift 2;;
-    --feature) FEATURE_NAME="$2"; shift 2;;
-    --type)    PROJECT_TYPE_ARG="$2"; shift 2;;
+    --project)    PROJECT_NAME="$2"; shift 2;;
+    --scope)      SCOPE="$2";        shift 2;;
+    --feature)    FEATURE_NAME="$2"; shift 2;;
+    --type)       PROJECT_TYPE_ARG="$2"; shift 2;;
+    --plan-mode)  PLAN_MODE="$2";    shift 2;;
     *) echo "Unknown option: $1"; exit 1;;
   esac
 done
@@ -148,6 +150,21 @@ if [[ -z "$SCOPE" ]]; then
   SCOPE="${SCOPE:-pilot}"
 fi
 
+if [[ -z "$PLAN_MODE" ]]; then
+  echo ""
+  echo "Plan document style:"
+  echo "  unified  — One combined design.md covering architecture, diagrams,"
+  echo "             API design and decisions in one place."
+  echo "             Good for: small teams, fast delivery, single review gate."
+  echo ""
+  echo "  separate — Three focused documents reviewed one by one:"
+  echo "             arch.md → hld.md → adr.md (mvp+ only)"
+  echo "             Good for: larger teams, separate approvals, detailed audit trail."
+  echo ""
+  read -r -p "Plan mode [unified]: " PLAN_MODE
+  PLAN_MODE="${PLAN_MODE:-unified}"
+fi
+
 # --- Validate inputs ---
 # Double quotes inside a YAML double-quoted scalar produce invalid YAML.
 # Reject early with a clear message rather than silently writing a broken file.
@@ -166,10 +183,11 @@ _validate_name "$FEATURE_NAME" "Feature name"
 
 echo ""
 echo "Setting up:"
-echo "  Project : $PROJECT_NAME"
-echo "  Type    : $PROJECT_TYPE"
-echo "  Feature : $FEATURE_NAME"
-echo "  Scope   : $SCOPE"
+echo "  Project   : $PROJECT_NAME"
+echo "  Type      : $PROJECT_TYPE"
+echo "  Feature   : $FEATURE_NAME"
+echo "  Scope     : $SCOPE"
+echo "  Plan mode : $PLAN_MODE"
 echo ""
 
 # --- Update manifest.yml ---
@@ -184,6 +202,7 @@ if [[ -f "$MANIFEST" ]]; then
   SDD_SCOPE="$SCOPE" \
   SDD_FEATURE_NAME="$FEATURE_NAME" \
   SDD_PROJECT_TYPE="$PROJECT_TYPE" \
+  SDD_PLAN_MODE="$PLAN_MODE" \
   python3 - <<'PYEOF'
 import re, os
 manifest     = os.environ['SDD_MANIFEST']
@@ -191,6 +210,7 @@ project_name = os.environ['SDD_PROJECT_NAME']
 scope        = os.environ['SDD_SCOPE']
 feature_name = os.environ['SDD_FEATURE_NAME']
 project_type = os.environ['SDD_PROJECT_TYPE']
+plan_mode    = os.environ['SDD_PLAN_MODE']
 with open(manifest) as f:
     content = f.read()
 content = re.sub(r'name:\s*""',              lambda _: f'name: "{project_name}"',            content, count=1)
@@ -198,6 +218,7 @@ content = re.sub(r'scope:\s*"pilot"',        lambda _: f'scope: "{scope}"',     
 content = re.sub(r'feature:\s*""',           lambda _: f'feature: "{feature_name}"',         content, count=1)
 content = re.sub(r'context_file:\s*""',      lambda _: f'context_file: "{feature_name}.md"', content, count=1)
 content = re.sub(r'project_type:\s*"auto"',  lambda _: f'project_type: "{project_type}"',    content, count=1)
+content = re.sub(r'plan_mode:\s*"unified"',  lambda _: f'plan_mode: "{plan_mode}"',          content, count=1)
 with open(manifest, 'w') as f:
     f.write(content)
 PYEOF

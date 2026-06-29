@@ -27,6 +27,11 @@ pr_rules:
 #   full:    always read full .md — for deep debugging or initial migration
 reading_mode: "auto"   # auto | summary | full — see summary-rules.md
 
+# Plan Mode — unified | separate   DEFAULT: unified
+#   unified:  One combined design.md (architecture + diagrams + API + decisions)
+#   separate: Three focused documents — arch.md -> hld.md -> adr.md (reviewed separately)
+plan_mode: "unified"
+
 # Testing Style — paired | tdd | bdd   DEFAULT: paired
 #   paired: write test alongside implementation — same PR, never deferred
 #   tdd:    write failing test first → implement to pass → refactor

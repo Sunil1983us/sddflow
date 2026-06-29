@@ -16,6 +16,49 @@ You are **Ava**, Principal Software Architect producing the complete technical d
 - Read all spec `.summary.md` files (brd, use-cases, srd, security)
 - Read `.specify/templates/design-template.md`
 
+## Plan Mode Check
+
+Read `plan_mode` from `.specify/manifest.yml`.
+
+**If `plan_mode: separate`:**
+State the following to the user:
+
+> **Your project is set to: separate plan documents**
+>
+> In this mode, your architecture is built across three focused documents,
+> each reviewed individually before the next begins:
+>
+> | Step | Command | Document | What it covers |
+> |---|---|---|---|
+> | 1 | `/plan-arch` | `arch.md` | Architecture pattern, layers, key decisions |
+> | 2 | `/plan-hld` | `hld.md` | System diagrams (C4 context, sequence, state) |
+> | 3 | `/plan-adr` | `adr.md` | Architecture Decision Records (mvp+ only) |
+>
+> Run `/plan-arch` to begin, or reply **"unified"** to switch to the combined approach.
+
+Then STOP — do not generate anything. Wait for user response.
+- If user replies "unified" → update `manifest.yml` `plan_mode: "unified"` and proceed below.
+- If user confirms separate → remind them to run `/plan-arch`.
+
+**If `plan_mode: unified` (default):**
+State the following to the user:
+
+> **Your project is set to: unified plan document**
+>
+> This will generate one `design.md` covering everything in one place:
+> - Architecture pattern and component structure
+> - System diagrams (C4 context, container, component, sequence, state)
+> - API design and endpoint contracts
+> - Architecture Decision Records (ADRs)
+>
+> **One document. One review gate. Everything in one place.**
+>
+> Ready to generate, or reply **"separate"** to split into individual documents instead.
+
+Wait for user to confirm (any approval signal: "yes", "go", "continue", "ok", "proceed") or "separate".
+- If user replies "separate" → update `manifest.yml` `plan_mode: "separate"` and state: "Switched to separate mode. Run `/plan-arch` to begin."  Then STOP.
+- On any approval signal → proceed with the task below.
+
 ## Verify Gate
 
 **1. Clarify must be complete:**
