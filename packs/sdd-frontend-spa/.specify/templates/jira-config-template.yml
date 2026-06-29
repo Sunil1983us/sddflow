@@ -1,0 +1,124 @@
+# .specify/jira-config.yml
+# Jira API integration for progressive artifact creation (Epic → Story → Task).
+# Copy this file to .specify/jira-config.yml and fill in your values.
+# Add .specify/jira-config.yml to .gitignore — it contains credentials.
+# For CI/CD: set JIRA_API_TOKEN and JIRA_EMAIL as env vars instead of hardcoding here.
+
+jira:
+  # Your Jira Cloud base URL — no trailing slash
+  base_url: "https://your-org.atlassian.net"
+
+  # Atlassian account credentials
+  # Leave as env var placeholders — never hardcode real values here
+  email: "${JIRA_EMAIL}"
+  api_token: "${JIRA_API_TOKEN}"    # create at id.atlassian.com/manage/api-tokens
+
+  # Jira Cloud REST API version (use "3" for Cloud; "2" for older Server)
+  api_version: "3"
+
+  # ─────────────────────────────────────────────────────────────
+  # PROJECT KEYS
+  # Which Jira project each SDD level is created in.
+  # All can be the same project, or different projects per level.
+  # ─────────────────────────────────────────────────────────────
+  projects:
+    epic:  "PROD"      # Epics (created after /specify-brd)
+    story: "PROD"      # Stories (created after /specify-uc or /specify-srd)
+    task:  "PROD"      # Tasks / Sub-tasks (created after /task)
+    chg:   "PROD"      # CHG-NNN change request tasks (created after /change)
+
+  # ─────────────────────────────────────────────────────────────
+  # ISSUE TYPES
+  # Must match your Jira project's configured issue type names exactly.
+  # Go to Project Settings → Issue Types to find the exact names.
+  # ─────────────────────────────────────────────────────────────
+  issue_types:
+    epic:    "Epic"
+    story:   "Story"
+    task:    "Task"        # use "Sub-task" if tasks must be children of Stories in your config
+    chg:     "Task"        # change request tasks — same type as regular tasks
+
+  # ─────────────────────────────────────────────────────────────
+  # PARENT LINK STRATEGY
+  # How Stories are linked to Epics, and Tasks to Stories.
+  # "parent"     — next-gen / team-managed projects (recommended for Jira Cloud)
+  # "epic_link"  — classic / company-managed projects (uses customfield_10014)
+  # ─────────────────────────────────────────────────────────────
+  parent_link_strategy: "parent"
+
+  # ─────────────────────────────────────────────────────────────
+  # FIELD MAPPINGS
+  # SDD concept → Jira field name or custom field ID.
+  # Standard fields: use the field name (e.g. "summary", "priority").
+  # Custom fields: use "customfield_NNNNN".
+  # Find your custom field IDs: GET {base_url}/rest/api/3/field
+  # ─────────────────────────────────────────────────────────────
+  field_mappings:
+    summary:              "summary"
+    description:          "description"
+    story_points:         "story_points"         # may be "customfield_10016" on some instances
+    sprint:               "customfield_10020"    # Sprint — always a custom field in Jira Cloud
+    priority:             "priority"
+    labels:               "labels"
+    acceptance_criteria:  "customfield_10234"    # REPLACE with your AC custom field ID
+    epic_name:            "customfield_10011"    # Epic Name — classic Jira only; omit for next-gen
+    epic_link:            "customfield_10014"    # Epic Link — classic Jira only; omit for next-gen
+
+  # ─────────────────────────────────────────────────────────────
+  # SDD TRACEABILITY CUSTOM FIELDS (optional)
+  # Map SDD identifiers (FR-NNN, UC-NNN, etc.) to Jira custom fields
+  # so you can filter/search Jira by SDD reference.
+  # Set to null to skip that field — it will not be sent to the API.
+  # ─────────────────────────────────────────────────────────────
+  traceability_fields:
+    fr_reference:    null    # e.g. "customfield_10101" — stores "FR-001, FR-002"
+    uc_reference:    null    # e.g. "customfield_10102" — stores "UC-001"
+    risk_reference:  null    # e.g. "customfield_10103" — stores "R-001"
+    tc_reference:    null    # e.g. "customfield_10104" — stores "TC-001, TC-002"
+    moscow_priority: null    # e.g. "customfield_10105" — stores "Must Have"
+    sdd_stage:       null    # e.g. "customfield_10106" — stores "after-brd", "after-srd", "after-task"
+
+  # ─────────────────────────────────────────────────────────────
+  # MOSCOW → JIRA PRIORITY MAPPING
+  # Maps SDD MoSCoW priority to Jira priority names.
+  # Must match your Jira instance's priority scheme exactly.
+  # ─────────────────────────────────────────────────────────────
+  moscow_to_jira_priority:
+    "Must Have":   "High"
+    "Should Have": "Medium"
+    "Could Have":  "Low"
+    "Won't Have":  "Lowest"
+
+  # ─────────────────────────────────────────────────────────────
+  # DEFAULT LABELS
+  # Labels applied to every SDD-generated issue at each level.
+  # Use [] for no labels.
+  # ─────────────────────────────────────────────────────────────
+  default_labels:
+    epic:  ["sdd-epic"]
+    story: ["sdd-story"]
+    task:  ["sdd-task"]
+    chg:   ["sdd-change"]
+
+  # ─────────────────────────────────────────────────────────────
+  # SPRINT NAME PATTERN
+  # {N} is replaced with the sprint number from stories.md.
+  # Must match your Jira board's sprint naming convention exactly.
+  # ─────────────────────────────────────────────────────────────
+  sprint_name_pattern: "Sprint {N}"
+
+  # ─────────────────────────────────────────────────────────────
+  # UPSERT MODE
+  # true  — search by summary before creating; update if found (prevents duplicates)
+  # false — always create new (may create duplicates if run twice)
+  # ─────────────────────────────────────────────────────────────
+  upsert_mode: true
+
+  # ─────────────────────────────────────────────────────────────
+  # DRY RUN
+  # true  — print what would be created/updated but make no API calls
+  # false — actually push to Jira
+  # Override per run with --dry-run flag.
+  # Recommended: set to true first to validate field mappings.
+  # ─────────────────────────────────────────────────────────────
+  dry_run: false

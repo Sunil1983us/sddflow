@@ -113,6 +113,33 @@ sdd review approve --doc srd --local --by "{jira or chat}" --note "approved"
 ```
 If that also fails, note: "SRD approved ✓" and continue.
 
+### Step D — Progressive Jira Story Refinement
+
+After approval (Step C complete), refine Story definitions with FR-NNN links and MoSCoW priority:
+
+1. Read `docs/jira/stories-draft.md` if it exists.
+2. Write `docs/jira/stories-refined.md`:
+   ```
+   # Jira Stories Refined — {Feature Name}
+   > Source: use-cases.md + srd.md | Stage: after-srd | Status: READY_TO_PUSH
+
+   ## STORY-DRAFT-{UC-NNN}: {title}
+   Summary: {same as stories-draft.md}
+   Issue Type: Story
+   UC Reference: {UC-NNN}
+   FR Reference: {FR-NNN, FR-NNN — all FRs derived from this UC in srd.md}
+   MoSCoW: {Must Have | Should Have | Could Have — derived from FR-NNN priority: CRITICAL/HIGH → Must Have, MEDIUM → Should Have, LOW → Could Have}
+   NFR Reference: {NFR-NNN if a specific NFR constrains this UC's behaviour — else omit}
+   Story Points: (assigned by /task — requires design context)
+   Jira Key: (set by /jira-push --level story)
+   ```
+   One entry per UC-NNN. If `stories-draft.md` does not exist, generate from use-cases.md directly.
+
+3. Check whether `.specify/jira-config.yml` exists and whether `docs/jira/keys.yml` has story entries:
+   - Stories already created in Jira (`keys.yml` has story entries): state "Story refinements ready. Run `/jira-push --level story` to update existing Jira stories with FR-NNN links and MoSCoW priority."
+   - Stories not yet created: state "Refined story definitions saved to `docs/jira/stories-refined.md`. Run `/jira-push --level story` to create them in Jira with full FR context."
+   - jira-config.yml not present: state "Story refinements saved to `docs/jira/stories-refined.md`. Configure `.specify/jira-config.yml` and run `/jira-push --level story` when ready."
+
 Determine the next document for this scope and project_type from the doc-set table in `specify.prompt.md`.
 
 State: "**SRD generated.** Review in Confluence/Jira (or above), then run **/specify-doc {next-doc}** to continue. Remaining for this scope: {list remaining docs}."
