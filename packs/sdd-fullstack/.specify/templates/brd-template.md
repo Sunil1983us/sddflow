@@ -17,21 +17,22 @@
 |---|---|---|
 | BO-{NNN} | {objective} | {how measured} |
 
-## 3. Stakeholders (BA-3 — see .specify/memory/roles.yml for named owners)
+## 3. Stakeholders (BA-3 — names from .specify/memory/roles.yml; ACT-NNN assigned by /specify-uc)
 
-| ACT-ID | Role | Team | Responsibility |
+| ACT-ID | Role | Name / Team | Responsibility |
 |---|---|---|---|
-| _(set by /specify-uc)_ | Product Owner | {team} | Approves requirements, /validate + /release sign-off |
-| _(set by /specify-uc)_ | Business Analyst | {team} | Requirements accuracy, /validate |
-| _(set by /specify-uc)_ | Tech Lead | {team} | Reviews architecture, /analyze risk review |
-| _(set by /specify-uc)_ | Architect | {team} | /plan-design (ADR entries) review (mvp+) |
-| _(set by /specify-uc)_ | Senior Developer | {team} | /plan-lld review (mvp+), implements |
-| _(set by /specify-uc)_ | QA Lead | {team} | Test cases, UAT sign-off, /release |
-| _(set by /specify-uc)_ | Security Officer | {team} | security-design review (mvp+/full) |
-| _(set by /specify-uc)_ | DevOps/SRE | {team} | Runbook, deployment, /release go-live |
-| _(set by /specify-uc)_ | UX Lead | {team} | UX/screen review (UI-facing features) |
+| _(set by /specify-uc)_ | Product Owner | {name from roles.yml — product_owner} | Approves requirements, /validate + /release sign-off |
+| _(set by /specify-uc)_ | Business Analyst | {name from roles.yml — business_analyst} | Requirements accuracy, /validate |
+| _(set by /specify-uc)_ | Tech Lead | {name from roles.yml — tech_lead} | Reviews architecture, /analyze risk review |
+| _(set by /specify-uc)_ | Architect | {name from roles.yml — architect} | /plan-design (ADR entries) review (mvp+) |
+| _(set by /specify-uc)_ | Senior Developer | {name from roles.yml — senior_developer} | /plan-lld review (mvp+), implements |
+| _(set by /specify-uc)_ | QA Lead | {name from roles.yml — qa_lead} | Test cases, UAT sign-off, /release |
+| _(set by /specify-uc)_ | Security Officer | {name from roles.yml — security_officer} | security-design review (mvp+/full) |
+| _(set by /specify-uc)_ | DevOps/SRE | {name from roles.yml — devops_sre} | Runbook, deployment, /release go-live |
+| _(set by /specify-uc)_ | UX Lead | {name from roles.yml — ux_lead} | UX/screen review (UI-facing features) |
 
-> ACT-NNN identifiers are assigned by `/specify-uc`. Human actors become Primary or Secondary actors; system integrations become System actors.
+> **ACT-NNN identifiers** are assigned by `/specify-uc`. The Name/Team column is filled by `/specify-brd` from `roles.yml`.
+> Omit rows for roles not listed in `roles.yml` (e.g. no UX Lead on a backend-only project).
 
 ## 4. Business Context
 ### Problem Statement
