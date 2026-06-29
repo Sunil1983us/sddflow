@@ -17,27 +17,29 @@
 
 ### 1a. Server-Side (Backend)
 
-| Control | Requirement | Status |
-|---|---|---|
-| AuthN | All endpoints require auth (NFR-{NNN}) | {Yes/No} |
-| AuthZ | Role/scope check before business logic | {Yes/No} |
-| Input validation | All request fields validated (no raw passthrough) | {Yes/No} |
-| Secrets | No secrets in code/config/logs — env vars or vault | {Yes/No} |
-| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} |
-| Transport | TLS enforced — no plaintext HTTP | {Yes/No} |
-| Dependency check | No known-critical CVEs in dependencies | {Yes/No} |
-| Error responses | No stack traces / internals leaked to caller | {Yes/No} |
+| Control | Requirement | Status | Evidence |
+|---|---|---|---|
+| AuthN | All endpoints require auth (NFR-{NNN}) | {Yes/No} | {TC-NNN / TASK-NNN / scan on {date}} |
+| AuthZ | Role/scope check before business logic | {Yes/No} | {TC-NNN controller test + constitution rule reference} |
+| Input validation | All request fields validated (no raw passthrough) | {Yes/No} | {TC-NNN validation tests} |
+| Secrets | No secrets in code/config/logs — env vars or vault | {Yes/No} | {secret-scan tool run on {date}, report at {location}} |
+| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} | {log review / SAST result on {date}} |
+| Transport | TLS enforced — no plaintext HTTP | {Yes/No} | {TC-NNN / infrastructure config reference} |
+| Dependency check | No known-critical CVEs in dependencies | {Yes/No} | {{tool} scan on {date} — {N} critical, {N} high CVEs, all resolved/accepted} |
+| Error responses | No stack traces / internals leaked to caller | {Yes/No} | {TC-NNN error response tests} |
 
 ### 1b. Client-Side (Frontend)
 
-| Control | Requirement | Status |
-|---|---|---|
-| XSS | All user-supplied content escaped/sanitized before render | {Yes/No} |
-| Token storage | Auth tokens stored per security policy (httpOnly cookie preferred over localStorage) | {Yes/No} |
-| CSRF | State-changing requests protected (CSRF token / SameSite cookies) | {Yes/No} |
-| Transport | All API calls over TLS — no mixed content | {Yes/No} |
-| Dependency check | No known-critical CVEs in npm dependencies | {Yes/No} |
-| Error responses | No stack traces / internals shown to user | {Yes/No} |
+| Control | Requirement | Status | Evidence |
+|---|---|---|---|
+| XSS | All user-supplied content escaped/sanitized before render | {Yes/No} | {TC-NNN / SAST result on {date}} |
+| Token storage | Auth tokens stored per security policy (httpOnly cookie preferred over localStorage) | {Yes/No} | {TC-NNN / architecture decision reference} |
+| CSRF | State-changing requests protected (CSRF token / SameSite cookies) | {Yes/No} | {TC-NNN / infrastructure config reference} |
+| Transport | All API calls over TLS — no mixed content | {Yes/No} | {TC-NNN / network config reference} |
+| Dependency check | No known-critical CVEs in npm dependencies | {Yes/No} | {{tool} scan on {date} — {N} critical, {N} high CVEs, all resolved/accepted} |
+| Error responses | No stack traces / internals shown to user | {Yes/No} | {TC-NNN error response tests} |
+
+> `Evidence` must reference a specific artefact (test case, scan report, task, or date). "Yes" without evidence is not accepted at mvp+ scope.
 
 ---
 
@@ -51,7 +53,18 @@
 | Dependency scan (SCA) | Block on critical/high CVEs | {tool, e.g. OWASP dependency-check} |
 | Secret scan | Block commit/PR containing secrets | {tool, e.g. gitleaks} |
 | Rate limiting | Per-client throttling on public endpoints | {approach} |
-| Audit logging | Security-relevant events logged with actor + outcome | {events list} |
+| Audit logging | Security-relevant events logged with actor + outcome | See trigger event list below |
+
+**Audit Trigger Events** — seed from use case Exception Paths (EP-NNN) in use-cases.md:
+
+| Event | Source EP/FR | Log Fields Required |
+|---|---|---|
+| Authentication failure | {EP-NNN — auth failed} | actor_id, endpoint, timestamp, reason |
+| Authorization denied | {EP-NNN — insufficient scope} | actor_id, resource, action, timestamp |
+| Input validation failure (security-relevant fields) | {EP-NNN — invalid input} | actor_id, field_name, timestamp |
+| {Additional event from EP-NNN} | {EP-NNN} | {fields} |
+
+> Populate this table from the Exception Paths in `use-cases.md §3`. Every EP that involves auth, data access, or external system failure is a candidate audit event.
 
 ### 2b. Client-Side (Frontend)
 

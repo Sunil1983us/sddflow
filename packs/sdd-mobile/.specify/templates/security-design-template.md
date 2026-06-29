@@ -13,16 +13,18 @@
 
 ## 1. Pilot Security Checklist (always)
 
-| Control | Requirement | Status |
-|---|---|---|
-| AuthN | All API calls require auth token (NFR-{NNN}) | {Yes/No} |
-| Secure local storage | Tokens/secrets in Keychain (iOS) / Keystore (Android) — never plain AsyncStorage/SharedPreferences | {Yes/No} |
-| Transport | TLS enforced for all API calls — no plaintext HTTP | {Yes/No} |
-| Input validation | All user input validated before use (no raw passthrough) | {Yes/No} |
-| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} |
-| Secrets in bundle | No API keys/secrets baked into app bundle — secure config injection at build time | {Yes/No} |
-| Dependency check | No known-critical CVEs in dependencies | {Yes/No} |
-| Error responses | No stack traces / internals shown to user | {Yes/No} |
+| Control | Requirement | Status | Evidence |
+|---|---|---|---|
+| AuthN | All API calls require auth token (NFR-{NNN}) | {Yes/No} | {TC-NNN / TASK-NNN / scan on {date}} |
+| Secure local storage | Tokens/secrets in Keychain (iOS) / Keystore (Android) — never plain AsyncStorage/SharedPreferences | {Yes/No} | {TC-NNN / code review reference} |
+| Transport | TLS enforced for all API calls — no plaintext HTTP | {Yes/No} | {TC-NNN / network config reference} |
+| Input validation | All user input validated before use (no raw passthrough) | {Yes/No} | {TC-NNN validation tests} |
+| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} | {log review / SAST result on {date}} |
+| Secrets in bundle | No API keys/secrets baked into app bundle — secure config injection at build time | {Yes/No} | {secret-scan tool run on {date}, report at {location}} |
+| Dependency check | No known-critical CVEs in dependencies | {Yes/No} | {{tool} scan on {date} — {N} critical, {N} high CVEs, all resolved/accepted} |
+| Error responses | No stack traces / internals shown to user | {Yes/No} | {TC-NNN error response tests} |
+
+> `Evidence` must reference a specific artefact (test case, scan report, task, or date). "Yes" without evidence is not accepted at mvp+ scope.
 
 ---
 
@@ -37,7 +39,18 @@
 | SAST | Static analysis on every PR | {tool from constitution Quality/Security} |
 | Dependency scan (SCA) | Block on critical/high CVEs | {tool, e.g. npm audit / pub outdated} |
 | Secret scan | Block commit/PR containing secrets | {tool, e.g. gitleaks} |
-| Audit logging | Security-relevant events logged with actor + outcome | {events list} |
+| Audit logging | Security-relevant events logged with actor + outcome | See trigger event list below |
+
+**Audit Trigger Events** — seed from use case Exception Paths (EP-NNN) in use-cases.md:
+
+| Event | Source EP/FR | Log Fields Required |
+|---|---|---|
+| Authentication failure | {EP-NNN — auth failed} | actor_id, screen, timestamp, reason |
+| Authorization denied | {EP-NNN — insufficient scope} | actor_id, resource, action, timestamp |
+| Jailbreak/root detection triggered | {EP-NNN — compromised device} | device_id, platform, os_version, timestamp |
+| {Additional event from EP-NNN} | {EP-NNN} | {fields} |
+
+> Populate this table from the Exception Paths in `use-cases.md §3`. Every EP that involves auth, data access, or external system failure is a candidate audit event.
 
 ---
 

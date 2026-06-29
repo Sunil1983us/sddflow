@@ -40,7 +40,18 @@
 | SAST | Static analysis on every PR | {tool from constitution Quality/Security} |
 | Dependency scan (SCA) | `npm audit` (or equivalent) — block on critical/high CVEs | {tool} |
 | Secret scan | Block commit/PR containing secrets | {tool, e.g. gitleaks} |
-| Audit logging | Security-relevant client events (login, permission denial) sent to backend/RUM with actor + outcome | {events list} |
+| Audit logging | Security-relevant client events (login, permission denial) sent to backend/RUM with actor + outcome | See trigger event list below |
+
+**Audit Trigger Events** — seed from use case Exception Paths (EP-NNN) in use-cases.md:
+
+| Event | Source EP/FR | Log Fields Required |
+|---|---|---|
+| Authentication failure | {EP-NNN — auth failed} | actor_id, route, timestamp, reason |
+| Authorization denied (client-side guard) | {EP-NNN — insufficient scope} | actor_id, resource, action, timestamp |
+| Input validation failure (security-relevant fields) | {EP-NNN — invalid input} | actor_id, field_name, timestamp |
+| {Additional event from EP-NNN} | {EP-NNN} | {fields} |
+
+> Populate this table from the Exception Paths in `use-cases.md §3`. Every EP that involves auth, data access, or external system failure is a candidate audit event.
 
 ---
 

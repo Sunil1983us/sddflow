@@ -20,19 +20,18 @@
 - [ ] Backend test suite green (unit + integration)
 - [ ] Frontend test suite green (unit + component + E2E)
 - [ ] Coverage ≥ gate (constitution Part 2) — backend and frontend
-- [ ] Security checklist passed (security-design.md section 1, +2 if mvp+ —
-      both server-side and client-side controls)
+- [ ] Security checklist passed — see `security-design.md §1` signed by {security_officer} on {date} (evidence required, not self-attestation; both server-side and client-side controls)
 - [ ] stories.md Traceability Matrix — every FR-NNN has ≥ 1 TC-NNN and is passing
 
 ---
 
 ## 2. UAT Plan
 
-| UC-NNN (from use-cases.md) | Scenario | Tester | Environment | Result |
-|---|---|---|---|---|
-| UC-{NNN} | {happy path — backend API} | {role} | {staging} | [ ] Pass [ ] Fail |
-| UC-{NNN} | {happy path — frontend screen/flow} | {role} | {staging} | [ ] Pass [ ] Fail |
-| UC-{NNN} | {unhappy path} | {role} | {staging} | [ ] Pass [ ] Fail |
+| UC-NNN (from use-cases.md) | Scenario | Tester | Environment | Environment Prerequisites | Result |
+|---|---|---|---|---|---|
+| UC-{NNN} | {happy path — backend API} | {role} | {staging} | {e.g. payment sandbox v2 configured, test card set loaded} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {happy path — frontend screen/flow} | {role} | {staging} | {e.g. feature flag X enabled, backend on staging v2} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {unhappy path} | {role} | {staging} | {e.g. mock integration set to timeout mode} | [ ] Pass [ ] Fail |
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
@@ -40,10 +39,24 @@
 
 ## 3. Deployment Plan
 
+### Strategy Selection
+
+Choose deployment strategy based on NFR requirements:
+
+| Condition | Strategy | Rationale |
+|---|---|---|
+| Zero-downtime required (NFR mandates < 0.1% error rate during deploy) | Blue-Green | Full environment swap with instant traffic cut-over; rollback = flip DNS back |
+| Gradual rollout preferred + monitoring in place to catch error-rate spikes | Canary | Shift 5% → 25% → 100% traffic with automated rollback trigger |
+| No strict uptime NFR + simple single-instance service | Rolling | Default — replace instances one at a time; simplest operational model |
+
+**Selected strategy for this release:** {rolling | blue-green | canary} — Reason: {NFR-NNN or explicit decision}
+
+### Steps
+
 | Step | Action | Owner | Rollback If Fails |
 |---|---|---|---|
 | 1 | Deploy DB migrations (V{NNN}) | {role} | Run down-script (runbook §6) |
-| 2 | Deploy backend application — {strategy: rolling/blue-green/canary} | {role} | Redeploy previous image tag |
+| 2 | Deploy backend application — {selected strategy} | {role} | Redeploy previous image tag |
 | 3 | Build + deploy frontend static assets (CDN/static host or backend-served) | {role} | Redeploy previous frontend build / revert CDN deploy (runbook §6a) |
 | 4 | Invalidate CDN cache (if applicable) | {role} | No action needed — previous assets still cached |
 | 5 | Smoke test (section 4) | {role} | Roll back steps 2-4 |
@@ -92,6 +105,10 @@
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| QA Lead (responsible — UAT sign-off) | Pending | |
+| Product Owner (accountable — go-live decision) | Pending | |
+| Tech Lead (consulted — technical readiness) | Pending | |
+| DevOps/SRE (consulted — deployment readiness) | Pending | |
