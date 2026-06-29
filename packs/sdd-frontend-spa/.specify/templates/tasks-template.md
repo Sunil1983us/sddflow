@@ -6,8 +6,8 @@
 
 ## Stack Reference (derived from constitution.md Part 2)
 > Kai fills this table before writing any task. File names, test commands,
-> and build commands below are placeholders — replace with real values from
-> constitution.md. Never hardcode a stack-specific idiom in a task.
+> and build commands in tasks.md must come from these values — never hardcode
+> a stack-specific idiom in a task.
 
 | Row | Value from constitution.md |
 |---|---|
@@ -44,18 +44,24 @@ Every task includes:
 - `Risk:` — R-NNN from analyze.summary.md §2 if this task carries a flagged risk
 - `Dependencies:`, `Estimated lines:`, `PR:`, `Files:`, `Acceptance criteria:`
 
+> **Numbering rule:** Kai assigns TASK-{NNN} numbers sequentially when
+> generating tasks.md — the numbers in this template are placeholders only.
+> Dependencies are expressed as descriptions (e.g. "scaffold task",
+> "domain models task") so that Kai replaces them with the real TASK-NNN
+> numbers once the full list is assembled.
+>
 > **File name rule:** `{Entity}`, `{Feature}`, `{ext}` are placeholders.
 > Kai derives real values from Stack Reference above + entity names in
-> data-model.summary.md (or srd.md if no data model). Never copy `.java`,
+> data-model.summary.md (or srd.md if no data-model). Never copy `.java`,
 > `.ts`, or any other extension from this template — read constitution first.
 
 ---
 
 ## Phase A — Foundation
 
-### TASK-001 — Project Scaffold + Dependencies
-Story: STORY-001
-Satisfies: NFR-001 (build), NFR-{N} (tech stack)
+### TASK-{NNN} — Project Scaffold + Dependencies
+Story: STORY-{NNN}
+Satisfies: NFR-{NNN} (build), NFR-{NNN} (tech stack)
 Dependencies: none
 Estimated lines: ~50 | PR: single
 Files:
@@ -67,12 +73,12 @@ Acceptance criteria:
   - [ ] `{build command}` completes with zero errors
   - [ ] Test runner executes with `{test command}` — zero tests, zero failures
 
-### TASK-002 — Domain Models / Entities
-Story: STORY-001
+### TASK-{NNN} — Domain Models / Entities
+Story: STORY-{NNN}
 Satisfies: FR-{NNN} (core data model)
 Verifies: TC-{NNN} (unit — model creation + field validation)
 Risk: R-{NNN} — add if analyze.md flags schema or data complexity
-Dependencies: TASK-001
+Dependencies: scaffold task
 Estimated lines: ~60 | PR: single
 Files:
   {Entity}.{ext}                        ← domain model / entity class
@@ -83,10 +89,10 @@ Acceptance criteria:
   - [ ] All status / enum values defined
   - [ ] Unit test covers creation and field-level constraints
 
-### TASK-003 — Contracts / Interfaces (Architecture Layer)
-Story: STORY-001
+### TASK-{NNN} — Contracts / Interfaces (Architecture Layer)
+Story: STORY-{NNN}
 Satisfies: Architecture — {layer pattern from design.summary.md, e.g. hexagonal / clean / layered / component}
-Dependencies: TASK-002
+Dependencies: domain models task
 Estimated lines: ~40 | PR: single
 Files:
   {Feature}UseCase.{ext} / {Feature}Service.{ext}     ← inbound contract
@@ -97,14 +103,14 @@ Acceptance criteria:
   - [ ] All outbound contracts (repository / gateway / port) defined
   - [ ] No implementation logic in interface / contract files
 
-### TASK-004 — Data Store Setup
+### TASK-{NNN} — Data Store Setup
 > Skip this task entirely if constitution.md Data Store row = "None".
-Story: STORY-002
+Story: STORY-{NNN}
 Satisfies: FR-{NNN} (persistence)
-Dependencies: TASK-002
+Dependencies: domain models task
 Estimated lines: ~30 | PR: single
 Files:
-  {migration — V001__{desc}.sql / {NNN}_{desc}.up.sql / {timestamp}_{desc}.py / schema.prisma}
+  {migration — V{NNN}__{desc}.sql / {NNN}_{desc}.up.sql / {timestamp}_{desc}.py / schema.prisma}
   (tool from constitution.md DB Migration row)
 Acceptance criteria:
   - [ ] All tables / collections / schemas created with correct types
@@ -115,15 +121,15 @@ Acceptance criteria:
 
 ## Phase B — Test Doubles / Stubs
 
-> One stub per outbound contract defined in TASK-003.
+> One stub per outbound contract defined in the contracts task (Phase A).
 > Stub tool = constitution.md Testing row (Jest mocks / Mockito / MockK / unittest.mock / mockito_dart).
 > Skip Phase B stub files if the project's test strategy uses a real embedded
 > data store for all tests (e.g. H2 in-memory / Testcontainers always-on).
 
-### TASK-005 — Test Data Factory
-Story: STORY-002
+### TASK-{NNN} — Test Data Factory
+Story: STORY-{NNN}
 Satisfies: Testing strategy (constitution.md Testing row)
-Dependencies: TASK-002
+Dependencies: domain models task
 Estimated lines: ~80 | PR: single
 Files:
   {Feature}Factory.{ext} / mock_{feature}.{ext} / fixtures/{feature}.{ext}
@@ -133,11 +139,11 @@ Acceptance criteria:
   - [ ] All domain models constructable from factory without boilerplate
   - [ ] All mock / stub responses constructable from factory
 
-### TASK-006 — {Integration} Stubs
-Story: STORY-003
+### TASK-{NNN} — {Integration} Stubs
+Story: STORY-{NNN}
 Satisfies: FR-{NNN} (integration contracts)
-Dependencies: TASK-003, TASK-005
-Estimated lines: ~120 | PR: SPLIT A/B if > {max_lines_per_pr from manifest.pr_rules}
+Dependencies: contracts task, test data factory task
+Estimated lines: ~{N} | PR: SPLIT A/B if > {max_lines_per_pr from manifest.pr_rules}
 Files:
   {Mock}{Integration1}.{ext}, {Mock}{Integration2}.{ext}
   (one file per outbound contract / external API from design.summary.md)
@@ -148,19 +154,19 @@ Acceptance criteria:
 
 ---
 
-## Phase C — Feature Implementation (one task per FR-NNN / Story)
+## Phase C — Feature Implementation (one task per Story / FR-NNN)
 
 > Kai generates one task per story from stories.md, ordered CRITICAL → HIGH → MEDIUM.
-> Use TASK-007, 008, 009 … filling in the actual story capability as the title.
+> Assign sequential TASK-{NNN} numbers continuing from the last Phase B number.
 > Flag SPLIT on any task where analyze.md carries a matching R-NNN high-risk item,
 > or where the estimated line count exceeds max_lines_per_pr.
 
-### TASK-007 — {Story capability, e.g. "Process Payment / Register User / Render Dashboard"}
-Story: STORY-001
+### TASK-{NNN} — {Story-001 capability, e.g. "Process Payment / Register User / Render Dashboard"}
+Story: STORY-{NNN}
 Satisfies: FR-{NNN}, FR-{NNN}
 Verifies: TC-{NNN}, TC-{NNN} (from qa-testcases.md, mvp+)
 Risk: R-{NNN} — {risk title from analyze.md, if applicable}
-Dependencies: TASK-003, TASK-005, TASK-006
+Dependencies: contracts task, test data factory task, integration stubs task
 Estimated lines: ~{N} | PR: {single | SPLIT A: … B: …}
 Files:
   {Feature}Service.{ext}          ← service / use-case implementation
@@ -172,12 +178,12 @@ Acceptance criteria:
   - [ ] Unit test passes with all dependencies mocked
   - [ ] EP-{NNN} exception paths produce correct error / recovery (from use-cases.md)
 
-### TASK-008 — {Next story capability}
-Story: STORY-002
+### TASK-{NNN} — {Story-002 capability}
+Story: STORY-{NNN}
 Satisfies: FR-{NNN}
 Verifies: TC-{NNN}
 Risk: R-{NNN} — {if flagged}
-Dependencies: TASK-007
+Dependencies: previous feature task (or contracts task if independent)
 Estimated lines: ~{N} | PR: single
 Files:
   {derived from Stack Reference + design.summary.md}
@@ -185,7 +191,7 @@ Acceptance criteria:
   - [ ] FR-{NNN}: {acceptance condition}
   - [ ] Unit test passes
 
-> … Kai continues TASK-009, 010 … for every remaining story in priority order …
+> … Kai generates TASK-{NNN}, TASK-{NNN} … for every remaining story in priority order …
 
 ---
 
@@ -199,10 +205,10 @@ Acceptance criteria:
 > — Mobile: screen + navigation + state binding
 > Derive naming convention from constitution.md Framework row.
 
-### TASK-{N} — Request / Response Types (DTOs / Schemas / Props)
+### TASK-{NNN} — Request / Response Types (DTOs / Schemas / Props)
 Story: STORY-{NNN}
 Satisfies: FR-{NNN} (API or UI contract)
-Dependencies: TASK-002
+Dependencies: domain models task
 Estimated lines: ~60 | PR: single
 Files:
   {Feature}Request.{ext}, {Feature}Response.{ext}, {Feature}ErrorResponse.{ext}
@@ -211,11 +217,11 @@ Acceptance criteria:
   - [ ] Response shape matches api-spec.summary.md (if present)
   - [ ] Types / records / schemas are immutable
 
-### TASK-{N} — {Controller / Resolver / Router / Page / Screen}
+### TASK-{NNN} — {Controller / Resolver / Router / Page / Screen}
 Story: STORY-{NNN}
 Satisfies: FR-{NNN}
 Verifies: TC-{NNN} (contract — request / response / render shape)
-Dependencies: TASK-003, previous types task
+Dependencies: contracts task, request/response types task
 Estimated lines: ~60 | PR: single
 Files:
   {Feature}Controller.{ext} / {Feature}Screen.{ext} / {Feature}Page.{ext}
@@ -226,10 +232,10 @@ Acceptance criteria:
   - [ ] Missing mandatory field returns validation error (400 or equivalent)
   - [ ] No business logic — delegates to service / use case only
 
-### TASK-{N} — Error / Exception Handling
+### TASK-{NNN} — Error / Exception Handling
 Story: STORY-{NNN}
 Satisfies: NFR-{NNN} (error handling)
-Dependencies: previous types task
+Dependencies: request/response types task
 Estimated lines: ~60 | PR: single
 Files:
   GlobalExceptionHandler.{ext} / ErrorBoundary.{ext} / error-handler.{ext}
@@ -243,11 +249,11 @@ Acceptance criteria:
 
 ## Phase E — Integration + End-to-End Tests
 
-### TASK-{N} — Integration / E2E Test Suite
+### TASK-{NNN} — Integration / E2E Test Suite
 Story: STORY-{NNN}
 Satisfies: All FRs — end-to-end verification
 Verifies: TC-{NNN} (integration — full input → data store → response path)
-Dependencies: All Phase C + Phase D tasks
+Dependencies: all Phase C + Phase D tasks
 Estimated lines: ~120 | PR: single
 Files:
   {Feature}IntegrationTest.{ext} / {feature}.e2e.{ext} / test_{feature}_integration.{ext}
@@ -255,17 +261,17 @@ Files:
 Acceptance criteria:
   - [ ] Full request → data store → response path verified end-to-end
   - [ ] Happy path completes with expected status / output
-  - [ ] All EP-NNN exception paths return correct errors (from use-cases.md)
-  - [ ] All TC-NNN from qa-testcases.md covered (mvp+)
+  - [ ] All EP-{NNN} exception paths return correct errors (from use-cases.md)
+  - [ ] All TC-{NNN} from qa-testcases.md covered (mvp+)
 
 ---
 
 ## Phase F — Infrastructure
 
-### TASK-{N} — Container + Runtime Config
+### TASK-{NNN} — Container + Runtime Config
 Story: STORY-{NNN}
 Satisfies: NFR-{NNN} (deployment)
-Dependencies: Integration test green
+Dependencies: integration test green
 Estimated lines: ~80 | PR: single
 Files:
   Dockerfile
@@ -278,7 +284,7 @@ Acceptance criteria:
   - [ ] No credentials or secrets in any committed file
 
 > **If constitution.md Orchestration row = Kubernetes:**
-> Add to this task (or split as a separate TASK-{N+1} if > max_lines_per_pr):
+> Add to this task (or split as a separate TASK-{NNN} if > max_lines_per_pr):
 > Files (Leo generates from k8s-manifest-template.md during /implement):
 >   k8s/deployment.yaml, k8s/service.yaml, k8s/hpa.yaml,
 >   k8s/networkpolicy.yaml, k8s/configmap.yaml, k8s/secret.yaml
@@ -297,10 +303,10 @@ Acceptance criteria:
 > Skip this phase entirely if no NFR has a measurable threshold.
 > Tool: k6 / Gatling / Locust / JMeter / Lighthouse — from constitution.md Testing row.
 
-### PERF-001 — Load Test: {NFR-NNN title}
+### PERF-{NNN} — Load Test: {NFR-NNN title}
 Story: STORY-{NNN}
 Satisfies: NFR-{NNN} ({threshold, e.g. P99 ≤ 500ms at 100 TPS})
-Dependencies: Integration test green, staging environment ready
+Dependencies: integration test green, staging environment ready
 Estimated lines: ~60 | PR: single
 Files: {perf/load-test-{nfr}.js | perf/LoadTest{NFR}.scala | tests/perf/test_{nfr}.py}
 Acceptance criteria:
@@ -314,13 +320,13 @@ Acceptance criteria:
 ## Summary
 | Phase | Tasks | Est. Lines | PRs |
 |---|---|---|---|
-| A Foundation | TASK-001 to {N} | ~{sum} | {count} |
-| B Test Doubles | TASK-{N} to {N} | ~{sum} | {count} |
-| C Feature Impl | TASK-{N} to {N} | ~{sum} | {count} |
-| D API / Presentation | TASK-{N} to {N} | ~{sum} | {count} |
-| E Integration | TASK-{N} | ~120 | 1 |
-| F Infrastructure | TASK-{N} | ~80 | {1-2} |
-| G Performance | PERF-001 to {N} | ~{sum} | {count} |
+| A Foundation | TASK-{NNN} to TASK-{NNN} | ~{sum} | {count} |
+| B Test Doubles | TASK-{NNN} to TASK-{NNN} | ~{sum} | {count} |
+| C Feature Impl | TASK-{NNN} to TASK-{NNN} | ~{sum} | {count} |
+| D API / Presentation | TASK-{NNN} to TASK-{NNN} | ~{sum} | {count} |
+| E Integration | TASK-{NNN} | ~120 | 1 |
+| F Infrastructure | TASK-{NNN} | ~80 | {1-2} |
+| G Performance | PERF-{NNN} to PERF-{NNN} | ~{sum} | {count} |
 | **Total** | **{N} tasks** | **~{sum}** | **{count} PRs** |
 
 ---
