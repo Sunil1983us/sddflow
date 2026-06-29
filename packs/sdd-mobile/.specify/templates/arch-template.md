@@ -1,99 +1,109 @@
-# Architecture Design
+# Architecture Document
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ---
 
 ## References
 | Source | Sections / IDs Used |
 |---|---|
-| srd.summary.md | {sections/IDs referenced} |
+| srd.summary.md | {FR-NNN, NFR-NNN referenced} |
+| clarify.summary.md | {resolved items applied} |
+| analyze.summary.md | {risk mitigations §2, NFR impact §5 applied} |
 
 ## 1. Architecture Overview
-{One paragraph — pattern chosen, key decisions, why.}
 
-## 2. Component Diagram
-```
-[Caller / Actor]
-      │
-      ▼
-[{Feature}Controller]          ← adapter/in/
-      │
-      ▼
-[{Feature}UseCase]             ← port/in/ (interface)
-      │
-      ▼
-[{Feature}Service]             ← service/
-      │
-      ├──▶ [{Integration}Port]  ← port/out/ (interface)
-      │         │
-      │         ▼
-      │    [Mock{Integration}Adapter]  ← mock/ @Profile(mock)
-      │    [Real{Integration}Adapter]  ← adapter/out/ @Profile(prod)
-      │
-      └──▶ [{Repository}Port]   ← port/out/
-                │
-                ▼
-           [Jpa{Entity}Adapter] ← adapter/out/
+### 1.1 Architecture Pattern
+{Chosen pattern: e.g. MVVM / Clean Architecture / Feature-Slice}
+{One paragraph — why this pattern fits mobile, state management approach, platform constraints}
+
+### 1.2 System Layers
+| Layer | Path | Responsibility |
+|---|---|---|
+| Screen | `screens/` | Route/navigation entry — composes UI, no logic |
+| ViewModel | `viewmodels/` | UI state, event handling, delegates to domain |
+| Use Case | `domain/usecases/` | Business rules — platform-agnostic |
+| Repository (interface) | `domain/repositories/` | Data contract |
+| Repository (impl) | `data/repositories/` | Network + local data coordination |
+| Remote Data Source | `data/remote/` | API client calls |
+| Local Data Source | `data/local/` | Local DB / cache |
+| Shared Components | `components/` | Reusable UI components |
+
+## 2. Component Structure
+```mermaid
+graph TD
+    Nav["Navigation\nnavigation/"]
+    Screen["{Feature}Screen\nscreens/"]
+    ViewModel["{Feature}ViewModel\nviewmodels/"]
+    UseCase["{Feature}UseCase\ndomain/usecases/"]
+    RepoIF["{Feature}Repository\ndomain/repositories/ (interface)"]
+    RepoImpl["{Feature}RepositoryImpl\ndata/repositories/"]
+    Remote["{Feature}RemoteDS\ndata/remote/"]
+    Local["{Feature}LocalDS\ndata/local/"]
+    API[("Backend API")]
+    LocalDB[("{Local DB}")]
+    CompA["{ComponentA}"]
+    CompB["{ComponentB}"]
+
+    Nav --> Screen
+    Screen --> ViewModel
+    Screen --> CompA
+    Screen --> CompB
+    ViewModel --> UseCase
+    UseCase --> RepoIF
+    RepoIF -.->|implements| RepoImpl
+    RepoImpl --> Remote
+    RepoImpl --> Local
+    Remote --> API
+    Local --> LocalDB
 ```
 
 ## 3. Layer Responsibilities
-| Layer | Package | Responsibility |
-|---|---|---|
-| Controller | controller/ | Receive request, delegate, return response |
-| Inbound Port | port/in/ | Use case interface |
-| Service | service/ | Business logic |
-| Outbound Port | port/out/ | Integration interface |
-| Mock Adapter | mock/ | @Profile("mock") test implementation |
-| Real Adapter | adapter/out/ | @Profile("prod") real implementation |
-| Domain | domain/ | Entities, value objects, enums |
-| DTO | dto/ | Request/response records |
+| Layer | Path | What it owns | What it must NOT do |
+|---|---|---|---|
+| Screen | `screens/` | Navigation entry, UI composition | State, API calls, business logic |
+| ViewModel | `viewmodels/` | UI state, user event handling | Direct network calls, rendering |
+| Use Case | `domain/usecases/` | Business rules | Platform code, framework deps |
+| Repository | `domain/repositories/` | Data contract | Implementation details |
+| Remote DS | `data/remote/` | API calls, response parsing | Business logic, caching policy |
+| Local DS | `data/local/` | DB/cache operations | Business logic |
+| Components | `components/` | Reusable UI rendering | State, API calls |
 
 ## 4. Key Design Decisions
-| ID | Decision | Rationale | ADR (mvp+) |
+| ID | Decision | Rationale | Alternatives Rejected |
 |---|---|---|---|
-| DEC-001 | {decision} | {why} | ADR-001 (if mvp+, else "—") |
-| DEC-002 | {decision} | {why} | ADR-002 (if mvp+, else "—") |
+| DEC-001 | {what was decided} | {why} | {what was rejected and why} |
+| DEC-002 | {what was decided} | {why} | {what was rejected and why} |
 
-Pilot scope: use DEC-NNN only — no ADR column value (ADRs are mvp+ only,
-generated at /plan-adr). MVP+: /plan-adr converts HIGH-impact DEC-NNN
-rows into full ADR-NNN records — fill the ADR column once generated.
+> **Pilot scope:** fill DEC-NNN only — ADRs are generated later by `/plan-adr` (mvp+ only).
+> **MVP+ scope:** `/plan-adr` converts each HIGH-impact DEC-NNN into a full ADR-NNN record.
 
-## 4a. NFR → Architecture Decision Mapping (AR-3)
-| NFR-NNN | Requirement | Design Constraint | Decision (DEC-NNN) |
+## 5. NFR → Architecture Decision Mapping
+| NFR-NNN | Requirement | Design Constraint Applied | Decision (DEC-NNN) |
 |---|---|---|---|
-| NFR-{NNN} | {requirement, from analyze.summary.md §5} | {what it forces} | DEC-{NNN} |
+| NFR-{NNN} | {measurable requirement from analyze.summary.md §5} | {what it forces in the design} | DEC-{NNN} |
 
-Every NFR flagged in analyze.summary.md §5 NFR Impact Analysis must appear here
-with the decision that satisfies it.
+Every NFR from `analyze.summary.md §5` must appear here with the decision that satisfies it.
 
-## 5. Flow — Happy Path
-```
-{Step 1: receive request}
-→ persist initial state
-→ call {integration 1}
-→ persist updated state
-→ call {integration 2}
-→ persist final state
-→ return response
-```
-
-## 6. Data Architecture
-| Table/Collection | Purpose |
-|---|---|
-| {name} | {what it stores} |
-
-## 7. Cross-Cutting Concerns
+## 6. Cross-Cutting Concerns
 | Concern | Approach |
 |---|---|
-| Auth | {approach} |
-| Logging | Structured JSON + trace ID on every line |
-| Error Handling | Global handler + structured error response |
-| Idempotency | {approach if applicable} |
+| Authentication | {token storage — Secure Enclave / Keychain — from constitution} |
+| Authorisation | {role-based screen access, feature flags} |
+| Logging | {structured logging + crash reporting — e.g. Firebase Crashlytics} |
+| Error Handling | {global error handler + user-facing error states in ViewModel} |
+| Offline/Resilience | {offline-first strategy — local cache → sync on reconnect} |
+| Observability | {performance monitoring — e.g. Firebase Performance, Xcode Instruments} |
 
 ---
 
 ## Approvals
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Architect | Pending | |
+| Tech Lead | Pending | |
+
+## Version History
+| Version | Date | Changed By | Summary | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

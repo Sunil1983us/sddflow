@@ -61,26 +61,29 @@
 
 ### 2.1 System Context (C4 L1)
 ```mermaid
-C4Context
-    title System Context — {Feature Name}
-    Person(user, "{Actor}", "{description}")
-    System(thisSystem, "{This Service}", "{description}")
-    System_Ext(extA, "{External System A}", "{description}")
-    Rel(user, thisSystem, "{action}")
-    Rel(thisSystem, extA, "{call}")
+graph TD
+    Actor(["{Actor}"])
+    ThisService["{This Service}"]
+    ExtA["{External System A}"]
+    ExtB["{External System B}"]
+
+    Actor -->|"{action}"| ThisService
+    ThisService -->|"{call}"| ExtA
+    ThisService -->|"{call}"| ExtB
 ```
 
 ### 2.2 Container Diagram (C4 L2)
 ```mermaid
-C4Container
-    title Container Diagram — {Feature Name}
-    Person(user, "{Actor}")
-    Container(api, "{API / Service}", "{technology}", "{description}")
-    ContainerDb(db, "{Database}", "{technology}", "{description}")
-    Container_Ext(ext, "{External System}", "{technology}")
-    Rel(user, api, "{protocol}")
-    Rel(api, db, "reads/writes")
-    Rel(api, ext, "{protocol}")
+graph TD
+    subgraph "{Service Name}"
+        API["{API / Service}"]
+        DB[("{Database}")]
+        Cache[("{Cache}")]
+    end
+    Actor(["{Actor}"]) -->|"{protocol}"| API
+    API -->|"reads/writes"| DB
+    API -->|"cache"| Cache
+    API -->|"{protocol}"| Ext["{External System}"]
 ```
 
 ### 2.3 Component Diagram (C4 L3)
