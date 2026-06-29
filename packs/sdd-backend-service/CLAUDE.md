@@ -162,9 +162,9 @@ detection and routes to the correct underlying command automatically.
 
 ## Command Gates
 <!-- shared:command-gates:start -->
-- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-DESIGN
-  → PLAN-LLD (mvp+) → TASK → IMPLEMENT → RELEASE
-- Each gate requires the previous step complete and reviewed.
+**Unified** (`plan_mode: unified`): SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → /plan-design → /plan-lld (mvp+) → TASK → IMPLEMENT → RELEASE
+**Separate** (`plan_mode: separate`): … → CLARIFY → /plan-arch → /plan-hld → /plan-adr (mvp+) → /plan-lld (mvp+) → TASK → IMPLEMENT → RELEASE
+Each gate requires the previous step complete and reviewed.
 <!-- shared:command-gates:end -->
 
 ## PR Contract
@@ -303,5 +303,6 @@ See `.github/prompts/orchestrate.prompt.md` for full reference.
 
 — or step by step —
 /specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd → /specify-doc {name}... → /checklist (mandatory mvp+, optional pilot)
-→ /validate → /analyze → /clarify → /plan-design
+→ /validate → /analyze → /clarify
+→ unified: /plan-design  |  separate: /plan-arch → /plan-hld → /plan-adr (mvp+)
 → /plan-lld (mvp+) → /task → /implement → /release

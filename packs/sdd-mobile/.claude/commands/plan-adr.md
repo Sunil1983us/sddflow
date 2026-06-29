@@ -1,8 +1,5 @@
 ---
-description: PLAN-ADR — now part of /plan-design (see CLAUDE.md)
+description: PLAN-ADR — Architecture Decision Records (separate mode, Step 3 of 3, mvp+ only)
 ---
 
-> **This command has been consolidated into `/plan-design`.**
-> `/plan-design` generates architecture, diagrams, API design, and ADR entries in a single document.
-
-Read and follow ALL instructions in `.github/prompts/plan-design.prompt.md` exactly as written, then execute them now.
+Read and follow ALL instructions in `.github/prompts/plan-adr.prompt.md` exactly as written, then execute them now.
