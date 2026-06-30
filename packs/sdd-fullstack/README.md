@@ -189,7 +189,7 @@ To upgrade `pilot → mvp` or `mvp → full`:
 
 | File | Purpose |
 |---|---|
-| `GETTING-STARTED.md` | Steps to first run |
+| `QUICKSTART.md` | Steps to first run |
 | `.specify/memory/constitution.md` | Universal rules + your tech stack |
 | `.specify/memory/roles.yml` | RACI — fill in reviewer names |
 | `.specify/contexts/CONTEXT-GUIDE.md` | How to write a good context file |

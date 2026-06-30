@@ -2,7 +2,7 @@
 
 This directory is **maintainer-only tooling**. It is never copied into a
 user's project — each `sdd-*` pack remains a fully self-contained zip
-(see `GETTING-STARTED.md` → "Copy Pack"). The marker comments described
+(see `QUICKSTART.md` → "Copy the Pack"). The marker comments described
 below are inert HTML comments if `_shared/` is absent, so packs work
 identically whether or not this directory exists alongside them.
 

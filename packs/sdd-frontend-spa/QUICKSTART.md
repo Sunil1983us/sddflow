@@ -6,6 +6,16 @@
 
 ---
 
+## Step 0 — Copy the Pack (first time only)
+
+```bash
+unzip {pack}.zip -d my-project   # or: cp -r packs/sdd-frontend-spa/. my-project
+cd my-project
+git init && git add . && git commit -m "chore: SDD framework"
+```
+
+---
+
 ## Step 1 — Initialize (once per project)
 
 **Mac / Linux:**
@@ -22,7 +32,7 @@ The script fills in your project name, scope, and feature, and creates your firs
 
 ---
 
-## Step 2 — Fill Your Context
+## Step 2 — Fill Your Context (15-30 min)
 
 Open `.specify/contexts/{your-feature}.md` and describe your feature:
 - What it does (2-3 sentences)
@@ -31,7 +41,21 @@ Open `.specify/contexts/{your-feature}.md` and describe your feature:
 - Tech stack (language, framework, database — fill what you know)
 - Non-functional requirements (performance, availability)
 
-**Not sure what to write?** Let your AI tool help — run `/create-context` and paste your rough notes.
+Must include a Tech Stack section, e.g.:
+```markdown
+## Tech Stack
+| Concern | Choice |
+|---|---|
+| Language | TypeScript |
+| Framework | React 18 |
+| State | Redux Toolkit |
+| Build | Vite |
+| Testing | Vitest + RTL |
+```
+
+**Not sure what to write?** Run `/create-context` and paste your rough notes — the agent drafts the file with you, any format welcome.
+
+(Optional but recommended) Edit `.specify/memory/roles.yml` — fill in names/teams for `product_owner`, `tech_lead`, `qa_lead`, etc., so review gates route to the right people.
 
 ---
 
@@ -69,21 +93,33 @@ Run specify
 
 ---
 
-## The 11-Command Flow
+## What Happens at /specify and GATE-1
+
+`/specify` generates **constitution Part 2 only** (DRAFT) — it reads your context and fills in Tech Stack, Core Principles, Domain Rules, and Never Do, flagging anything missing as `[MISSING — ask user]`.
+
+Nothing proceeds until **GATE-1**: open `constitution.md`, review every row, resolve any `[MISSING — ask user]` markers (your edits are authoritative), then tell the agent "Constitution Part 2 finalized".
+
+Spec documents are then generated one at a time: `/specify-brd` → `/specify-uc` → `/specify-srd` → `/specify-doc {name}` — each gated on the previous one's approval. `/specify-uc` produces a full Use Case Specification (Actors + Main Path + Alternate Paths + Exception Paths); the SRD derives every requirement from it.
+
+---
+
+## The Command Flow
 
 ```
-/specify      → generates constitution Part 2 (DRAFT) + all spec docs
-[GATE-1]      → YOU review and finalize constitution Part 2
-/checklist    → (optional) spec-quality check before business review
-/validate     → business sign-off on BRD + SRD
+/specify      → constitution Part 2 (DRAFT) — then GATE-1 (you finalize it)
+/specify-brd → /specify-uc → /specify-srd → /specify-doc {name}...
+/checklist    → (mandatory mvp+, optional pilot) spec-quality check
+/validate     → business sign-off on BRD + Use Cases + SRD
 /analyze      → risk, complexity, cross-artifact consistency
 /clarify      → surface and resolve all ambiguities
-/plan-arch    → architecture decisions + implementation plan
-/plan-hld     → high-level design + Mermaid diagrams
-/plan-lld     → low-level design (mvp+ only)
-/plan-adr     → architecture decision records (mvp+ only)
-/task         → stories + tasks + Jira CSV
-/implement    → code one task at a time with PR rules
+
+Then plan, depending on your manifest's plan_mode:
+  unified (default):  /plan-design  → one combined architecture + diagram doc
+  separate:            /plan-arch → /plan-hld → /plan-adr (mvp+ only)
+
+/plan-lld     → low-level design (mvp+ only — skipped at pilot)
+/task         → stories + tasks + Jira export
+/implement    → code one task at a time, with PR rules
 /release      → UAT plan + go-live gate
 
 Or run everything at once:
@@ -91,9 +127,9 @@ Or run everything at once:
 ```
 
 Pick your scope in `manifest.yml`:
-- **pilot** — runs: specify → validate → analyze → clarify → plan-arch → plan-hld → task → implement → release
-- **mvp** — adds: plan-lld, plan-adr, api-spec, data-model
-- **full** — adds: resilience, investigation, security-design (full STRIDE)
+- **pilot** — runs: specify → validate → analyze → clarify → plan → task → implement → release; skips `/plan-lld`, ADRs, extended docs
+- **mvp** — adds: `/plan-lld`, ADRs (separate mode), `api-spec.md`, `data-model.md`, QA test cases
+- **full** — adds: `resilience.md`, `investigation.md`, full STRIDE security design
 
 ---
 
@@ -113,7 +149,7 @@ Pick your scope in `manifest.yml`:
 
 | File | Purpose |
 |---|---|
-| `manifest.yml` | Project config (name, scope, feature, PR rules) |
+| `manifest.yml` | Project config (name, scope, feature, plan_mode, PR rules) |
 | `constitution.md` | Universal + project-specific rules — **the law** |
 | `PROMPT-GUIDE.md` | Full command reference with all prompts |
 | `summary-rules.md` | Controls how documents are read (auto/summary/full) |
@@ -131,4 +167,14 @@ Pick your scope in `manifest.yml`:
 
 **"The PR is too large"** → The agent will propose a SPLIT plan automatically. Confirm the split, then do sub-tasks one at a time.
 
-See [PROMPT-GUIDE.md](PROMPT-GUIDE.md) for the full reference.
+---
+
+## Read Next
+
+| File | When |
+|---|---|
+| `README.md` | Full command reference and project overview |
+| `PROMPT-GUIDE.md` | Full prompt text for every command |
+| `.specify/contexts/CONTEXT-GUIDE.md` | Writing a good context file |
+| `.specify/memory/roles.yml` | Fill in reviewer names for gates |
+| `docs/SUMMARY-GUIDE.md` | How AI-2 summary-first reading works |

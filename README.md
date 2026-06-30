@@ -95,7 +95,7 @@ npm install -g sdd-init && sdd init
 # 3. Open in your AI tool and run /specify
 ```
 
-See the pack's own `GETTING-STARTED.md` for the full walkthrough.
+See the pack's own `QUICKSTART.md` for the full walkthrough.
 
 ---
 

@@ -28,7 +28,15 @@ SETUP          → fill manifest.yml + write context.md
 /validate      → Business Sign-Off              [Maya]
 /analyze       → Technical Risk Report          [Ava]
 /clarify       → Clarification Report           [Rex]
+
+  Then ONE of, depending on manifest.yml plan_mode:
+  unified (default):
 /plan-design   → Architecture + Design Doc      [Ava]
+  separate:
+/plan-arch     → Architecture pattern + decisions [Ava]  ← Step 1 of 3
+/plan-hld      → System diagrams (C4, sequence) [Ava]    ← Step 2 of 3
+/plan-adr      → Architecture Decision Records  [Ava]    ← Step 3 of 3, mvp+ only
+
 /plan-lld      → Low Level Design               [Leo]     ← mvp+ only
 /task          → Stories + Tasks + QA Cases     [Kai]
 /implement     → Code                           [Leo]
@@ -303,7 +311,22 @@ Think of it as a pre-design Q&A session where all grey areas are turned black an
 
 ---
 
-## Step 10 — `/plan-design` → Architecture & Design Document
+## Step 10 — Planning: `plan_mode: unified` vs `plan_mode: separate`
+
+`manifest.yml` sets `plan_mode` (chosen during `setup.sh`). It controls **how** the
+architecture gets documented after `/clarify` — the content covered is the same
+either way, just split differently:
+
+- **`unified`** (default) — one command, one combined document: `/plan-design` → `design.md`.
+  Simpler for small teams and a single reviewer.
+- **`separate`** — three focused commands, each gated on the previous one's approval:
+  `/plan-arch` → `/plan-hld` → `/plan-adr`. Better when architecture, diagrams, and
+  decision records need separate sign-off from different reviewers.
+
+Both modes converge again at `/plan-lld` (Step 11), which reads whichever document(s)
+the chosen mode produced.
+
+### Step 10 (unified) — `/plan-design` → Architecture & Design Document
 
 | | |
 |---|---|
@@ -329,6 +352,82 @@ Think of it as the architect's drawings — before a single line of code is writ
 **Where to change it:**
 - Layout: `.specify/templates/design-template.md`  ← `_shared/full/`, run sync
 - Logic: `.github/prompts/plan-design.prompt.md`  ← `_shared/full/`, run sync
+
+---
+
+### Step 10a (separate) — `/plan-arch` → Architecture Document
+
+| | |
+|---|---|
+| **Who** | **Ava** — Software Architect |
+| **Output file** | `.specify/features/{feature}/arch.md` |
+| **Template** | `.specify/templates/arch-template.md` |
+| **Prompt file** | `.github/prompts/plan-arch.prompt.md` |
+| **Gate** | `clarify.summary.md` exists, all items RESOLVED; no unresolved `[ASSUMPTION-NNN]` (AI-8) |
+
+**What's inside arch.md — in plain English?**
+
+Step 1 of 3 in separate mode. Covers the same ground as the "Architecture Overview"
+part of unified `design.md`, on its own for focused review:
+
+- **Architecture Pattern** — the overall pattern chosen (microservice, monolith, event-driven, etc.) and why
+- **Layers** — how the system is divided (presentation, business logic, data, etc.)
+- **Key Decisions** — the major architectural choices and their rationale
+
+**Where to change it:**
+- Layout: `.specify/templates/arch-template.md`  ← `_shared/full/`, run sync
+- Logic: `.github/prompts/plan-arch.prompt.md`  ← `_shared/full/`, run sync
+
+---
+
+### Step 10b (separate) — `/plan-hld` → High Level Design Document
+
+| | |
+|---|---|
+| **Who** | **Ava** — Software Architect |
+| **Output file** | `.specify/features/{feature}/hld.md` |
+| **Template** | `.specify/templates/hld-template.md` |
+| **Prompt file** | `.github/prompts/plan-hld.prompt.md` |
+| **Gate** | `arch.md` status `Approved` |
+
+**What's inside hld.md — in plain English?**
+
+Step 2 of 3 in separate mode. The diagrams half of unified `design.md`, reviewed once
+`arch.md` is locked in:
+
+- **C4 Context Diagram** — the system in relation to its users and other systems
+- **Component Diagram** — the pieces of the system and how they connect
+- **Sequence Diagrams** — step-by-step diagrams of how the main use cases flow through the system
+- **State Machine Diagrams** — where relevant, the states an entity moves through
+
+**Where to change it:**
+- Layout: `.specify/templates/hld-template.md`  ← `_shared/full/`, run sync
+- Logic: `.github/prompts/plan-hld.prompt.md`  ← `_shared/full/`, run sync
+
+---
+
+### Step 10c (separate) — `/plan-adr` → Architecture Decision Records (mvp+ only)
+
+| | |
+|---|---|
+| **Who** | **Ava** — Software Architect |
+| **Output file** | `.specify/features/{feature}/adr.md` |
+| **Template** | `.specify/templates/adr-template.md` |
+| **Prompt file** | `.github/prompts/plan-adr.prompt.md` |
+| **Gate** | `hld.md` status `Approved` |
+| **Scope** | **SKIPPED for pilot** · Required for mvp and full |
+
+**What's inside adr.md — in plain English?**
+
+Step 3 of 3 in separate mode. The decision log, broken out from unified `design.md`
+so it can be reviewed and amended independently:
+
+- **Architecture Decision Records** — one entry per major decision: the options considered, the choice made, and why
+- **Consequences** — the trade-offs accepted by each decision
+
+**Where to change it:**
+- Layout: `.specify/templates/adr-template.md`  ← `_shared/full/`, run sync
+- Logic: `.github/prompts/plan-adr.prompt.md`  ← `_shared/full/`, run sync
 
 ---
 

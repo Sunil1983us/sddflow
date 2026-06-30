@@ -38,7 +38,7 @@ Each pack is **fully self-contained** — a user copies the whole folder and it 
 <pack>/
 ├── CLAUDE.md                         ← Agent startup instructions (the "brain" of the pack)
 ├── README.md                         ← User-facing overview and quick start
-├── GETTING-STARTED.md                ← Step-by-step first run guide
+├── QUICKSTART.md                     ← Step-by-step first run guide
 ├── setup.sh / setup.ps1              ← One-command initializer (fills manifest.yml)
 ├── .vscode/extensions.json           ← Recommends Mermaid + YAML extensions
 ├── .windsurfrules                    ← Windsurf AI tool support
@@ -57,7 +57,7 @@ Each pack is **fully self-contained** — a user copies the whole folder and it 
     └── integrations.yml.example      ← Jira/Confluence config template
 ```
 
-### 2.3 Commands Built (26 total)
+### 2.3 Commands Built (37 total)
 
 **SPECIFY group** — generates specification documents:
 | Command | Output | Who (persona) |
@@ -73,7 +73,10 @@ Each pack is **fully self-contained** — a user copies the whole folder and it 
 **PLAN group** — generates design documents:
 | Command | Output |
 |---|---|
-| `/plan-design` | Architecture + Diagrams + API Design + ADRs |
+| `/plan-design` | Architecture + Diagrams + API Design + ADRs (`plan_mode: unified`, default) |
+| `/plan-arch` | Architecture pattern, layers, key decisions — Step 1 of 3 (`plan_mode: separate`) |
+| `/plan-hld` | System diagrams: C4 context, sequence, state machine — Step 2 of 3 (`plan_mode: separate`) |
+| `/plan-adr` | Architecture Decision Records — Step 3 of 3 (`plan_mode: separate`, mvp+ only) |
 | `/plan-lld` | Detailed class/sequence design (mvp+ only) |
 
 **VALIDATE / ANALYZE / CLARIFY** — review pipeline:
@@ -103,6 +106,7 @@ Each pack is **fully self-contained** — a user copies the whole folder and it 
 | `/taskstoissues` | Exports tasks to Jira/GitHub Issues (CSV — manual import) |
 | `/jira-push` | Pushes Epic/Story/Task to Jira progressively via API at each gate |
 | `/orchestrate` | Runs the full pipeline end-to-end |
+| `/start` | Session startup — reads framework files, confirms project state |
 
 **Virtual Team (persona shortcuts)**:
 | Command | Routes to |
@@ -116,7 +120,7 @@ Each pack is **fully self-contained** — a user copies the whole folder and it 
 | `/riley` | release |
 | `/morgan` | orchestrate, jira-push |
 
-### 2.4 Document Templates (26 files in `.specify/templates/`)
+### 2.4 Document Templates (31 files in `.specify/templates/`; 33 for `sdd-fullstack`)
 
 Every SDD output is generated from a template. Templates live in `packs/_shared/full/.specify/templates/` and sync to all packs:
 
