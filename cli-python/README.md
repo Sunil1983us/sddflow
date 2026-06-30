@@ -119,6 +119,13 @@ Output:
 Create or update Jira issues from `stories.md` and `tasks.md`.  
 Hierarchy: **Feature → Story → Task** (configurable issue type names).
 
+> Need Epic and Stories created earlier — before tasks even exist, right after
+> BRD/Use Case/SRD approval? Use the agent's `/jira-push` slash command instead
+> (per-pack `.specify/scripts/jira-push.py`, config in `.specify/jira-config.yml`).
+> It pushes progressively at each SDLC gate (Epic → Story → Task → CHG) rather
+> than all at once. See each pack's `HOW-TO-USE.md → Jira & Confluence
+> Integration` for a side-by-side comparison.
+
 ```bash
 sdd jira push
 sdd jira push --dry-run          # print plan, no API calls

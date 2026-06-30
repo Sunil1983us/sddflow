@@ -483,6 +483,16 @@ Think of it as the flight plan for launch day.
 
 **Plain English:** Takes `stories.md` and `tasks.md` and formats them as an Epic → Story → Task hierarchy ready to be imported directly into Jira or GitHub Issues.
 
+### Jira API Push — `/jira-push`
+| | |
+|---|---|
+| **Who** | **Morgan** — Delivery Manager |
+| **Script** | `.specify/scripts/jira-push.py` (standalone — also runs from CI/CD, no AI session needed) |
+| **Config** | `.specify/jira-config.yml` (copy from `.specify/templates/jira-config-template.yml`) |
+| **Keys tracking** | `docs/jira/keys.yml` |
+
+**Plain English:** Unlike `/taskstoissues` (which produces a CSV for manual import) or `sdd jira push` (which pushes Story+Task together, once, after `/task`), `/jira-push` calls the Jira REST API directly and progressively — Epic after BRD approval, Stories after Use Cases/SRD approval, Tasks after `/task` approval, CHG tasks after `/change` approval. Field mapping (custom field IDs, per-level project keys/issue types, parent-link strategy) lives in `jira-config.yml`. Bare shorthand works: `/jira-push epic`, `/jira-push story`, `/jira-push task`, or full flag syntax `/jira-push --level all --dry-run`.
+
 ---
 
 ## Where Everything Lives — Quick Reference

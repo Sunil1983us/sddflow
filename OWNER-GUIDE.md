@@ -100,7 +100,8 @@ Each pack is **fully self-contained** — a user copies the whole folder and it 
 | `/check-review` | Polls Jira for reviewer approval |
 | `/bug-assess` | Diagnoses a bug report |
 | `/bug-fix` | Fixes an assessed bug |
-| `/taskstoissues` | Exports tasks to Jira/GitHub Issues |
+| `/taskstoissues` | Exports tasks to Jira/GitHub Issues (CSV — manual import) |
+| `/jira-push` | Pushes Epic/Story/Task to Jira progressively via API at each gate |
 | `/orchestrate` | Runs the full pipeline end-to-end |
 
 **Virtual Team (persona shortcuts)**:
@@ -113,7 +114,7 @@ Each pack is **fully self-contained** — a user copies the whole folder and it 
 | `/kai` | task, taskstoissues |
 | `/quinn` | checklist |
 | `/riley` | release |
-| `/morgan` | orchestrate |
+| `/morgan` | orchestrate, jira-push |
 
 ### 2.4 Document Templates (26 files in `.specify/templates/`)
 
@@ -135,6 +136,7 @@ Every SDD output is generated from a template. Templates live in `packs/_shared/
 | `adr-template.md` | `/plan-design` (ADR entries) |
 | `changeset-template.md` | `/change` |
 | `jira-export-template.md` | `/taskstoissues` |
+| `jira-config-template.yml` | `/jira-push` (copy to `.specify/jira-config.yml`) |
 | `constitution-amendment-template.md` | `/specify` (re-run) |
 
 ### 2.5 The Shared Sync System

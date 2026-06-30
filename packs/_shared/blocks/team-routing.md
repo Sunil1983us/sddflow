@@ -12,7 +12,7 @@ They read your message, check the pipeline state, and run the right step automat
 | **Kai** | Engineering Manager | Tasks, Stories, Export to Jira / GitHub Issues |
 | **Quinn** | QA Lead | Spec quality checklist |
 | **Riley** | Release Manager | Release planning and go-live |
-| **Morgan** | Delivery Manager | Full pipeline orchestration |
+| **Morgan** | Delivery Manager | Full pipeline orchestration, progressive Jira push |
 
 **Works three ways — all equivalent:**
 
