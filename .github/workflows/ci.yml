@@ -1,0 +1,76 @@
+name: Maintainer Repo CI
+# Tests this repo's own tooling (cli-python, cli, the _shared sync system) —
+# NOT a quality gate for end-user projects. That lives at
+# packs/{pack}/.github/workflows/quality-gate.yml and is copied into a
+# user's project by `sdd init` (see scaffold.py — full pack tree, no
+# exclusions).
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  sync-drift-check:
+    name: Shared blocks are in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run sync-blocks.sh
+        run: bash packs/_shared/sync-blocks.sh
+      - name: Fail if sync produced uncommitted changes
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::_shared/ and the packs are out of sync. Run 'bash packs/_shared/sync-blocks.sh' locally and commit the result."
+            exit 1
+          fi
+
+  yaml-validate:
+    name: Validate YAML templates and manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PyYAML
+        run: pip install pyyaml
+      - name: Validate every .yml file parses
+        run: |
+          status=0
+          while IFS= read -r -d '' f; do
+            python3 -c "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$f" \
+              || { echo "::error file=$f::Invalid YAML"; status=1; }
+          done < <(find . -name "*.yml" -not -path "*/node_modules/*" -not -path "*/.git/*" -print0)
+          exit $status
+
+  python-cli-sanity:
+    name: Python CLI installs and imports cleanly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install cli-python
+        run: pip install ./cli-python
+      - name: Byte-compile all modules
+        run: python3 -m py_compile $(find cli-python/sdd -name "*.py")
+      - name: Smoke test the entry point
+        run: sdd --help
+
+  node-cli-sanity:
+    name: Node CLI installs and runs cleanly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        working-directory: cli
+        run: npm install
+      - name: Smoke test the entry point
+        working-directory: cli
+        run: node bin/sdd.js --help

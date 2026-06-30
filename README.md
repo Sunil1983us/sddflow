@@ -22,8 +22,12 @@ Not sure which to use? See [`packs/CATALOG.md`](packs/CATALOG.md) for a decision
 
 ## CLI Tools
 
-Two CLIs are provided — identical behaviour, different runtimes. Both include
-Jira and Confluence integration.
+Two CLIs are provided, both built around the same `sdd init` / `sdd upgrade`
+core — but they are **not at feature parity**. The Python CLI is the
+full-featured implementation (Jira, Confluence, review gates, PR automation);
+the Node.js CLI currently covers scaffolding only (`init` / `upgrade`). Pick
+Python if you need Jira/Confluence integration; either works for basic
+pack scaffolding.
 
 ### Python CLI — `sdd-init`
 
