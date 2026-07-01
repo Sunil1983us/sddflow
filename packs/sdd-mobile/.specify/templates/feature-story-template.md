@@ -26,7 +26,7 @@
 
 ## Must Have Stories
 
-### STORY-001: {Story Title}
+### STORY-{NNN}: {Story Title}
 **As** {actor}
 **I want** {capability}
 **So that** {business value}
@@ -38,11 +38,11 @@
 - [ ] {Given/When/Then criterion 1}
 - [ ] {Given/When/Then criterion 2}
 
-**Tasks:** TASK-001, TASK-002, TASK-003
+**Tasks:** TASK-{NNN}, TASK-{NNN}, TASK-{NNN}
 
 ---
 
-### STORY-002: {Story Title}
+### STORY-{NNN}: {Story Title}
 **As** {actor}
 **I want** {capability}
 **So that** {business value}
@@ -53,13 +53,13 @@
 **Acceptance Criteria:**
 - [ ] {criterion}
 
-**Tasks:** TASK-004, TASK-005
+**Tasks:** TASK-{NNN}, TASK-{NNN}
 
 ---
 
 ## Should Have Stories
 
-### STORY-003: {Story Title}
+### STORY-{NNN}: {Story Title}
 **As** {actor}
 **I want** {capability}
 **So that** {business value}
@@ -70,7 +70,7 @@
 **Acceptance Criteria:**
 - [ ] {criterion}
 
-**Tasks:** TASK-006, TASK-007, TASK-008
+**Tasks:** TASK-{NNN}, TASK-{NNN}, TASK-{NNN}
 
 ---
 
@@ -86,20 +86,20 @@ _(No Could Have stories defined yet — add as scope expands)_
 FEATURE-001: {Feature Name}
 
 Sprint 1:
-  STORY-001: {title} [{N} pts]
-    TASK-001, TASK-002, TASK-003
-  STORY-002: {title} [{N} pts]
-    TASK-004, TASK-005
+  STORY-{NNN}: {title} [{N} pts]
+    TASK-{NNN}, TASK-{NNN}, TASK-{NNN}
+  STORY-{NNN}: {title} [{N} pts]
+    TASK-{NNN}, TASK-{NNN}
 
 Sprint 2:
-  STORY-003: {title} [{N} pts]
-    TASK-006, TASK-007, TASK-008
-  STORY-004: {title} [{N} pts]
-    TASK-009, TASK-010, TASK-011
+  STORY-{NNN}: {title} [{N} pts]
+    TASK-{NNN}, TASK-{NNN}, TASK-{NNN}
+  STORY-{NNN}: {title} [{N} pts]
+    TASK-{NNN}, TASK-{NNN}, TASK-{NNN}
 
 Sprint 3:
-  STORY-005: {title} [{N} pts]
-    TASK-012, TASK-013
+  STORY-{NNN}: {title} [{N} pts]
+    TASK-{NNN}, TASK-{NNN}
 ```
 
 ---
@@ -137,9 +137,9 @@ If team velocity is unknown: use 20 story points per sprint as a default estimat
 
 | Story | UC Traces | FRs | Tasks | Test Cases (TC-NNN) | Risks (R-NNN) | Sprint |
 |---|---|---|---|---|---|---|
-| STORY-001 | UC-001 | FR-001, FR-002 | TASK-001 to 003 | TC-001, TC-002 | R-001 | 1 |
-| STORY-002 | UC-001 | FR-003 | TASK-004, 005 | TC-003 | — | 1 |
-| STORY-003 | UC-002 | FR-004, FR-005 | TASK-006 to 008 | TC-004, TC-005 | R-002 | 2 |
+| STORY-{NNN} | UC-{NNN} | FR-{NNN}, FR-{NNN} | TASK-{NNN} to {NNN} | TC-{NNN}, TC-{NNN} | R-{NNN} | 1 |
+| STORY-{NNN} | UC-{NNN} | FR-{NNN} | TASK-{NNN}, {NNN} | TC-{NNN} | — | 1 |
+| STORY-{NNN} | UC-{NNN} | FR-{NNN}, FR-{NNN} | TASK-{NNN} to {NNN} | TC-{NNN}, TC-{NNN} | R-{NNN} | 2 |
 
 TC-NNN IDs come from qa-testcases.md (mvp+) — every FR must map to at
 least one TC-NNN before /release. R-NNN IDs come from analyze.summary.md

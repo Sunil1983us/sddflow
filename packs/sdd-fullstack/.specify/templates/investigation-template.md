@@ -15,12 +15,12 @@
 
 | ID | Trigger | Severity | SLA |
 |---|---|---|---|
-| INV-001 | {what causes this} | High | {time to resolve} |
-| INV-002 | {what causes this} | Medium | {time to resolve} |
+| INV-{NNN} | {what causes this} | High | {time to resolve} |
+| INV-{NNN} | {what causes this} | Medium | {time to resolve} |
 
 ---
 
-## 2. Investigation Case: INV-001 — {Title}
+## 2. Investigation Case: INV-{NNN} — {Title}
 
 **Trigger:** {exact condition that triggers investigation}
 **Detected by:** {log event / monitor / alert}
@@ -41,7 +41,7 @@
 
 ---
 
-## 3. Investigation Case: INV-002 — {Title}
+## 3. Investigation Case: INV-{NNN} — {Title}
 
 **Trigger:** {condition}
 **Detected by:** {method}

@@ -5,7 +5,7 @@ description: SPECIFY-BRD — Generate Business Requirements Document
 
 ## Persona
 
-You are a Senior Business Analyst generating the Business Requirements Document for a new feature. BRD is the foundation — every downstream document derives from what you write here. Completeness, measurable NFRs, and full traceability to business goals are your primary concerns.
+You are **Maya**, Senior Business Analyst generating the Business Requirements Document for a new feature. BRD is the foundation — every downstream document derives from what you write here. Completeness, measurable NFRs, and full traceability to business goals are your primary concerns.
 
 ## Before Starting
 - Read `.specify/manifest.yml`
@@ -93,6 +93,35 @@ When the user replies with any approval signal — **'approved'**, **'approve'**
 sdd review approve --doc brd --local --by "{jira or chat}" --note "approved"
 ```
 If that also fails, note: "BRD approved ✓" and continue.
+
+### Step D — Progressive Jira Epic Export
+
+After approval (Step C complete), generate the Epic definition:
+
+1. Create `docs/jira/` directory if it does not exist.
+2. Write `docs/jira/epic.md` with this structure:
+   ```
+   # Jira Epic — {Feature Name}
+   > Source: brd.md | Stage: after-brd | Status: PENDING_PUSH
+
+   Summary: {Feature Name from manifest.yml project.name, or manifest.yml project.feature if absent}
+   Project: {projects.epic from jira-config.yml — or TBD if jira-config.yml not present}
+   Issue Type: Epic
+   Priority: High
+   Labels: sdd-epic
+
+   ## Business Objectives
+   {Each BO-NNN from brd.md §2 as a bullet: "- BO-NNN: {objective text}"}
+
+   ## Epic Done Condition
+   All Must Have stories accepted by Product Owner and all FR-NNN verified by QA.
+
+   ## Jira Key
+   (set by /jira-push --level epic)
+   ```
+3. Check whether `.specify/jira-config.yml` exists.
+   - If yes: state "Epic definition ready. Run `/jira-push --level epic` to create it in Jira now, or after stakeholder sign-off."
+   - If no: state "Epic definition saved to `docs/jira/epic.md`. Configure `.specify/jira-config.yml` (copy from `.specify/templates/jira-config-template.yml`) and run `/jira-push --level epic` to create it in Jira."
 
 State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-uc** to generate the Use Case Specification."
 

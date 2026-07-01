@@ -106,3 +106,23 @@ After every doc: write .summary.md — max SUMMARY_MAX_LINES.
 
 ## PR Rule
 Estimate → split if >max_lines_per_pr → confirm → one at a time
+
+## Virtual Team — Address by Name
+
+Address any team member by name — no slash command needed:
+
+| Name | Role | Say their name for… |
+|---|---|---|
+| **Maya** | Business Analyst | BRD, Use Cases, Validate, Context, Change Request |
+| **Rex** | Requirements Engineer | SRD, Clarify |
+| **Ava** | Software Architect | Analyze, Design, Security, API Spec, Data Model |
+| **Leo** | Lead Developer | LLD, Implement, Pre-review, Bug fix |
+| **Kai** | Engineering Manager | Tasks, Export to Jira |
+| **Quinn** | QA Lead | Checklist |
+| **Riley** | Release Manager | Release |
+| **Morgan** | Delivery Manager | Orchestrate (full pipeline) |
+
+Examples: "Maya, create BRD for payments" · "Ava, design the auth module" · "Leo, implement TASK-001"
+
+When a name is addressed, read and follow `.github/prompts/{name}.prompt.md` exactly.
+Slash commands also work: `/maya`, `/rex`, `/ava`, `/leo`, `/kai`, `/quinn`, `/riley`, `/morgan`

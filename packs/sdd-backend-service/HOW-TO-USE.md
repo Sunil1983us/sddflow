@@ -86,6 +86,7 @@ The SDD pack works with any AI coding assistant. How you invoke a command depend
 | `/implement` | Code one task at a time | Always |
 | `/release` | UAT + deployment plan + go-live gate | Always |
 | `/orchestrate` | Drive full pipeline automatically — pauses at every human gate | Optional |
+| `/jira-push` | Push Epic/Story/Task/CHG to Jira progressively at each gate | Optional |
 
 ---
 
@@ -571,6 +572,41 @@ sdd jira push --dry-run          # preview the plan without calling the API
 sdd jira push --feature payments # push a specific feature (default: from manifest.yml)
 ```
 Pushes are idempotent — re-running updates existing issues rather than creating duplicates (keyed on `sdd:STORY-001` labels).
+
+---
+
+### Jira — Progressive Push (`/jira-push`)
+
+`sdd jira push` above pushes Story+Task together, once, after `/task`. If you
+want Jira issues created earlier — Epic right after BRD approval, Stories
+after Use Cases/SRD approval — use the agent's `/jira-push` slash command
+instead. It calls a standalone script (`.specify/scripts/jira-push.py`) that
+also runs unattended from CI/CD.
+
+| | `sdd jira push` (CLI) | `/jira-push` (slash command) |
+|---|---|---|
+| Config | `.specify/integrations.yml` + `~/.sdd/config.yml` | `.specify/jira-config.yml` (copy from `jira-config-template.yml`) |
+| Timing | Once, after `/task` | Progressive: Epic → BRD, Story → Use Cases/SRD, Task → `/task`, CHG → `/change` |
+| Hierarchy | Story + Task only | Full Epic → Story → Task → CHG |
+| Field mapping | `integrations.yml → jira.custom_fields` | `jira-config.yml → field_mappings` (per-level project keys, issue types, `customfield_NNNNN` IDs) |
+
+**Setup:**
+```bash
+cp .specify/templates/jira-config-template.yml .specify/jira-config.yml
+# edit jira-config.yml: project keys, issue types, custom field IDs
+export JIRA_EMAIL=you@company.com
+export JIRA_API_TOKEN=your-api-token
+```
+
+**Usage** — bare shorthand or full flag syntax, run as your pipeline advances:
+```
+/jira-push epic          # after /specify-brd approval
+/jira-push story         # after /specify-uc or /specify-srd approval
+/jira-push task          # after /task approval
+/jira-push chg CR-001    # after /change approval
+/jira-push --level all --dry-run   # preview every level before pushing for real
+```
+Keys created/updated are tracked in `docs/jira/keys.yml`.
 
 ---
 

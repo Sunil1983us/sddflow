@@ -19,23 +19,37 @@
 - [ ] All PRs referenced TASK-NNN/CHG-NNN (constitution Git rule)
 - [ ] Test suite green (unit + screen/component + E2E)
 - [ ] Coverage ≥ gate (constitution Part 2)
-- [ ] Security checklist passed (security-design.md section 1, +2 if mvp+)
+- [ ] Security checklist passed — see `security-design.md §1` signed by {security_officer} on {date} (evidence required, not self-attestation)
 - [ ] stories.md Traceability Matrix — every FR-NNN has ≥ 1 TC-NNN and is passing
 
 ---
 
 ## 2. UAT Plan
 
-| UC-NNN (from use-cases.md) | Scenario | Tester | Device/OS Target | Environment | Result |
-|---|---|---|---|---|---|
-| UC-001 | {happy path} | {role} | {e.g. iPhone 15 / iOS 17} | {staging/TestFlight} | [ ] Pass [ ] Fail |
-| UC-002 | {unhappy path — offline} | {role} | {e.g. Pixel 8 / Android 14} | {staging/internal track} | [ ] Pass [ ] Fail |
+| UC-NNN (from use-cases.md) | Scenario | Tester | Device/OS Target | Environment | Environment Prerequisites | Result |
+|---|---|---|---|---|---|---|
+| UC-{NNN} | {happy path} | {role} | {e.g. iPhone 15 / iOS 17} | {staging/TestFlight} | {e.g. push notifications enabled, backend on staging v2} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {unhappy path — offline} | {role} | {e.g. Pixel 8 / Android 14} | {staging/internal track} | {e.g. airplane mode enabled, offline sync queue seeded} | [ ] Pass [ ] Fail |
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
 ---
 
 ## 3. Store Release Plan
+
+### Strategy Selection
+
+Choose release strategy based on risk and NFR requirements:
+
+| Condition | Strategy | Rationale |
+|---|---|---|
+| High-risk change, large user base | Staged rollout (1% → 10% → 50% → 100%) | Limit blast radius; automated rollback on crash-rate threshold breach |
+| OTA-eligible change (JS/config only, React Native/EAS) | OTA update (CodePush/EAS Update) | Instant delivery, instant rollback — no store review wait |
+| Standard release, acceptable downtime window | Full rollout | Default — submit to store, release to 100% on approval |
+
+**Selected strategy for this release:** {staged rollout | OTA update | full rollout} — Reason: {NFR-NNN or explicit decision}
+
+### Steps
 
 | Step | Action | Owner | Rollback If Fails |
 |---|---|---|---|
@@ -75,7 +89,7 @@
 
 | BO-NNN | Success Metric (from BRD) | Measured Result | Met? |
 |---|---|---|---|
-| BO-001 | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
+| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
 
 ---
 
@@ -87,6 +101,10 @@ rollback, store-listing rollback / emergency hotfix path}
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| QA Lead (responsible — UAT sign-off) | Pending | |
+| Product Owner (accountable — go-live decision) | Pending | |
+| Tech Lead (consulted — technical readiness) | Pending | |
+| DevOps/SRE (consulted — deployment readiness) | Pending | |

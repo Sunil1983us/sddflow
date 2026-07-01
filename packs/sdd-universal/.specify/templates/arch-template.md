@@ -1,108 +1,105 @@
-# Architecture Design
+# Architecture Document
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ---
 
 ## References
-
 | Source | Sections / IDs Used |
 |---|---|
-| srd.summary.md | {sections/IDs referenced} |
+| srd.summary.md | {FR-NNN, NFR-NNN referenced} |
 | clarify.summary.md | {resolved items applied} |
-| analyze.summary.md | {risk mitigations §2 / NFR mapping §5 applied} |
+| analyze.summary.md | {risk mitigations §2, NFR impact §5 applied} |
 
 ## 1. Architecture Overview
-{One paragraph — pattern chosen, key decisions, why.}
 
-## 2. Component Diagram
-```
-[Caller / Actor]
-      │
-      ▼
-[{Feature}Controller]          ← adapter/in/
-      │
-      ▼
-[{Feature}UseCase]             ← port/in/ (interface)
-      │
-      ▼
-[{Feature}Service]             ← service/
-      │
-      ├──▶ [{Integration}Port]  ← port/out/ (interface)
-      │         │
-      │         ▼
-      │    [Mock{Integration}Adapter]  ← mock/ @Profile(mock)
-      │    [Real{Integration}Adapter]  ← adapter/out/ @Profile(prod)
-      │
-      └──▶ [{Repository}Port]   ← port/out/
-                │
-                ▼
-           [Jpa{Entity}Adapter] ← adapter/out/
+### 1.1 Architecture Pattern
+{Chosen pattern: e.g. Hexagonal / Layered / Event-Driven / CQRS}
+{One paragraph — why this pattern fits this project, what constraints drove the choice}
+
+### 1.2 System Layers
+| Layer | Package Path | Responsibility |
+|---|---|---|
+| Controller | `controller/` | Receive request, delegate to use case, return response |
+| Inbound Port | `port/in/` | Use case interface — business operations |
+| Service | `service/` | Business logic implementation |
+| Outbound Port | `port/out/` | Integration interface — dependency inversion |
+| Mock Adapter | `mock/` | `@Profile("mock")` — test and dev implementation |
+| Real Adapter | `adapter/out/` | `@Profile("prod")` — production implementation |
+| Domain | `domain/` | Entities, value objects, enums |
+| DTO | `dto/` | Request / response records |
+
+## 2. Component Structure
+```mermaid
+graph TD
+    Actor(["Actor / Caller"])
+    Controller["{Feature}Controller\ncontroller/"]
+    UseCase["{Feature}UseCase\nport/in/ (interface)"]
+    Service["{Feature}Service\nservice/"]
+    IntPort["{Integration}Port\nport/out/ (interface)"]
+    RepoPort["{Repository}Port\nport/out/ (interface)"]
+    MockAdapter["Mock{Integration}Adapter\nmock/"]
+    RealAdapter["Real{Integration}Adapter\nadapter/out/"]
+    JpaAdapter["Jpa{Entity}Adapter\nadapter/out/"]
+    DB[("{Database}")]
+
+    Actor --> Controller
+    Controller --> UseCase
+    Service -.->|implements| UseCase
+    Service --> IntPort
+    Service --> RepoPort
+    IntPort -.->|mock| MockAdapter
+    IntPort -.->|prod| RealAdapter
+    RepoPort --> JpaAdapter
+    JpaAdapter --> DB
 ```
 
 ## 3. Layer Responsibilities
-
-| Layer | Package | Responsibility |
-|---|---|---|
-| Controller | controller/ | Receive request, delegate, return response |
-| Inbound Port | port/in/ | Use case interface |
-| Service | service/ | Business logic |
-| Outbound Port | port/out/ | Integration interface |
-| Mock Adapter | mock/ | @Profile("mock") test implementation |
-| Real Adapter | adapter/out/ | @Profile("prod") real implementation |
-| Domain | domain/ | Entities, value objects, enums |
-| DTO | dto/ | Request/response records |
+| Layer | Package Path | What it owns | What it must NOT do |
+|---|---|---|---|
+| Controller | `controller/` | HTTP request parsing, response mapping | Business logic, DB calls |
+| Inbound Port | `port/in/` | Use case contract | Implementation |
+| Service | `service/` | Business rules, orchestration | Direct DB/HTTP calls |
+| Outbound Port | `port/out/` | Integration contract | Implementation |
+| Adapter (out) | `adapter/out/` | External system calls | Business logic |
+| Domain | `domain/` | Entities, value objects | Framework dependencies |
+| DTO | `dto/` | Request/response structure | Business rules |
 
 ## 4. Key Design Decisions
-
-| ID | Decision | Rationale | ADR (mvp+) |
+| ID | Decision | Rationale | Alternatives Rejected |
 |---|---|---|---|
-| DEC-001 | {decision} | {why} | ADR-001 (if mvp+, else "—") |
-| DEC-002 | {decision} | {why} | ADR-002 (if mvp+, else "—") |
+| DEC-{NNN} | {what was decided} | {why} | {what was rejected and why} |
+| DEC-{NNN} | {what was decided} | {why} | {what was rejected and why} |
 
-Pilot scope: use DEC-NNN only — no ADR column value (ADRs are mvp+ only,
-generated at /plan-adr). MVP+: /plan-adr converts HIGH-impact DEC-NNN
-rows into full ADR-NNN records — fill the ADR column once generated.
+> **Pilot scope:** fill DEC-NNN only — ADRs are generated later by `/plan-adr` (mvp+ only).
+> **MVP+ scope:** `/plan-adr` converts each HIGH-impact DEC-NNN into a full ADR-NNN record.
 
-## 4a. NFR → Architecture Decision Mapping (AR-3)
-
-| NFR-NNN | Requirement | Design Constraint | Decision (DEC-NNN) |
+## 5. NFR → Architecture Decision Mapping
+| NFR-NNN | Requirement | Design Constraint Applied | Decision (DEC-NNN) |
 |---|---|---|---|
-| NFR-{NNN} | {requirement, from analyze.summary.md §5} | {what it forces} | DEC-{NNN} |
+| NFR-{NNN} | {measurable requirement from analyze.summary.md §5} | {what it forces in the design} | DEC-{NNN} |
 
-Every NFR flagged in analyze.summary.md §5 NFR Impact Analysis must appear here
-with the decision that satisfies it.
+Every NFR from `analyze.summary.md §5` must appear here with the decision that satisfies it.
 
-## 5. Flow — Happy Path
-```
-{Step 1: receive request}
-→ persist initial state
-→ call {integration 1}
-→ persist updated state
-→ call {integration 2}
-→ persist final state
-→ return response
-```
-
-## 6. Data Architecture
-
-| Table/Collection | Purpose |
-|---|---|
-| {name} | {what it stores} |
-
-## 7. Cross-Cutting Concerns
-
+## 6. Cross-Cutting Concerns
 | Concern | Approach |
 |---|---|
-| Auth | {approach} |
-| Logging | Structured JSON + trace ID on every line |
-| Error Handling | Global handler + structured error response |
-| Idempotency | {approach if applicable} |
+| Authentication | {token type, validation point — from constitution} |
+| Authorisation | {RBAC / scope checks — where enforced} |
+| Logging | Structured JSON + correlation ID on every log line |
+| Error Handling | Global exception handler + error envelope response |
+| Idempotency | {approach if applicable — e.g. Idempotency-Key header + dedup table} |
+| Observability | {metrics / tracing approach — e.g. Micrometer + Prometheus} |
 
 ---
 
 ## Approvals
-
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Architect | Pending | |
+| Tech Lead | Pending | |
+
+## Version History
+| Version | Date | Changed By | Summary | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

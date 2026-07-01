@@ -19,23 +19,37 @@
 - [ ] All PRs referenced TASK-NNN/CHG-NNN (constitution Git rule)
 - [ ] Test suite green (unit + component + E2E)
 - [ ] Coverage ≥ gate (constitution Part 2)
-- [ ] Security checklist passed (security-design.md section 1, +2 if mvp+)
+- [ ] Security checklist passed — see `security-design.md §1` signed by {security_officer} on {date} (evidence required, not self-attestation)
 - [ ] stories.md Traceability Matrix — every FR-NNN has ≥ 1 TC-NNN and is passing
 
 ---
 
 ## 2. UAT Plan
 
-| UC-NNN (from use-cases.md) | Scenario | Tester | Browser/Device Target | Environment | Result |
-|---|---|---|---|---|---|
-| UC-001 | {happy path} | {role} | {e.g. Chrome desktop / iOS Safari} | {staging} | [ ] Pass [ ] Fail |
-| UC-002 | {unhappy path} | {role} | {e.g. Firefox desktop / Android Chrome} | {staging} | [ ] Pass [ ] Fail |
+| UC-NNN (from use-cases.md) | Scenario | Tester | Browser/Device Target | Environment | Environment Prerequisites | Result |
+|---|---|---|---|---|---|---|
+| UC-{NNN} | {happy path} | {role} | {e.g. Chrome desktop / iOS Safari} | {staging} | {e.g. feature flag X enabled, mock API set to success mode} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {unhappy path} | {role} | {e.g. Firefox desktop / Android Chrome} | {staging} | {e.g. mock API set to error mode} | [ ] Pass [ ] Fail |
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
 ---
 
 ## 3. Static Deploy Plan
+
+### Strategy Selection
+
+Choose deployment strategy based on NFR requirements:
+
+| Condition | Strategy | Rationale |
+|---|---|---|
+| Zero-downtime required + instant rollback | Blue-Green (dual CDN origins) | Swap CDN origin between two identical deployments; rollback = swap back |
+| Gradual rollout with traffic split | Canary (CDN routing rules) | Route {N}% traffic to new build, monitor errors, shift to 100% |
+| Standard release, CDN invalidation acceptable | Rolling (single CDN deploy) | Default — replace assets, invalidate cache, monitor post-deploy |
+
+**Selected strategy for this release:** {rolling | blue-green | canary} — Reason: {NFR-NNN or explicit decision}
+
+### Steps
 
 | Step | Action | Owner | Rollback If Fails |
 |---|---|---|---|
@@ -76,7 +90,7 @@
 
 | BO-NNN | Success Metric (from BRD) | Measured Result | Met? |
 |---|---|---|---|
-| BO-001 | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
+| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
 
 ---
 
@@ -88,6 +102,10 @@ rollback, redeploy previous static build, feature-flag revert}
 ---
 
 ## Approvals
+
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| QA Lead (responsible — UAT sign-off) | Pending | |
+| Product Owner (accountable — go-live decision) | Pending | |
+| Tech Lead (consulted — technical readiness) | Pending | |
+| DevOps/SRE (consulted — deployment readiness) | Pending | |

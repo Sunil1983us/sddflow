@@ -13,6 +13,30 @@ you review and finalize it (GATE-1) before work continues.
 
 ---
 
+## Virtual Team
+
+Your SDD project comes with a named team. Address them directly in any AI tool:
+
+| Name | Role | Say their name for… |
+|---|---|---|
+| **Maya** | Business Analyst | BRD · Use Cases · Validate · Context · Change Request |
+| **Rex** | Requirements Engineer | SRD · Clarify |
+| **Ava** | Software Architect | Analyze · Design · Security · API Spec · Data Model |
+| **Leo** | Lead Developer | LLD · Implement · Pre-review · Bug fix |
+| **Kai** | Engineering Manager | Tasks · Stories · Export to Jira |
+| **Quinn** | QA Lead | Spec quality checklist |
+| **Riley** | Release Manager | Release planning and go-live |
+| **Morgan** | Delivery Manager | Full pipeline (`/orchestrate`) |
+
+**Three ways to invoke — all work in all AI tools:**
+```
+/maya                                    ← slash command (Claude Code + Copilot)
+Maya, create BRD for the payment feature ← natural language (any AI tool)
+Hey Ava, I need a design for auth        ← conversational (any AI tool)
+```
+
+---
+
 ## Quick Start
 
 ```bash
@@ -165,7 +189,7 @@ To upgrade `pilot → mvp` or `mvp → full`:
 
 | File | Purpose |
 |---|---|
-| `GETTING-STARTED.md` | Steps to first run |
+| `QUICKSTART.md` | Steps to first run |
 | `.specify/memory/constitution.md` | Universal rules + your tech stack |
 | `.specify/memory/roles.yml` | RACI — fill in reviewer names |
 | `.specify/contexts/CONTEXT-GUIDE.md` | How to write a good context file |

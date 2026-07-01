@@ -30,8 +30,8 @@
 
 | UC-NNN (from use-cases.md) | Scenario | Tester | Environment | Environment Prerequisites | Result |
 |---|---|---|---|---|---|
-| UC-001 | {happy path} | {role} | {staging} | {e.g. payment sandbox v2 configured, test card set loaded} | [ ] Pass [ ] Fail |
-| UC-002 | {unhappy path} | {role} | {staging} | {e.g. mock integration set to timeout mode} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {happy path} | {role} | {staging} | {e.g. payment sandbox v2 configured, test card set loaded} | [ ] Pass [ ] Fail |
+| UC-{NNN} | {unhappy path} | {role} | {staging} | {e.g. mock integration set to timeout mode} | [ ] Pass [ ] Fail |
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
@@ -92,7 +92,7 @@ Choose deployment strategy based on NFR requirements:
 
 | BO-NNN | Success Metric (from BRD) | Measured Result | Met? |
 |---|---|---|---|
-| BO-001 | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
+| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
 
 ---
 

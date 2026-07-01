@@ -60,7 +60,7 @@ Steps: {what happens + resolution}
 ## 10. Open Questions
 | ID | Question | Owner | Due |
 |---|---|---|---|
-| OQ-001 | {question} | {owner} | {date} |
+| OQ-{NNN} | {question} | {owner} | {date} |
 
 ## 11. Tech Stack
 > Drives constitution.md Part 2 (Tech Stack table) at /specify Action 1.

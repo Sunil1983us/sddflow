@@ -22,8 +22,12 @@ Not sure which to use? See [`packs/CATALOG.md`](packs/CATALOG.md) for a decision
 
 ## CLI Tools
 
-Two CLIs are provided — identical behaviour, different runtimes. Both include
-Jira and Confluence integration.
+Two CLIs are provided, both built around the same `sdd init` / `sdd upgrade`
+core — but they are **not at feature parity**. The Python CLI is the
+full-featured implementation (Jira, Confluence, review gates, PR automation);
+the Node.js CLI currently covers scaffolding only (`init` / `upgrade`). Pick
+Python if you need Jira/Confluence integration; either works for basic
+pack scaffolding.
 
 ### Python CLI — `sdd-init`
 
@@ -43,6 +47,7 @@ Includes:
 Agent commands (Claude Code / Copilot):
 - `/pre-review` — one-time code review before PR creation; developer picks which findings to fix
 - `/address-review` — address human PR review comments; replies to threads, requests re-review
+- `/jira-push` — progressive Jira push (Epic after BRD, Stories after Use Cases/SRD, Tasks after `/task`, CHG after `/change`) via a standalone script (`.specify/scripts/jira-push.py`), config in `.specify/jira-config.yml`. Complements `sdd jira push`, which pushes Story+Task together in one shot after `/task`.
 
 → Full reference: [`cli-python/README.md`](cli-python/README.md)
 
@@ -90,7 +95,7 @@ npm install -g sdd-init && sdd init
 # 3. Open in your AI tool and run /specify
 ```
 
-See the pack's own `GETTING-STARTED.md` for the full walkthrough.
+See the pack's own `QUICKSTART.md` for the full walkthrough.
 
 ---
 

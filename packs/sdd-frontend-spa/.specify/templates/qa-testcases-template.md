@@ -27,7 +27,7 @@
 
 ## 2. Happy Path
 
-### TC-001: {Feature} — Success
+### TC-{NNN}: {Feature} — Success
 **Type:** E2E | **UAT Relevant:** Yes
 **Endpoint:** POST /api/v1/{resource}
 **Given:** Valid request with all mandatory fields
@@ -42,7 +42,7 @@
 
 ## 3. Validation Tests
 
-### TC-002: Missing Mandatory Field
+### TC-{NNN}: Missing Mandatory Field
 **Type:** Integration | **UAT Relevant:** No
 **Given:** Request missing {mandatory_field}
 **When:** Request submitted
@@ -51,13 +51,13 @@
 - errorCode: VALIDATION_ERROR
 - message mentions {field}
 
-### TC-003: Invalid Field Format
+### TC-{NNN}: Invalid Field Format
 **Type:** Integration | **UAT Relevant:** No
 **Given:** {field} in wrong format
 **When:** Request submitted
 **Then:** Response status 400, errorCode VALIDATION_ERROR
 
-### TC-004: Duplicate Request (Idempotency)
+### TC-{NNN}: Duplicate Request (Idempotency)
 **Type:** Integration | **UAT Relevant:** No
 **Given:** Same Idempotency-Key used twice
 **When:** Second request submitted
@@ -67,12 +67,12 @@
 
 ## 4. Auth Tests
 
-### TC-005: Missing Auth Header
+### TC-{NNN}: Missing Auth Header
 **Type:** Integration | **UAT Relevant:** No
 **Given:** Request with no auth
 **Then:** Response status 401
 
-### TC-006: Invalid Auth
+### TC-{NNN}: Invalid Auth
 **Type:** Integration | **UAT Relevant:** No
 **Given:** Request with invalid token/key
 **Then:** Response status 401
@@ -81,7 +81,7 @@
 
 ## 5. Unhappy Path Tests
 
-### TC-007: {Integration} Failure
+### TC-{NNN}: {Integration} Failure
 **Type:** E2E | **UAT Relevant:** Yes
 **Given:** {Integration} returns error/timeout
 **Then:**
@@ -89,7 +89,7 @@
 - Correct error response
 - Compensation triggered (if applicable)
 
-### TC-008: {Integration} Timeout
+### TC-{NNN}: {Integration} Timeout
 **Type:** E2E | **UAT Relevant:** Yes
 **Given:** {Integration} times out
 **Then:**
@@ -100,7 +100,7 @@
 
 ## 6. Performance Tests
 
-### TC-009: Response Time
+### TC-{NNN}: Response Time
 **Type:** Performance | **UAT Relevant:** No
 **Given:** {N} concurrent requests
 **When:** Sustained for 60 seconds
@@ -108,7 +108,7 @@
 - P99 ≤ {target from NFR}
 - Error rate < 1%
 
-### TC-010: Throughput
+### TC-{NNN}: Throughput
 **Type:** Performance | **UAT Relevant:** No
 **Given:** {N} TPS load
 **Then:** All requests processed within SLA
@@ -143,7 +143,7 @@
 
 ---
 
-### Exploratory Charter EC-001: {High-Risk Area}
+### Exploratory Charter EC-{NNN}: {High-Risk Area}
 **Charter:** Explore {feature area} to discover defects around {scenario}
 **Session length:** 60 min
 **Target:** FR-{NNN} / R-{NNN} (from analyze.md)
@@ -157,10 +157,10 @@
 ```
 {Feature Name} Tests/
   ├── Setup — Create test data
-  ├── Happy Path — TC-001
-  ├── Validation — TC-002 to TC-004
-  ├── Auth — TC-005 to TC-006
-  ├── Unhappy Path — TC-007 to TC-008
+  ├── Happy Path — TC-{NNN}
+  ├── Validation — TC-{NNN} to TC-{NNN}
+  ├── Auth — TC-{NNN} to TC-{NNN}
+  ├── Unhappy Path — TC-{NNN} to TC-{NNN}
   └── Cleanup — Remove test data
 ```
 

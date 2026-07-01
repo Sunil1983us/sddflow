@@ -1,104 +1,109 @@
-# Architecture Design
+# Architecture Document
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ---
 
 ## References
 | Source | Sections / IDs Used |
 |---|---|
-| srd.summary.md | {sections/IDs referenced} |
+| srd.summary.md | {FR-NNN, NFR-NNN referenced} |
+| clarify.summary.md | {resolved items applied} |
+| analyze.summary.md | {risk mitigations §2, NFR impact §5 applied} |
 
 ## 1. Architecture Overview
-{One paragraph — component pattern chosen, state management approach, why.}
 
-## 2. Component Diagram
-```
-[Route / Page]
-      │
-      ▼
-[{Feature}Page]                 ← pages/ (route entry)
-      │
-      ▼
-[{Feature}Container]            ← containers/ (state + side-effects)
-      │
-      ├──▶ [use{Feature}Store]   ← store/ (global state slice)
-      │
-      ├──▶ [use{Feature}Query]   ← hooks/ (data fetching)
-      │         │
-      │         ▼
-      │    [{Feature}Service]    ← services/ (API client calls)
-      │         │
-      │         ▼
-      │    [Mock{Feature}Service] ← mocks/ (MSW handler — dev/test)
-      │    [Real{Feature}Service] ← services/ (real API — prod)
-      │
-      ▼
-[{ComponentA}]                   ← components/ (presentational)
-[{ComponentB}]                   ← components/ (presentational)
-      └──▶ [{SharedComponent}]   ← components/shared/ or design system
+### 1.1 Architecture Pattern
+{Chosen pattern: e.g. Container/Presentational / Feature-Slice / Micro-Frontend}
+{One paragraph — why this pattern fits this project, state management approach, why}
+
+### 1.2 System Layers
+| Layer | Folder | Responsibility |
+|---|---|---|
+| Page | `pages/` | Route entry — composes containers, no logic |
+| Container | `containers/` | Owns state + side-effects, delegates to hooks/services |
+| Hooks/Composables | `hooks/` | Data fetching, derived state, reusable side-effect logic |
+| Store | `store/` | Global state slice (Redux/Zustand/Pinia/Context) |
+| Service | `services/` | API client calls + request/response transformation |
+| Mock Service | `mocks/` | MSW/mock handler — dev + test |
+| Presentational | `components/` | Render props/state only — zero business logic |
+| Shared Components | `components/shared/` | Design-system / cross-feature reusable components |
+| Routing | `routes/` | Route definitions, guards, lazy-loaded chunks |
+
+## 2. Component Structure
+```mermaid
+graph TD
+    Router["Router\nroutes/"]
+    Page["{Feature}Page\npages/"]
+    Container["{Feature}Container\ncontainers/"]
+    Store["use{Feature}Store\nstore/"]
+    Hook["use{Feature}Query\nhooks/"]
+    Service["{Feature}Service\nservices/"]
+    MockSvc["Mock{Feature}Service\nmocks/"]
+    RealSvc["Real{Feature}Service\nservices/"]
+    CompA["{ComponentA}\ncomponents/"]
+    CompB["{ComponentB}\ncomponents/"]
+    SharedComp["{SharedComponent}\ncomponents/shared/"]
+    API[("Backend API")]
+
+    Router --> Page
+    Page --> Container
+    Container --> Store
+    Container --> Hook
+    Hook --> Service
+    Service -.->|dev/test| MockSvc
+    Service -.->|prod| RealSvc
+    RealSvc --> API
+    Container --> CompA
+    Container --> CompB
+    CompA --> SharedComp
 ```
 
 ## 3. Layer Responsibilities
-| Layer | Folder | Responsibility |
-|---|---|---|
-| Page | pages/ | Route entry — composes containers, no logic |
-| Container | containers/ | Owns state + side-effects, delegates to hooks/services |
-| Hooks/Composables | hooks/ | Data fetching, derived state, reusable side-effect logic |
-| Store | store/ | Global state slice (Redux/Zustand/Pinia/Context) |
-| Service | services/ | API client calls + request/response transformation |
-| Mock Service | mocks/ | MSW/mock handler — dev + test |
-| Presentational Components | components/ | Render props/state only — zero business logic |
-| Shared Components | components/shared/ | Design-system / cross-feature reusable components |
-| Routing | routes/ | Route definitions, guards, lazy-loaded chunks |
+| Layer | Folder | What it owns | What it must NOT do |
+|---|---|---|---|
+| Page | `pages/` | Route entry, layout composition | State, side-effects, API calls |
+| Container | `containers/` | State wiring, side-effect orchestration | Rendering logic |
+| Hooks | `hooks/` | Data fetching, derived state | Direct API calls, rendering |
+| Store | `store/` | Global state only | Business logic, API calls |
+| Service | `services/` | API calls, response mapping | State management, rendering |
+| Presentational | `components/` | Rendering from props | State, API calls, business rules |
 
 ## 4. Key Design Decisions
-| ID | Decision | Rationale | ADR (mvp+) |
+| ID | Decision | Rationale | Alternatives Rejected |
 |---|---|---|---|
-| DEC-001 | {decision} | {why} | ADR-001 (if mvp+, else "—") |
-| DEC-002 | {decision} | {why} | ADR-002 (if mvp+, else "—") |
+| DEC-{NNN} | {what was decided} | {why} | {what was rejected and why} |
+| DEC-{NNN} | {what was decided} | {why} | {what was rejected and why} |
 
-Pilot scope: use DEC-NNN only — no ADR column value (ADRs are mvp+ only,
-generated at /plan-adr). MVP+: /plan-adr converts HIGH-impact DEC-NNN
-rows into full ADR-NNN records — fill the ADR column once generated.
+> **Pilot scope:** fill DEC-NNN only — ADRs are generated later by `/plan-adr` (mvp+ only).
+> **MVP+ scope:** `/plan-adr` converts each HIGH-impact DEC-NNN into a full ADR-NNN record.
 
-## 4a. NFR → Architecture Decision Mapping (AR-3)
-| NFR-NNN | Requirement | Design Constraint | Decision (DEC-NNN) |
+## 5. NFR → Architecture Decision Mapping
+| NFR-NNN | Requirement | Design Constraint Applied | Decision (DEC-NNN) |
 |---|---|---|---|
-| NFR-{NNN} | {requirement, from analyze.summary.md §5} | {what it forces} | DEC-{NNN} |
+| NFR-{NNN} | {measurable requirement from analyze.summary.md §5} | {what it forces in the design} | DEC-{NNN} |
 
-Every NFR flagged in analyze.summary.md §5 NFR Impact Analysis must appear here
-with the decision that satisfies it.
+Every NFR from `analyze.summary.md §5` must appear here with the decision that satisfies it.
 
-## 5. Flow — Happy Path
-```
-{Step 1: user navigates to route}
-→ Page mounts → Container fires data-fetch hook
-→ Loading state rendered
-→ Service calls API (or mock service in dev/test)
-→ Store updated with response
-→ Container re-renders Presentational components with data
-→ User interaction → Container dispatches action → Store updated
-→ UI reflects new state
-```
-
-## 6. State & Component Architecture
-| Slice/Component | Purpose |
-|---|---|
-| {storeSlice} | {what global state it holds} |
-| {ComponentName} | {what it renders / owns} |
-
-## 7. Cross-Cutting Concerns
+## 6. Cross-Cutting Concerns
 | Concern | Approach |
 |---|---|
-| Auth | {approach — token storage, route guards} |
-| Logging | Structured console + error tracking (Sentry/RUM) |
+| Authentication | {token storage, route guards — from constitution} |
+| Authorisation | {role-based rendering, protected routes} |
+| Logging | Structured console + error tracking (Sentry / RUM) |
 | Error Handling | Error boundaries + global API error handler |
-| Offline/Resilience | {approach if applicable} |
+| Offline/Resilience | {approach if applicable — e.g. optimistic updates, retry} |
+| Observability | {performance monitoring — e.g. Web Vitals, Lighthouse CI} |
 
 ---
 
 ## Approvals
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Architect | Pending | |
+| Tech Lead | Pending | |
+
+## Version History
+| Version | Date | Changed By | Summary | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |

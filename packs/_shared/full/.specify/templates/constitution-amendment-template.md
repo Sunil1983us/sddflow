@@ -50,7 +50,7 @@ _(Derived from `.specify/memory/change-rules.md` Change Impact Matrix)_
 
 | CHG-NNN | Description | Estimated Lines | Affected Tasks |
 |---|---|---|---|
-| CHG-001 | {description} | ~{N} lines | TASK-{NNN} (update), new TASK-{NNN} |
+| CHG-{NNN} | {description} | ~{N} lines | TASK-{NNN} (update), new TASK-{NNN} |
 
 ---
 

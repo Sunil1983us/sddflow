@@ -135,4 +135,4 @@ bash setup.sh
 
 Fill in `.specify/contexts/{feature}.md`, then open your AI tool and type `/specify`.
 
-See [GETTING-STARTED.md](GETTING-STARTED.md) for the full walkthrough.
+See [QUICKSTART.md](QUICKSTART.md) for the full walkthrough.

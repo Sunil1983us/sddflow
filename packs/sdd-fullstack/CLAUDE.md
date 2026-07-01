@@ -143,11 +143,42 @@ Scope upgrade is a **Major amendment** to constitution Part 2 (version bump X.0)
 - Extended docs (API Spec, Data Model, Resilience, Investigation) — not generated
 <!-- shared:scope-reference:end -->
 
+<!-- shared:team-routing:start -->
+## Virtual Team — Address by Name
+
+You can address any team member by name — no slash command needed.
+They read your message, check the pipeline state, and run the right step automatically.
+
+| Name | Role | Handles |
+|---|---|---|
+| **Maya** | Business Analyst | BRD, Use Cases, Validate, Context, Change Request |
+| **Rex** | Requirements Engineer | SRD, Clarify |
+| **Ava** | Software Architect | Analyze, Design, Security, API Spec, Data Model, Resilience |
+| **Leo** | Lead Developer | LLD, Implement, Pre-review, Address review, Bug assess, Bug fix |
+| **Kai** | Engineering Manager | Tasks, Stories, Export to Jira / GitHub Issues |
+| **Quinn** | QA Lead | Spec quality checklist |
+| **Riley** | Release Manager | Release planning and go-live |
+| **Morgan** | Delivery Manager | Full pipeline orchestration, progressive Jira push |
+
+**Works three ways — all equivalent:**
+
+```
+/maya                                   ← slash command (Claude Code + Copilot)
+Maya, create BRD for payments           ← natural language (any AI tool)
+"Hey Ava, I need a design for auth"     ← conversational (any AI tool)
+```
+
+**Routing rule:** When a name appears at the start of a message or is addressed
+directly (e.g. "Maya, …" / "Hey Ava" / "Can Rex clarify"), read and follow
+`.github/prompts/{name}.prompt.md` exactly. The prompt file handles context
+detection and routes to the correct underlying command automatically.
+<!-- shared:team-routing:end -->
+
 ## Command Gates
 <!-- shared:command-gates:start -->
-- SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → PLAN-DESIGN
-  → PLAN-LLD (mvp+) → TASK → IMPLEMENT → RELEASE
-- Each gate requires the previous step complete and reviewed.
+**Unified** (`plan_mode: unified`): SPECIFY → [GATE-1] → VALIDATE → ANALYZE → CLARIFY → /plan-design → /plan-lld (mvp+) → TASK → IMPLEMENT → RELEASE
+**Separate** (`plan_mode: separate`): … → CLARIFY → /plan-arch → /plan-hld → /plan-adr (mvp+) → /plan-lld (mvp+) → TASK → IMPLEMENT → RELEASE
+Each gate requires the previous step complete and reviewed.
 <!-- shared:command-gates:end -->
 
 ## PR Contract
@@ -164,9 +195,12 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 <!-- shared:never-do-core:start -->
 - Never run /validate before constitution Part 2 finalized (GATE-1)
 - Never run /analyze without validate.summary.md
-- Never run /plan-design without clarify.summary.md
+- Never run /plan-design without clarify.summary.md (unified mode)
 - Never run /plan-design while any spec doc has an unresolved
   `[ASSUMPTION-NNN]` marker (AI-8)
+- Never run /plan-arch without clarify.summary.md and all items RESOLVED (separate mode)
+- Never run /plan-hld without arch.md `Status: Approved`
+- Never run /plan-adr without hld.md `Status: Approved` (mvp+ scope only)
 - Never run /implement without TASK (stories.md + tasks.md) approved
 - Never run /release before all tasks are "PR ready" and merged
 - Never code before context.md updated
@@ -182,21 +216,26 @@ After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
 
 ## PLAN Sub-Commands
 
-PLAN is split into 2 sub-commands — each has its own review gate:
+PLAN adapts to your `plan_mode` setting in `manifest.yml` (set during `setup.sh`).
 
-- **`/plan-design`** → Single design document: Architecture + Diagrams + API Design + ADR entries
-  - Gate: clarify.summary.md exists, all RESOLVED
-  - Gate: no unresolved [ASSUMPTION-NNN] in any spec doc (AI-8)
+**Unified mode (`plan_mode: unified`)** — one combined document, one review gate:
+- **`/plan-design`** → `design.md`: Architecture + Diagrams + API Design + ADR entries
+  - Gate: clarify.summary.md exists, all RESOLVED; no unresolved [ASSUMPTION-NNN] (AI-8)
   - Review: tech lead + architect + stakeholders
   - Scope: all scopes (pilot, mvp, full)
 
-- **`/plan-lld`** → Detailed technical design: class/sequence diagrams (both layers)
-  - Gate: design.md reviewed
-  - Scope check: SKIP if pilot — state skip reason
-  - Review: senior developer
+**Separate mode (`plan_mode: separate`)** — three focused documents, reviewed individually:
+- **`/plan-arch`** → `arch.md`: Architecture pattern, layers, key decisions — Step 1 of 3
+  - Gate: clarify.summary.md exists, all RESOLVED; no unresolved [ASSUMPTION-NNN] (AI-8)
+- **`/plan-hld`** → `hld.md`: System diagrams (C4 context, sequence, state machine) — Step 2 of 3
+  - Gate: arch.md approved
+- **`/plan-adr`** → `adr.md`: Architecture Decision Records — Step 3 of 3 (mvp+ only; skipped at pilot)
+  - Gate: hld.md approved
 
-> `design.md` replaces the former arch.md, hld.md, api-spec.md, and adr.md.
-> `/plan-arch`, `/plan-hld`, `/plan-adr` redirect to `/plan-design` for backwards compatibility.
+**Both modes:**
+- **`/plan-lld`** → Detailed technical design: class/sequence diagrams, both layers (mvp+ only; SKIP if pilot)
+  - Unified gate: design.md approved
+  - Separate gate: adr.md approved (mvp+) or hld.md approved (pilot)
 
 ## /checklist — Optional Spec-Quality Gate (after GATE-1, before /validate)
 
@@ -280,5 +319,6 @@ See `.github/prompts/orchestrate.prompt.md` for full reference.
 
 — or step by step —
 /specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd → /specify-doc {name}... → /checklist (mandatory mvp+, optional pilot)
-→ /validate → /analyze → /clarify → /plan-design
+→ /validate → /analyze → /clarify
+→ unified: /plan-design  |  separate: /plan-arch → /plan-hld → /plan-adr (mvp+)
 → /plan-lld (mvp+) → /task → /implement → /release

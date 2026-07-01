@@ -16,7 +16,7 @@
 
 | ID | Dimension | Severity | Location | Finding | Action Required |
 |---|---|---|---|---|---|
-| CHK-001 | {Clarity\|Completeness\|Consistency\|Measurability} | CRITICAL\|HIGH\|MEDIUM\|LOW | {doc + section} | {what is wrong} | {what to fix} |
+| CHK-{NNN} | {Clarity\|Completeness\|Consistency\|Measurability} | CRITICAL\|HIGH\|MEDIUM\|LOW | {doc + section} | {what is wrong} | {what to fix} |
 
 ### Severity Guide
 - **CRITICAL** — blocks /validate: no measurable NFR target; FR has no acceptance scenario; [NEEDS CLARIFICATION] not resolved

@@ -22,7 +22,7 @@ Complexity Context: {1 sentence — e.g. "MEDIUM: 3 external integrations, 1 HIG
 
 | ID | Risk | Likelihood | Impact | Linked FR/NFR (AR-3) | Mitigation | Mitigating Tasks |
 |---|---|---|---|---|---|---|
-| R-001 | {risk} | Low/Med/High | Low/Med/High/Critical | FR-{NNN} / NFR-{NNN} | {action} | _(filled by /task)_ |
+| R-{NNN} | {risk} | Low/Med/High | Low/Med/High/Critical | FR-{NNN} / NFR-{NNN} | {action} | _(filled by /task)_ |
 
 Every risk must link to at least one FR-NNN or NFR-NNN it threatens — if
 none applies, link to the relevant Domain Rule from constitution Part 2.
@@ -68,7 +68,7 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 
 | ID | Unknown | Impact | Spike? |
 |---|---|---|---|
-| U-001 | {what we don't know} | {consequence} | Yes/No |
+| U-{NNN} | {what we don't know} | {consequence} | Yes/No |
 
 ---
 
@@ -91,7 +91,7 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 
 | ID | Category | Severity | Location | Summary | Recommendation |
 |---|---|---|---|---|---|
-| CF-001 | {Duplication\|Ambiguity\|CoverageGap\|TerminologyDrift\|ConstitutionConflict} | CRITICAL\|HIGH\|MEDIUM\|LOW | {doc + section} | {what was found} | {what to do} |
+| CF-{NNN} | {Duplication\|Ambiguity\|CoverageGap\|TerminologyDrift\|ConstitutionConflict} | CRITICAL\|HIGH\|MEDIUM\|LOW | {doc + section} | {what was found} | {what to do} |
 
 ### Severity Guide
 - **CRITICAL** — block /clarify: constitution conflict (FR/NFR violates a MUST rule); FR/NFR with zero UC coverage

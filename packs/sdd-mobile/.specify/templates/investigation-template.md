@@ -52,13 +52,13 @@
 
 | ID | Trigger | Severity | SLA |
 |---|---|---|---|
-| INV-001 | {what causes this — e.g. crash-free rate drops below target after release} | High | {time to resolve} |
-| INV-002 | {what causes this — e.g. ANR rate spike on a specific device/OS combination} | Medium | {time to resolve} |
-| INV-003 | {what causes this — e.g. app-store review flags 1-star reviews mentioning crashes} | Medium | {time to resolve} |
+| INV-{NNN} | {what causes this — e.g. crash-free rate drops below target after release} | High | {time to resolve} |
+| INV-{NNN} | {what causes this — e.g. ANR rate spike on a specific device/OS combination} | Medium | {time to resolve} |
+| INV-{NNN} | {what causes this — e.g. app-store review flags 1-star reviews mentioning crashes} | Medium | {time to resolve} |
 
 ---
 
-## 5. Investigation Case: INV-001 — {Title}
+## 5. Investigation Case: INV-{NNN} — {Title}
 
 **Trigger:** {exact condition that triggers investigation — alert/threshold}
 **Detected by:** {crash-reporting alert / dashboard / app-store review}
@@ -84,7 +84,7 @@ check, add test case, add monitoring}
 
 ---
 
-## 6. Investigation Case: INV-002 — {Title}
+## 6. Investigation Case: INV-{NNN} — {Title}
 
 **Trigger:** {condition}
 **Detected by:** {method}

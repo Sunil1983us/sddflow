@@ -86,7 +86,7 @@ _(repeat §3 block for each document that receives UPDATE or RERUN action)_
 
 | CHG-NNN | Description | Satisfies | Estimated Lines | PR | Status |
 |---|---|---|---|---|---|
-| CHG-001 | {what to implement} | FR-{NNN} / NFR-{NNN} / CR-{NNN} | ~{N} | single / SPLIT | Pending |
+| CHG-{NNN} | {what to implement} | FR-{NNN} / NFR-{NNN} / CR-{NNN} | ~{N} | single / SPLIT | Pending |
 
 > If tasks.md already exists: CHG-NNN rows are appended under `## Change Set: CR-{NNN} — {date}`.
 > If tasks.md not yet created: these tasks are incorporated when `/task` runs.

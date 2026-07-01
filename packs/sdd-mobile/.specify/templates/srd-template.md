@@ -17,17 +17,17 @@
 ## 2. Functional Requirements
 | ID | Requirement | UC Trace | Source | Priority |
 |---|---|---|---|---|
-| FR-001 | {description} | UC-{NNN} | BR-{NNN} | Must Have |
-| FR-002 | {description} | UC-{NNN} | BR-{NNN} | Should Have |
+| FR-{NNN} | {description} | UC-{NNN} | BR-{NNN} | Must Have |
+| FR-{NNN} | {description} | UC-{NNN} | BR-{NNN} | Should Have |
 
 ## 3. Non-Functional Requirements
 | ID | Category | Requirement |
 |---|---|---|
-| NFR-001 | Performance | {e.g. P99 response ≤ 500ms} |
-| NFR-002 | Availability | {e.g. 99.9% uptime} |
-| NFR-003 | Throughput | {e.g. 100 TPS peak} |
-| NFR-004 | Security | {e.g. all endpoints require auth} |
-| NFR-005 | Data Retention | {e.g. 7 years} |
+| NFR-{NNN} | Performance | {e.g. P99 response ≤ 500ms} |
+| NFR-{NNN} | Availability | {e.g. 99.9% uptime} |
+| NFR-{NNN} | Throughput | {e.g. 100 TPS peak} |
+| NFR-{NNN} | Security | {e.g. all endpoints require auth} |
+| NFR-{NNN} | Data Retention | {e.g. 7 years} |
 
 ## 4. Use Case Coverage
 
@@ -37,8 +37,8 @@
 
 | FR-NNN | UC Trace | Coverage Confirmed? |
 |---|---|---|
-| FR-001 | UC-{NNN} | [ ] |
-| FR-002 | UC-{NNN} | [ ] |
+| FR-{NNN} | UC-{NNN} | [ ] |
+| FR-{NNN} | UC-{NNN} | [ ] |
 
 **[NEEDS CLARIFICATION: {question}]** — use this marker on any FR-NNN where the
 corresponding use case step does not fully specify the required system behaviour.

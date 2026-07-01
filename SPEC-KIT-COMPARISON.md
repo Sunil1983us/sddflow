@@ -292,6 +292,13 @@ sdd confluence push --doc brd # publish one SDD document to Confluence
 sdd confluence push --all     # publish all SDD documents
 ```
 
+For progressive pushes — Epic right after BRD approval, Stories after Use
+Cases/SRD, Tasks after `/task`, CHG tasks after `/change` — the agent's
+`/jira-push` slash command calls a standalone script
+(`.specify/scripts/jira-push.py`) instead, configured via
+`.specify/jira-config.yml` (per-level project keys, issue types, parent-link
+strategy, custom field IDs). It also runs unattended from CI/CD.
+
 ### Stakeholder Review Workflow
 
 After each document is generated, submit it for formal sign-off:
@@ -365,6 +372,7 @@ All items selectively borrowed into SDD packs — now fully implemented:
 - ✅ AI tool selection in `sdd init` (claude-code / copilot / cursor / windsurf / other); stored as `ai_tool` in `manifest.yml`; personalized Done message per tool
 - ✅ `sdd config init` / `sdd config test` / `sdd config fields` — Jira + Confluence connection wizard, connectivity test (✓/✗ per service), custom field discovery
 - ✅ `sdd jira push` — push stories + tasks → Jira issues (with `--dry-run` and `--feature` flags)
+- ✅ `/jira-push` — progressive Jira API push (Epic → Story → Task → CHG) at each SDLC gate, via standalone `.specify/scripts/jira-push.py` + `.specify/jira-config.yml`; works from CI/CD too
 - ✅ `sdd confluence push` — publish SDD documents to Confluence (`--doc`, `--all`)
 - ✅ `sdd review submit/check/apply/status` — Jira-backed stakeholder approval workflow; enforces review sequence; revision handling with re-push
 - ✅ `/specify-brd`, `/specify-uc`, `/specify-srd`, `/specify-doc {name}` — SPECIFY split into 5 sub-commands (one document at a time)
