@@ -48,3 +48,21 @@ bash packs/_shared/tests/assert-output.sh \
      examples/todo-api/.specify/features/task-management \
      pilot
 ```
+
+---
+
+## habit-tracker-web — frontend-spa, pilot, **unified** plan mode
+
+The second worked example — deliberately the opposite half of the pipeline
+from `todo-api` (backend, separate mode):
+
+| Dimension | todo-api | habit-tracker-web |
+|---|---|---|
+| Pack | sdd-backend-service | sdd-frontend-spa |
+| plan_mode | separate (arch.md + hld.md) | **unified (design.md)** |
+| Plan docs | arch.md, hld.md | design.md with Mermaid + ADR entries |
+| QA at pilot | (predates smoke tests) | **smoke-tests.md** (TC-S-001..010) |
+| Stack | TypeScript/Express/PostgreSQL | React/TypeScript/Vite, localStorage, offline |
+
+Both examples run in CI via `packs/_shared/tests/assert-output.sh`
+(`output-assertions` job) — 33 structural assertions each.

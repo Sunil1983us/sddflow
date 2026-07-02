@@ -38,6 +38,19 @@ All notable changes to the SDD Framework are documented here.
   validation, Python/Node CLI sanity, and the setup smoke-test suite
 - Onboarding docs consolidated; `OWNER-GUIDE.md` refreshed
 
+### Added — test coverage and second worked example
+
+- `cli-python/tests/` — 29 pytest unit tests: review approval helpers (header
+  flip incl. DRAFT/Proposed/word-boundary cases, local approvals, path-escape),
+  the full upgrade migration chain (connected, self-stamping, re-run hint),
+  config-init template validity, and a guard that the shipped
+  integrations.yml.example agrees with the CLI's doc-key vocabulary and has
+  strictly increasing review sequences. Runs in CI (python-cli-sanity job)
+- `examples/habit-tracker-web` — second worked example: frontend-spa, pilot,
+  **unified** plan mode (design.md with Mermaid + ADRs), including the new
+  pilot `smoke-tests.md` artifact — the opposite pipeline half from todo-api;
+  passes all 33 output assertions and runs in CI
+
 ### Added — design-decision pass (gap review G8–G14)
 
 - `/validate` gains §4b Indicative Effort: T-shirt size (S/M/L/XL) per FR with

@@ -1,0 +1,15 @@
+# SDD Manifest — worked example (frontend-spa, pilot, unified plan mode)
+project:
+  name: "Habit Tracker Web"
+  scope: "pilot"
+  feature: "habit-log"
+  context_file: "habit-log.md"
+project_type: "frontend-spa"
+pr_rules:
+  max_lines_per_pr: 400
+  max_files_per_pr: 5
+reading_mode: "auto"
+plan_mode: "unified"
+testing_style: "paired"
+sdd_version: "2.7.0"
+ai_tool: "claude-code"
