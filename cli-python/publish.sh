@@ -69,7 +69,7 @@ if [ "$TEST_MODE" = true ]; then
   uv publish --publish-url https://test.pypi.org/legacy/ --token "$TEST_PYPI_TOKEN"
   echo ""
   echo "  Install from TestPyPI to verify:"
-  echo "    uv pip install --index-url https://test.pypi.org/simple/ sdd-init"
+  echo "    uv pip install --index-url https://test.pypi.org/simple/ sddkit"
 else
   echo "▶ Uploading to PyPI..."
   if [ -z "${PYPI_TOKEN:-}" ]; then
@@ -80,9 +80,9 @@ else
   uv publish --token "$PYPI_TOKEN"
   echo ""
   echo "  Install with:"
-  echo "    uv pip install sdd-init"
+  echo "    uv pip install sddkit"
   echo "  or (once pip is fixed):"
-  echo "    pip install sdd-init"
+  echo "    pip install sddkit"
 fi
 
 # ── Step 5: Cleanup bundled packs (keep repo clean) ──────────────────────────

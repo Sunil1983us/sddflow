@@ -1,7 +1,6 @@
 # Use Case Specification — {Feature Name}
-Feature: {manifest.project.feature}
-Version: v1.0 | Date: {date}
-Status: DRAFT
+# Feature: {manifest.project.feature}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 > **Inference Marker:** Steps or paths not explicitly stated in `context.md` but derived by the agent are marked `[INFERRED: {basis}]`.
 > The Business Analyst reviews every `[INFERRED]` marker and either: confirms it (remove the marker), corrects it (update the step), or escalates it as a `[NEEDS CLARIFICATION]`.

@@ -92,6 +92,12 @@ Based on CR type, pre-classify expected impact (agent verifies by reading each d
 **Operational** → PRIMARY: context, constitution (config/secrets/orchestration row), design (deployment section), runbook | SECONDARY: tasks | LOW: brd, use-cases, srd, api-spec
 **Defect** → ALL documents from the defect location forward are CANDIDATES — read each to confirm impact
 
+**Cross-cutting security rule (any CR type):** if the change touches
+authentication, authorization, personal/sensitive data, data retention, or a
+new external integration, promote `security-design.md` to PRIMARY regardless
+of the classification above — the §1 threat table (TH-NNN) must be re-read
+and refreshed for the changed surface before implementation tasks are added.
+
 Present the walk plan:
 ```
 CR-{NNN} Walk Plan

@@ -149,9 +149,10 @@ A detailed guide for every command: what it is, exactly when to run it, what it 
 
 Install the CLI once:
 ```bash
-pip install sdd-init          # Python (any platform)
+pip install sddkit          # Python (any platform)
 # OR
-npm install -g sdd-init       # Node.js (any platform)
+# (Node.js CLI: from source only — see the framework repo's cli/README.md;
+#  the sdd-init package on npm is an unrelated third-party project)
 ```
 
 Then run in your project folder:

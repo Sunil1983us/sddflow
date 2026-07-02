@@ -105,13 +105,15 @@ confluence:
   # Only documents listed here are pushed. Remove any you don't want published.
   # Add extra entries if your team uses additional document types.
   page_map:
-    brd:     "{project} — Business Requirements"
-    srd:     "{project} — System Requirements"
-    arch:    "{project} — Architecture Overview"
-    hld:     "{project} — High-Level Design"
-    lld:     "{project} — Low-Level Design"
-    adr:     "{project} — Architecture Decisions"
-    runbook: "{project} — Runbook"
+    brd:       "{project} — Business Requirements"
+    use-cases: "{project} — Use Cases"
+    srd:       "{project} — System Requirements"
+    design:    "{project} — Design"                 # unified plan_mode
+    arch:      "{project} — Architecture Overview"  # separate plan_mode
+    hld:       "{project} — High-Level Design"      # separate plan_mode
+    adr:       "{project} — Architecture Decisions" # separate plan_mode
+    lld:       "{project} — Low-Level Design"
+    runbook:   "{project} — Runbook"
     # validate: "{project} — Validation Report"
     # release:  "{project} — Release Notes"
 
@@ -130,9 +132,17 @@ confluence:
 #   Server/DC: use the Jira username (login name)
 #             Note: change "accountId" to "name" in the CLI if using Server/DC
 
+# The doc keys below match the .md filenames in .specify/features/{feature}/.
+# The specify-phase sequence depends on plan_mode (manifest.yml):
+#   unified  (default): BRD → Use Cases → SRD → Design       (design.md)
+#   separate:           BRD → Use Cases → SRD, then in the planning phase
+#                       Arch → HLD → ADR → LLD               (arch/hld/adr.md)
+# The example below ships configured for UNIFIED mode. For separate mode:
+# remove the design: entry and uncomment arch/hld/adr in the planning phase.
+
 document_reviews:
 
-  # ── specify phase (BRD → SRD → Arch → HLD) ──────────────────────────────
+  # ── specify phase (BRD → Use Cases → SRD → Design) ───────────────────────
   brd:
     reviewer_jira_user: "5c7b8a2d0f3e1a4b9d6c8f21"   # PO's Jira accountId
     reviewer_role:      Product Owner
@@ -140,41 +150,58 @@ document_reviews:
     sequence:           1
     confluence_page:    "{project} — Business Requirements"
 
-  srd:
+  use-cases:
     reviewer_jira_user: "6d8c9b3e1f4a2b5c0d7e9g32"   # BA's Jira accountId
     reviewer_role:      Business Analyst
     phase:              specify
     sequence:           2    # cannot submit until BRD approved
+    confluence_page:    "{project} — Use Cases"
+
+  srd:
+    reviewer_jira_user: "6d8c9b3e1f4a2b5c0d7e9g32"   # BA's Jira accountId
+    reviewer_role:      Business Analyst
+    phase:              specify
+    sequence:           3    # cannot submit until Use Cases approved
     confluence_page:    "{project} — System Requirements"
 
-  arch:
+  design:                    # unified plan_mode only — remove for separate mode
     reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect's accountId
     reviewer_role:      Architect
     phase:              specify
-    sequence:           3    # cannot submit until SRD approved
-    confluence_page:    "{project} — Architecture Overview"
+    sequence:           4    # cannot submit until SRD approved
+    confluence_page:    "{project} — Design"
 
-  hld:
-    reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # same Architect
-    reviewer_role:      Architect
-    phase:              specify
-    sequence:           4    # cannot submit until Arch approved
-    confluence_page:    "{project} — High-Level Design"
+  # ── planning phase ────────────────────────────────────────────────────────
+  # separate plan_mode only — uncomment these three (and remove design: above).
+  # Order matches the prompts: /plan-arch → /plan-hld → /plan-adr → /plan-lld.
+  # arch:
+  #   reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect's accountId
+  #   reviewer_role:      Architect
+  #   phase:              planning
+  #   sequence:           1
+  #   confluence_page:    "{project} — Architecture Overview"
+  #
+  # hld:
+  #   reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # same Architect
+  #   reviewer_role:      Architect
+  #   phase:              planning
+  #   sequence:           2    # cannot submit until Arch approved
+  #   confluence_page:    "{project} — High-Level Design"
+  #
+  # adr:
+  #   reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect
+  #   reviewer_role:      Architect
+  #   phase:              planning
+  #   sequence:           3    # cannot submit until HLD approved
+  #   confluence_page:    "{project} — Architecture Decisions"
 
-  # ── planning phase (LLD → ADR) ───────────────────────────────────────────
   lld:
     reviewer_jira_user: "8f0e1d5g3h6c4d7e2f9g1i54"   # Tech Lead's accountId
     reviewer_role:      Tech Lead
     phase:              planning
-    sequence:           1
+    sequence:           4    # separate mode: cannot submit until ADR approved;
+                             # unified mode: no predecessor (arch/hld/adr absent)
     confluence_page:    "{project} — Low-Level Design"
-
-  adr:
-    reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect
-    reviewer_role:      Architect
-    phase:              planning
-    sequence:           2    # cannot submit until LLD approved
-    confluence_page:    "{project} — Architecture Decisions"
 
   # ── tasks phase ──────────────────────────────────────────────────────────
   tasks:

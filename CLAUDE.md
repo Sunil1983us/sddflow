@@ -22,8 +22,8 @@ packs/
   sdd-frontend-spa/
   sdd-mobile/
   sdd-fullstack/
-cli/                # Node.js CLI (npm: sdd-init) — init/upgrade scaffolding only
-cli-python/         # Python CLI (pip: sdd-init) — full-featured (Jira, Confluence, reviews, PRs)
+cli/                # Node.js CLI (unpublished, from source) — init/upgrade scaffolding only
+cli-python/         # Python CLI (pip: sddkit) — full-featured (Jira, Confluence, reviews, PRs)
 examples/
   todo-api/         # Complete worked example of SDD outputs
 SPEC-KIT-COMPARISON.md   # Competitive positioning against GitHub spec-kit
@@ -176,3 +176,12 @@ bash packs/_shared/tests/test-setup.sh
 ```
 
 The suite runs setup with stdin from `/dev/null` — setup scripts must never hang or crash when run non-interactively (CI, piped input): optional prompts fall back to defaults, required ones fail fast with a message naming the missing flag.
+
+A second harness, `packs/_shared/tests/assert-output.sh`, makes structural
+assertions (BO/FR/UC/ACT markers, traceability, sign-offs) against a generated
+feature directory. CI runs it against `examples/todo-api` (`output-assertions`
+job) — after changing prompts or templates, run it locally to catch drift:
+
+```bash
+bash packs/_shared/tests/assert-output.sh examples/todo-api/.specify/features/task-management pilot
+```

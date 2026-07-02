@@ -37,7 +37,7 @@ git diff HEAD
 
 Read the full content of any file with more than 3 changed hunks.
 
-### 3 — Analyse (6 angles, ≤ 10 findings)
+### 3 — Analyse (8 angles, ≤ 10 findings — G and H are conditional)
 
 **A Correctness [HIGH]** — null deref, off-by-one, inverted condition, missing
 await, wrong variable in copy-paste, error swallowed, falsy-zero misread.
@@ -56,6 +56,19 @@ derivable state stored explicitly.
 
 **F Performance [LOW]** — N+1 query in loop, redundant per-call computation,
 blocking I/O on hot path, large closure capturing full enclosing scope.
+
+**G Threat-model conformance [HIGH]** — only if
+`.specify/features/{feature}/security-design.md` exists: read its §1 threat
+table (TH-NNN) and check the diff against each mitigation that touches the
+changed files (auth checks, ownership scoping, input limits, log content).
+A diff that weakens or bypasses a listed mitigation is a finding — cite the
+TH-NNN id.
+
+**H Test-first evidence [MEDIUM]** — only if `manifest.testing_style: tdd`:
+verify the task's commits include a test-only red commit
+(`test({scope}): red — …`) preceding the implementation commits. Missing or
+out-of-order red commit = finding (the tests may still be good — the TDD
+discipline was not followed).
 
 Drop any finding without a concrete failure scenario. Maximum 10 total.
 

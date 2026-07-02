@@ -43,9 +43,11 @@ Execute ONE task at a time. Never batch.
   **tdd** — Red-Green-Refactor per acceptance criterion:
   1. Write a failing test that captures the criterion exactly.
   2. Run it — confirm it fails for the right reason.
-  3. Write minimum code to make it pass — no more.
-  4. Run again — confirm green.
-  5. Refactor only while tests stay green.
+  3. Commit the failing test on its own: `test({scope}): red — {criterion}`
+     — this red commit is the test-first evidence /pre-review checks for.
+  4. Write minimum code to make it pass — no more.
+  5. Run again — confirm green; commit the implementation.
+  6. Refactor only while tests stay green.
   Never write implementation before a failing test exists.
 
   **bdd** — Given/When/Then per acceptance criterion:

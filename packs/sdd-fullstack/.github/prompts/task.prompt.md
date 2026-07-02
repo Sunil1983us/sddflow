@@ -64,8 +64,15 @@ If the required document is missing or not approved — STOP. State which docume
 ## Your Task
 
 ### 1. QA Test Cases (mvp+)
-- Skip if manifest.project.scope == pilot — tasks.md uses
-  "Verifies: TBD — link at /implement" instead
+- **Pilot scope:** skip the full qa-testcases.md — tasks.md uses
+  "Verifies: TBD — link at /implement" instead. Generate the lightweight
+  **smoke test list** below instead:
+  - Save to `.specify/features/{manifest.project.feature}/smoke-tests.md`
+  - One TC-S-NNN per UC Main Path (the end-to-end happy flow) plus one per
+    EP-NNN-X Exception Path from use-cases.md — Given/When/Then, one line each
+  - Cap at ~10 cases — this is a release-day smoke list, not a test plan;
+    QA Lead reviews it, and /release §2 UAT scenarios draw from it
+  - Header: standard `> Version: 1.0 | Status: Draft |` blockquote
 - Read qa-testcases-template.md
 - For each FR-NNN (srd.summary.md) / endpoint (design.summary.md §3 API Design):
   generate TC-NNN covering happy path, validation, auth, unhappy path,

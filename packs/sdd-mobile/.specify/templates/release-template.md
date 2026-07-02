@@ -76,6 +76,13 @@ Choose release strategy based on risk and NFR requirements:
 
 ## 5. Go-Live Gate
 
+**Preconditions — every box checked before any Go decision is recorded:**
+
+- [ ] All TASK-NNN merged ("PR ready" / "Task accepted" + merged)
+- [ ] UAT scenarios (§2) passed and signed off
+- [ ] Rollback plan (§7) documented — and rehearsed or verified for mvp+ scope
+- [ ] Monitoring/alerting in place for the success metrics in §6
+
 | Role | Decision | Date |
 |---|---|---|
 | Tech Lead | [ ] Go  [ ] No-Go | |

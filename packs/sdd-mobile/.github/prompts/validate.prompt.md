@@ -82,6 +82,12 @@ For each `[ASSUMPTION-NNN]` the owner marks as incorrect:
    security-design.md and confirm approval."
    (Skip this check entirely for `pilot` scope.)
 
+4b. INDICATIVE EFFORT (T-shirt)
+   Size each FR-NNN: S / M / L / XL with a one-line effort driver
+   (integration, migration, validation complexity, unknowns from /analyze
+   if present). State the total indicative size. Mark clearly: indicative
+   only — story points come at /task; a large mismatch there raises a CR.
+
 5. SIGN-OFF TABLE
    Product Owner + Business Analyst — Approved / Changes Requested
    (use roles.yml for names if filled)

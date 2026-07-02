@@ -133,11 +133,12 @@ Scope upgrade is a **Major amendment** to constitution Part 2 (version bump X.0)
 | Investigation (`investigation.md`) | — | — | ✅ |
 | `/plan-lld` | **SKIPPED** | ✅ | ✅ |
 | QA Test Cases (`qa-testcases.md`) | **SKIPPED** | ✅ | ✅ |
+| Smoke Tests (`smoke-tests.md`, ≤10 cases from UC paths) | ✅ | — (superseded by QA Test Cases) | — |
 | Runbook (`runbook.md`) | — | ✅ | ✅ |
 
 **Key skips at `pilot` scope:**
 - `/plan-lld` — skipped; go directly from `/plan-design` to `/task`
-- QA test cases — `/task` generates stories + tasks only (no `qa-testcases.md`)
+- QA test cases — `/task` generates a ≤10-case `smoke-tests.md` instead of the full `qa-testcases.md`
 - `/checklist` — optional (run for extra quality assurance or skip)
 - Security Design stops at §1 (Threat Assessment only; no OWASP/STRIDE/DAST)
 - Extended docs (API Spec, Data Model, Resilience, Investigation) — not generated
@@ -261,7 +262,7 @@ top of it, never a prerequisite.
 | Mode | Needs | Approval flow | Audit trail |
 |---|---|---|---|
 | **chat** (default) | nothing | Reviewer reads the doc; user replies "approved" in chat → agent flips `Status: Draft → Approved` + fills Approvals table | Doc header + Approvals table + git history |
-| **local** | `pip install sdd-init` | Same as chat, plus the agent records it: `sdd review approve --doc {doc} --local --by "{approver}" --note "{comment}"` | `.specify/.local-approvals.yml` |
+| **local** | `pip install sddkit` | Same as chat, plus the agent records it: `sdd review approve --doc {doc} --local --by "{approver}" --note "{comment}"` | `.specify/.local-approvals.yml` |
 | **jira** | CLI + `integrations.yml` (`jira:` + `confluence:`) | `sdd review submit / check / apply` — Confluence page + Jira review task per doc | Jira + Confluence |
 
 **Confluence stays in sync in every mode.** When a `confluence:` section exists
@@ -280,12 +281,15 @@ independent tracking of who approved what, when.
 
 ### jira mode commands
 
-| Phase | Sequence | Reviewer |
-|---|---|---|
-| specify | BRD → Use Cases → SRD → Design | PO → BA + PO → BA → Architect |
-| planning | LLD | Tech Lead |
-| tasks | Tasks | Scrum Master |
-| release | Runbook → Release | DevOps → Release Manager |
+Sequences follow `plan_mode` (manifest.yml). Doc keys match the `.md`
+filenames: `design` exists in unified mode; `arch`/`hld`/`adr` in separate mode.
+
+| Phase | Sequence (unified) | Sequence (separate) | Reviewer |
+|---|---|---|---|
+| specify | BRD → Use Cases → SRD → Design | BRD → Use Cases → SRD | PO → BA → BA → Architect |
+| planning | LLD (mvp+) | Arch → HLD → ADR (mvp+) → LLD (mvp+) | Tech Lead / Architect |
+| tasks | Tasks | Tasks | Scrum Master |
+| release | Runbook → Release | Runbook → Release | DevOps → Release Manager |
 
 ```bash
 sdd review submit --doc brd      # push to Confluence + create Jira review task

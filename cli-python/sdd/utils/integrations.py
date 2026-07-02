@@ -6,13 +6,15 @@ import yaml
 INTEGRATIONS_PATH = ".specify/integrations.yml"
 
 _DEFAULT_PAGE_MAP = {
-    "brd":     "{project} — Business Requirements",
-    "srd":     "{project} — System Requirements",
-    "arch":    "{project} — Architecture Overview",
-    "hld":     "{project} — High-Level Design",
-    "lld":     "{project} — Low-Level Design",
-    "adr":     "{project} — Architecture Decisions",
-    "runbook": "{project} — Runbook",
+    "brd":       "{project} — Business Requirements",
+    "use-cases": "{project} — Use Cases",
+    "srd":       "{project} — System Requirements",
+    "design":    "{project} — Design",
+    "arch":      "{project} — Architecture Overview",
+    "hld":       "{project} — High-Level Design",
+    "adr":       "{project} — Architecture Decisions",
+    "lld":       "{project} — Low-Level Design",
+    "runbook":   "{project} — Runbook",
 }
 
 _DEFAULT_PRIORITY_MAP = {

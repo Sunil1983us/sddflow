@@ -284,6 +284,14 @@ Renders automatically in:
 
 ### 4.1 Command produces wrong output or skips a section
 
+First run the output-assertion harness against the worked example — it catches
+structural drift (missing BO/FR/UC markers, broken traceability, absent
+sign-offs) and runs in CI (`output-assertions` job):
+
+```bash
+bash packs/_shared/tests/assert-output.sh examples/todo-api/.specify/features/task-management pilot
+```
+
 1. Open `.github/prompts/{command}.prompt.md` — this is the full logic
 2. Check the `## Persona` section (has the name and role)
 3. Check `## Actions` section (numbered steps the agent follows)

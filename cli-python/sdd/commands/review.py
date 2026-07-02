@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import date
 from pathlib import Path
+import re
 import yaml
 import click
 from rich.console import Console
@@ -60,13 +61,16 @@ def _doc_md_path(doc: str, feature: str | None) -> Path | None:
 
 
 def _mark_md_approved(md_path: Path) -> bool:
-    """Flip the document header 'Status: Draft' → 'Status: Approved'.
+    """Flip the document header to 'Status: Approved'.
 
-    Returns True if the file was changed, False if it was already approved
-    (the AI approval flow normally flips the header before calling the CLI —
-    this is the safety net for direct CLI usage)."""
+    Handles the pre-approval statuses case-insensitively: Draft (most docs)
+    and Proposed (ADR lifecycle). Returns True if the file was changed,
+    False if it was already approved (the AI approval flow normally flips
+    the header before calling the CLI — this is the safety net for direct
+    CLI usage)."""
     text = md_path.read_text()
-    new  = text.replace("Status: Draft", "Status: Approved", 1)
+    new  = re.sub(r"Status:\s*(Draft|Proposed)\b", "Status: Approved",
+                  text, count=1, flags=re.IGNORECASE)
     if new == text:
         return False
     md_path.write_text(new)
@@ -190,7 +194,7 @@ def review_command():
 
 @review_command.command("submit")
 @click.option("--doc",     required=True,
-              help="Document key: brd, srd, arch, hld, lld, adr, tasks, runbook, release")
+              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), lld, tasks, runbook, release")
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_submit(doc, profile, feature):
@@ -393,7 +397,7 @@ def review_check(doc, profile):
 
 @review_command.command("approve")
 @click.option("--doc",      required=True,
-              help="Document key: brd, srd, use-cases, design, lld, ...")
+              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), lld, ...")
 @click.option("--local",    is_flag=True, required=True,
               help="Write a local approval record (fallback when Jira is not configured)")
 @click.option("--by",       default="chat",

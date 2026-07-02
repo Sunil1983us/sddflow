@@ -38,6 +38,100 @@ All notable changes to the SDD Framework are documented here.
   validation, Python/Node CLI sanity, and the setup smoke-test suite
 - Onboarding docs consolidated; `OWNER-GUIDE.md` refreshed
 
+### Changed — package renamed to `sddkit` before first publish
+
+- Package name is now **`sddkit`** on PyPI (and reserved for npm if ever
+  published) — `sdd-init` on npm belongs to an unrelated third-party package,
+  and neither registry had been published to yet, so the rename is zero-cost
+- The command users type is **unchanged**: `sdd` (like `pip install httpie`
+  → `http`) — every `sdd …` reference in prompts, docs, and CI stays valid
+- Updated: pyproject.toml / package.json names, all install instructions,
+  publish.sh, manifest generation header, scaffold error hints
+
+### Fixed — npm install instructions were unsafe
+
+- The `sdd-init` name on npm is owned by an **unrelated third-party package** —
+  all 16 `npm install -g sdd-init` instructions across READMEs, HOW-TO-USE, and
+  SPEC-KIT-COMPARISON replaced with from-source install
+  (`npm install -g ./Universalguide/cli`) plus an explicit warning
+- Root README: "not on PyPI yet" note with the git-subdirectory pip install
+  fallback until the first release is published
+- Publishing note: build the Python package via `cli-python/publish.sh` only —
+  it bundles `packs/` into the wheel first; a bare `python -m build` produces a
+  wheel without packs and a broken `sdd init`
+
+### Added — test coverage and second worked example
+
+- `cli-python/tests/` — 29 pytest unit tests: review approval helpers (header
+  flip incl. DRAFT/Proposed/word-boundary cases, local approvals, path-escape),
+  the full upgrade migration chain (connected, self-stamping, re-run hint),
+  config-init template validity, and a guard that the shipped
+  integrations.yml.example agrees with the CLI's doc-key vocabulary and has
+  strictly increasing review sequences. Runs in CI (python-cli-sanity job)
+- `examples/habit-tracker-web` — second worked example: frontend-spa, pilot,
+  **unified** plan mode (design.md with Mermaid + ADRs), including the new
+  pilot `smoke-tests.md` artifact — the opposite pipeline half from todo-api;
+  passes all 33 output assertions and runs in CI
+
+### Added — design-decision pass (gap review G8–G14)
+
+- `/validate` gains §4b Indicative Effort: T-shirt size (S/M/L/XL) per FR with
+  effort driver, so the PO signs off with an effort signal in view — indicative
+  only, story points still come at `/task` (template + all 5 pack prompts)
+- NFR budget allocation: design-template §3.5 and hld-template §6 now split each
+  measurable NFR target across critical-path components into testable budgets
+- `/change` cross-cutting security rule: changes touching auth, personal data,
+  retention, or new integrations promote security-design.md to PRIMARY in the
+  document walk regardless of CR type — TH-NNN table refreshed before tasks
+- `sdd-universal` constitution Part 1: applicability-by-project-type note maps
+  service-shaped rules (controllers, hexagonal, error handler) onto cli,
+  library, data-ml, frontend, and mobile equivalents
+- `quality-gate.yml` (all packs): documented, commented-out `perf-gate` job —
+  k6 thresholds from PERF-NNN tasks, opt-in at full scope
+- Node.js CLI marked **maintenance mode** in root and cli READMEs (scaffolding
+  only; new features land in the Python CLI; `sdd` binary collision warning)
+
+### Added — developer-experience pass (gap review G1–G7)
+
+- `sdd-universal` gains `.github/instructions/` (tests, domain, entrypoints) —
+  language-neutral, path-scoped coding standards; it was the only pack without them
+- `manifest.yml`: `testing_style: "paired"` now ships active (was commented out)
+- Release Go-Live Gate: explicit preconditions (all tasks merged, UAT passed,
+  §7 Rollback Plan filled — rehearsed at mvp+, monitoring in place) checked
+  before any Go decision, in both template and prompt (all 5 packs)
+- TDD mode now produces test-first evidence: the failing test is committed
+  separately (`test({scope}): red — {criterion}`); `/pre-review` gains angle H
+  verifying the red commit when `testing_style: tdd`
+- `/pre-review` gains angle G — threat-model conformance: diff checked against
+  security-design.md §1 TH-NNN mitigations when the document exists
+- Pilot scope now gets a QA artifact: `/task` generates a ≤10-case
+  `smoke-tests.md` (TC-S-NNN from UC Main/Exception paths) instead of nothing;
+  `/release` UAT scenarios draw from it
+- `sdd config init` page_map updated to the plan_mode-aware doc keys
+  (use-cases, design) — it was regenerating the pre-2.7.0 vocabulary
+
+### Fixed — consistency pass (prompts, templates, review config)
+
+- Review doc keys unified everywhere (`brd, use-cases, srd, design | arch/hld/adr, lld,
+  tasks, runbook, release`): submit-review and check-review prompts and CLI help had
+  three different vocabularies; `integrations.yml.example` lacked `use-cases`/`design`
+  entries so `sdd review submit --doc design` failed in unified mode (the default);
+  example's ADR sequence was after LLD, contradicting the prompts (arch → hld → adr → lld)
+- `document_reviews` example and default Confluence `page_map` are now plan_mode-aware
+  (unified active by default, separate-mode block ready to uncomment)
+- `/orchestrate` now supports `plan_mode: separate` — plan-arch/plan-hld/plan-adr steps,
+  mode-branched dashboard and execution (previously unified-only)
+- Status headers normalized: `use-cases-template.md` now uses the standard
+  `> Version | Status: Draft |` header (was bare `Status: DRAFT`); `sdd review approve`
+  flips Draft/Proposed case-insensitively (covers ADR lifecycle)
+- `check-review` advance tree is plan_mode- and scope-aware (was hardcoded to the
+  separate chain and skipped Use Cases)
+- Worked example completed: `use-cases.md` (ACT/UC/MP-AP-EP) and `security-design.md` §1
+  added to `examples/todo-api`; `assert-output.sh` accepts either plan mode's documents
+  and now runs in CI (`output-assertions` job) — 33/33 passing
+- `qa-testcases-template.md`: non-HTTP variant (Command/Input/Call) for cli, data-ml,
+  library, and pipeline project types
+
 ### Fixed
 
 - `setup.sh` / `setup.ps1` (all 5 packs) crashed in non-interactive runs (CI,
@@ -226,7 +320,7 @@ All notable changes to the SDD Framework are documented here.
 
 ### Added
 
-#### Python CLI (`pip install sdd-init` / `pipx run sdd-init`)
+#### Python CLI (`pip install sddkit` / `pipx run sddkit`)
 - `sdd init` — replaces `setup.sh` / `setup.ps1`; writes manifest via PyYAML (no injection)
 - `sdd upgrade` — migration table; adds `sdd_version` to pre-v2 manifests
 - `sdd config init` — interactive setup of `~/.sdd/config.yml` and `.specify/integrations.yml`
@@ -257,7 +351,7 @@ All notable changes to the SDD Framework are documented here.
 - Pages matched by title — create if absent, update version if present
 - `page_map` in `integrations.yml` controls page titles (supports `{project}` token)
 
-#### Node.js CLI (`npx sdd-init`)
+#### Node.js CLI (unpublished — from source)
 - `sdd init` — cross-platform replacement for setup scripts; writes manifest via js-yaml
 - `sdd upgrade` — same migration table as Python CLI
 

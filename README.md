@@ -29,12 +29,17 @@ the Node.js CLI currently covers scaffolding only (`init` / `upgrade`). Pick
 Python if you need Jira/Confluence integration; either works for basic
 pack scaffolding.
 
-### Python CLI — `sdd-init`
+### Python CLI — `sddkit`
 
 ```bash
-pip install sdd-init
+pip install sddkit
 sdd init
 ```
+
+> **Not on PyPI yet?** Until the first release is published, install from
+> source: `pip install "git+https://github.com/Sunil1983us/Universalguide#subdirectory=cli-python"`
+> (note: `sdd init`'s bundled packs are only included in released wheels —
+> from a source install, copy a pack from `packs/` manually).
 
 Includes:
 - `sdd init` / `sdd upgrade`
@@ -57,10 +62,16 @@ Agent commands (Claude Code / Copilot):
 
 → Full reference: [`cli-python/README.md`](cli-python/README.md)
 
-### Node.js CLI — `sdd-init`
+### Node.js CLI (maintenance mode, from source only)
+
+> ⚠️ **Do NOT `npm install -g sdd-init`** — that name on npm belongs to an
+> unrelated third-party package, not this project. This Node CLI is not
+> published; it is scaffolding-only and in maintenance mode. Prefer the
+> Python CLI. To use it anyway, install from source:
 
 ```bash
-npm install -g sdd-init
+git clone https://github.com/Sunil1983us/Universalguide
+npm install -g ./Universalguide/cli
 sdd init
 ```
 
@@ -93,10 +104,7 @@ bash setup.sh                 # Mac / Linux — no install needed
 .\setup.ps1                   # Windows PowerShell — no install needed
 
 # Python CLI
-pip install sdd-init && sdd init
-
-# Node.js CLI
-npm install -g sdd-init && sdd init
+pip install sddkit && sdd init
 
 # 3. Open in your AI tool and run /specify
 ```
@@ -115,10 +123,11 @@ packs/
   sdd-frontend-spa/
   sdd-mobile/
   sdd-fullstack/
-cli/                  # Node.js CLI (npx sdd-init)
-cli-python/           # Python CLI (pip install sdd-init)
+cli/                  # Node.js CLI (from source; maintenance mode)
+cli-python/           # Python CLI (pip install sddkit)
 examples/
-  todo-api/           # Complete worked example (TypeScript/Express/PostgreSQL)
+  todo-api/             # Worked example — backend, separate plan mode
+  habit-tracker-web/    # Worked example — frontend, unified plan mode
 PACK-SPEC.md          # Specification for building community packs
 CHANGELOG.md          # Version history
 ```
