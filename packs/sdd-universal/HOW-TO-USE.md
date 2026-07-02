@@ -644,7 +644,19 @@ Page titles come from `integrations.yml → confluence.page_map`. Re-running upd
 
 ### Document Review Workflow
 
-After generating each spec document, submit it for stakeholder review:
+Reviews work in three modes — **Jira is optional**:
+
+- **chat** (default, zero setup): the reviewer approves in chat; the agent flips
+  the document's `Status:` header — the authoritative gate in every mode
+- **local**: same, plus `sdd review approve --doc brd --local --by "Product Owner"`
+  records an audit trail in `.specify/.local-approvals.yml` — and updates the
+  document's existing Confluence page when a `confluence:` section is configured
+- **jira**: the full workflow below (needs `jira:` + `confluence:` in
+  `integrations.yml`)
+
+See "Document Review Gates — Three Modes" in `CLAUDE.md` for details.
+
+**jira mode** — after generating each spec document, submit it for stakeholder review:
 
 ```bash
 sdd review submit --doc brd      # push to Confluence + create Jira review task

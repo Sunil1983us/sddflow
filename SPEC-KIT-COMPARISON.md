@@ -24,7 +24,7 @@
 | Code review | None | `/pre-review` — AI reviews diff before PR (numbered findings, dev picks fixes); `/address-review` — AI addresses human PR comments, replies to threads, requests re-review |
 | CLI / setup | `bash scripts/bash/setup.sh` / PowerShell equivalent | `pip install sdd-init` or `npm install -g sdd-init` — interactive wizard: project name, scope, AI tool, scaffolds pack automatically |
 | AI tool selection | Tool-agnostic (same prompt works in any AI) | `sdd init` prompts for tool (Claude Code / Copilot / Cursor / Windsurf / Other); saves as `ai_tool` in `manifest.yml`; shows personalized next-step instruction |
-| Jira / Confluence | None | `sdd config init/test/fields` → `sdd jira push` / `sdd confluence push`; `sdd review submit/check/apply/status` — Jira-backed stakeholder approval for every SDD document |
+| Jira / Confluence | None | `sdd config init/test/fields` → `sdd jira push` / `sdd confluence push`; `sdd review submit/check/apply/status` — stakeholder approval for every SDD document (Jira-backed, or chat approval with local audit trail when Jira is absent; Confluence kept in sync either way) |
 | Full pipeline automation | None | `/orchestrate` — drives entire pipeline from a single command; pauses at every human gate; supports `--list`, `--from STEP`, `--to STEP` |
 | Portability | Designed to run identically across many AI coding tools | Claude Code (`.claude/commands/`), Copilot (`.github/copilot-instructions.md` + `.github/prompts/`), Cursor, Windsurf (`.windsurfrules`), any AI via copy-paste; `sdd init` selects AI tool interactively |
 | Project types | 1 (generic) | 5 packs: backend-service, frontend-spa, mobile, fullstack + `sdd-universal` (auto-detects cli, data-ml, serverless, library, iac, desktop + all 4 above) |
@@ -375,6 +375,7 @@ All items selectively borrowed into SDD packs — now fully implemented:
 - ✅ `/jira-push` — progressive Jira API push (Epic → Story → Task → CHG) at each SDLC gate, via standalone `.specify/scripts/jira-push.py` + `.specify/jira-config.yml`; works from CI/CD too
 - ✅ `sdd confluence push` — publish SDD documents to Confluence (`--doc`, `--all`)
 - ✅ `sdd review submit/check/apply/status` — Jira-backed stakeholder approval workflow; enforces review sequence; revision handling with re-push
+- ✅ `sdd review approve --local` — no-Jira fallback: chat approval with audit trail in `.specify/.local-approvals.yml`; auto-updates the document's Confluence page when configured
 - ✅ `/specify-brd`, `/specify-uc`, `/specify-srd`, `/specify-doc {name}` — SPECIFY split into 5 sub-commands (one document at a time)
 - ✅ `/plan-design` — replaces `/plan-arch` + `/plan-hld` + `/plan-adr` (single design document)
 - ✅ `/pre-review` — AI code review before PR; numbered findings → dev picks which to fix
