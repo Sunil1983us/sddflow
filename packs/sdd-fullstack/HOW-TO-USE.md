@@ -153,7 +153,8 @@ Install the CLI once:
 ```bash
 pip install sdd-init          # Python (any platform)
 # OR
-npm install -g sdd-init       # Node.js (any platform)
+# (Node.js CLI: from source only — see the framework repo's cli/README.md;
+#  the sdd-init package on npm is an unrelated third-party project)
 ```
 
 Then run in your project folder:

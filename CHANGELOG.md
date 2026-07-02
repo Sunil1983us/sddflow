@@ -38,6 +38,18 @@ All notable changes to the SDD Framework are documented here.
   validation, Python/Node CLI sanity, and the setup smoke-test suite
 - Onboarding docs consolidated; `OWNER-GUIDE.md` refreshed
 
+### Fixed — npm install instructions were unsafe
+
+- The `sdd-init` name on npm is owned by an **unrelated third-party package** —
+  all 16 `npm install -g sdd-init` instructions across READMEs, HOW-TO-USE, and
+  SPEC-KIT-COMPARISON replaced with from-source install
+  (`npm install -g ./Universalguide/cli`) plus an explicit warning
+- Root README: "not on PyPI yet" note with the git-subdirectory pip install
+  fallback until the first release is published
+- Publishing note: build the Python package via `cli-python/publish.sh` only —
+  it bundles `packs/` into the wheel first; a bare `python -m build` produces a
+  wheel without packs and a broken `sdd init`
+
 ### Added — test coverage and second worked example
 
 - `cli-python/tests/` — 29 pytest unit tests: review approval helpers (header

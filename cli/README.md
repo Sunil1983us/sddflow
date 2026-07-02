@@ -11,8 +11,12 @@ No bash required. Works on Mac, Linux, and Windows.
 
 ## Install
 
+> ⚠️ The `sdd-init` name on npm belongs to an **unrelated third-party
+> package** — do not install it. This CLI ships from source only:
+
 ```bash
-npm install -g sdd-init
+git clone https://github.com/Sunil1983us/Universalguide
+npm install -g ./Universalguide/cli
 sdd init
 ```
 
