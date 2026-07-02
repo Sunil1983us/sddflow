@@ -116,11 +116,17 @@ When the user replies with any approval signal — **'approved'**, **'approve'**
    - Approvals table: all Pending rows → `Approved` + today's date.
    - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
 3. Re-save `validate.md` and regenerate `validate.summary.md`.
-4. Record locally:
+4. Ask once: "Recording the approval — approver name/role and an optional comment?"
+   (defaults: the accountable role for this gate in roles.yml; "approved in chat")
+5. Record locally and sync Confluence:
 ```bash
-sdd review approve --doc validate --local --by "{jira or chat}" --note "approved"
+sdd review approve --doc validate --local --by "{approver}" --note "{comment}"
 ```
-If that also fails, note: "Validate approved ✓" and continue.
+This also updates the document's existing Confluence page when a `confluence:`
+section exists in `.specify/integrations.yml`.
+If the command fails or the CLI is not installed, note: "Validate approved ✓
+(Confluence page not updated)" and continue — the `Status: Approved` header is
+the authoritative gate.
 
 ## Outcome
 - If all objectives traced and all assumptions confirmed: State:

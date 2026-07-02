@@ -12,7 +12,29 @@ The document key to submit: brd | use-cases | srd | design | lld | tasks | runbo
 
 If not provided, infer from conversation context (which document was most recently generated).
 
-## Steps
+## No-Jira fallback (check this FIRST)
+
+If `.specify/integrations.yml` does not exist, or it has no `jira:` section, do
+NOT run the CLI command — run the review in chat instead:
+
+1. Look up the reviewer for this document in `.specify/memory/roles.yml`
+   (the accountable role for its gate).
+2. Tell the user: "**{DOC} is ready for review.** Jira is not configured, so
+   this review runs in chat: share the document with {reviewer_role}, and reply
+   **'approved'** (or 'LGTM') here when they sign off — or paste their feedback."
+3. On approval: flip the document header `Status: Draft` → `Status: Approved`,
+   fill the Approvals table, ask once for the approver name/role and an optional
+   comment, then (if the `sdd` CLI is installed) run
+   `sdd review approve --doc {doc_key} --local --by "{approver}" --note "{comment}"`
+   — this records the approval and updates the document's existing Confluence
+   page when a `confluence:` section exists in `.specify/integrations.yml`.
+4. On feedback: apply it to the document, regenerate the `.summary.md`, and ask
+   for re-review.
+
+The `Status: Approved` header in the `.md` is the authoritative gate — Jira and
+Confluence are integrations on top of it, never a prerequisite.
+
+## Steps (Jira configured)
 
 Run the following command, replacing `{doc_key}` with the document key:
 

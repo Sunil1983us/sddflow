@@ -1,5 +1,5 @@
 # SDD Framework — Project Initializer (PowerShell)
-# Usage: .\setup.ps1 [-Project <name>] [-Scope pilot|mvp|full] [-Feature <name>]
+# Usage: .\setup.ps1 [-Project <name>] [-Scope pilot|mvp|full] [-Feature <name>] [-PlanMode unified|separate]
 # Run this once after copying the pack into your project directory.
 
 param(
@@ -15,31 +15,49 @@ Write-Host "  SDD Framework — Setup"
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 Write-Host ""
 
-if (-not $Project) { $Project = Read-Host "Project name (e.g. my-payments-api)" }
-if (-not $Feature) { $Feature = Read-Host "First feature name (e.g. user-authentication)" }
+# When stdin is redirected (CI, piped input, automation), Read-Host cannot
+# prompt — optional values fall back to their defaults, required ones fail fast.
+$Interactive = -not [Console]::IsInputRedirected
+
+if (-not $Project) {
+  if ($Interactive) { $Project = Read-Host "Project name (e.g. my-payments-api)" }
+  else { Write-Error "-Project is required when running non-interactively"; exit 1 }
+}
+if (-not $Feature) {
+  if ($Interactive) { $Feature = Read-Host "First feature name (e.g. user-authentication)" }
+  else { Write-Error "-Feature is required when running non-interactively"; exit 1 }
+}
 if (-not $Scope) {
-  Write-Host ""
-  Write-Host "Scope:"
-  Write-Host "  pilot  — quick prototype, minimal docs"
-  Write-Host "  mvp    — production-ready"
-  Write-Host "  full   — enterprise"
-  $ScopeInput = Read-Host "Scope [pilot]"
-  $Scope = if ($ScopeInput) { $ScopeInput } else { "pilot" }
+  if ($Interactive) {
+    Write-Host ""
+    Write-Host "Scope:"
+    Write-Host "  pilot  — quick prototype, minimal docs"
+    Write-Host "  mvp    — production-ready"
+    Write-Host "  full   — enterprise"
+    $ScopeInput = Read-Host "Scope [pilot]"
+    $Scope = if ($ScopeInput) { $ScopeInput } else { "pilot" }
+  } else {
+    $Scope = "pilot"
+  }
 }
 
 if (-not $PlanMode) {
-  Write-Host ""
-  Write-Host "Plan document style:"
-  Write-Host "  unified  — One combined design.md covering architecture, diagrams,"
-  Write-Host "             API design and decisions in one place."
-  Write-Host "             Good for: small teams, fast delivery, single review gate."
-  Write-Host ""
-  Write-Host "  separate — Three focused documents reviewed one by one:"
-  Write-Host "             arch.md -> hld.md -> adr.md (mvp+ only)"
-  Write-Host "             Good for: larger teams, separate approvals, detailed audit trail."
-  Write-Host ""
-  $PlanModeInput = Read-Host "Plan mode [unified]"
-  $PlanMode = if ($PlanModeInput) { $PlanModeInput } else { "unified" }
+  if ($Interactive) {
+    Write-Host ""
+    Write-Host "Plan document style:"
+    Write-Host "  unified  — One combined design.md covering architecture, diagrams,"
+    Write-Host "             API design and decisions in one place."
+    Write-Host "             Good for: small teams, fast delivery, single review gate."
+    Write-Host ""
+    Write-Host "  separate — Three focused documents reviewed one by one:"
+    Write-Host "             arch.md -> hld.md -> adr.md (mvp+ only)"
+    Write-Host "             Good for: larger teams, separate approvals, detailed audit trail."
+    Write-Host ""
+    $PlanModeInput = Read-Host "Plan mode [unified]"
+    $PlanMode = if ($PlanModeInput) { $PlanModeInput } else { "unified" }
+  } else {
+    $PlanMode = "unified"
+  }
 }
 
 Write-Host ""

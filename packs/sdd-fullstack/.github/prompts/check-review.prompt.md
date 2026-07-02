@@ -10,7 +10,20 @@ You are a Technical Program Manager monitoring document review status. Check the
 
 The document key to check: brd | srd | arch | hld | lld | adr | tasks | runbook | release
 
-## Steps
+## No-Jira fallback (check this FIRST)
+
+If `.specify/integrations.yml` does not exist, or it has no `jira:` section, do
+NOT run the CLI command. Determine the status from local state, in this order:
+
+1. `.specify/features/{feature}/{doc_key}.md` header shows `Status: Approved`
+   → treat as **APPROVED**.
+2. `.specify/.local-approvals.yml` has an entry for `{doc_key}`
+   → treat as **APPROVED**.
+3. Otherwise → treat as **PENDING**: "{DOC} is awaiting chat approval — share
+   it with {reviewer_role} (see roles.yml) and reply 'approved' when they
+   sign off."
+
+## Steps (Jira configured)
 
 Run:
 ```bash

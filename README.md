@@ -44,6 +44,12 @@ Includes:
 - `sdd review submit` / `sdd review check` / `sdd review apply` / `sdd review status`
 - `sdd pr create`
 
+Reviews don't require Jira: document approval works in chat out of the box (the
+`Status:` header in each `.md` is the authoritative gate). With only a
+`confluence:` section configured, `sdd review approve --local` also updates the
+document's existing Confluence page — chat approvals never leave Confluence
+stale. See "Document Review Gates — Three Modes" in any pack's `CLAUDE.md`.
+
 Agent commands (Claude Code / Copilot):
 - `/pre-review` — one-time code review before PR creation; developer picks which findings to fix
 - `/address-review` — address human PR review comments; replies to threads, requests re-review

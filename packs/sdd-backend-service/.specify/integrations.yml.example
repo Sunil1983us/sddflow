@@ -78,6 +78,14 @@ jira:
 
 
 # ── Confluence ────────────────────────────────────────────────────────────────
+#
+# The confluence: section works standalone — no jira: section required.
+# With only confluence: configured you get:
+#   - `sdd confluence push --doc {name}` (manual page create/update)
+#   - automatic page updates when `sdd review approve --doc {name} --local`
+#     records a chat approval (the approved .md is mirrored to its page)
+# The full Jira review workflow (sdd review submit/check/apply) needs both
+# jira: and confluence:.
 
 confluence:
   # Your Confluence space key (visible in the space URL: /wiki/spaces/ENG)

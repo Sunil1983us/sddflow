@@ -26,6 +26,14 @@ jobs:
             exit 1
           fi
 
+  setup-smoke-tests:
+    name: setup.sh smoke tests (non-interactive, injection-class inputs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run test-setup.sh
+        run: bash packs/_shared/tests/test-setup.sh
+
   yaml-validate:
     name: Validate YAML templates and manifests
     runs-on: ubuntu-latest

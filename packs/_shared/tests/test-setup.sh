@@ -25,7 +25,9 @@ _run_setup() {
   tmpdir=$(mktemp -d)
   cp -r "$PACK_DIR/." "$tmpdir/"
   pushd "$tmpdir" > /dev/null
-  bash setup.sh "$@" > /dev/null 2>&1
+  # stdin from /dev/null: tests always exercise the non-interactive path,
+  # even when the suite itself is run from a terminal.
+  bash setup.sh "$@" < /dev/null > /dev/null 2>&1
   local rc=$?
   popd > /dev/null
   echo "$tmpdir"
