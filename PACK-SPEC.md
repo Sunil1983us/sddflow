@@ -107,7 +107,11 @@ keep them byte-identical with the canonical `_shared/blocks/` source:
 | `gate1-reminders` | `CLAUDE.md` — Startup steps 8–10 |
 | `never-do-core` | `CLAUDE.md` — "Never Do" section |
 | `pr-contract` | `CLAUDE.md` — "PR Contract" section |
+| `review-gates` | `CLAUDE.md` — "Document Review Gates — Three Modes" section |
+| `scope-reference` | `CLAUDE.md` — "Scope Reference" section |
 | `startup-instructions` | `CLAUDE.md` — Startup step 7 (AI-7 rule) |
+| `start-command-body` | `.claude/commands/start.md` |
+| `team-routing` | `CLAUDE.md` — "Virtual Team" section |
 
 Do NOT modify content inside these markers — edit `_shared/blocks/{id}.md`
 and run `bash packs/_shared/sync-blocks.sh` instead.

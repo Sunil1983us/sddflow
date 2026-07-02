@@ -7,6 +7,7 @@ from sdd.utils.manifest import read_manifest, patch_manifest, MANIFEST_PATH, SDD
 console = Console()
 
 # Version migration table — extend when releasing a new pack version.
+# Each migrate() stamps its own "to" version so chained upgrades stay truthful.
 MIGRATIONS = [
     {
         "from":        None,       # None = pre-versioning (no sdd_version field)
@@ -19,7 +20,21 @@ MIGRATIONS = [
             "Detection order fix: mobile (react-native) now checked before fullstack",
             "Python CLI added alongside Node.js CLI (pip install sdd-init)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": SDD_VERSION},
+        "migrate": lambda m: {**m, "sdd_version": "2.0.0"},
+    },
+    {
+        "from":        "2.0.0",
+        "to":          "2.7.0",
+        "description": "Content release — no manifest schema changes",
+        "notes": [
+            "/change command: type-aware change requests at any SDLC stage",
+            "/jira-push: progressive Jira export (Epic/Story/Task/CHG)",
+            "Review gates: three modes (chat / local / jira) — Jira now optional",
+            "sdd review approve --local also updates the doc's Confluence page",
+            "setup.sh/setup.ps1 safe in non-interactive runs (CI, piped input)",
+            "Re-copy the pack (or run sdd init over it) to pick up new prompt files",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.0"},
     },
 ]
 
@@ -69,6 +84,14 @@ def upgrade_command():
         updated = migration["migrate"](read_manifest())
         patch_manifest({"sdd_version": updated["sdd_version"]})
         console.print(f"  [green]✓[/green]  {MANIFEST_PATH} updated to v{migration['to']}")
+        console.print()
+
+    final_version = (read_manifest() or {}).get("sdd_version")
+    if final_version != SDD_VERSION:
+        console.print(
+            f"  [yellow]Now at v{final_version} — run [cyan]sdd upgrade[/cyan] again "
+            f"to continue to v{SDD_VERSION}.[/yellow]"
+        )
         console.print()
 
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")

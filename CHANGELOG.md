@@ -4,6 +4,54 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.0] — 2026-07-02
+
+### Added — no-Jira review modes, Confluence sync on approval, progressive Jira push
+
+#### Document review gates — three modes (all 5 packs)
+- New shared block `review-gates.md` — "Document Review Gates — Three Modes"
+  (chat / local / jira) replaces the Jira-only section in every pack's `CLAUDE.md`
+- **chat** (default, zero setup): reviewer approves in chat; the `Status:` header
+  in the `.md` is the authoritative gate in every mode
+- **local**: `sdd review approve --doc X --local --by "…" --note "…"` records an
+  audit trail in `.specify/.local-approvals.yml`
+- `sdd review approve --local` now also flips the doc header to `Status: Approved`
+  (safety net) and **updates the document's existing Confluence page** when a
+  `confluence:` section exists in `integrations.yml` (`--no-confluence` to skip;
+  a Confluence failure warns but never blocks the approval)
+- Approval steps in all spec/plan/validate prompts now ask once for the approver
+  name/role + optional comment, and degrade gracefully when the CLI is absent
+- `submit-review` / `check-review` prompts: "No-Jira fallback" branch — chat-mode
+  review via the `roles.yml` reviewer instead of a failing CLI call
+- `integrations.yml.example`: documents that `confluence:` works standalone
+
+#### `/jira-push` — progressive Jira export (all 5 packs)
+- Pushes to the Jira REST API progressively: Epic after BRD, Stories after Use
+  Cases/SRD, Tasks after `/task`, CHG tasks after `/change`
+- Standalone script `.specify/scripts/jira-push.py` (auto-installs PyYAML);
+  field mapping in `.specify/jira-config.yml` (`jira-config-template.yml`)
+- Bare shorthand (`/jira-push epic`) and flag syntax (`/jira-push --level all --dry-run`)
+
+#### Maintainer repo
+- MIT `LICENSE`
+- CI workflow (`.github/workflows/ci.yml`): shared-sync drift check, YAML
+  validation, Python/Node CLI sanity, and the setup smoke-test suite
+- Onboarding docs consolidated; `OWNER-GUIDE.md` refreshed
+
+### Fixed
+
+- `setup.sh` / `setup.ps1` (all 5 packs) crashed in non-interactive runs (CI,
+  piped input): `read` hit EOF under `set -euo pipefail` before defaults could
+  apply. Prompts are now guarded — optional values fall back to defaults
+  (scope=pilot, plan_mode=unified, detected type), required ones fail fast
+  naming the missing flag. Smoke tests went from 13/15 failing to 15/15 passing
+  and now run in CI
+- `sdd-universal` was the only pack missing `CLAUDE.local.md` — added
+- Stale maintainer docs: shared-blocks lists (`CLAUDE.md`, `OWNER-GUIDE.md`,
+  `PACK-SPEC.md`), template counts, repository layout, testing instructions
+
+---
+
 ## [2.6.0] — 2026-06-22
 
 ### Added — `/change` command, stakeholder template improvements, context feature-hint

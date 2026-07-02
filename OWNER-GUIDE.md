@@ -53,7 +53,7 @@ Each pack is **fully self-contained** — a user copies the whole folder and it 
 └── .specify/
     ├── manifest.yml                  ← Project config (name, scope, feature, type)
     ├── memory/                       ← constitution.md, roles.yml, summary-rules.md
-    ├── templates/                    ← 26 document templates for all SDD outputs
+    ├── templates/                    ← 30+ document templates for all SDD outputs
     └── integrations.yml.example      ← Jira/Confluence config template
 ```
 
@@ -166,6 +166,7 @@ Current blocks and where they appear:
 | `pr-contract` | PR estimate + split + "PR ready" rules | All packs' `CLAUDE.md` |
 | `scope-reference` | Pilot/mvp/full feature table | All packs' `CLAUDE.md` |
 | `startup-instructions` | Session startup checklist | All packs' `CLAUDE.md` |
+| `review-gates` | Document review gates — three modes (chat/local/jira) | All packs' `CLAUDE.md` |
 | `start-command-body` | `/start` command body | All packs' `.claude/commands/start.md` |
 | `team-routing` | Virtual team roster + routing rule | All packs' `CLAUDE.md` |
 
@@ -318,7 +319,16 @@ bash packs/_shared/sync-blocks.sh   # subsequent updates will now work
 
 ### 4.5 `setup.sh` fails or produces invalid YAML in manifest.yml
 
-Test the setup script directly:
+Run the smoke-test suite first — it covers injection-class names (apostrophes,
+slashes, backslashes, spaces, unicode), all project types, and non-interactive
+execution. CI runs it on every PR (`setup-smoke-tests` job in
+`.github/workflows/ci.yml`):
+
+```bash
+bash packs/_shared/tests/test-setup.sh
+```
+
+To reproduce a single case by hand:
 ```bash
 cd packs/sdd-universal
 bash setup.sh --project "Test Project" --feature "auth" --scope pilot --type backend-service
@@ -328,7 +338,11 @@ rm -rf .specify/contexts/auth.md
 git checkout .specify/manifest.yml
 ```
 
-Special characters to test: apostrophes, slashes, spaces in project names.
+Setup scripts must never hang or crash when stdin is not a terminal (CI, piped
+input): optional prompts fall back to defaults, required ones fail fast naming
+the missing flag. Remember: the base `setup.sh`/`setup.ps1` are owned by
+`_shared/full/` — edit there and sync; only `sdd-universal`'s variants are
+edited in place.
 
 ### 4.6 Detection order is wrong (sdd-universal: mobile detected as fullstack)
 

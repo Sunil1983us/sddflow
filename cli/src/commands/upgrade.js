@@ -4,6 +4,7 @@ import { readManifest, patchManifest, MANIFEST_PATH, SDD_VERSION } from '../util
 
 // Version migration table — describes what changed between pack versions.
 // Extend this when releasing a new pack version.
+// Each migrate() stamps its own "to" version so chained upgrades stay truthful.
 const MIGRATIONS = [
   {
     from: null,          // null = pre-versioning (v1.x, no sdd_version field)
@@ -18,7 +19,24 @@ const MIGRATIONS = [
     ],
     migrate: (manifest) => {
       // Add sdd_version if missing — no other structural changes needed
-      manifest.sdd_version = SDD_VERSION;
+      manifest.sdd_version = '2.0.0';
+      return manifest;
+    },
+  },
+  {
+    from: '2.0.0',
+    to:   '2.7.0',
+    description: 'Content release — no manifest schema changes',
+    notes: [
+      '/change command: type-aware change requests at any SDLC stage',
+      '/jira-push: progressive Jira export (Epic/Story/Task/CHG)',
+      'Review gates: three modes (chat / local / jira) — Jira now optional',
+      "sdd review approve --local also updates the doc's Confluence page",
+      'setup.sh/setup.ps1 safe in non-interactive runs (CI, piped input)',
+      'Re-copy the pack (or run sdd init over it) to pick up new prompt files',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.0';
       return manifest;
     },
   },
@@ -74,6 +92,12 @@ export async function upgradeCommand() {
     m = migration.migrate(m);
     patchManifest({ sdd_version: m.sdd_version }, MANIFEST_PATH);
     console.log(`  ${chalk.green('✓')}  ${MANIFEST_PATH} updated to v${migration.to}`);
+    console.log('');
+  }
+
+  const finalVersion = readManifest()?.sdd_version;
+  if (finalVersion !== SDD_VERSION) {
+    console.log(chalk.yellow(`  Now at v${finalVersion} — run sdd upgrade again to continue to v${SDD_VERSION}.`));
     console.log('');
   }
 
