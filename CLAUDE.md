@@ -22,7 +22,12 @@ packs/
   sdd-frontend-spa/
   sdd-mobile/
   sdd-fullstack/
+cli/                # Node.js CLI (npm: sdd-init) — init/upgrade scaffolding only
+cli-python/         # Python CLI (pip: sdd-init) — full-featured (Jira, Confluence, reviews, PRs)
+examples/
+  todo-api/         # Complete worked example of SDD outputs
 SPEC-KIT-COMPARISON.md   # Competitive positioning against GitHub spec-kit
+PACK-SPEC.md             # Specification for building community packs
 ```
 
 Each `sdd-*` pack is fully self-contained — a user copies one pack folder into their project and never touches this repo again. Packs must never import from each other or from `_shared/` at runtime.
@@ -47,7 +52,7 @@ Edit the block file, then run sync:
 bash packs/_shared/sync-blocks.sh
 ```
 
-Current blocks: `command-gates`, `gate1-reminders`, `never-do-core`, `pr-contract`, `startup-instructions`, `start-command-body`.
+Current blocks: `command-gates`, `gate1-reminders`, `never-do-core`, `pr-contract`, `scope-reference`, `startup-instructions`, `start-command-body`, `team-routing`. (`ls packs/_shared/blocks/` is authoritative if this list drifts.)
 
 **2. Full files** (`_shared/full/**`)
 Whole files that are identical across packs (e.g. `CLAUDE.local.md`, `.windsurfrules`, `setup.sh`, `setup.ps1`, `.claude/commands/*.md`, `.specify/templates/*`). Synced with:
@@ -101,7 +106,7 @@ Every pack contains:
 | `.specify/memory/constitution.md` | Part 1: universal rules (never edit). Part 2: DRAFT per project, finalized at GATE-1 |
 | `.specify/memory/roles.yml` | RACI — which role is accountable at each gate |
 | `.specify/manifest.yml` | Project config: name, scope, feature, project_type, pr_rules, workflow_mode |
-| `.specify/templates/` | 26 document templates for all SDD outputs |
+| `.specify/templates/` | 30+ document templates for all SDD outputs |
 | `.github/prompts/` | One prompt file per command (portable to any AI tool) |
 | `.claude/commands/` | Claude Code native slash command wrappers |
 | `.github/instructions/` | Pack-specific coding standards (applied by AI-7 rule to matching files) |
@@ -164,16 +169,10 @@ Document inventory is defined in `specify.prompt.md` Action 2 — this is the si
 
 ## Testing Setup Scripts
 
-No automated test suite exists yet. To manually verify setup script correctness after changes, run edge-case inputs:
+After changing any `setup.sh` (edit `_shared/full/setup.sh` or `sdd-universal/setup.sh`, then sync), run the smoke-test suite — it covers injection-class names, all project types, and non-interactive execution. CI runs it on every PR (`setup-smoke-tests` job in `.github/workflows/ci.yml`).
 
 ```bash
-cd packs/sdd-universal
-# Test injection-class names
-bash setup.sh --project "O'Brien's API" --feature "auth/oauth" --scope pilot --type backend-service
-python3 -c "import yaml; yaml.safe_load(open('.specify/manifest.yml'))" && echo "YAML valid"
-grep -v PLACEHOLDER .specify/contexts/auth-oauth.md && echo "No placeholders"
-
-# Clean up test output
-rm -rf .specify/contexts/auth-oauth.md .specify/features/auth-oauth
-git checkout .specify/manifest.yml
+bash packs/_shared/tests/test-setup.sh
 ```
+
+The suite runs setup with stdin from `/dev/null` — setup scripts must never hang or crash when run non-interactively (CI, piped input): optional prompts fall back to defaults, required ones fail fast with a message naming the missing flag.

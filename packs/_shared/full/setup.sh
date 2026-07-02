@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SDD Framework — Project Initializer
-# Usage: bash setup.sh [--project <name>] [--scope pilot|mvp|full] [--feature <name>]
+# Usage: bash setup.sh [--project <name>] [--scope pilot|mvp|full] [--feature <name>] [--plan-mode unified|separate]
 # Run this once after copying the pack into your project directory.
 
 set -euo pipefail
@@ -29,36 +29,55 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- Interactive prompts for anything not supplied ---
+# When stdin is not a terminal (CI, piped input, automation), `read` hits EOF
+# and set -e aborts the script — so prompt only when interactive: optional
+# values fall back to their defaults, required ones fail fast with a hint.
+if [ -t 0 ]; then INTERACTIVE=1; else INTERACTIVE=0; fi
+
 if [[ -z "$PROJECT_NAME" ]]; then
-  read -r -p "Project name (e.g. my-payments-api): " PROJECT_NAME
+  if [[ $INTERACTIVE -eq 1 ]]; then
+    read -r -p "Project name (e.g. my-payments-api): " PROJECT_NAME
+  else
+    echo "  ✗  --project is required when running non-interactively" >&2
+    exit 1
+  fi
 fi
 
 if [[ -z "$FEATURE_NAME" ]]; then
-  read -r -p "First feature name (e.g. user-authentication): " FEATURE_NAME
+  if [[ $INTERACTIVE -eq 1 ]]; then
+    read -r -p "First feature name (e.g. user-authentication): " FEATURE_NAME
+  else
+    echo "  ✗  --feature is required when running non-interactively" >&2
+    exit 1
+  fi
 fi
 
 if [[ -z "$SCOPE" ]]; then
-  echo ""
-  echo "Scope:"
-  echo "  pilot  — quick prototype, minimal docs (brd, srd, security-design §1)"
-  echo "  mvp    — production-ready (+ api-spec, data-model, security-design §1-2)"
-  echo "  full   — enterprise (+ resilience, investigation, security-design §1-4)"
-  read -r -p "Scope [pilot]: " SCOPE
+  if [[ $INTERACTIVE -eq 1 ]]; then
+    echo ""
+    echo "Scope:"
+    echo "  pilot  — quick prototype, minimal docs (brd, srd, security-design §1)"
+    echo "  mvp    — production-ready (+ api-spec, data-model, security-design §1-2)"
+    echo "  full   — enterprise (+ resilience, investigation, security-design §1-4)"
+    read -r -p "Scope [pilot]: " SCOPE
+  fi
   SCOPE="${SCOPE:-pilot}"
 fi
 
 if [[ -z "$PLAN_MODE" ]]; then
-  echo ""
-  echo "Plan document style:"
-  echo "  unified  — One combined design.md covering architecture, diagrams,"
-  echo "             API design and decisions in one place."
-  echo "             Good for: small teams, fast delivery, single review gate."
-  echo ""
-  echo "  separate — Three focused documents reviewed one by one:"
-  echo "             arch.md → hld.md → adr.md (mvp+ only)"
-  echo "             Good for: larger teams, separate approvals, detailed audit trail."
-  echo ""
-  read -r -p "Plan mode [unified]: " PLAN_MODE
+  if [[ $INTERACTIVE -eq 1 ]]; then
+    echo ""
+    echo "Plan document style:"
+    echo "  unified  — One combined design.md covering architecture, diagrams,"
+    echo "             API design and decisions in one place."
+    echo "             Good for: small teams, fast delivery, single review gate."
+    echo ""
+    echo "  separate — Three focused documents reviewed one by one:"
+    echo "             arch.md → hld.md → adr.md (mvp+ only)"
+    echo "             Good for: larger teams, separate approvals, detailed audit trail."
+    echo ""
+    read -r -p "Plan mode [unified]: " PLAN_MODE
+  fi
   PLAN_MODE="${PLAN_MODE:-unified}"
 fi
 
