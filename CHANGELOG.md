@@ -38,6 +38,24 @@ All notable changes to the SDD Framework are documented here.
   validation, Python/Node CLI sanity, and the setup smoke-test suite
 - Onboarding docs consolidated; `OWNER-GUIDE.md` refreshed
 
+### Added — design-decision pass (gap review G8–G14)
+
+- `/validate` gains §4b Indicative Effort: T-shirt size (S/M/L/XL) per FR with
+  effort driver, so the PO signs off with an effort signal in view — indicative
+  only, story points still come at `/task` (template + all 5 pack prompts)
+- NFR budget allocation: design-template §3.5 and hld-template §6 now split each
+  measurable NFR target across critical-path components into testable budgets
+- `/change` cross-cutting security rule: changes touching auth, personal data,
+  retention, or new integrations promote security-design.md to PRIMARY in the
+  document walk regardless of CR type — TH-NNN table refreshed before tasks
+- `sdd-universal` constitution Part 1: applicability-by-project-type note maps
+  service-shaped rules (controllers, hexagonal, error handler) onto cli,
+  library, data-ml, frontend, and mobile equivalents
+- `quality-gate.yml` (all packs): documented, commented-out `perf-gate` job —
+  k6 thresholds from PERF-NNN tasks, opt-in at full scope
+- Node.js CLI marked **maintenance mode** in root and cli READMEs (scaffolding
+  only; new features land in the Python CLI; `sdd` binary collision warning)
+
 ### Added — developer-experience pass (gap review G1–G7)
 
 - `sdd-universal` gains `.github/instructions/` (tests, domain, entrypoints) —

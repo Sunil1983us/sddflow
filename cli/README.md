@@ -1,4 +1,10 @@
-# sdd-init — SDD Framework CLI
+# sdd-init — SDD Framework CLI (Node.js)
+
+> **Maintenance mode.** This Node.js CLI covers scaffolding only
+> (`sdd init` / `sdd upgrade`) and receives fixes, not new features.
+> New capabilities land in the **Python CLI** (`pip install sdd-init`) —
+> Jira, Confluence, review gates, PR automation. If you install both,
+> they collide on the `sdd` binary name: prefer the Python CLI.
 
 Cross-platform replacement for `setup.sh` / `setup.ps1`.  
 No bash required. Works on Mac, Linux, and Windows.

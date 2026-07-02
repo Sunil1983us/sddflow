@@ -215,6 +215,18 @@ stateDiagram-v2
 |---|---|---|---|---|
 | {name} | {service} | {service} | {schema ref} | {duration} |
 
+### 3.5 NFR Budget Allocation
+
+> Every measurable NFR target from srd.md is split across the components on
+> its critical path — so "P99 ≤ 500ms" becomes budgets a developer can test
+> against, not a hope. Budgets must sum to ≤ the NFR target.
+
+| NFR-NNN | Target | Component / hop | Budget | Verified by |
+|---|---|---|---|---|
+| NFR-{NNN} | {e.g. P99 ≤ 500ms} | {e.g. gateway → service} | {e.g. ≤ 50ms} | {PERF-NNN / TC-NNN} |
+| NFR-{NNN} | {same target} | {e.g. service logic} | {e.g. ≤ 150ms} | |
+| NFR-{NNN} | {same target} | {e.g. DB query} | {e.g. ≤ 200ms} | |
+
 ---
 
 ## 4. Architecture Decisions (ADR)

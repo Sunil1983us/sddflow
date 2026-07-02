@@ -6,6 +6,17 @@
 
 # PART 1 — UNIVERSAL
 
+> **Applicability by project type (universal pack):** Part 1 is written for
+> service-shaped systems. For other types, apply the spirit, not the letter:
+> **cli / library** — "Controllers" = command handlers / public API surface
+> (delegate only still applies); hexagonal = keep core logic free of I/O and
+> framework imports; global error handler = single top-level error path with
+> meaningful exit codes. **data-ml / batch** — "Controllers" = pipeline entry
+> points; contract tests = schema validation on every external dataset.
+> **frontend / mobile** — "Controllers" = components (no business logic in
+> components); ports = service/API layer. Testing, PR, Logging, Git, and
+> Definition of Done rules apply unchanged to every type.
+
 ## Architecture
 
 | Rule | Value |

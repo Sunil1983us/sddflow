@@ -74,6 +74,20 @@ All `[ASSUMPTION-NNN]` items from BRD/SRD — business owner confirms each:
 
 ---
 
+## 4b. Indicative Effort (T-shirt)
+
+> Indicative only — sized so the sign-off decision is made with an effort
+> signal in view. Real estimates happen at /task (story points per task);
+> a mismatch there triggers a change request, not a silent re-scope.
+
+| FR-NNN | Size | Main effort driver |
+|---|---|---|
+| FR-{NNN} | S / M / L / XL | {e.g. new integration, migration, complex validation} |
+
+**Total indicative size:** {S/M/L/XL} — {1-line rationale}
+
+---
+
 ## 5. Sign-Off
 
 | Role | Name | Decision | Date |

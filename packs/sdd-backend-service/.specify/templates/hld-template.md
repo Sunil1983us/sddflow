@@ -91,11 +91,14 @@ stateDiagram-v2
 | Deployment | {from constitution Part 2} | |
 
 ## 6. NFR Summary
-| NFR-NNN | Category | Target |
-|---|---|---|
-| NFR-{NNN} | Response time | {measurable target from srd.summary.md} |
-| NFR-{NNN} | Availability | {e.g. 99.9% uptime} |
-| NFR-{NNN} | Throughput | {e.g. 100 TPS} |
+> Component budget: split the target across the critical-path components
+> from §2/§3 so each has a testable share. Budgets sum to ≤ the target.
+
+| NFR-NNN | Category | Target | Component budget allocation |
+|---|---|---|---|
+| NFR-{NNN} | Response time | {measurable target from srd.summary.md} | {e.g. gateway ≤ 50ms · service ≤ 150ms · DB ≤ 200ms} |
+| NFR-{NNN} | Availability | {e.g. 99.9% uptime} | {e.g. per-dependency uptime floor} |
+| NFR-{NNN} | Throughput | {e.g. 100 TPS} | {e.g. worker pool sizing / partition count} |
 
 ---
 *All diagrams: Mermaid — renders in GitHub, VS Code, Claude. Paste into https://mermaid.live to verify before approving.*

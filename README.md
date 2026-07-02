@@ -57,7 +57,10 @@ Agent commands (Claude Code / Copilot):
 
 → Full reference: [`cli-python/README.md`](cli-python/README.md)
 
-### Node.js CLI — `sdd-init`
+### Node.js CLI — `sdd-init` (maintenance mode)
+
+> Scaffolding only; new features land in the Python CLI. Installing both
+> collides on the `sdd` binary — prefer the Python CLI.
 
 ```bash
 npm install -g sdd-init
