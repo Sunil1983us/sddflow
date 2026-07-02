@@ -38,6 +38,28 @@ All notable changes to the SDD Framework are documented here.
   validation, Python/Node CLI sanity, and the setup smoke-test suite
 - Onboarding docs consolidated; `OWNER-GUIDE.md` refreshed
 
+### Fixed — consistency pass (prompts, templates, review config)
+
+- Review doc keys unified everywhere (`brd, use-cases, srd, design | arch/hld/adr, lld,
+  tasks, runbook, release`): submit-review and check-review prompts and CLI help had
+  three different vocabularies; `integrations.yml.example` lacked `use-cases`/`design`
+  entries so `sdd review submit --doc design` failed in unified mode (the default);
+  example's ADR sequence was after LLD, contradicting the prompts (arch → hld → adr → lld)
+- `document_reviews` example and default Confluence `page_map` are now plan_mode-aware
+  (unified active by default, separate-mode block ready to uncomment)
+- `/orchestrate` now supports `plan_mode: separate` — plan-arch/plan-hld/plan-adr steps,
+  mode-branched dashboard and execution (previously unified-only)
+- Status headers normalized: `use-cases-template.md` now uses the standard
+  `> Version | Status: Draft |` header (was bare `Status: DRAFT`); `sdd review approve`
+  flips Draft/Proposed case-insensitively (covers ADR lifecycle)
+- `check-review` advance tree is plan_mode- and scope-aware (was hardcoded to the
+  separate chain and skipped Use Cases)
+- Worked example completed: `use-cases.md` (ACT/UC/MP-AP-EP) and `security-design.md` §1
+  added to `examples/todo-api`; `assert-output.sh` accepts either plan mode's documents
+  and now runs in CI (`output-assertions` job) — 33/33 passing
+- `qa-testcases-template.md`: non-HTTP variant (Command/Input/Call) for cli, data-ml,
+  library, and pipeline project types
+
 ### Fixed
 
 - `setup.sh` / `setup.ps1` (all 5 packs) crashed in non-interactive runs (CI,

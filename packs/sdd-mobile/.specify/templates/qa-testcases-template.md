@@ -23,6 +23,14 @@
 
 > **UAT filter:** For UAT sign-off, run only TC-NNN rows where `UAT Relevant: Yes`. All other types are developer/CI gates only.
 
+> **Non-HTTP projects** (project_type: cli, data-ml, library, batch/pipeline):
+> replace the `Endpoint:` field with the trigger that fits the project —
+> `Command:` (CLI invocation + args), `Input:` (dataset/file/fixture), or
+> `Call:` (public API function) — and phrase **Then** in terms of exit codes,
+> stdout/stderr, output artifacts, or return values instead of HTTP status.
+> The example in each section shows the HTTP form; a CLI-form example is
+> included in §2 below.
+
 ---
 
 ## 2. Happy Path
@@ -37,6 +45,17 @@
 - Response body contains {resourceId}
 - DB: record saved with correct initial status
 - Log: request received event logged
+
+### TC-{NNN}: {Feature} — Success (non-HTTP form, e.g. CLI)
+**Type:** E2E | **UAT Relevant:** Yes
+**Command:** {tool} {subcommand} --input {fixture}
+**Given:** Valid input file with all mandatory fields
+**When:** Command runs with default options
+**Then:**
+- Exit code: 0
+- stdout contains {expected summary line}
+- Output artifact written to {path} with expected structure
+- No stderr output
 
 ---
 

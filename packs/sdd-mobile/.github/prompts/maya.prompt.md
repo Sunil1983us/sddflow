@@ -26,7 +26,7 @@ Read `.specify/manifest.yml` → get `project.feature`, then check `.specify/fea
 
 | Pipeline state | Run |
 |---|---|
-| `brd.md` missing or Status = DRAFT | `.github/prompts/specify-brd.prompt.md` |
+| `brd.md` missing or header not `Status: Approved` (case-insensitive) | `.github/prompts/specify-brd.prompt.md` |
 | `brd.md` approved, `use-cases.md` missing | `.github/prompts/specify-uc.prompt.md` |
 | `use-cases.md` approved, `validate.md` missing | `.github/prompts/validate.prompt.md` |
 | `validate.md` exists, changes needed | `.github/prompts/change.prompt.md` |

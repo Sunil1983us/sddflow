@@ -119,7 +119,7 @@ When the user replies with any approval signal — **'approved'**, **'approve'**
    - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
    - CLI not available → skip check and proceed.
 2. Update `use-cases.md`:
-   - Header: `Status: DRAFT` → `Status: APPROVED`, date → today.
+   - Header: `Status: Draft` → `Status: Approved`, date → today.
    - Approvals table: all Pending rows → `Approved` + today's date.
    - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
 3. Re-save `use-cases.md` and regenerate `use-cases.summary.md`.

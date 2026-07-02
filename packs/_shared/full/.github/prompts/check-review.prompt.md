@@ -8,7 +8,10 @@ You are a Technical Program Manager monitoring document review status. Check the
 
 ## Input
 
-The document key to check: brd | srd | arch | hld | lld | adr | tasks | runbook | release
+The document key to check: brd | use-cases | srd | design (unified) | arch | hld | adr (separate) | lld | tasks | runbook | release
+
+Which planning keys apply depends on `plan_mode` in `.specify/manifest.yml`:
+`design` for unified mode; `arch`, `hld`, `adr` for separate mode.
 
 ## No-Jira fallback (check this FIRST)
 
@@ -39,13 +42,17 @@ Then follow the decision tree below.
 Tell the user:
 > ✓ {DOC} approved. Proceeding to the next step.
 
-Then advance:
-- After BRD → run `sdd review submit --doc srd`
-- After SRD → run `sdd review submit --doc arch`
-- After Arch → run `sdd review submit --doc hld`
-- After HLD → proceed to `/plan-lld`
-- After LLD → run `sdd review submit --doc adr`
-- After ADR → proceed to `/task`
+Then advance — read `plan_mode` and `scope` from `.specify/manifest.yml` first:
+- After BRD → run `sdd review submit --doc use-cases`
+- After Use Cases → run `sdd review submit --doc srd`
+- After SRD → **unified**: run `sdd review submit --doc design` |
+  **separate**: run `sdd review submit --doc arch`
+- After Design (unified) → proceed to `/plan-lld` (mvp+) or `/task` (pilot)
+- After Arch (separate) → run `sdd review submit --doc hld`
+- After HLD (separate) → run `sdd review submit --doc adr` (mvp+) or
+  proceed to `/task` (pilot — ADR and LLD are skipped)
+- After ADR (separate, mvp+) → proceed to `/plan-lld`
+- After LLD → proceed to `/task`
 - After tasks → proceed to implementation phase
 
 ### NEEDS REVISION (exit code 1)

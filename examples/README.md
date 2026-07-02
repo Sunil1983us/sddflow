@@ -24,7 +24,8 @@ A `backend-service` pilot-scope run for a REST API that manages todo tasks.
 | `features/task-management/validate.md` | /validate | Product Owner + Business Analyst |
 | `features/task-management/analyze.md` | /analyze | Tech Lead |
 | `features/task-management/clarify.md` | /clarify | Tech Lead + Product Owner |
-| `features/task-management/design.md` | /plan-design | Architect + Tech Lead |
+| `features/task-management/arch.md` | /plan-arch (separate mode) | Tech Lead |
+| `features/task-management/hld.md` | /plan-hld (separate mode) | Tech Lead |
 | `features/task-management/stories.md` | /task | Product Owner |
 | `features/task-management/tasks.md` | /task | Tech Lead |
 | `features/task-management/release.md` | /release | QA Lead + DevOps |

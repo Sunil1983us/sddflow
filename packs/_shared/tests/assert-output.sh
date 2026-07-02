@@ -109,9 +109,24 @@ check_use_cases_actors() {
   fi
 }
 
+check_design_docs() {
+  # Plan documents depend on plan_mode: unified → design.md,
+  # separate → arch.md + hld.md. Either set satisfies the check.
+  printf "  %-52s" "plan docs exist (design.md or arch.md+hld.md)"
+  if [[ -f "$_file/design.md" ]]; then
+    echo "PASS (unified: design.md)"; PASS=$((PASS+1))
+  elif [[ -f "$_file/arch.md" && -f "$_file/hld.md" ]]; then
+    echo "PASS (separate: arch.md + hld.md)"; PASS=$((PASS+1))
+  else
+    echo "FAIL — need design.md (unified) or arch.md + hld.md (separate)"; FAIL=$((FAIL+1))
+  fi
+}
+
 check_mermaid() {
+  # Diagrams live in design.md (unified) or hld.md (separate).
   local file="$_file/design.md"
-  printf "  %-52s" "design.md — contains Mermaid diagram"
+  [[ -f "$file" ]] || file="$_file/hld.md"
+  printf "  %-52s" "design.md/hld.md — contains Mermaid diagram"
   if [[ ! -f "$file" ]]; then echo "SKIP (file absent)"; return; fi
   if grep -q '```mermaid' "$file"; then
     echo "PASS"; PASS=$((PASS+1))
@@ -158,7 +173,7 @@ check_file "srd.md exists"           "srd.md"
 check_file "validate.md exists"      "validate.md"
 check_file "analyze.md exists"       "analyze.md"
 check_file "clarify.md exists"       "clarify.md"
-check_file "design.md exists"        "design.md"
+check_design_docs   # design.md (unified) or arch.md + hld.md (separate)
 check_file "stories.md exists"       "stories.md"
 check_file "tasks.md exists"         "tasks.md"
 check_file "release.md exists"       "release.md"

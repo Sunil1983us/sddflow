@@ -8,7 +8,10 @@ You are a Technical Program Manager coordinating document review. Your job is to
 
 ## Input
 
-The document key to submit: brd | use-cases | srd | design | lld | tasks | runbook | release
+The document key to submit: brd | use-cases | srd | design (unified) | arch | hld | adr (separate) | lld | tasks | runbook | release
+
+Which planning keys apply depends on `plan_mode` in `.specify/manifest.yml`:
+`design` for unified mode; `arch`, `hld`, `adr` for separate mode.
 
 If not provided, infer from conversation context (which document was most recently generated).
 

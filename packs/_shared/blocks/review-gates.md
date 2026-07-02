@@ -27,12 +27,15 @@ independent tracking of who approved what, when.
 
 ### jira mode commands
 
-| Phase | Sequence | Reviewer |
-|---|---|---|
-| specify | BRD → Use Cases → SRD → Design | PO → BA + PO → BA → Architect |
-| planning | LLD | Tech Lead |
-| tasks | Tasks | Scrum Master |
-| release | Runbook → Release | DevOps → Release Manager |
+Sequences follow `plan_mode` (manifest.yml). Doc keys match the `.md`
+filenames: `design` exists in unified mode; `arch`/`hld`/`adr` in separate mode.
+
+| Phase | Sequence (unified) | Sequence (separate) | Reviewer |
+|---|---|---|---|
+| specify | BRD → Use Cases → SRD → Design | BRD → Use Cases → SRD | PO → BA → BA → Architect |
+| planning | LLD (mvp+) | Arch → HLD → ADR (mvp+) → LLD (mvp+) | Tech Lead / Architect |
+| tasks | Tasks | Tasks | Scrum Master |
+| release | Runbook → Release | Runbook → Release | DevOps → Release Manager |
 
 ```bash
 sdd review submit --doc brd      # push to Confluence + create Jira review task

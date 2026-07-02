@@ -34,6 +34,16 @@ jobs:
       - name: Run test-setup.sh
         run: bash packs/_shared/tests/test-setup.sh
 
+  output-assertions:
+    name: Worked example passes output assertions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run assert-output.sh against examples/todo-api
+        run: |
+          bash packs/_shared/tests/assert-output.sh \
+            examples/todo-api/.specify/features/task-management pilot
+
   yaml-validate:
     name: Validate YAML templates and manifests
     runs-on: ubuntu-latest

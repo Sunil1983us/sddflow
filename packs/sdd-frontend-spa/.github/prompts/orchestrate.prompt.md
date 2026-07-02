@@ -23,8 +23,12 @@ pipeline state during this session.
 
 Valid step names: `create-context`, `specify`, `gate-1`, `specify-brd`,
 `specify-uc`, `specify-srd`, `specify-doc`, `checklist`, `validate`,
-`analyze`, `clarify`, `plan-design`, `plan-lld`, `task`, `implement`,
+`analyze`, `clarify`, `plan-design` (unified mode), `plan-arch`, `plan-hld`,
+`plan-adr` (separate mode), `plan-lld`, `task`, `implement`,
 `pre-review`, `address-review`, `release`
+
+The design steps depend on `plan_mode` in `.specify/manifest.yml`:
+unified → `plan-design` only; separate → `plan-arch` → `plan-hld` → `plan-adr` (mvp+).
 
 ---
 
@@ -50,7 +54,8 @@ State: "Running in **{mode}** mode. Pipeline: {scope} / {project_type} / {featur
 ## Before Starting
 
 1. Read `.specify/manifest.yml` — extract: `project.name`, `project.scope`,
-   `project.feature`, `project.project_type`, `workflow_mode`, `pr_rules`
+   `project.feature`, `project.project_type`, `workflow_mode`, `plan_mode`,
+   `pr_rules`
 2. Read `.specify/memory/constitution.md` — check if Part 2 is finalized
    (no `[MISSING — ask user]` markers, user has confirmed GATE-1)
 3. Read `.specify/memory/roles.yml` — load reviewer names for gate messages
@@ -97,8 +102,14 @@ Compute and display before starting and after every gate. Use:
 ║  {s} /analyze              Tech Lead                         ║
 ║  {s} /clarify              Tech Lead + PO                    ║
 ╠══════════════════════════════════════════════════════════════╣
-║  DESIGN                                                      ║
+║  DESIGN  (rows depend on plan_mode)                          ║
+║  unified:                                                    ║
 ║  {s} /plan-design          Principal Architect               ║
+║  separate:                                                   ║
+║  {s} /plan-arch            Principal Architect               ║
+║  {s} /plan-hld             Tech Lead                         ║
+║  {s} /plan-adr             Architect               mvp+      ║
+║  both modes:                                                 ║
 ║  {s} /plan-lld             Senior Developer         mvp+     ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  TASK                                                        ║
@@ -262,11 +273,41 @@ For each extended doc required by this scope × project_type (from dashboard):
 
 ### DESIGN
 
+Branch on `plan_mode` from manifest.yml. Run ONLY the steps for the active
+mode — mark the other mode's steps `[—]` in the dashboard.
+
+**Unified mode (`plan_mode: unified`):**
+
 **[plan-design]**
 - Check: `design.md` exists
 - Execute, then gate:
 > "design.md generated. Tech Lead + Architect review.
 > Reply **'design approved'** (or 'approved', 'yes', 'LGTM') to continue or provide feedback:"
+
+**Separate mode (`plan_mode: separate`):**
+
+**[plan-arch]**
+- Check: `arch.md` exists
+- Execute, then gate:
+> "arch.md generated. Tech Lead reviews.
+> Reply **'arch approved'** (or 'approved', 'yes', 'LGTM') to continue or provide feedback:"
+
+**[plan-hld]**
+- Gate in: `arch.md` has `Status: Approved`
+- Check: `hld.md` exists
+- Execute, then gate:
+> "hld.md generated. Tech Lead reviews.
+> Reply **'hld approved'** (or 'approved', 'yes', 'LGTM') to continue or provide feedback:"
+
+**[plan-adr]**
+- Scope rule: skip if `scope == pilot` → mark `[—]`
+- Gate in: `hld.md` has `Status: Approved`
+- Check: `adr.md` exists
+- Execute, then gate:
+> "adr.md generated. Architect reviews.
+> Reply **'adr approved'** (or 'approved', 'yes', 'LGTM') to continue or provide feedback:"
+
+**Both modes:**
 
 **[plan-lld]**
 - Scope rule: skip if `scope == pilot` → mark `[—]`
