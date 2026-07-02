@@ -54,6 +54,9 @@ Produce the release plan:
    NFR check (e.g. Core Web Vitals)
 
 5. GO-LIVE GATE
+   Check the preconditions first — all tasks merged, UAT passed, §7 Rollback
+   Plan filled (rehearsed/verified at mvp+), monitoring in place. If any
+   precondition is unmet, STOP: state what is missing — do not record Go.
    Tech Lead / QA Lead / Product Owner / Ops-SRE — Go / No-Go (from roles.yml)
 
 6. BUSINESS OBJECTIVE CLOSURE

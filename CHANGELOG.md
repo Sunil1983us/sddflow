@@ -38,6 +38,25 @@ All notable changes to the SDD Framework are documented here.
   validation, Python/Node CLI sanity, and the setup smoke-test suite
 - Onboarding docs consolidated; `OWNER-GUIDE.md` refreshed
 
+### Added — developer-experience pass (gap review G1–G7)
+
+- `sdd-universal` gains `.github/instructions/` (tests, domain, entrypoints) —
+  language-neutral, path-scoped coding standards; it was the only pack without them
+- `manifest.yml`: `testing_style: "paired"` now ships active (was commented out)
+- Release Go-Live Gate: explicit preconditions (all tasks merged, UAT passed,
+  §7 Rollback Plan filled — rehearsed at mvp+, monitoring in place) checked
+  before any Go decision, in both template and prompt (all 5 packs)
+- TDD mode now produces test-first evidence: the failing test is committed
+  separately (`test({scope}): red — {criterion}`); `/pre-review` gains angle H
+  verifying the red commit when `testing_style: tdd`
+- `/pre-review` gains angle G — threat-model conformance: diff checked against
+  security-design.md §1 TH-NNN mitigations when the document exists
+- Pilot scope now gets a QA artifact: `/task` generates a ≤10-case
+  `smoke-tests.md` (TC-S-NNN from UC Main/Exception paths) instead of nothing;
+  `/release` UAT scenarios draw from it
+- `sdd config init` page_map updated to the plan_mode-aware doc keys
+  (use-cases, design) — it was regenerating the pre-2.7.0 vocabulary
+
 ### Fixed — consistency pass (prompts, templates, review config)
 
 - Review doc keys unified everywhere (`brd, use-cases, srd, design | arch/hld/adr, lld,

@@ -250,12 +250,19 @@ confluence:
 {parent_line}
 
   # Page title templates — {{project}} replaced with project name from manifest
+  # design applies in unified plan_mode; arch/hld/adr in separate plan_mode
   page_map:
-    brd:     "{project_name} — Business Requirements"
-    srd:     "{project_name} — System Requirements"
-    arch:    "{project_name} — Architecture Overview"
-    hld:     "{project_name} — High-Level Design"
-    lld:     "{project_name} — Low-Level Design"
-    adr:     "{project_name} — Architecture Decisions"
-    runbook: "{project_name} — Runbook"
+    brd:       "{project_name} — Business Requirements"
+    use-cases: "{project_name} — Use Cases"
+    srd:       "{project_name} — System Requirements"
+    design:    "{project_name} — Design"
+    arch:      "{project_name} — Architecture Overview"
+    hld:       "{project_name} — High-Level Design"
+    adr:       "{project_name} — Architecture Decisions"
+    lld:       "{project_name} — Low-Level Design"
+    runbook:   "{project_name} — Runbook"
+
+# For the Jira review workflow (sdd review submit/check/apply), add a
+# document_reviews: section — see .specify/integrations.yml.example for the
+# full plan_mode-aware reference.
 """
