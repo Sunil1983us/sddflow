@@ -29,10 +29,10 @@ the Node.js CLI currently covers scaffolding only (`init` / `upgrade`). Pick
 Python if you need Jira/Confluence integration; either works for basic
 pack scaffolding.
 
-### Python CLI — `sdd-init`
+### Python CLI — `sddkit`
 
 ```bash
-pip install sdd-init
+pip install sddkit
 sdd init
 ```
 
@@ -104,7 +104,7 @@ bash setup.sh                 # Mac / Linux — no install needed
 .\setup.ps1                   # Windows PowerShell — no install needed
 
 # Python CLI
-pip install sdd-init && sdd init
+pip install sddkit && sdd init
 
 # 3. Open in your AI tool and run /specify
 ```
@@ -124,7 +124,7 @@ packs/
   sdd-mobile/
   sdd-fullstack/
 cli/                  # Node.js CLI (from source; maintenance mode)
-cli-python/           # Python CLI (pip install sdd-init)
+cli-python/           # Python CLI (pip install sddkit)
 examples/
   todo-api/             # Worked example — backend, separate plan mode
   habit-tracker-web/    # Worked example — frontend, unified plan mode

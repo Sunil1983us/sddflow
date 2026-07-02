@@ -22,7 +22,7 @@
 | Task export | `/speckit.taskstoissues` — tasks.md → GitHub Issues | `/taskstoissues` — tasks.md + stories.md → GitHub Issues markdown + `gh` shell script; `/task` → Jira CSV |
 | PR / CI governance | Left to the team's normal git workflow | Built-in `pr_rules` (max lines/files, SPLIT A/B/C), `quality-gate.yml`, and a configurable `workflow_mode: github \| local` |
 | Code review | None | `/pre-review` — AI reviews diff before PR (numbered findings, dev picks fixes); `/address-review` — AI addresses human PR comments, replies to threads, requests re-review |
-| CLI / setup | `bash scripts/bash/setup.sh` / PowerShell equivalent | `pip install sdd-init` — interactive wizard: project name, scope, AI tool, scaffolds pack automatically |
+| CLI / setup | `bash scripts/bash/setup.sh` / PowerShell equivalent | `pip install sddkit` — interactive wizard: project name, scope, AI tool, scaffolds pack automatically |
 | AI tool selection | Tool-agnostic (same prompt works in any AI) | `sdd init` prompts for tool (Claude Code / Copilot / Cursor / Windsurf / Other); saves as `ai_tool` in `manifest.yml`; shows personalized next-step instruction |
 | Jira / Confluence | None | `sdd config init/test/fields` → `sdd jira push` / `sdd confluence push`; `sdd review submit/check/apply/status` — stakeholder approval for every SDD document (Jira-backed, or chat approval with local audit trail when Jira is absent; Confluence kept in sync either way) |
 | Full pipeline automation | None | `/orchestrate` — drives entire pipeline from a single command; pauses at every human gate; supports `--list`, `--from STEP`, `--to STEP` |
@@ -265,7 +265,7 @@ folder via Claude Desktop).
 ### Installation & Setup
 
 ```bash
-pip install sdd-init
+pip install sddkit
 sdd init                      # interactive wizard: project name, scope, AI tool
                               # → copies the right pack, fills manifest.yml, done
 ```
@@ -368,7 +368,7 @@ All items selectively borrowed into SDD packs — now fully implemented:
 - ✅ Per-type doc-set table (pilot/mvp/full × 10 types)
 
 **Phase 3 — CLI, AI tool selection & enterprise integration (now implemented):**
-- ✅ `sdd init` Python CLI (`pip install sdd-init`) + Node.js CLI (from source, maintenance mode)
+- ✅ `sdd init` Python CLI (`pip install sddkit`) + Node.js CLI (from source, maintenance mode)
 - ✅ AI tool selection in `sdd init` (claude-code / copilot / cursor / windsurf / other); stored as `ai_tool` in `manifest.yml`; personalized Done message per tool
 - ✅ `sdd config init` / `sdd config test` / `sdd config fields` — Jira + Confluence connection wizard, connectivity test (✓/✗ per service), custom field discovery
 - ✅ `sdd jira push` — push stories + tasks → Jira issues (with `--dry-run` and `--feature` flags)

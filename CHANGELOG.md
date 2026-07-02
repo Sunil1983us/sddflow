@@ -38,6 +38,16 @@ All notable changes to the SDD Framework are documented here.
   validation, Python/Node CLI sanity, and the setup smoke-test suite
 - Onboarding docs consolidated; `OWNER-GUIDE.md` refreshed
 
+### Changed — package renamed to `sddkit` before first publish
+
+- Package name is now **`sddkit`** on PyPI (and reserved for npm if ever
+  published) — `sdd-init` on npm belongs to an unrelated third-party package,
+  and neither registry had been published to yet, so the rename is zero-cost
+- The command users type is **unchanged**: `sdd` (like `pip install httpie`
+  → `http`) — every `sdd …` reference in prompts, docs, and CI stays valid
+- Updated: pyproject.toml / package.json names, all install instructions,
+  publish.sh, manifest generation header, scaffold error hints
+
 ### Fixed — npm install instructions were unsafe
 
 - The `sdd-init` name on npm is owned by an **unrelated third-party package** —
@@ -310,7 +320,7 @@ All notable changes to the SDD Framework are documented here.
 
 ### Added
 
-#### Python CLI (`pip install sdd-init` / `pipx run sdd-init`)
+#### Python CLI (`pip install sddkit` / `pipx run sddkit`)
 - `sdd init` — replaces `setup.sh` / `setup.ps1`; writes manifest via PyYAML (no injection)
 - `sdd upgrade` — migration table; adds `sdd_version` to pre-v2 manifests
 - `sdd config init` — interactive setup of `~/.sdd/config.yml` and `.specify/integrations.yml`
@@ -341,7 +351,7 @@ All notable changes to the SDD Framework are documented here.
 - Pages matched by title — create if absent, update version if present
 - `page_map` in `integrations.yml` controls page titles (supports `{project}` token)
 
-#### Node.js CLI (`npx sdd-init`)
+#### Node.js CLI (unpublished — from source)
 - `sdd init` — cross-platform replacement for setup scripts; writes manifest via js-yaml
 - `sdd upgrade` — same migration table as Python CLI
 

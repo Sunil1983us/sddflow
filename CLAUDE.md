@@ -22,8 +22,8 @@ packs/
   sdd-frontend-spa/
   sdd-mobile/
   sdd-fullstack/
-cli/                # Node.js CLI (npm: sdd-init) — init/upgrade scaffolding only
-cli-python/         # Python CLI (pip: sdd-init) — full-featured (Jira, Confluence, reviews, PRs)
+cli/                # Node.js CLI (unpublished, from source) — init/upgrade scaffolding only
+cli-python/         # Python CLI (pip: sddkit) — full-featured (Jira, Confluence, reviews, PRs)
 examples/
   todo-api/         # Complete worked example of SDD outputs
 SPEC-KIT-COMPARISON.md   # Competitive positioning against GitHub spec-kit

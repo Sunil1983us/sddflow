@@ -1,5 +1,5 @@
 {
-  "name": "sdd-init",
+  "name": "sddkit",
   "version": "2.7.0",
   "description": "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs",
   "type": "module",
