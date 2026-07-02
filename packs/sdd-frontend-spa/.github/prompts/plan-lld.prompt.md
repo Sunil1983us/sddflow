@@ -88,7 +88,14 @@ State: "**lld.md generated.** Review the detailed design above. When you are hap
 On any approval signal ('approved', 'yes', 'LGTM', 'looks good', 'go ahead', 'confirmed'):
 1. Update `lld.md` header: `Status: Draft` → `Status: Approved`, date → today
 2. Re-save `lld.md` and regenerate `lld.summary.md`
-3. Record locally: `sdd review approve --doc lld --local`
+3. Ask once: "Recording the approval — approver name/role and an optional comment?"
+   (defaults: the accountable role for this gate in roles.yml; "approved in chat")
+4. If the `sdd` CLI is installed, record it:
+   `sdd review approve --doc lld --local --by "{approver}" --note "{comment}"`
+   This also updates the document's existing Confluence page when a `confluence:`
+   section exists in `.specify/integrations.yml`. If the CLI is not installed, skip —
+   the `Status: Approved` header is the authoritative gate; tell the user any
+   Confluence copy was NOT updated.
 
 State: "**lld.md approved. ✓** Run **/task** next — task and story breakdown."
 

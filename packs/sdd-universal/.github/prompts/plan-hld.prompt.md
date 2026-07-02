@@ -125,7 +125,14 @@ On any approval signal ('approved', 'yes', 'LGTM', 'looks good', 'go ahead', 'co
 1. Update `hld.md` header: `Status: Draft` → `Status: Approved`, date → today
 2. Update Approvals table: all Pending → Approved + today
 3. Re-save `hld.md` and regenerate `hld.summary.md`
-4. Record locally: `sdd review approve --doc hld --local`
+4. Ask once: "Recording the approval — approver name/role and an optional comment?"
+   (defaults: the accountable role for this gate in roles.yml; "approved in chat")
+5. If the `sdd` CLI is installed, record it:
+   `sdd review approve --doc hld --local --by "{approver}" --note "{comment}"`
+   This also updates the document's existing Confluence page when a `confluence:`
+   section exists in `.specify/integrations.yml`. If the CLI is not installed, skip —
+   the `Status: Approved` header is the authoritative gate; tell the user any
+   Confluence copy was NOT updated.
 
 **mvp+ scope:** State: "**hld.md approved. ✓** Run **/plan-adr** next — Architecture Decision Records."
 **pilot scope:** State: "**hld.md approved. ✓** Run **/task** next — story and task breakdown."

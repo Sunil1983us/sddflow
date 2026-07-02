@@ -45,6 +45,69 @@ def _is_locally_approved(doc: str) -> bool:
     return doc in _load_local_approvals()
 
 
+def _doc_md_path(doc: str, feature: str | None) -> Path | None:
+    """Resolve .specify/features/{feature}/{doc}.md, or None if unresolvable."""
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+    if not feature_name:
+        return None
+    try:
+        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+    except ValueError:
+        return None
+    return features_dir / f"{doc}.md"
+
+
+def _mark_md_approved(md_path: Path) -> bool:
+    """Flip the document header 'Status: Draft' → 'Status: Approved'.
+
+    Returns True if the file was changed, False if it was already approved
+    (the AI approval flow normally flips the header before calling the CLI —
+    this is the safety net for direct CLI usage)."""
+    text = md_path.read_text()
+    new  = text.replace("Status: Draft", "Status: Approved", 1)
+    if new == text:
+        return False
+    md_path.write_text(new)
+    return True
+
+
+def _push_doc_page(doc: str, md_path: Path) -> str | None:
+    """Upsert the document's Confluence page so it reflects the approved .md.
+
+    Returns the page title on success, or None when Confluence is not
+    configured. Raises on push errors — callers decide how fatal that is.
+    Page title resolution matches `sdd review submit`: document_reviews entry
+    first, then the confluence page_map, then a sensible default."""
+    try:
+        cfg = load_integrations()
+    except FileNotFoundError:
+        return None
+    if not cfg.confluence:
+        return None
+
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    project_name = proj.get("name", "Project")
+
+    if doc in cfg.document_reviews:
+        title = cfg.document_reviews[doc].confluence_page
+    else:
+        title = cfg.confluence.page_map.get(doc, f"{{project}} — {doc.upper()}")
+    title = title.replace("{project}", project_name)
+
+    prof      = load_profile(cfg.profile)
+    session   = build_session(prof)
+    cf_client = ConfluenceClient(session, prof.base_url)
+    body_html = md_to_storage(md_path.read_text())
+    cf_client.upsert_page(
+        cfg.confluence.space_key, title, body_html,
+        cfg.confluence.parent_page_id,
+    )
+    return title
+
+
 # ── Text extraction ────────────────────────────────────────────────────────────
 
 def _extract_text(body) -> str:
@@ -337,11 +400,20 @@ def review_check(doc, profile):
               help="Who approved — defaults to 'chat'")
 @click.option("--note",     default="",
               help="Optional note (e.g. 'approved in chat session')")
-def review_approve(doc, local, by, note):
+@click.option("--feature",  default=None,
+              help="Feature name (default: from manifest.yml)")
+@click.option("--no-confluence", is_flag=True, default=False,
+              help="Skip the Confluence page update even if confluence: is configured")
+def review_approve(doc, local, by, note, feature, no_confluence):
     """Record a local approval for a document (used when Jira is not configured).
 
     The AI calls this automatically after the user says 'approved' in chat
     and sdd review submit is not available. This unblocks the next command.
+
+    Also marks the document header 'Status: Approved' (if the AI has not
+    already) and, when a confluence: section exists in integrations.yml,
+    updates the document's existing Confluence page so it matches the
+    approved .md. A Confluence failure never blocks the approval itself.
 
     Example (AI runs this):
         sdd review approve --doc brd --local --by "Product Owner" --note "approved in chat"
@@ -357,6 +429,33 @@ def review_approve(doc, local, by, note):
     console.print(f"  [green]✓  {doc.upper()} — local approval recorded[/green]")
     console.print(f"  By    : [cyan]{by}[/cyan]")
     console.print(f"  Saved : {_LOCAL_APPROVALS_FILE}")
+
+    # ── Mark the .md approved (safety net — AI flow usually did this) ────────
+    md_path = _doc_md_path(doc, feature)
+    if md_path and md_path.exists():
+        if _mark_md_approved(md_path):
+            console.print(f"  [green]✓[/green]  {md_path} — header set to Status: Approved")
+        # ── Mirror the approved doc to its Confluence page ────────────────────
+        if no_confluence:
+            console.print("  [dim]·  Confluence update skipped (--no-confluence)[/dim]")
+        else:
+            try:
+                title = _push_doc_page(doc, md_path)
+                if title:
+                    console.print(f"  [green]✓[/green]  Confluence page updated: [cyan]{title}[/cyan]")
+                else:
+                    console.print("  [dim]·  Confluence not configured — page not updated[/dim]")
+            except Exception as e:
+                console.print(
+                    f"  [yellow]!  Approval recorded, but the Confluence update failed: {e}[/yellow]\n"
+                    f"     Re-try with: [cyan]sdd confluence push --doc {doc}[/cyan]"
+                )
+    else:
+        console.print(
+            f"  [dim]·  {doc}.md not found under .specify/features/ — "
+            f"header + Confluence steps skipped[/dim]"
+        )
+
     console.print()
     console.print("  [dim]sdd review check will now return exit 0 for this document.[/dim]")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")

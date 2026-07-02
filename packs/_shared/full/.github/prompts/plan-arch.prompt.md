@@ -115,7 +115,14 @@ On any approval signal ('approved', 'yes', 'LGTM', 'looks good', 'go ahead'):
 1. Update `arch.md` header: `Status: Draft` → `Status: Approved`, date → today
 2. Update Approvals table: all Pending → Approved + today
 3. Re-save `arch.md` and regenerate `arch.summary.md`
-4. Record locally: `sdd review approve --doc arch --local`
+4. Ask once: "Recording the approval — approver name/role and an optional comment?"
+   (defaults: the accountable role for this gate in roles.yml; "approved in chat")
+5. If the `sdd` CLI is installed, record it:
+   `sdd review approve --doc arch --local --by "{approver}" --note "{comment}"`
+   This also updates the document's existing Confluence page when a `confluence:`
+   section exists in `.specify/integrations.yml`. If the CLI is not installed, skip —
+   the `Status: Approved` header is the authoritative gate; tell the user any
+   Confluence copy was NOT updated.
 
 State: "**arch.md approved. ✓** Run **/plan-hld** next — system diagrams."
 

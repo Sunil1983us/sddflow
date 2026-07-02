@@ -52,7 +52,7 @@ Edit the block file, then run sync:
 bash packs/_shared/sync-blocks.sh
 ```
 
-Current blocks: `command-gates`, `gate1-reminders`, `never-do-core`, `pr-contract`, `scope-reference`, `startup-instructions`, `start-command-body`, `team-routing`. (`ls packs/_shared/blocks/` is authoritative if this list drifts.)
+Current blocks: `command-gates`, `gate1-reminders`, `never-do-core`, `pr-contract`, `review-gates`, `scope-reference`, `startup-instructions`, `start-command-body`, `team-routing`. (`ls packs/_shared/blocks/` is authoritative if this list drifts.)
 
 **2. Full files** (`_shared/full/**`)
 Whole files that are identical across packs (e.g. `CLAUDE.local.md`, `.windsurfrules`, `setup.sh`, `setup.ps1`, `.claude/commands/*.md`, `.specify/templates/*`). Synced with:

@@ -57,6 +57,12 @@ Must include a Tech Stack section, e.g.:
 
 (Optional but recommended) Edit `.specify/memory/roles.yml` — fill in names/teams for `product_owner`, `tech_lead`, `qa_lead`, etc., so review gates route to the right people.
 
+Review gates work out of the box — **no Jira needed**: reviewers approve in
+chat and the agent flips the document's `Status:` header. If you configure
+Confluence/Jira later (`.specify/integrations.yml`), approvals automatically
+update the matching Confluence page too. See "Document Review Gates — Three
+Modes" in `CLAUDE.md`.
+
 ---
 
 ## Step 3 — Run /specify

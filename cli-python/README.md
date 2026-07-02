@@ -277,6 +277,30 @@ sdd review check --doc brd          # poll again after reviewer re-reviews
 
 ---
 
+### `sdd review approve` (no-Jira / chat approvals)
+
+Record an approval locally when Jira is not configured — the agent runs this
+automatically after the user says "approved" in chat.
+
+```bash
+sdd review approve --doc brd --local --by "Product Owner" --note "approved in chat"
+```
+
+What it does:
+1. Writes an audit record to `.specify/.local-approvals.yml`
+   (`sdd review check` then returns exit 0 for this document)
+2. Flips the document header `Status: Draft` → `Status: Approved` if the agent
+   has not already done so
+3. If a `confluence:` section exists in `.specify/integrations.yml`, updates the
+   document's existing Confluence page so it matches the approved `.md`
+   (skip with `--no-confluence`; a Confluence failure never blocks the approval —
+   re-try with `sdd confluence push --doc {name}`)
+
+The `Status: Approved` header in the `.md` is the authoritative gate in every
+mode — Jira and Confluence are integrations on top of it, never a prerequisite.
+
+---
+
 ### `sdd review status`
 
 Show the review state of every document in all phases at a glance.
