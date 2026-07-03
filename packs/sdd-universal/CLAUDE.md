@@ -235,7 +235,7 @@ top of it, never a prerequisite.
 | Mode | Needs | Approval flow | Audit trail |
 |---|---|---|---|
 | **chat** (default) | nothing | Reviewer reads the doc; user replies "approved" in chat → agent flips `Status: Draft → Approved` + fills Approvals table | Doc header + Approvals table + git history |
-| **local** | `pip install sddkit` | Same as chat, plus the agent records it: `sdd review approve --doc {doc} --local --by "{approver}" --note "{comment}"` | `.specify/.local-approvals.yml` |
+| **local** | `pip install sddflow` | Same as chat, plus the agent records it: `sdd review approve --doc {doc} --local --by "{approver}" --note "{comment}"` | `.specify/.local-approvals.yml` |
 | **jira** | CLI + `integrations.yml` (`jira:` + `confluence:`) | `sdd review submit / check / apply` — Confluence page + Jira review task per doc | Jira + Confluence |
 
 **Confluence stays in sync in every mode.** When a `confluence:` section exists

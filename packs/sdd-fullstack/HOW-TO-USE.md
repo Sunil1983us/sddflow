@@ -151,7 +151,7 @@ A detailed guide for every command: what it is, exactly when to run it, what it 
 
 Install the CLI once:
 ```bash
-pip install sddkit          # Python (any platform)
+pip install sddflow          # Python (any platform)
 # OR
 # (Node.js CLI: from source only — see the framework repo's cli/README.md;
 #  the sdd-init package on npm is an unrelated third-party project)

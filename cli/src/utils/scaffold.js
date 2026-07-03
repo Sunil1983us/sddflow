@@ -47,7 +47,7 @@ export function getPacksDir() {
 
   throw new Error(
     'SDD pack files not found.\n' +
-    '  Installed via npm?  Try: npm install -g sdd-init\n' +
+    '  Installed via npm?  Try: npm install -g sddflow --force\n' +
     '  Running from source? Ensure you cloned the full repository.'
   );
 }

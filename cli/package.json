@@ -1,5 +1,5 @@
 {
-  "name": "sddkit",
+  "name": "sddflow",
   "version": "2.7.0",
   "description": "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs",
   "type": "module",
@@ -9,9 +9,13 @@
   "engines": {
     "node": ">=18"
   },
+  "scripts": {
+    "prepublishOnly": "node scripts/bundle-packs.js"
+  },
   "files": [
     "bin/",
     "src/",
+    "packs/",
     "README.md"
   ],
   "dependencies": {

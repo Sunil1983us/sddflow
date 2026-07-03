@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "sddkit"
+name = "sddflow"
 version = "2.7.0"
 description = "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs"
 readme = "README.md"

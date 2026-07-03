@@ -18,7 +18,7 @@ MIGRATIONS = [
             "setup.sh/setup.ps1 rewritten — eliminates injection bugs",
             "Input validation: project/feature names with \" are rejected early",
             "Detection order fix: mobile (react-native) now checked before fullstack",
-            "Python CLI added alongside Node.js CLI (pip install sddkit)",
+            "Python CLI added alongside Node.js CLI (pip install sddflow)",
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.0.0"},
     },

@@ -13,9 +13,14 @@ dist/
 # Node.js
 node_modules/
 package-lock.json
+*.tgz
 
 # Pack distributor output
 packs/dist/
+
+# Generated at publish time by cli/scripts/bundle-packs.js (prepublishOnly) —
+# mirrors cli-python/sdd/packs/, which is generated the same way by publish.sh
+cli/packs/
 
 # Personal preferences (per-pack, gitignored at pack level too)
 **/CLAUDE.local.md

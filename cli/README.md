@@ -1,8 +1,8 @@
-# sddkit — SDD Framework CLI (Node.js)
+# sddflow — SDD Framework CLI (Node.js)
 
 > **Maintenance mode.** This Node.js CLI covers scaffolding only
 > (`sdd init` / `sdd upgrade`) and receives fixes, not new features.
-> New capabilities land in the **Python CLI** (`pip install sddkit`) —
+> New capabilities land in the **Python CLI** (`pip install sddflow`) —
 > Jira, Confluence, review gates, PR automation. If you install both,
 > they collide on the `sdd` binary name: prefer the Python CLI.
 

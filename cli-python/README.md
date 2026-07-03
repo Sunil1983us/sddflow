@@ -1,4 +1,4 @@
-# sddkit (Python) — SDD Framework CLI
+# sddflow (Python) — SDD Framework CLI
 
 Python CLI for the SDD (Spec-Driven Development) Framework.  
 Mirrors the Node.js CLI exactly and adds Jira + Confluence integration.
@@ -6,7 +6,7 @@ Mirrors the Node.js CLI exactly and adds Jira + Confluence integration.
 ## Install
 
 ```bash
-pip install sddkit
+pip install sddflow
 sdd init
 ```
 
