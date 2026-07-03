@@ -41,7 +41,7 @@ Hey Ava, I need a design for auth        ← conversational (any AI tool)
 
 ```bash
 # Recommended: use the CLI
-pip install sddkit
+pip install sddflow
 sdd init                # interactive: project name, scope, AI tool — copies pack automatically
 
 # OR: manual setup

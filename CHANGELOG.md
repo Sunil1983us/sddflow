@@ -118,13 +118,23 @@ All notable changes to the SDD Framework are documented here.
   validation, Python/Node CLI sanity, and the setup smoke-test suite
 - Onboarding docs consolidated; `OWNER-GUIDE.md` refreshed
 
-### Changed — package renamed to `sddkit` before first publish
+### Changed — package renamed to `sddflow` (two-step: sdd-init → sddkit → sddflow)
 
-- Package name is now **`sddkit`** on PyPI (and reserved for npm if ever
-  published) — `sdd-init` on npm belongs to an unrelated third-party package,
-  and neither registry had been published to yet, so the rename is zero-cost
-- The command users type is **unchanged**: `sdd` (like `pip install httpie`
-  → `http`) — every `sdd …` reference in prompts, docs, and CI stays valid
+- First renamed `sdd-init` → `sddkit` before any publish, since `sdd-init` on
+  npm belongs to an unrelated third-party package and neither registry had
+  been published to yet
+- `sddkit` was then rejected by a live `bash publish.sh` upload: PyPI's
+  anti-typosquat check flagges it as too similar to two already-registered
+  packages, `sdkit` and `sdd-kit` (a same-or-one-edit-distance name is
+  blocked even though `sddkit` itself was never taken — confirmed via the
+  PyPI JSON API returning 200 for both). Nothing was actually published
+  under `sddkit` — the upload fails before PyPI accepts anything, so no
+  cleanup was needed
+- Renamed again to **`sddflow`**, checked this time for both exact
+  availability *and* lexical distance from anything existing, on PyPI and npm
+- The command users type is **unchanged** throughout: `sdd` (like
+  `pip install httpie` → `http`) — every `sdd …` reference in prompts, docs,
+  and CI stays valid regardless of which package-name iteration
 - Updated: pyproject.toml / package.json names, all install instructions,
   publish.sh, manifest generation header, scaffold error hints
 
@@ -400,7 +410,7 @@ All notable changes to the SDD Framework are documented here.
 
 ### Added
 
-#### Python CLI (`pip install sddkit` / `pipx run sddkit`)
+#### Python CLI (`pip install sddflow` / `pipx run sddflow`)
 - `sdd init` — replaces `setup.sh` / `setup.ps1`; writes manifest via PyYAML (no injection)
 - `sdd upgrade` — migration table; adds `sdd_version` to pre-v2 manifests
 - `sdd config init` — interactive setup of `~/.sdd/config.yml` and `.specify/integrations.yml`

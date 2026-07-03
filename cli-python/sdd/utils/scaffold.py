@@ -26,7 +26,7 @@ def get_packs_dir() -> Path:
     Resolve the directory that contains the sdd-* pack folders.
 
     Search order:
-    1. Bundled packs inside the installed package  (pip install sddkit)
+    1. Bundled packs inside the installed package  (pip install sddflow)
        → cli-python/sdd/packs/
     2. Repository root packs/ directory            (pip install -e . / dev)
        → <repo-root>/packs/
@@ -43,7 +43,7 @@ def get_packs_dir() -> Path:
 
     raise RuntimeError(
         "SDD pack files not found.\n"
-        "  Installed via pip?  Try: pip install --force-reinstall sddkit\n"
+        "  Installed via pip?  Try: pip install --force-reinstall sddflow\n"
         "  Running from source? Ensure you cloned the full repository."
     )
 
