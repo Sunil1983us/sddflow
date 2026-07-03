@@ -36,11 +36,6 @@ pip install sddflow
 sdd init
 ```
 
-> **Not on PyPI yet?** Until the first release is published, install from
-> source: `pip install "git+https://github.com/Sunil1983us/Universalguide#subdirectory=cli-python"`
-> (note: `sdd init`'s bundled packs are only included in released wheels —
-> from a source install, copy a pack from `packs/` manually).
-
 Includes:
 - `sdd init` / `sdd upgrade`
 - `sdd config init` / `sdd config test` / `sdd config fields`

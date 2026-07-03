@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sddflow"
-version = "2.7.0"
+version = "2.7.1"
 description = "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -51,6 +51,17 @@ packages = ["sdd"]
 artifacts = ["sdd/packs/**"]
 
 [tool.hatch.build.targets.sdist]
+# artifacts here (not just on the wheel target) is required: `uv build` (and
+# any other build-frontend that builds the wheel FROM the sdist rather than
+# directly from source) inherits whatever the sdist has. Without this, the
+# sdist silently drops the gitignored sdd/packs/ directory — hatchling's
+# default file selection follows VCS/gitignore rules — and the wheel built
+# from that sdist has no packs either, even though the wheel target's own
+# artifacts line looks like it should cover it. `python -m build --wheel`
+# doesn't hit this because it builds the wheel directly from source, bypassing
+# the sdist step entirely — which is why that command alone can't catch this
+# class of bug; verify with `uv build` (or `python -m build`, sdist+wheel).
+artifacts = ["sdd/packs/**"]
 include = [
     "sdd/",
     "README.md",
