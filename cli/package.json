@@ -9,9 +9,13 @@
   "engines": {
     "node": ">=18"
   },
+  "scripts": {
+    "prepublishOnly": "node scripts/bundle-packs.js"
+  },
   "files": [
     "bin/",
     "src/",
+    "packs/",
     "README.md"
   ],
   "dependencies": {
