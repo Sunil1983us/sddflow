@@ -27,7 +27,7 @@ export const UNIVERSAL_PACK = 'sdd-universal';
  * Resolve the directory containing the sdd-* pack folders.
  *
  * Search order:
- * 1. Bundled packs inside the installed package  (npm install -g sdd-init)
+ * 1. Bundled packs inside the installed package  (npm install -g sddflow)
  *    → <package-root>/packs/
  * 2. Repository root packs/ directory            (dev / npm link)
  *    → <repo-root>/packs/
