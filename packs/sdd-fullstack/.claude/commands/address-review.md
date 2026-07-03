@@ -1,8 +1,9 @@
 # /address-review
 
-Read all unresolved human review comments from a GitHub PR, present them as a
+Read all unresolved human review comments on the current PR, present them as a
 checklist, apply the developer's chosen fixes, reply to each thread, and
-request re-review.
+request re-review. Works on GitHub, GitLab, Bitbucket, and Azure DevOps — the
+`sdd pr` commands below auto-detect which host this repo is on.
 
 Repeatable — run once per review round until the PR is approved.
 
@@ -13,53 +14,48 @@ Repeatable — run once per review round until the PR is approved.
 /address-review 42        # explicit PR number
 ```
 
-## Step 1 — Find the PR number
-
-If not provided:
-```bash
-gh pr view --json number --jq '.number'
-```
-
-If that fails, ask: "What is the PR number?"
-
-## Step 2 — Fetch unresolved review comments
+## Step 1 — Fetch unresolved review comments
 
 ```bash
-gh pr view {number} --json reviews,reviewRequests,comments
-gh api repos/{owner}/{repo}/pulls/{number}/comments
+sdd pr comments [--pr-id {number}]
 ```
 
-Collect all comment threads that are **not** resolved.
-Group inline comments by file + line.
-Include general (non-inline) PR review comments.
+This prints a numbered checklist directly — grouped implicitly by file:line,
+with each comment's author, text, and the `comment_id` needed for later steps.
+
+If it fails (missing host credentials, or a host with no automated listing),
+the error message names exactly what's missing (e.g. `GITLAB_TOKEN`,
+`BITBUCKET_USERNAME`/`BITBUCKET_APP_PASSWORD`). Tell the user, then offer to
+continue manually: read the comments from the host's web UI and proceed from
+Step 3 using whatever ids that UI shows.
 
 If no unresolved comments:
 > No open review comments on PR #{number}. PR is ready to approve.
 Stop here.
 
-## Step 3 — Present checklist
+## Step 2 — Present checklist
 
-Print numbered list of unresolved comments grouped by reviewer:
+Relay the checklist `sdd pr comments` printed, e.g.:
 
 ```
   ─────────────────────────────────────────────────────────
-  Review Comments — PR #{number}   (@{reviewer}, {date})
+  Review Comments — PR #{number}   (GitHub)
   ─────────────────────────────────────────────────────────
-  [1] src/auth/login.ts:42  —  @jane
+  [1] src/auth/login.ts:42  —  @jane  (comment_id=123)
       "This still needs a null check before accessing profile"
 
-  [2] src/auth/login.ts:89  —  @jane
+  [2] src/auth/login.ts:89  —  @jane  (comment_id=124)
       "Dead variable retryCount is still present"
 
-  [3] General comment  —  @jane
+  [3] General comment  —  @jane  (comment_id=125)
       "Missing unit test for the error path"
   ─────────────────────────────────────────────────────────
-  3 comment(s) from @jane
+  3 comment(s)
 
   Which should I fix? Enter numbers (e.g. 1,3), 'all', or 'none':
 ```
 
-## Step 4 — Apply selected fixes
+## Step 3 — Apply selected fixes
 
 Wait for developer input. Accept:
 - `all`  → fix every comment
@@ -82,43 +78,38 @@ Push to the same branch (PR updates automatically):
 git push
 ```
 
-## Step 5 — Reply to comment threads
+## Step 4 — Reply to comment threads
 
-For each **fixed** item, post a reply on the GitHub comment thread:
+For each **fixed** item (using its `comment_id` from Step 1):
 ```bash
-gh api repos/{owner}/{repo}/pulls/comments/{comment_id}/replies \
-  -f body="Fixed in $(git rev-parse --short HEAD) — {one-line description of the change}"
+sdd pr reply --comment-id {comment_id} \
+  --body "Fixed in $(git rev-parse --short HEAD) — {one-line description of the change}"
 ```
 
 For each **acknowledged** (not fixed) item:
 ```bash
-gh api repos/{owner}/{repo}/pulls/comments/{comment_id}/replies \
-  -f body="Acknowledged — will address in a follow-up."
+sdd pr reply --comment-id {comment_id} \
+  --body "Acknowledged — will address in a follow-up."
 ```
 
-## Step 6 — Resolve threads
+## Step 5 — Resolve threads
 
-For each fixed item, resolve the thread so the reviewer sees a clean diff:
+For each fixed item:
 ```bash
-gh api graphql -f query='
-  mutation {
-    resolveReviewThread(input: {threadId: "{thread_id}"}) {
-      thread { isResolved }
-    }
-  }'
+sdd pr resolve --comment-id {comment_id}
 ```
 
-If the thread ID is not available from the previous API call, skip resolution —
-the reviewer can resolve manually after seeing the reply.
+Bitbucket has no API-level thread resolution today — the command prints a
+warning and the reviewer resolves it manually after seeing the reply. Treat
+that warning as expected, not a failure to retry.
 
-## Step 7 — Request re-review
+## Step 6 — Request re-review
 
 ```bash
-gh pr edit {number} --add-reviewer {reviewer_login}
+sdd pr request-review --reviewer {reviewer_login}
 ```
 
-If the reviewer login is not known, find it from the comment author field in
-Step 2.
+If the reviewer's login isn't known, use the comment author field from Step 1.
 
 Print:
 ```

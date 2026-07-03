@@ -407,6 +407,8 @@ Controlled by `code_review.pre_review` in `integrations.yml`.
 
 Read unresolved human review comments from a PR, apply developer-selected fixes,
 reply to threads, and request re-review. Repeatable — run once per review round.
+Works on **GitHub, GitLab, Bitbucket, and Azure DevOps** — same host
+auto-detection as `sdd pr create`.
 
 ```
 /address-review          # infer PR from current branch
@@ -414,16 +416,35 @@ reply to threads, and request re-review. Repeatable — run once per review roun
 ```
 
 **What it does:**
-1. Fetches all unresolved comment threads from the GitHub PR
+1. `sdd pr comments` fetches all unresolved comment threads from the PR
 2. Presents them as a numbered checklist
 3. Developer picks which to fix
 4. Agent applies fixes, commits, pushes to the same branch (PR auto-updates)
-5. Posts a reply on each thread: "Fixed in {commit}" or "Acknowledged"
-6. Resolves fixed threads so reviewer sees a clean diff
-7. Requests re-review from the original reviewer
+5. `sdd pr reply` posts a reply on each thread: "Fixed in {commit}" or "Acknowledged"
+6. `sdd pr resolve` resolves fixed threads so reviewer sees a clean diff
+7. `sdd pr request-review` requests re-review from the original reviewer
 
 **Run again** after the reviewer adds a new round of comments.
 When there are no unresolved comments: "PR is ready to approve."
+
+**Per-host notes:**
+- **GitHub** — uses `gh`/GraphQL; unchanged from the original GitHub-only implementation
+- **GitLab** — REST API via `GITLAB_TOKEN` (Discussions API)
+- **Bitbucket** — REST API via `BITBUCKET_USERNAME`/`BITBUCKET_APP_PASSWORD`.
+  Bitbucket has no API-level thread resolution — `sdd pr resolve` posts the
+  reply and prints a warning asking the reviewer to resolve it manually in
+  the UI; this is expected, not a failure
+- **Azure DevOps** — `az` CLI + `az rest` (Threads API)
+- **Unrecognized/self-hosted host** — no automated comment handling; address
+  review comments directly in the host's web UI
+
+**Underlying commands** (what the prompt calls — usable standalone too):
+```bash
+sdd pr comments [--pr-id N]
+sdd pr reply --comment-id ID --body "..." [--pr-id N]
+sdd pr resolve --comment-id ID [--pr-id N]
+sdd pr request-review --reviewer LOGIN [--pr-id N]
+```
 
 ---
 
