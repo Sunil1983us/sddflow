@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.1] — 2026-07-03 (Python package only — pyproject.toml / PyPI release)
+
+### Fixed — PyPI package shipped with zero bundled packs
+
+- `sddflow` 2.7.0 published successfully to PyPI but was silently broken:
+  `sdd init` failed with "SDD pack files not found" immediately after
+  `pip install sddflow`. Confirmed by downloading the live wheel and
+  inspecting it directly — 28 files, none under `sdd/packs/`
+- Root cause: `[tool.hatch.build.targets.sdist]` had no `artifacts`
+  override, only the wheel target did. Hatchling's default file selection
+  follows `.gitignore`, so the sdist step silently dropped the (gitignored,
+  generated-at-publish-time) `sdd/packs/` directory. `uv build` — the tool
+  `publish.sh` uses — builds the wheel *from* that sdist, inheriting its
+  missing packs; the wheel target's own `artifacts` line never got a
+  chance to help because the files were already gone by then
+  - This is also why it passed every check during 2.7.0's own release
+    prep: verification there used `python -m build --wheel`, which builds
+    directly from source and skips the sdist step (and this bug) entirely
+- Fix: mirror the same `artifacts = ["sdd/packs/**"]` override onto the
+  sdist target
+- No content changes — packs, prompts, templates, and CLI behavior are
+  identical to 2.7.0; this release exists purely to ship a wheel that
+  actually contains them
+- Verified against the real failure: downloaded the broken 2.7.0 wheel
+  from PyPI to confirm it; reproduced with the real `uv build` (sdist and
+  wheel both 0 pack files); applied the fix and reproduced success with
+  the same command (sdist and wheel both 689 pack files); installed the
+  fixed wheel into a fresh, isolated venv with no source tree present and
+  ran `sdd init` for real — scaffolded correctly
+
+---
+
 ## [2.7.0] — 2026-07-02
 
 ### Added — multi-host /address-review (GitHub, GitLab, Bitbucket, Azure DevOps)
