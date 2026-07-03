@@ -332,7 +332,9 @@ Blocked = predecessor in the same phase is not yet approved.
 
 ### `sdd pr create`
 
-Create a git branch and GitHub PR for a task, linked back to its Jira issue.
+Create a git branch and a PR for a task, linked back to its Jira issue — on
+**GitHub, GitLab, Bitbucket, or Azure DevOps**. The host is auto-detected from
+`git remote get-url origin`; nothing to configure to pick one.
 
 ```bash
 sdd pr create --task TASK-001
@@ -344,20 +346,36 @@ What it does:
 1. Looks up `TASK-001` in `.specify/features/{feature}/tasks.md`
 2. Searches Jira for the issue with label `sdd:TASK-001` (if Jira is configured)
 3. Creates and pushes a git branch using `branch_pattern` from `integrations.yml`
-4. Creates a PR via `gh` CLI with the task description and acceptance criteria in
-   the body, linked to the Jira issue
+4. Detects the git host and creates a PR there with the task description and
+   acceptance criteria in the body, linked to the Jira issue:
+   - **GitHub** — via the `gh` CLI
+   - **GitLab** — via the `glab` CLI, or the REST API if you set `GITLAB_TOKEN`
+     instead of installing glab
+   - **Bitbucket** — via the REST API, using `BITBUCKET_USERNAME` +
+     `BITBUCKET_APP_PASSWORD` (Bitbucket has no CLI as ubiquitous as gh/glab)
+   - **Azure DevOps** — via the `az` CLI (`azure-devops` extension)
 5. Posts the PR URL as a comment on the Jira task
 
-**Branch / PR title patterns** (configurable in `integrations.yml`):
+**Branch / PR title patterns** (configurable in `integrations.yml`, apply to
+every host the same way):
 
 | Config key | Default | Example output |
 |---|---|---|
 | `branch_pattern` | `feature/{task_id}-{slug}` | `feature/task-001-jwt-validation` |
 | `pr_title_pattern` | `feat({task_id}): {title}` | `feat(TASK-001): JWT validation` |
 
-**`gh` CLI fallback:** If `gh` is not installed, the branch is still created and
-pushed; the PR title + body are printed so you can paste them into GitHub
-manually.
+**Fallback:** If the detected host's CLI/token isn't set up (or the host isn't
+recognized — e.g. self-hosted git), the branch is still created and pushed;
+the PR title + body are printed so you can paste them in manually.
+
+**CI on other hosts:** `.github/workflows/quality-gate.yml` (GitHub Actions)
+is the reference implementation of the PR-size / TASK-NNN-reference /
+build-test-coverage / secret-scan / SCA rules. Each pack also ships
+`bitbucket-pipelines.yml`, `.gitlab-ci.yml`, and `azure-pipelines.yml` at the
+repo root, mirroring the same rules in that host's native syntax — only the
+file matching your actual host is ever read; the others are inert. These are
+starter templates like the GitHub one: adjust build/test commands for your
+Tech Stack, and verify once against your real pipeline before relying on it.
 
 ---
 

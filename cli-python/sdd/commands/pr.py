@@ -11,6 +11,7 @@ from sdd.utils.jira_client import JiraClient
 from sdd.utils.sdd_parser import parse_tasks
 from sdd.utils.manifest import read_manifest
 from sdd.utils.validate import safe_feature_path
+from sdd.utils.git_host import detect_host, get_provider, PrCreateError
 
 console = Console()
 
@@ -24,11 +25,6 @@ def _slug(title: str) -> str:
 def _run(cmd: list[str]) -> tuple[int, str, str]:
     r = subprocess.run(cmd, capture_output=True, text=True)
     return r.returncode, r.stdout.strip(), r.stderr.strip()
-
-
-def _gh_available() -> bool:
-    code, _, _ = _run(["gh", "--version"])
-    return code == 0
 
 
 @click.group()
@@ -160,28 +156,27 @@ def pr_create(task, base, profile, feature):
         f"{pre_review_section}"
     )
 
-    # ── Create PR via gh CLI ──────────────────────────────────────────────────
-    if not _gh_available():
+    # ── Create PR via the detected git host's provider ────────────────────────
+    # detect_host() reads `git remote get-url origin` and classifies it as
+    # github | bitbucket | gitlab | azure | unknown — see utils/git_host.py.
+    # Every host below this point only differs in how create_pr() is
+    # implemented; branch/push, PR title/body, and the Jira comment-back are
+    # identical regardless of where the repo is hosted.
+    remote_info = detect_host()
+    provider    = get_provider(remote_info)
+
+    try:
+        pr_url = provider.create_pr(pr_title, pr_body, base, branch_name)
+    except PrCreateError as e:
         console.print()
-        console.print("  [yellow]gh CLI not found — create the PR manually with:[/yellow]")
+        console.print(f"  [yellow]{provider.name}: {e} — create the PR manually with:[/yellow]")
         console.print(f"\n  [bold]Title:[/bold] {pr_title}")
         console.print(f"\n  [bold]Body:[/bold]\n{pr_body}")
+        console.print(f"\n  Branch [cyan]{branch_name}[/cyan] is already pushed to origin.")
         console.print()
         return
 
-    code, out, err = _run([
-        "gh", "pr", "create",
-        "--title", pr_title,
-        "--body",  pr_body,
-        "--base",  base,
-    ])
-    if code != 0:
-        console.print(f"  [red]✗  gh pr create failed: {err}[/red]")
-        console.print(f"     Branch [cyan]{branch_name}[/cyan] exists — create PR manually.")
-        raise SystemExit(1)
-
-    pr_url = out
-    console.print(f"  [green]✓[/green]  PR: [cyan]{pr_url}[/cyan]")
+    console.print(f"  [green]✓[/green]  PR ({provider.name}): [cyan]{pr_url}[/cyan]")
 
     # ── Update Jira ───────────────────────────────────────────────────────────
     if jira_key and jira_client:

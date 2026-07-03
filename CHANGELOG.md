@@ -6,6 +6,42 @@ All notable changes to the SDD Framework are documented here.
 
 ## [2.7.0] — 2026-07-02
 
+### Added — multi-host PR automation (GitHub, GitLab, Bitbucket, Azure DevOps)
+
+- `sdd pr create` no longer assumes GitHub. New `sdd/utils/git_host.py`:
+  `detect_host()` reads `git remote get-url origin` and classifies it
+  (github/gitlab/bitbucket/azure/unknown); `get_provider()` dispatches to a
+  small per-host implementation. Branch creation, PR title/body generation,
+  and the Jira comment-back are unchanged and still run exactly once,
+  regardless of host — only `create_pr()` differs per provider:
+  - **GitHub** — `gh pr create` (unchanged behavior, byte-for-byte)
+  - **GitLab** — `glab mr create`, or the REST API via `GITLAB_TOKEN` if
+    `glab` isn't installed (handles nested subgroup project paths)
+  - **Bitbucket** — REST API via `BITBUCKET_USERNAME` +
+    `BITBUCKET_APP_PASSWORD` (Bitbucket has no CLI as ubiquitous as gh/glab)
+  - **Azure DevOps** — `az repos pr create` (handles both
+    `dev.azure.com/{org}/{project}/_git/{repo}` and the older
+    `{org}.visualstudio.com` URL forms, plus the SSH v3 form)
+  - **Unrecognized / self-hosted** — same manual fallback as the historical
+    "gh not found" path: branch is created and pushed, PR title/body printed
+    to paste in manually. Nothing fails silently.
+- 28 new pytest cases (`test_git_host.py`) covering URL parsing for every
+  host/form combination and each provider's success/failure/fallback paths
+  (subprocess and HTTP calls mocked — no network in CI)
+- Per-host CI templates (all 5 packs): `bitbucket-pipelines.yml`,
+  `.gitlab-ci.yml`, `azure-pipelines.yml` mirror the same rules as
+  `.github/workflows/quality-gate.yml` (PR size, TASK-NNN/CHG-NNN reference,
+  build+test+coverage per pack's tech stack, secret scan via gitleaks,
+  dependency/SCA scan) in each host's native syntax. Only the file matching
+  the repo's actual host is ever read — starter templates like the GitHub
+  one, YAML-validated but not exercised against a live account of each host
+  (this repo's own CI is GitHub-hosted)
+- Docs: `integrations.yml.example` documents per-host auth setup;
+  `HOW-TO-USE.md` "Workflow Mode" (all 5 packs), `cli-python/README.md`,
+  and `PACK-SPEC.md` updated — `workflow_mode: github` was named for the
+  common case but was always meant to mean "hosted PR + CI flow"; the
+  docs now say so explicitly instead of implying GitHub-only
+
 ### Added — no-Jira review modes, Confluence sync on approval, progressive Jira push
 
 #### Document review gates — three modes (all 5 packs)
