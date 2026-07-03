@@ -815,10 +815,16 @@ Tell agent: "Summary rules updated — re-read summary-rules.md"
 workflow_mode: "github"   # github | local   DEFAULT: github
 ```
 
-**github** (default) — branch + PR flow:
+**github** (default) — branch + PR flow. Despite the name, this works on
+**GitHub, GitLab, Bitbucket, or Azure DevOps** — `sdd pr create` auto-detects
+the host from `git remote get-url origin`:
 - `/implement` ends each task with `"PR ready — {N} lines, {N} files"`
-- CI (`.github/workflows/quality-gate.yml`) runs build/test/coverage/
-  lint/secret-scan/SCA on every PR push
+- `sdd pr create --task TASK-NNN` opens the PR on whichever host you're on
+  (see cli-python/README.md "sdd pr create" for per-host setup)
+- CI runs build/test/coverage/lint/secret-scan/SCA on every PR push — via
+  `.github/workflows/quality-gate.yml` on GitHub, or the equivalent
+  `bitbucket-pipelines.yml` / `.gitlab-ci.yml` / `azure-pipelines.yml` at the
+  repo root on the other hosts (only the one matching your host ever runs)
 - `/release` requires every task PR-approved and merged
 
 **local** — no git hosting required:

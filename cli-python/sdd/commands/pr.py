@@ -11,6 +11,7 @@ from sdd.utils.jira_client import JiraClient
 from sdd.utils.sdd_parser import parse_tasks
 from sdd.utils.manifest import read_manifest
 from sdd.utils.validate import safe_feature_path
+from sdd.utils.git_host import detect_host, get_provider, PrCreateError, ReviewActionError
 
 console = Console()
 
@@ -24,11 +25,6 @@ def _slug(title: str) -> str:
 def _run(cmd: list[str]) -> tuple[int, str, str]:
     r = subprocess.run(cmd, capture_output=True, text=True)
     return r.returncode, r.stdout.strip(), r.stderr.strip()
-
-
-def _gh_available() -> bool:
-    code, _, _ = _run(["gh", "--version"])
-    return code == 0
 
 
 @click.group()
@@ -160,28 +156,27 @@ def pr_create(task, base, profile, feature):
         f"{pre_review_section}"
     )
 
-    # ── Create PR via gh CLI ──────────────────────────────────────────────────
-    if not _gh_available():
+    # ── Create PR via the detected git host's provider ────────────────────────
+    # detect_host() reads `git remote get-url origin` and classifies it as
+    # github | bitbucket | gitlab | azure | unknown — see utils/git_host.py.
+    # Every host below this point only differs in how create_pr() is
+    # implemented; branch/push, PR title/body, and the Jira comment-back are
+    # identical regardless of where the repo is hosted.
+    remote_info = detect_host()
+    provider    = get_provider(remote_info)
+
+    try:
+        pr_url = provider.create_pr(pr_title, pr_body, base, branch_name)
+    except PrCreateError as e:
         console.print()
-        console.print("  [yellow]gh CLI not found — create the PR manually with:[/yellow]")
+        console.print(f"  [yellow]{provider.name}: {e} — create the PR manually with:[/yellow]")
         console.print(f"\n  [bold]Title:[/bold] {pr_title}")
         console.print(f"\n  [bold]Body:[/bold]\n{pr_body}")
+        console.print(f"\n  Branch [cyan]{branch_name}[/cyan] is already pushed to origin.")
         console.print()
         return
 
-    code, out, err = _run([
-        "gh", "pr", "create",
-        "--title", pr_title,
-        "--body",  pr_body,
-        "--base",  base,
-    ])
-    if code != 0:
-        console.print(f"  [red]✗  gh pr create failed: {err}[/red]")
-        console.print(f"     Branch [cyan]{branch_name}[/cyan] exists — create PR manually.")
-        raise SystemExit(1)
-
-    pr_url = out
-    console.print(f"  [green]✓[/green]  PR: [cyan]{pr_url}[/cyan]")
+    console.print(f"  [green]✓[/green]  PR ({provider.name}): [cyan]{pr_url}[/cyan]")
 
     # ── Update Jira ───────────────────────────────────────────────────────────
     if jira_key and jira_client:
@@ -195,4 +190,119 @@ def pr_create(task, base, profile, feature):
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print(f"  [bold green]PR created![/bold green]")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print()
+
+
+# ── Review-comment commands (back /address-review) ──────────────────────────
+# Same host-detection pattern as `sdd pr create`: detect_host() + get_provider()
+# dispatch to the same providers, just calling their review-comment methods
+# instead of create_pr(). GitHub behavior mirrors the exact gh/GraphQL calls
+# .claude/commands/address-review.md already documented; GitLab/Bitbucket/
+# Azure DevOps are new — see git_host.py docstrings for per-host caveats
+# (Bitbucket has no API-level thread resolution; Azure's re-review request
+# uses `az repos pr reviewer add`).
+
+def _resolve_pr_id(provider, pr_id: str | None) -> str:
+    if pr_id:
+        return pr_id
+    code, branch, _ = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    if code != 0:
+        raise ReviewActionError("Could not determine current branch — pass --pr-id explicitly")
+    return provider.get_pr_number(branch)
+
+
+@pr_command.command("comments")
+@click.option("--pr-id", default=None, help="PR/MR number — inferred from current branch if omitted")
+def pr_comments(pr_id):
+    """List unresolved review comments on a PR — the checklist /address-review presents."""
+    console.print()
+    remote_info = detect_host()
+    provider    = get_provider(remote_info)
+    try:
+        resolved_pr_id = _resolve_pr_id(provider, pr_id)
+        comments = provider.list_unresolved_comments(resolved_pr_id)
+    except ReviewActionError as e:
+        console.print(f"  [red]✗  {provider.name}: {e}[/red]")
+        raise SystemExit(1)
+
+    if not comments:
+        console.print(f"  [green]No open review comments on PR #{resolved_pr_id}. Ready to approve.[/green]")
+        console.print()
+        return
+
+    console.print(f"  [bold]Review Comments — PR #{resolved_pr_id}[/bold] ({provider.name})")
+    console.print()
+    for i, c in enumerate(comments, 1):
+        loc = f"{c.path}:{c.line}" if c.path else "General comment"
+        console.print(f"  [{i}] {loc}  —  @{c.author}  [dim](comment_id={c.comment_id})[/dim]")
+        console.print(f"      \"{c.body}\"")
+        console.print()
+    console.print(f"  {len(comments)} comment(s)")
+    console.print()
+
+
+@pr_command.command("reply")
+@click.option("--comment-id", required=True, help="comment_id from `sdd pr comments`")
+@click.option("--body",       required=True, help="Reply text")
+@click.option("--pr-id",      default=None)
+def pr_reply(comment_id, body, pr_id):
+    """Reply to a specific review comment thread."""
+    console.print()
+    remote_info = detect_host()
+    provider    = get_provider(remote_info)
+    try:
+        resolved_pr_id = _resolve_pr_id(provider, pr_id)
+        comments = provider.list_unresolved_comments(resolved_pr_id)
+        match = next((c for c in comments if c.comment_id == str(comment_id)), None)
+        if not match:
+            console.print(f"  [red]✗  comment_id {comment_id} not found among unresolved comments[/red]")
+            raise SystemExit(1)
+        provider.reply_to_comment(resolved_pr_id, match, body)
+    except ReviewActionError as e:
+        console.print(f"  [red]✗  {provider.name}: {e}[/red]")
+        raise SystemExit(1)
+    console.print(f"  [green]✓[/green]  Replied to comment {comment_id}")
+    console.print()
+
+
+@pr_command.command("resolve")
+@click.option("--comment-id", required=True, help="comment_id from `sdd pr comments`")
+@click.option("--pr-id",      default=None)
+def pr_resolve(comment_id, pr_id):
+    """Resolve the thread a comment belongs to, if the host supports it."""
+    console.print()
+    remote_info = detect_host()
+    provider    = get_provider(remote_info)
+    try:
+        resolved_pr_id = _resolve_pr_id(provider, pr_id)
+        comments = provider.list_unresolved_comments(resolved_pr_id)
+        match = next((c for c in comments if c.comment_id == str(comment_id)), None)
+        if not match:
+            console.print(f"  [red]✗  comment_id {comment_id} not found among unresolved comments[/red]")
+            raise SystemExit(1)
+        provider.resolve_thread(resolved_pr_id, match)
+    except ReviewActionError as e:
+        console.print(f"  [yellow]!  {provider.name}: {e}[/yellow]")
+        console.print("     The reply was still posted — resolve manually in the host's UI if needed.")
+        return
+    console.print(f"  [green]✓[/green]  Resolved thread for comment {comment_id}")
+    console.print()
+
+
+@pr_command.command("request-review")
+@click.option("--reviewer", required=True, help="Reviewer username/login on the git host")
+@click.option("--pr-id",    default=None)
+def pr_request_review(reviewer, pr_id):
+    """Request re-review from a reviewer after pushing fixes."""
+    console.print()
+    remote_info = detect_host()
+    provider    = get_provider(remote_info)
+    try:
+        resolved_pr_id = _resolve_pr_id(provider, pr_id)
+        provider.request_review(resolved_pr_id, reviewer)
+    except ReviewActionError as e:
+        console.print(f"  [yellow]!  {provider.name}: {e}[/yellow]")
+        console.print(f"     Ask @{reviewer} to re-review manually.")
+        return
+    console.print(f"  [green]✓[/green]  Re-review requested from @{reviewer}")
     console.print()

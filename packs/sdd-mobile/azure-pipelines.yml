@@ -1,0 +1,112 @@
+# Quality Gate (AI-5) — Azure Pipelines
+# Mirrors the rules in .github/workflows/quality-gate.yml (GitHub Actions),
+# translated into Azure Pipelines's native syntax. Only one of these CI files
+# will ever actually run — whichever matches where this repo is hosted; the
+# other formats are inert extra files.
+#
+# NOT exercised against a live Azure Pipelines account by the framework's own
+# CI (this repo's CI is GitHub-hosted) — treat as a starter template like
+# quality-gate.yml itself: adjust build/test commands for your Tech Stack
+# (constitution.md Part 2), and verify once against your actual pipeline.
+#
+#  - PR size (max_lines_per_pr / max_files_per_pr from manifest.yml)
+#  - PR references TASK-NNN or CHG-NNN (constitution.md Git rule)
+#  - Build + tests + coverage gate (constitution Part 2 — Coverage Gate)
+#  - Secret scan (security-design.md §2)
+#  - Dependency / SCA scan (security-design.md §2)
+#
+# Defaults assume a Node-based app (React/Vue/Angular/React Native) + npm.
+#
+# The TASK-NNN/CHG-NNN reference check calls `az repos pr show` using the
+# pipeline's own OAuth token — no extra secret needed, but you must enable
+# "Allow scripts to access the OAuth token" in this pipeline's settings
+# (Edit → ⋮ → Triggers → the classic-editor checkbox, or set
+# `System.AccessToken` scope in YAML — see Azure DevOps docs, this varies
+# by org policy).
+
+trigger: none
+pr:
+  branches:
+    include: [main, develop]
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Verify
+    jobs:
+      - job: PrSizeCheck
+        steps:
+          - checkout: self
+            fetchDepth: 0
+          - script: |
+              MAX_LINES=$(grep -A2 'pr_rules:' .specify/manifest.yml | grep max_lines_per_pr | grep -o '[0-9]\+')
+              MAX_FILES=$(grep -A2 'pr_rules:' .specify/manifest.yml | grep max_files_per_pr | grep -o '[0-9]\+')
+              MAX_LINES=${MAX_LINES:-400}; MAX_FILES=${MAX_FILES:-5}
+              BASE="origin/$(System.PullRequest.TargetBranch)"
+              git fetch origin "$(System.PullRequest.TargetBranchName)" || true
+              FILES_CHANGED=$(git diff --name-only "$BASE"...HEAD | wc -l)
+              LINES_CHANGED=$(git diff --shortstat "$BASE"...HEAD | grep -oE '[0-9]+ insertion|[0-9]+ deletion' | grep -oE '[0-9]+' | paste -sd+ | bc || echo 0)
+              echo "Files changed:$FILES_CHANGED (limit $MAX_FILES)  Lines changed:$LINES_CHANGED (limit $MAX_LINES)"
+              if [ "$FILES_CHANGED" -gt "$MAX_FILES" ]; then echo "##vso[task.logissue type=error]PR touches $FILES_CHANGED files — exceeds max_files_per_pr ($MAX_FILES). Split per the SPLIT A/B/C contract." && exit 1; fi
+              if [ "$LINES_CHANGED" -gt "$MAX_LINES" ]; then echo "##vso[task.logissue type=error]PR changes $LINES_CHANGED lines — exceeds max_lines_per_pr ($MAX_LINES). Split per the SPLIT A/B/C contract." && exit 1; fi
+            displayName: 'Check PR size'
+          - script: |
+              az extension add --name azure-devops -y -o none
+              az devops configure --defaults organization="$(System.TeamFoundationCollectionUri)" project="$(System.TeamProject)" -o none
+              TITLE=$(az repos pr show --id "$(System.PullRequest.PullRequestId)" --query title -o tsv)
+              DESC=$(az repos pr show --id "$(System.PullRequest.PullRequestId)" --query description -o tsv)
+              if ! echo "$TITLE $DESC" | grep -qE 'TASK-[0-9]+|CHG-[0-9]+'; then
+                echo "##vso[task.logissue type=error]PR title/description must reference TASK-NNN or CHG-NNN (constitution.md Git rule)."
+                exit 1
+              fi
+            displayName: 'Check PR references TASK-NNN or CHG-NNN'
+            env:
+              AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+
+  - stage: Build
+    jobs:
+      - job: BuildTestCoverage
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '20.x'
+          - script: npm ci
+            displayName: 'npm ci'
+          - script: npm run lint --if-present
+            displayName: 'npm run lint --if-present'
+          - script: npm run typecheck --if-present
+            displayName: 'npm run typecheck --if-present'
+          - script: npm test -- --coverage
+            displayName: 'npm test -- --coverage'
+          - script: npm run build --if-present
+            displayName: 'npm run build --if-present'
+          - script: echo "Coverage gate enforced via coverage.thresholds in vitest.config.ts / jest.config.js"
+            displayName: 'Coverage gate note'
+
+  - stage: Security
+    jobs:
+      - job: SecretScan
+        steps:
+          - script: docker run --rm -v "$(pwd)":/repo zricethezav/gitleaks:latest detect --source /repo --no-git -v
+            displayName: 'gitleaks secret scan'
+      - job: DependencyScan
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '20.x'
+          - script: npm audit --audit-level=high
+            displayName: 'SCA scan'
+            continueOnError: true
+
+# ── Optional: performance gate (full scope) ──────────────────────────────────
+# Uncomment to enforce the PERF-NNN thresholds from qa-testcases.md at CI
+# time. See constitution.md Part 2 Testing row for the tool choice.
+#
+#  - stage: Performance
+#    condition: eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main')
+#    jobs:
+#      - job: PerfGate
+#        steps:
+#          - script: docker run --rm -v $(pwd):/scripts grafana/k6:latest run /scripts/perf/nfr-thresholds.js
+#            displayName: 'k6 NFR thresholds'

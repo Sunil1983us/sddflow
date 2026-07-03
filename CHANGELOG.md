@@ -6,6 +6,86 @@ All notable changes to the SDD Framework are documented here.
 
 ## [2.7.0] — 2026-07-02
 
+### Added — multi-host /address-review (GitHub, GitLab, Bitbucket, Azure DevOps)
+
+- `/address-review` was entirely hardcoded to the `gh` CLI/API — found by
+  auditing every doc after the PR-automation work below, since PR *creation*
+  had just become host-agnostic while the very next workflow step (handling
+  review comments) silently hadn't. Now uses the same `detect_host()` /
+  `get_provider()` dispatch as `sdd pr create`.
+- `git_host.py` providers gain `get_pr_number`, `list_unresolved_comments`,
+  `reply_to_comment`, `resolve_thread`, `request_review`:
+  - **GitHub** — rewritten on GraphQL (`reviewThreads`) instead of the plain
+    REST comments endpoint, so listing now returns real thread IDs. This
+    incidentally fixes a gap in the *previous* GitHub-only implementation,
+    which had no reliable way to get a thread ID and documented itself as
+    "if the thread ID is not available... skip resolution" — resolution now
+    works consistently. Reply and re-review-request calls are unchanged
+    (`gh api .../replies`, `gh pr edit --add-reviewer`)
+  - **GitLab** — REST API (Discussions) via `GITLAB_TOKEN`
+  - **Bitbucket** — REST API via `BITBUCKET_USERNAME`/`BITBUCKET_APP_PASSWORD`.
+    No API-level thread resolution exists for Bitbucket Cloud comments —
+    `resolve_thread` raises a clear "resolve manually in the UI" message
+    that the CLI treats as a warning, not a failure (the reply still posts)
+  - **Azure DevOps** — `az` CLI for PR/reviewer lookup, `az rest` (the
+    CLI's own OAuth token against arbitrary Azure DevOps REST endpoints)
+    for replying/resolving threads, since comment-on-existing-thread
+    support varies across `az repos pr` subcommand versions
+  - **Unrecognized/self-hosted** — every method raises with a clear
+    "no automated X available for this git host" message; the prompt falls
+    back to reading/replying in the host's web UI directly
+- New CLI surface: `sdd pr comments`, `sdd pr reply --comment-id ...`,
+  `sdd pr resolve --comment-id ...`, `sdd pr request-review --reviewer ...`
+  — `address-review.prompt.md` and `.claude/commands/address-review.md`
+  (shared, all 5 packs) now call these instead of raw `gh` commands. Also
+  fixed a pre-existing drift between those two files (the `.claude/commands`
+  version had a documented GraphQL mutation the `.prompt.md` version lacked)
+  — both are now consistent and host-agnostic
+- 30 new pytest cases (`test_git_host_review.py`) covering all 4 providers'
+  5 new methods plus the unknown-host raise path
+- Verified end-to-end beyond mocks: a real scratch repo confirmed graceful,
+  correctly-worded fallback messages against unconfigured GitLab, Bitbucket,
+  Azure DevOps, and self-hosted remotes; a fake `gh` binary on PATH plus a
+  mocked host-detection call confirmed `sdd pr comments/reply/resolve/
+  request-review` construct and send the correct real subprocess commands
+  end-to-end (not just through mocked unit tests) for the GitHub path
+
+### Added — multi-host PR automation (GitHub, GitLab, Bitbucket, Azure DevOps)
+
+- `sdd pr create` no longer assumes GitHub. New `sdd/utils/git_host.py`:
+  `detect_host()` reads `git remote get-url origin` and classifies it
+  (github/gitlab/bitbucket/azure/unknown); `get_provider()` dispatches to a
+  small per-host implementation. Branch creation, PR title/body generation,
+  and the Jira comment-back are unchanged and still run exactly once,
+  regardless of host — only `create_pr()` differs per provider:
+  - **GitHub** — `gh pr create` (unchanged behavior, byte-for-byte)
+  - **GitLab** — `glab mr create`, or the REST API via `GITLAB_TOKEN` if
+    `glab` isn't installed (handles nested subgroup project paths)
+  - **Bitbucket** — REST API via `BITBUCKET_USERNAME` +
+    `BITBUCKET_APP_PASSWORD` (Bitbucket has no CLI as ubiquitous as gh/glab)
+  - **Azure DevOps** — `az repos pr create` (handles both
+    `dev.azure.com/{org}/{project}/_git/{repo}` and the older
+    `{org}.visualstudio.com` URL forms, plus the SSH v3 form)
+  - **Unrecognized / self-hosted** — same manual fallback as the historical
+    "gh not found" path: branch is created and pushed, PR title/body printed
+    to paste in manually. Nothing fails silently.
+- 28 new pytest cases (`test_git_host.py`) covering URL parsing for every
+  host/form combination and each provider's success/failure/fallback paths
+  (subprocess and HTTP calls mocked — no network in CI)
+- Per-host CI templates (all 5 packs): `bitbucket-pipelines.yml`,
+  `.gitlab-ci.yml`, `azure-pipelines.yml` mirror the same rules as
+  `.github/workflows/quality-gate.yml` (PR size, TASK-NNN/CHG-NNN reference,
+  build+test+coverage per pack's tech stack, secret scan via gitleaks,
+  dependency/SCA scan) in each host's native syntax. Only the file matching
+  the repo's actual host is ever read — starter templates like the GitHub
+  one, YAML-validated but not exercised against a live account of each host
+  (this repo's own CI is GitHub-hosted)
+- Docs: `integrations.yml.example` documents per-host auth setup;
+  `HOW-TO-USE.md` "Workflow Mode" (all 5 packs), `cli-python/README.md`,
+  and `PACK-SPEC.md` updated — `workflow_mode: github` was named for the
+  common case but was always meant to mean "hosted PR + CI flow"; the
+  docs now say so explicitly instead of implying GitHub-only
+
 ### Added — no-Jira review modes, Confluence sync on approval, progressive Jira push
 
 #### Document review gates — three modes (all 5 packs)

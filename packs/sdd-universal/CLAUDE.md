@@ -295,6 +295,8 @@ For each task in the `/implement` phase:
    - Agent shows unresolved comment threads as a numbered checklist
    - Pick which to fix — agent applies fixes, pushes, replies to threads, requests re-review
    - Repeat per review round until PR is approved
+   - Works on GitHub, GitLab, Bitbucket, and Azure DevOps — same host
+     auto-detection as PR creation (see cli-python/README.md "/address-review")
 6. PR merged → task complete
 
 ## VALIDATE and RELEASE — Bookends

@@ -1,0 +1,78 @@
+# Quality Gate (AI-5) — Bitbucket Pipelines
+# Mirrors the rules in .github/workflows/quality-gate.yml (GitHub Actions),
+# translated into Bitbucket Pipelines's native syntax. Only one of these CI files
+# will ever actually run — whichever matches where this repo is hosted; the
+# other formats are inert extra files.
+#
+# NOT exercised against a live Bitbucket Pipelines account by the framework's own
+# CI (this repo's CI is GitHub-hosted) — treat as a starter template like
+# quality-gate.yml itself: adjust build/test commands for your Tech Stack
+# (constitution.md Part 2), and verify once against your actual pipeline.
+#
+#  - PR size (max_lines_per_pr / max_files_per_pr from manifest.yml)
+#  - PR references TASK-NNN or CHG-NNN (constitution.md Git rule)
+#  - Build + tests + coverage gate (constitution Part 2 — Coverage Gate)
+#  - Secret scan (security-design.md §2)
+#  - Dependency / SCA scan (security-design.md §2)
+#
+# Defaults assume Java + Maven.
+#
+# PR title/description are NOT exposed as pipeline variables by Bitbucket
+# without an API call (unlike GitHub/GitLab) — the TASK-NNN/CHG-NNN check
+# below greps commit messages in the PR's diff range instead, which needs
+# no extra credentials and is reliable for the "reference the task" rule.
+#
+# Only runs when workflow_mode: github is effectively "bitbucket" here —
+# i.e. this repo's origin remote is a bitbucket.org URL. See CLAUDE.md
+# "Document Review Gates" / HOW-TO-USE.md "Workflow Mode" for how
+# workflow_mode and PR automation relate.
+
+image: alpine:latest
+
+clone:
+  depth: full
+
+pipelines:
+  pull-requests:
+    '**':
+      - step:
+          name: PR size + reference check
+          script:
+            - apk add --no-cache git bash grep coreutils
+            - export BASE="origin/${BITBUCKET_PR_DESTINATION_BRANCH:-main}"
+            - git fetch origin "${BITBUCKET_PR_DESTINATION_BRANCH:-main}" --depth=1000 || true
+            - MAX_LINES=$(grep -A2 'pr_rules:' .specify/manifest.yml | grep max_lines_per_pr | grep -o '[0-9]\+')
+            - MAX_FILES=$(grep -A2 'pr_rules:' .specify/manifest.yml | grep max_files_per_pr | grep -o '[0-9]\+')
+            - MAX_LINES=${MAX_LINES:-400}; MAX_FILES=${MAX_FILES:-5}
+            - FILES_CHANGED=$(git diff --name-only "$BASE"...HEAD | wc -l)
+            - LINES_CHANGED=$(git diff --shortstat "$BASE"...HEAD | grep -oE '[0-9]+ insertion|[0-9]+ deletion' | grep -oE '[0-9]+' | paste -sd+ | bc || echo 0)
+            - echo "Files changed:$FILES_CHANGED (limit $MAX_FILES)  Lines changed:$LINES_CHANGED (limit $MAX_LINES)"
+            - if [ "$FILES_CHANGED" -gt "$MAX_FILES" ]; then echo "PR touches $FILES_CHANGED files — exceeds max_files_per_pr ($MAX_FILES). Split per the SPLIT A/B/C contract." && exit 1; fi
+            - if [ "$LINES_CHANGED" -gt "$MAX_LINES" ]; then echo "PR changes $LINES_CHANGED lines — exceeds max_lines_per_pr ($MAX_LINES). Split per the SPLIT A/B/C contract." && exit 1; fi
+            - if ! git log "$BASE"...HEAD --format=%s%b | grep -qE 'TASK-[0-9]+|CHG-[0-9]+'; then echo "No commit in this PR references TASK-NNN or CHG-NNN (constitution.md Git rule)." && exit 1; fi
+      - step:
+          name: Build, test, coverage gate
+          image: maven:3.9-eclipse-temurin-21
+          script:
+            - mvn -B verify
+            - echo "Coverage gate enforced via jacoco-maven-plugin <rules> in pom.xml"
+      - step:
+          name: Secret scan
+          script:
+            - docker run --rm -v "$(pwd)":/repo zricethezav/gitleaks:latest detect --source /repo --no-git -v
+      - step:
+          name: Dependency / SCA scan
+          image: maven:3.9-eclipse-temurin-21
+          script:
+            - mvn -B org.owasp:dependency-check-maven:check || true
+
+# ── Optional: performance gate (full scope) ──────────────────────────────────
+# Uncomment and add a step to run k6/Gatling/Locust/JMeter against the
+# PERF-NNN thresholds from qa-testcases.md. See constitution.md Part 2
+# Testing row for the tool choice.
+#
+#      - step:
+#          name: Performance gate (NFR thresholds)
+#          image: grafana/k6:latest
+#          script:
+#            - k6 run perf/nfr-thresholds.js

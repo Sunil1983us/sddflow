@@ -41,7 +41,10 @@ sdd-{name}/
     prompts/                         # REQUIRED — one .prompt.md per command
     instructions/                    # RECOMMENDED — coding standards per file glob
     workflows/
-      quality-gate.yml               # RECOMMENDED — CI/CD gate
+      quality-gate.yml               # RECOMMENDED — CI/CD gate (GitHub Actions)
+  bitbucket-pipelines.yml            # OPTIONAL — same gate for Bitbucket repos
+  .gitlab-ci.yml                     # OPTIONAL — same gate for GitLab repos
+  azure-pipelines.yml                # OPTIONAL — same gate for Azure DevOps repos
   .claude/
     commands/                        # REQUIRED — one .md per command
   .cursor/
@@ -90,7 +93,9 @@ pr_rules:
   max_lines_per_pr: 400
   max_files_per_pr: 5
 
-workflow_mode: "github"  # github | local
+workflow_mode: "github"  # github | local — despite the name, "github" mode's
+                          # PR automation (sdd pr create) auto-detects and
+                          # works on GitHub, GitLab, Bitbucket, or Azure DevOps
 ```
 
 ---

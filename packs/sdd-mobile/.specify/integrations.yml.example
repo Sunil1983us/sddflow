@@ -237,7 +237,26 @@ approved_keywords: [approved, lgtm, "looks good", "go ahead", confirmed]
 # ── PR automation ─────────────────────────────────────────────────────────────
 #
 # Controls how "sdd pr create --task TASK-001" names branches and PRs.
-# Requires gh CLI to be installed: https://cli.github.com
+#
+# The git host is auto-detected from `git remote get-url origin` — no config
+# needed here to pick one. Each host needs its own auth, set up once:
+#
+#   GitHub     — install gh CLI (https://cli.github.com), then `gh auth login`
+#   GitLab     — install glab CLI (https://gitlab.com/gitlab-org/cli) and
+#                `glab auth login`, OR export GITLAB_TOKEN (a personal/project
+#                access token with api scope) if you don't want to install glab
+#   Bitbucket  — export BITBUCKET_USERNAME and BITBUCKET_APP_PASSWORD
+#                (Bitbucket → Personal settings → App passwords → Pull
+#                requests: Write scope). Bitbucket has no CLI as ubiquitous
+#                as gh/glab, so this is API-only.
+#   Azure DevOps — install az CLI, `az extension add --name azure-devops`,
+#                  then `az devops login`
+#   Anything else (self-hosted git, unrecognized host) — sdd pr create still
+#     creates and pushes the branch, then prints the PR title/body for you
+#     to paste manually. Nothing fails silently.
+#
+# If the required CLI/token for your host is missing, the same manual
+# fallback applies — the branch is still created and pushed.
 
 pr_automation:
   enabled: true
