@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 
 MANIFEST_PATH = ".specify/manifest.yml"
-SDD_VERSION   = "2.7.0"
+SDD_VERSION   = "2.7.1"
 
 
 def read_manifest(path: str = MANIFEST_PATH) -> dict | None:

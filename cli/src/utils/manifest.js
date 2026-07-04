@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import yaml from 'js-yaml';
 
 export const MANIFEST_PATH = '.specify/manifest.yml';
-export const SDD_VERSION   = '2.7.0';
+export const SDD_VERSION   = '2.7.1';
 
 export function readManifest(path = MANIFEST_PATH) {
   if (!existsSync(path)) return null;

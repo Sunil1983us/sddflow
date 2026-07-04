@@ -44,8 +44,15 @@ def test_each_migration_stamps_its_own_to_version():
 
 def test_upgrade_from_2_0_0_reaches_current(project):
     _write_manifest(project, "2.0.0")
-    result = CliRunner().invoke(upgrade_command)
-    assert result.exit_code == 0
+    # Each invocation applies only the migration matching the current
+    # version, so a long chain needs repeated invocations to converge —
+    # loop rather than hardcode a count that breaks every time a new
+    # migration entry is appended.
+    for _ in range(len(MIGRATIONS)):
+        result = CliRunner().invoke(upgrade_command)
+        assert result.exit_code == 0
+        if _manifest_version(project) == SDD_VERSION:
+            break
     assert _manifest_version(project) == SDD_VERSION
 
 
@@ -63,8 +70,11 @@ def test_pre_versioning_chain_hints_to_rerun(project):
     assert result.exit_code == 0
     assert _manifest_version(project) == "2.0.0"
     assert "again" in result.output  # multi-step hint
-    # second run completes the chain
-    CliRunner().invoke(upgrade_command)
+    # subsequent runs complete the chain
+    for _ in range(len(MIGRATIONS)):
+        if _manifest_version(project) == SDD_VERSION:
+            break
+        CliRunner().invoke(upgrade_command)
     assert _manifest_version(project) == SDD_VERSION
 
 

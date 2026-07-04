@@ -4,7 +4,14 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
-## [Unreleased] — Framework content (all 5 packs — /create-context)
+## [SDD_VERSION 2.7.1] — 2026-07-04 (Framework content — all 5 packs — /create-context)
+
+This bumps `SDD_VERSION` (the framework-content/manifest-schema version
+tracked by `sdd upgrade`), which is a separate counter from the CLI
+package version (`sddflow` on PyPI/npm, currently 2.7.2). `sdd upgrade`
+now migrates existing projects from `2.7.0 → 2.7.1` and prints a note to
+re-copy the pack for the updated `create-context.prompt.md`. New
+`sdd init` / `setup.sh` runs are stamped `2.7.1` directly.
 
 ### Changed — /create-context now proposes defaults for Endpoints and NFRs instead of always saying MISSING
 
