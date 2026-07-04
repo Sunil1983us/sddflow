@@ -4,6 +4,47 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.4] — 2026-07-04 (Framework content — all 5 packs — /change)
+
+### Added — /change recommends a feature rename when scope fundamentally changes
+
+- Previously, `/change` would happily regenerate `context.md`'s content
+  to reflect a broadened or narrowed scope (via RERUN, with a
+  `.pre-CR-{NNN}.md` backup), but never touched the feature's identity —
+  `manifest.project.feature`, `context_file`, and the
+  `.specify/features/{feature}/` directory name stayed whatever they were
+  at `sdd init` time. A feature originally scoped as a single fixed
+  `pain001-pacs008-parser` conversion could get generalized via CR into a
+  generic ISO 20022 parser, and the folder/manifest would still say
+  `pain001-pacs008-parser` — accurate document content, stale plumbing
+- `change.prompt.md` now has a new "Special handling — context.md" check:
+  after a RERUN or scope-touching UPDATE is approved, it looks for two
+  signals together — the new §1 description no longer contains the
+  specific nouns the current feature slug was named after, AND the walk
+  plan already marked `brd.md`/`use-cases.md` as PRIMARY impact (a
+  detail-level CR rarely reaches that far). If both fire, it recommends
+  a new slug and asks before doing anything
+- On approval, performs the rename as part of the same CR: `git mv` the
+  feature directory and context file(s), updates `manifest.yml`, greps
+  for any leftover hardcoded references to the old slug, and notes that
+  already-pushed Jira/Confluence pages stay linked under the old name
+  (local rename doesn't follow them there)
+- `changeset-template.md` gained a "Feature renamed" row in §1 Change
+  Description (`{old-slug} → {new-slug}`, or "No") so the rename is part
+  of the CR's permanent audit trail, not just a chat message
+- `change.prompt.md` is now tracked in `_shared/full/` (previously
+  identical across all 5 packs by coincidence, same gap `create-context`
+  had before it was added to shared tracking)
+- Bumped the unified version to `2.7.4` with a matching migration entry
+  in both CLIs
+- Verified: full pytest suite (86 passed), setup smoke tests (15/15),
+  output-assertion tests against `examples/todo-api` (33/33), a live
+  simulated upgrade from `2.7.3` confirming the new migration fires and
+  lands on `2.7.4`, and `sdd --version` / `SDD_VERSION` both printing
+  `2.7.4` in both CLIs
+
+---
+
 ## [2.7.3] — 2026-07-04 (Both CLIs — version scheme unified)
 
 ### Changed — One version number instead of two

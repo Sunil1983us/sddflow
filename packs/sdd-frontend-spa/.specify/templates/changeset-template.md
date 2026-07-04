@@ -18,6 +18,7 @@
 | Trigger | {what caused this: BA discovery / stakeholder request / design finding / risk analysis / code review} |
 | Urgency | {Blocks current stage / Can be deferred to next task / Non-blocking} |
 | Scope of impact | {Minor — sections only / Moderate — new documents / Major — architecture or constitution change} |
+| Feature renamed | {old-slug} → {new-slug} — or "No" |
 
 ---
 

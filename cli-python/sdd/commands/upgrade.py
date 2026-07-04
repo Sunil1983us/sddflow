@@ -64,6 +64,25 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.3"},
     },
+    {
+        "from":        "2.7.3",
+        "to":          "2.7.4",
+        "description": "Content release — no manifest schema changes",
+        "notes": [
+            "/change: when a CR fundamentally broadens or narrows what a "
+            "feature IS (not just a detail change) — e.g. a fixed "
+            "pain.001→pacs.008 converter generalized into a generic ISO "
+            "20022 parser — the agent now recommends renaming the "
+            "feature slug to match, and will perform the rename "
+            "(directory, manifest.yml, context file) if you approve",
+            "changeset-template.md: added a 'Feature renamed' row to §1 "
+            "Change Description",
+            "Re-copy the pack (or run sdd init over it) to pick up the "
+            "updated .github/prompts/change.prompt.md and "
+            "changeset-template.md",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.4"},
+    },
 ]
 
 

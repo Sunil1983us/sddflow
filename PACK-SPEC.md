@@ -87,7 +87,7 @@ project:
 
 project_type: "auto"  # set during /specify or by setup.sh
 
-sdd_version: "2.7.3"  # REQUIRED — pack version for upgrade tracking
+sdd_version: "2.7.4"  # REQUIRED — pack version for upgrade tracking
 
 pr_rules:
   max_lines_per_pr: 400

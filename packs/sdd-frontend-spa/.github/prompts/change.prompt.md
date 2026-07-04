@@ -223,6 +223,66 @@ On 'update': switch to UPDATE mode for this document, show section diff.
 
 ---
 
+### Special handling — when the document being walked is `context.md`
+
+Apply the standard decision tree above first (SKIP / ANNOTATE / UPDATE / RERUN).
+
+If the resolved action is **RERUN**, or an **UPDATE** that touches §1 "What
+This Service Does", check — after the user approves the change — whether
+this CR represents a fundamental broadening or narrowing of what the
+feature IS, not just a detail-level change to it (e.g. a single fixed
+transformation generalized into a configurable one, or a broad platform
+narrowed to one specific slice).
+
+**Signals this has happened (look for both):**
+- The new §1 description no longer contains the specific nouns the
+  current feature slug (`manifest.project.feature`) was built from —
+  e.g. slug `pain001-pacs008-parser`, new §1 talks about "any ISO 20022
+  message pair"; the two specific message names the slug was named after
+  are gone from the description
+- The walk plan already marked `brd.md` and `use-cases.md` as PRIMARY
+  impact (Step 4) — a detail-level CR rarely reaches that far
+
+If both signals are present, **recommend** a rename — never rename
+automatically:
+
+```
+Scope-change detected: this CR broadens/narrows the feature well beyond
+what its current name describes.
+
+Current feature slug     : {manifest.project.feature}
+New scope (from context.md §1): {1-sentence paraphrase of the new description}
+Suggested new slug       : {kebab-case name derived from the new §1}
+
+Recommend renaming the feature so the folder/manifest name stays honest
+about what it actually does. Rename now? (yes / no / suggest a different name)
+```
+
+**STOP. Wait for the user's answer before touching anything.**
+
+On **'yes'** (or a supplied alternative name), perform the rename as part
+of this CR, then continue the document walk:
+1. `git mv .specify/features/{old-slug} .specify/features/{new-slug}`
+2. `git mv .specify/contexts/{old-slug}.md .specify/contexts/{new-slug}.md`
+   (and `{old-slug}.raw.md`, if it exists)
+3. Update `manifest.yml`: `project.feature` and `project.context_file` to
+   the new slug
+4. Grep the renamed directory for the literal old slug string
+   (`grep -rl "{old-slug}" .specify/features/{new-slug}/`) and flag any
+   hits for the user to review — most cross-links are relative and won't
+   need it, but call out anything hardcoded
+5. Fill the changeset's §1 "Feature renamed" row: `{old-slug} → {new-slug}`
+6. If `.specify/integrations.yml` has `jira:` or `confluence:` sections,
+   note: "Local rename complete. Existing Jira/Confluence pages remain
+   linked under the old name if already pushed — update those manually if
+   you want them to match."
+
+On **'no'**: continue the walk with the slug unchanged — this CR updates
+content only, not identity. On a supplied alternative name: use it in
+place of the suggested slug in steps 1–3 above.
+
+---
+
 ### Special handling — when the document being walked is `qa-testcases.md`
 
 Apply the standard decision tree above first (SKIP / ANNOTATE / UPDATE / RERUN / INCORPORATE).
@@ -310,7 +370,9 @@ Then create: `.specify/features/{feature}/changesets/CR-{NNN}.md`
 Use: `.specify/templates/changeset-template.md`
 
 Populate:
-- §1 Change Description with type classification
+- §1 Change Description with type classification ("Feature renamed" row:
+  `{old-slug} → {new-slug}` if the context.md rename check fired and was
+  accepted, otherwise "No")
 - §2 Walk Results table (every document's action + sections affected)
 - §3 Before/After for every UPDATE or RERUN
 - §4 CHG-NNN tasks
