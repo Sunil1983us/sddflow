@@ -40,6 +40,23 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.0',
+    to:   '2.7.1',
+    description: 'Content release — no manifest schema changes',
+    notes: [
+      '/create-context: Endpoints and NFRs now get a proposed ' +
+      'scope-appropriate starting default, marked ' +
+      '(SUGGESTED DEFAULT — edit or confirm), instead of always ' +
+      'falling back to [MISSING — ask user]',
+      'Re-copy the pack (or run sdd init over it) to pick up the ' +
+      'updated .github/prompts/create-context.prompt.md',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.1';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
