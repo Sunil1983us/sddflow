@@ -7,8 +7,14 @@
 from pathlib import Path
 import yaml
 
+from sdd import __version__ as SDD_VERSION
+
 MANIFEST_PATH = ".specify/manifest.yml"
-SDD_VERSION   = "2.7.1"
+# SDD_VERSION is the single source of truth for "what version is this" —
+# it IS the installed sddflow package version (sdd --version), not a
+# separate counter. manifest.yml's sdd_version field is just a stamp of
+# this same number, so `sdd --version` and a freshly-generated manifest
+# never show two different numbers.
 
 
 def read_manifest(path: str = MANIFEST_PATH) -> dict | None:
