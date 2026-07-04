@@ -57,6 +57,23 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.1',
+    to:   '2.7.3',
+    description: 'Version scheme unified — one number instead of two',
+    notes: [
+      'sdd_version no longer tracks a separate content/schema counter ' +
+      '— it now always matches the installed sddflow package version ' +
+      '(sdd --version), so this file and the CLI never show two ' +
+      'different numbers again',
+      'No framework content changed in this step beyond the version ' +
+      'scheme itself',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.3';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

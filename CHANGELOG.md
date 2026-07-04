@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.3] — 2026-07-04 (Both CLIs — version scheme unified)
+
+### Changed — One version number instead of two
+
+- Previous releases tracked two separate numbers: the installed CLI
+  package version (`sdd --version`) and `SDD_VERSION` (a manifest-schema
+  counter used only by `sdd upgrade`). They were allowed to differ on
+  purpose — 2.7.2 (package) vs 2.7.1 (schema) — which was correct but
+  reliably confusing: every manifest.yml showed a different number than
+  `sdd --version` did, with no obvious reason why
+- `SDD_VERSION` is no longer a separate hardcoded constant. Both CLIs now
+  derive it directly from the package's own version — `manifest.py`
+  imports `sdd.__version__`; `manifest.js` reads `package.json` via
+  `createRequire`, the same pattern `bin/sdd.js` already used for
+  `sdd --version`. One source of truth per CLI; `sdd --version` and a
+  freshly generated `manifest.yml`'s `sdd_version` field can no longer
+  drift apart
+- Added a `2.7.1 → 2.7.3` migration entry (both `upgrade.py` and
+  `upgrade.js`) so existing projects on the old two-counter scheme land
+  on the unified version cleanly, with a note explaining why
+- Bumped the shipped `sdd_version` default in all 5 packs' `manifest.yml`
+  and the `PACK-SPEC.md` example to `2.7.3` to match
+- Practical implication going forward: every release — including a pure
+  prompt-wording tweak — now bumps this one number, and ships as a new
+  CLI release. There's no longer a lower-ceremony "content-only" bump
+  that skips a PyPI/npm publish
+- Verified: full pytest suite (86 passed) — the migration-chain tests
+  added in the previous release already loop-to-convergence rather than
+  hardcode a step count, so they needed no changes; setup smoke tests
+  (15/15); a live simulated upgrade from a `2.7.1` manifest confirming
+  the new migration fires, lands on `2.7.3`, and a second `sdd upgrade`
+  correctly reports "nothing to do"; confirmed `sdd --version` and
+  `SDD_VERSION` both print `2.7.3` in both CLIs
+
+---
+
 ## [SDD_VERSION 2.7.1] — 2026-07-04 (Framework content — all 5 packs — /create-context)
 
 This bumps `SDD_VERSION` (the framework-content/manifest-schema version
