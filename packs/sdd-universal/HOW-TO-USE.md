@@ -135,13 +135,13 @@ A detailed guide for every command: what it is, exactly when to run it, what it 
 
 #### `/create-context` — Optional pre-phase
 
-**What:** You paste informal notes (emails, Confluence pages, rough bullets); the agent drafts a structured `context.md` and lists a plain-language "Missing Information" checklist. You iterate until complete.
+**What:** You paste informal notes (emails, Confluence pages, rough bullets); the agent drafts a structured `context.md`. For Endpoints and NFRs it also proposes scope-appropriate starting defaults (marked `SUGGESTED DEFAULT`) instead of leaving them blank, then lists a plain-language review checklist split into "confirm or edit these defaults" and "still need your input." You iterate until complete.
 
 **When to run:** Before `/specify`, only if you do not already have a `.specify/contexts/{feature}.md`.
 
 **Produces:** `.specify/contexts/{feature}.md`
 
-**You do next:** Review the draft — correct any wrong tech choices, fill in any [MISSING] items, add NFRs and business rules the agent didn't catch. Then fill `manifest.yml` and run `/specify`.
+**You do next:** Review the draft — confirm or override the suggested Endpoints/NFR defaults, correct any wrong tech choices, fill in any [MISSING] items, add business rules the agent didn't catch. Then fill `manifest.yml` and run `/specify`.
 
 **Skip if:** You already have a well-structured context file.
 

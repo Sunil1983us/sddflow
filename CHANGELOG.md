@@ -4,6 +4,43 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [Unreleased] — Framework content (all 5 packs — /create-context)
+
+### Changed — /create-context now proposes defaults for Endpoints and NFRs instead of always saying MISSING
+
+- Reported behavior: pasting raw notes into `/create-context` reliably
+  produced `[MISSING — ask user]` for Endpoints and Non-Functional
+  Requirements whenever the notes didn't explicitly spell them out —
+  correct per the old spec, but it left the user staring at a blank
+  section with nothing to react to instead of a draft to edit
+- `create-context.prompt.md` Step 2 now has a third fill tier between
+  "stated/implied" and "nothing to go on": for Endpoints and NFRs only, if
+  nothing can be inferred, propose a generic starting point — Endpoints
+  derived from action verbs in Key Flows (or one create+read pair per
+  named Actor as a fallback), NFRs from the same illustrative baseline
+  this pack's own templates already use as examples, scaled to
+  `manifest.project.scope` (pilot vs mvp/full). Marked
+  `(SUGGESTED DEFAULT — edit or confirm)` — a distinct marker from
+  `(inferred — confirm)` so the user can tell a note-grounded guess apart
+  from a generic placeholder
+- All other sections (Actors, Business Rules, Constraints, Out of Scope,
+  Open Questions, Tech Stack) are deliberately NOT given this treatment —
+  there's no safe generic default for a business fact, and guessing one
+  would read as fabricated rather than as a placeholder
+- Step 3 (renamed Review Checklist) now splits into Group A (confirm/edit
+  suggested defaults — Endpoints/NFRs) and Group B (still need your
+  input — everything else), so review effort goes where it's actually
+  needed instead of one undifferentiated missing-info list
+- Updated Confluence and chat iteration messaging (Step 4) and the
+  `Never Do` list to match; updated each pack's `HOW-TO-USE.md`
+  `/create-context` description
+- `create-context.prompt.md` is now tracked in `_shared/full/` (it was
+  previously identical across all 5 packs by coincidence, not by sync —
+  future edits should go through `_shared/full/.github/prompts/create-context.prompt.md`
+  + `sync-blocks.sh` per the standard shared-file workflow)
+
+---
+
 ## [2.7.2] — 2026-07-03 (Both CLIs — manifest header wording)
 
 ### Fixed — Manifest header conflated CLI package version with schema version
