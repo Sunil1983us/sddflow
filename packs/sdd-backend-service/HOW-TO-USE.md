@@ -266,10 +266,16 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 **Prerequisites:** SRD approval + `srd.summary.md` exists.
 
 **Available document names:**
-- `security` → `security-design.md` (STRIDE threat model, §1-2 for mvp, §1-4 for full)
-- `data-model` → `data-model.md` (entities, relationships, PII handling)
+- `security` → **`.specify/service/security-design.md`** (STRIDE threat model, §1-2 for mvp, §1-4 for full)
+- `data-model` → **`.specify/service/data-model.md`** (entities, relationships, PII handling)
 - `resilience` → `resilience.md` (circuit breakers, retry, bulkhead, SLA budget allocation)
 - `investigation` → `investigation.md` (spike / technical investigation for unknowns)
+
+`security` and `data-model` are **living, service-level documents** — they
+live at `.specify/service/`, not under this feature's folder. The first
+feature in the service generates them fresh; every feature after that
+extends the same file (new threats, new tables) instead of getting a
+blank one — see "Living Documents" in `CLAUDE.md`.
 
 **You do next:** Review each doc. The agent presents it; you approve or request changes before generating the next one.
 

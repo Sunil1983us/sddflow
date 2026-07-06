@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from sdd.utils.validate import validate_name, assert_valid_name, safe_feature_path
+from sdd.utils.validate import (
+    validate_name, assert_valid_name, safe_feature_path,
+    resolve_doc_path, LIVING_SERVICE_DOCS,
+)
 
 
 def test_validate_name_rejects_empty():
@@ -55,3 +58,28 @@ def test_safe_feature_path_rejects_sibling_prefix_bypass_variant(tmp_path, monke
     monkeypatch.chdir(tmp_path)
     with pytest.raises(ValueError):
         safe_feature_path(Path(".specify") / "features", "../features_backup")
+
+
+def test_resolve_doc_path_routes_living_docs_to_service_dir(tmp_path, monkeypatch):
+    """data-model/security-design/api-spec must resolve to
+    .specify/service/{doc}.md regardless of which feature is active —
+    this is what lets a second feature find and extend the first
+    feature's schema/API/security baseline instead of getting a blank
+    per-feature copy."""
+    monkeypatch.chdir(tmp_path)
+    for doc in LIVING_SERVICE_DOCS:
+        for feature in ("instant-payment", "payment-dashboard", ""):
+            assert resolve_doc_path(doc, feature) == Path(".specify") / "service" / f"{doc}.md"
+
+
+def test_resolve_doc_path_keeps_other_docs_per_feature(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert resolve_doc_path("design", "payment-dashboard") == (
+        Path(".specify") / "features" / "payment-dashboard" / "design.md"
+    )
+    assert resolve_doc_path("context", "payment-dashboard") == (
+        Path(".specify") / "contexts" / "payment-dashboard.md"
+    )
+    # Traversal protection still applies to the per-feature path
+    with pytest.raises(ValueError):
+        resolve_doc_path("design", "../../../../tmp/pwned")

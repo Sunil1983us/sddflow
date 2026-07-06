@@ -150,6 +150,28 @@ stateDiagram-v2
 
 > {Skip this section for project types with no external API: iac, desktop-local, library (replace with Public Library API section)}
 
+**If this service provides the API** (backend-service, fullstack backend):
+the full API surface is a living document at `.specify/service/api-spec.md`
+— this section is never the full API design, only this feature's
+contribution to it:
+
+```
+This feature's API surface — see `.specify/service/api-spec.md` for the
+full, current API (version {N}).
+
+New in this feature:
+- {METHOD} {path} — {1-line purpose}
+
+Changed in this feature:
+- {METHOD} {path} — {1-line description of the change}
+
+(none, if this feature adds no new/changed endpoints)
+```
+
+**If this component only *consumes* an API** (frontend-spa, mobile —
+consumer view): write the full contract this feature calls directly here,
+per-feature, as this isn't something the component itself owns:
+
 ### 3.1 API Style & Conventions
 
 | Property | Value |
@@ -162,7 +184,7 @@ stateDiagram-v2
 | Correlation | `X-Correlation-Id` (UUID v4) required on all requests |
 | Content-Type | `application/json` |
 
-### 3.2 Endpoints
+### 3.2 Endpoints Consumed
 
 #### {METHOD} /api/v{N}/{resource}
 **Purpose:** {what this creates, retrieves, or triggers}
@@ -193,27 +215,6 @@ stateDiagram-v2
 | 500 | INTERNAL_ERROR | Unexpected failure |
 
 {Repeat block per endpoint}
-
-### 3.3 Shared Schemas
-
-```json
-{
-  "ErrorEnvelope": {
-    "errorCode": "string — unique code",
-    "message": "string — human readable",
-    "timestamp": "string — ISO 8601 UTC",
-    "traceId": "string — X-Correlation-Id echo"
-  }
-}
-```
-
-{Add other shared types / pagination conventions}
-
-### 3.4 Async / Event Contracts (if applicable)
-
-| Topic / Queue | Producer | Consumer | Schema | Retention |
-|---|---|---|---|---|
-| {name} | {service} | {service} | {schema ref} | {duration} |
 
 ### 3.5 NFR Budget Allocation
 

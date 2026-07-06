@@ -4,6 +4,64 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.6] — 2026-07-04 (Framework content — sdd-backend-service, propagated to all 5 packs)
+
+### Changed — data-model.md, security-design.md, and API design are now living, service-level documents
+
+- Root problem: within one microservice, a second feature (e.g. a payment
+  dashboard reading data a first feature — instant payment processing —
+  already modeled) had no way to *extend* the existing schema/API surface.
+  `/specify-doc data-model`/`security` and `/plan-design` §3 always
+  generated fresh, per-feature copies — so a second feature either
+  silently duplicated the first feature's tables/endpoints (drift risk:
+  two documents claiming to define the same thing) or ignored them
+  entirely (an index or endpoint that should exist had nowhere correct to
+  live)
+- `data-model.md`, `security-design.md`, and the API design section of
+  `design.md` now live at `.specify/service/{doc}.md` — parallel to
+  `.specify/memory/constitution.md`, generated once, then **extended by
+  every later feature** instead of regenerated. When one already exists,
+  the generating command walks it one unit at a time (one table, one
+  threat entry, one endpoint) — SKIP / ADD / UPDATE, showing only the
+  delta, one approval — the same discipline `/change` already uses for
+  document updates, applied here to "a new feature touches an existing
+  shared artifact" instead of "a requirement changed"
+- `design.md` §3 (still per-feature) no longer contains the full API
+  design — it's a short pointer to `.specify/service/api-spec.md` plus
+  this feature's new/changed endpoints only
+- Also fixed: `docs/runbook/local-setup.md`, `docs/openapi.yaml`, and
+  `docker-compose.yml`/k8s manifests (already correctly living outside
+  any feature folder) had no "already exists?" check before regeneration
+  — a later feature could silently drop an earlier feature's additions.
+  All three now have explicit check-before-regenerate guidance
+- `specify-doc.prompt.md`, `plan-design.prompt.md`, and `tasks-template.md`
+  are shared full-synced files across all 5 packs — this change was made
+  on the canonical `_shared/full/` source and propagated everywhere, since
+  the new behavior is a safe no-op for any project where these documents
+  don't exist yet. `data-model-template.md`, `security-design-template.md`,
+  `api-spec-template.md`, `runbook-template.md`, and `openapi-template.md`
+  are pack-specific and were updated directly for `sdd-backend-service`
+- Migration note for existing multi-feature projects: per-feature
+  `data-model.md`/`security-design.md` files from before this release are
+  **not** automatically merged — the next `/specify-doc data-model` (or
+  `security`) run creates a fresh `.specify/service/` copy; reconcile any
+  existing per-feature versions into it manually
+- Verified: full pytest suite (102 passed — 2 new tests confirming
+  `resolve_doc_path()` routes living docs to `.specify/service/`
+  regardless of active feature), setup smoke tests
+  (15/15), output-assertion tests against `examples/todo-api` (33/33), a
+  live simulated upgrade from `2.7.5` confirming the new migration fires,
+  and an end-to-end dogfooding pass: simulated two real features
+  (instant-payment, payment-dashboard) against the new mechanism,
+  confirmed the second feature's `design.md` stays a 37-line pointer
+  (mentions the shared entity once, in the pointer note) instead of
+  re-describing the schema, and ran the actual `sdd review approve --doc
+  data-model --local` CLI command against the resulting
+  `.specify/service/data-model.md` to confirm the whole path works, not
+  just the path-resolution helper in isolation
+
+---
+
 ## [2.7.5] — 2026-07-04 (Python CLI — path traversal fix)
 
 ### Fixed — sdd confluence / sdd cr / sdd jira accepted unvalidated feature names

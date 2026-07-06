@@ -109,15 +109,15 @@ Scope upgrade is a **Major amendment** to constitution Part 2 (version bump X.0)
 |---|---|---|---|
 | BRD, Use Cases, SRD | ✅ | ✅ | ✅ |
 | `/checklist` | Optional | **Mandatory** | **Mandatory** |
-| Security Design | §1 only | §1–2 | §1–4 |
-| API Spec (`api-spec.md`) | — | ✅ | ✅ |
-| Data Model (`data-model.md`) | — | ✅ | ✅ |
+| Security Design (living — `.specify/service/security-design.md`) | §1 only | §1–2 | §1–4 |
+| API Spec (living — `.specify/service/api-spec.md`, via `/plan-design` §3) | — | ✅ | ✅ |
+| Data Model (living — `.specify/service/data-model.md`) | — | ✅ | ✅ |
 | Resilience (`resilience.md`) | — | — | ✅ |
 | Investigation (`investigation.md`) | — | — | ✅ |
 | `/plan-lld` | **SKIPPED** | ✅ | ✅ |
 | QA Test Cases (`qa-testcases.md`) | **SKIPPED** | ✅ | ✅ |
 | Smoke Tests (`smoke-tests.md`, ≤10 cases from UC paths) | ✅ | — (superseded by QA Test Cases) | — |
-| Runbook (`runbook.md`) | — | ✅ | ✅ |
+| Runbook (living — `docs/runbook/local-setup.md`) | — | ✅ | ✅ |
 
 **Key skips at `pilot` scope:**
 - `/plan-lld` — skipped; go directly from `/plan-design` to `/task`

@@ -1,6 +1,13 @@
 # API Specification
-# Feature: {Feature Name}
+# Service: {Service Name}
 > Version: 1.0 | Date: {date} | Scope: MVP+
+>
+> **Living document** — describes the whole service's API surface, not one
+> feature. Lives at `.specify/service/api-spec.md`. Every feature after the
+> first one extends this file with new/changed endpoints (see
+> `plan-design.prompt.md` §3) — it is never regenerated from a blank
+> template. `design.md` §3 (per-feature) points here and lists only this
+> feature's contribution.
 
 ---
 
@@ -9,7 +16,7 @@
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced — drafted at /specify} |
-| arch.summary.md | {sections/IDs referenced — refined at /plan-arch: ports/adapters} |
+| design.summary.md | {which feature added/changed which endpoints} |
 
 ## 1. Base URL
 ```
@@ -139,3 +146,9 @@
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+
+## Version History
+
+| Version | Date | Feature | Change | CR |
+|---|---|---|---|---|
+| 1.0 | {date} | {feature that first created this document} | Initial API surface | — |

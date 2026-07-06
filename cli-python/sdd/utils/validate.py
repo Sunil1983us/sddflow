@@ -37,3 +37,23 @@ def safe_feature_path(base: Path, feature_name: str) -> Path:
             f"feature name '{feature_name}' is invalid — path escapes the features directory"
         )
     return base / feature_name
+
+
+# Documents that describe something singular for the whole service, not one
+# feature — generated once, then extended/amended by every later feature
+# instead of being regenerated per feature. See living-doc-update shared block.
+LIVING_SERVICE_DOCS = {"data-model", "security-design", "api-spec"}
+
+
+def resolve_doc_path(doc: str, feature_name: str) -> Path:
+    """Resolve the on-disk path for a doc key.
+
+    - Living/service-level docs (LIVING_SERVICE_DOCS) -> .specify/service/{doc}.md
+    - "context" -> .specify/contexts/{feature}.md
+    - Everything else -> .specify/features/{feature}/{doc}.md (traversal-checked)
+    """
+    if doc in LIVING_SERVICE_DOCS:
+        return Path(".specify") / "service" / f"{doc}.md"
+    if doc == "context":
+        return safe_feature_path(Path(".specify") / "contexts", f"{feature_name}.md")
+    return safe_feature_path(Path(".specify") / "features", feature_name) / f"{doc}.md"

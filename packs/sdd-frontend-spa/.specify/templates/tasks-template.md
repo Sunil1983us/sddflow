@@ -278,6 +278,10 @@ Files:
   docker-compose.yml
   {runtime config — application.yml / .env.example / config.ts / settings.py}
 Acceptance criteria:
+  - [ ] **If `Dockerfile`/`docker-compose.yml` already exist from a prior
+        feature: extend them (add only the new service(s)/config this
+        feature needs) — do NOT regenerate from the template. A blind
+        regeneration silently drops whatever a previous feature added.**
   - [ ] `docker-compose up` (or equivalent) starts all services
   - [ ] Health check / readiness probe passes
   - [ ] Test / mock profile activates correctly in compose
@@ -289,6 +293,8 @@ Acceptance criteria:
 >   k8s/deployment.yaml, k8s/service.yaml, k8s/hpa.yaml,
 >   k8s/networkpolicy.yaml, k8s/configmap.yaml, k8s/secret.yaml
 > Extra acceptance criteria:
+>   - [ ] **If these manifests already exist from a prior feature: extend
+>         them — do NOT regenerate from the template.**
 >   - [ ] `kubectl apply --dry-run=client -f k8s/` validates cleanly
 >   - [ ] HPA min / max replicas satisfy NFR-{NNN} throughput target
 >   - [ ] NetworkPolicy restricts ingress to intended services only

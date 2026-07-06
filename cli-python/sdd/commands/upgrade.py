@@ -108,6 +108,33 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.5"},
     },
+    {
+        "from":        "2.7.5",
+        "to":          "2.7.6",
+        "description": "Content release — new .specify/service/ directory",
+        "notes": [
+            "data-model.md, security-design.md, and the API design section "
+            "of design.md are now living, service-level documents instead "
+            "of being regenerated per feature — they live at "
+            "'.specify/service/{doc}.md' and get extended/amended by every "
+            "feature after the first one that needs them, instead of each "
+            "feature getting its own independent (and eventually "
+            "contradictory) copy",
+            "docs/runbook/local-setup.md, docs/openapi.yaml, and "
+            "docker-compose.yml/k8s manifests now have explicit "
+            "check-before-regenerate guidance for the same reason",
+            "If you already have per-feature data-model.md/security-design.md "
+            "files from before this release, they are NOT automatically "
+            "moved or merged — the first time you run /specify-doc "
+            "data-model (or security) again, it creates a fresh "
+            "'.specify/service/' copy. You'll want to manually reconcile "
+            "any existing per-feature versions into that one file yourself",
+            "Re-copy the pack (or run sdd init over it) to pick up the "
+            "updated .github/prompts/specify-doc.prompt.md and "
+            "plan-design.prompt.md",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.6"},
+    },
 ]
 
 

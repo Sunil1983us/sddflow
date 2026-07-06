@@ -1,6 +1,12 @@
 # Data Model
-# Feature: {Feature Name}
+# Service: {Service Name}
 > Version: 1.0 | Date: {date} | Scope: MVP+
+>
+> **Living document** — describes the whole service's schema, not one
+> feature. Lives at `.specify/service/data-model.md`. Every feature after
+> the first one that needs a schema change extends this file (see the
+> living-doc-update shared block in `specify-doc.prompt.md`) — it is never
+> regenerated from a blank template.
 
 ---
 
@@ -103,3 +109,9 @@ Any column marked PII = Yes must:
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+
+## Version History
+
+| Version | Date | Feature | Change | CR |
+|---|---|---|---|---|
+| 1.0 | {date} | {feature that first created this document} | Initial schema | — |

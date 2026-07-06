@@ -1,7 +1,12 @@
 # OpenAPI Skeleton
-# Feature: {Feature Name}
-> Generated at: /implement (full scope) | Input: api-spec.summary.md
+# Service: {Service Name}
+> Generated at: /implement (full scope) | Input: .specify/service/api-spec.summary.md
 > Save as: docs/openapi.yaml (this file documents how to derive it)
+>
+> **Living artifact** — `docs/openapi.yaml` is the whole service's current
+> API, not one feature's. If it already exists, merge in only the
+> new/changed paths this feature's `.specify/service/api-spec.md` delta
+> introduced — never regenerate the whole file from scratch.
 
 ---
 

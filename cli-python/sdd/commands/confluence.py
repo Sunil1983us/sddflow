@@ -10,7 +10,7 @@ from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.cf_to_md import cf_to_md
 from sdd.utils.manifest import read_manifest
-from sdd.utils.validate import safe_feature_path
+from sdd.utils.validate import resolve_doc_path
 
 console = Console()
 
@@ -32,9 +32,7 @@ def _save_drafts(drafts: dict) -> None:
 
 def _resolve_doc_path(doc: str, feature: str) -> Path:
     """Return local file path for a doc key."""
-    if doc == "context":
-        return safe_feature_path(Path(".specify") / "contexts", f"{feature}.md")
-    return safe_feature_path(Path(".specify") / "features", feature) / f"{doc}.md"
+    return resolve_doc_path(doc, feature)
 
 
 def _resolve_page_title(doc: str, project_name: str, feature: str,
@@ -85,22 +83,17 @@ def confluence_push(profile, feature, doc, dry_run):
     project_name = proj.get("name", "Project")
     feature_name = feature or proj.get("feature", "")
 
-    try:
-        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
-    except ValueError as e:
-        console.print(f"  [red]✗  {e}[/red]")
-        raise SystemExit(1)
-    if not features_dir.exists():
-        console.print(f"  [red]✗  Feature directory not found: {features_dir}[/red]")
-        raise SystemExit(1)
-
     # Resolve which docs to push
     page_map    = cf_cfg.page_map
     keys_to_try = [doc] if doc else list(page_map.keys())
 
     available: list[tuple[str, Path, str]] = []
     for key in keys_to_try:
-        md_path = features_dir / f"{key}.md"
+        try:
+            md_path = resolve_doc_path(key, feature_name)
+        except ValueError as e:
+            console.print(f"  [red]✗  {e}[/red]")
+            raise SystemExit(1)
         if not md_path.exists():
             console.print(f"  [dim]·[/dim]  {key}.md not found — skipped")
             continue
