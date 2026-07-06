@@ -11,7 +11,7 @@
 |---|---|
 | tasks.md | {sections/IDs referenced} |
 | qa-testcases.summary.md | {sections/IDs referenced} |
-| runbook.md | {sections/IDs referenced} |
+| docs/runbook/local-setup.md | {sections/IDs referenced} |
 
 ## 1. Pre-Release Checklist
 
@@ -103,7 +103,7 @@ Choose deployment strategy based on NFR requirements:
 
 ## 7. Rollback Plan
 
-{Summary — full detail in runbook.md §6: CDN cache invalidation
+{Summary — full detail in docs/runbook/local-setup.md §6: CDN cache invalidation
 rollback, redeploy previous static build, feature-flag revert}
 
 ---

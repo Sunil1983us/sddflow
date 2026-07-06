@@ -11,7 +11,7 @@
 |---|---|
 | tasks.md | {sections/IDs referenced} |
 | qa-testcases.summary.md | {sections/IDs referenced} |
-| runbook.md | {sections/IDs referenced} |
+| docs/runbook/local-setup.md | {sections/IDs referenced} |
 
 ## 1. Pre-Release Checklist
 
@@ -102,7 +102,7 @@ Choose release strategy based on risk and NFR requirements:
 
 ## 7. Rollback Plan
 
-{Summary — full detail in runbook.md §6: staged rollout halt, OTA
+{Summary — full detail in docs/runbook/local-setup.md §6: staged rollout halt, OTA
 rollback, store-listing rollback / emergency hotfix path}
 
 ---

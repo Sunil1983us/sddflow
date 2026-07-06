@@ -44,19 +44,20 @@ Generate `srd.md` for the current feature:
 - Each FR-NNN must include its UC-NNN trace — no FR without a linked UC-NNN
 - NFRs must refine BRD NFRs with technical targets (latency budget, throughput ceiling, SLA tier)
 
-**NFR baseline vs. feature-specific NFRs:** Read `constitution.md`'s
-"Service NFR Baseline" row.
+**NFR baseline vs. feature-specific NFRs:** Read `constitution.md`'s NFR
+Baseline section (heading reads "Service NFR Baseline", "App NFR
+Baseline", or similar depending on pack — same mechanism, pack-specific
+categories).
 - **If it's `[MISSING — ask user]`** (this is the first feature to reach
-  `/specify-srd`): derive Performance/Availability/Throughput/Data
-  Retention from this feature's own NFRs, fill the constitution row with
-  them, and note in `srd.md` §3: "Establishes the service NFR baseline —
-  see constitution.md."
+  `/specify-srd`): derive this pack's baseline categories from this
+  feature's own NFRs, fill the constitution row(s) with them, and note in
+  `srd.md` §3: "Establishes the NFR baseline — see constitution.md."
 - **If it's already filled** (a later feature): `srd.md` §3 states
-  "Baseline (constitution.md → Service NFR Baseline): {values} — applies
-  to this feature too, no change" and only gives its own NFR-NNN row to
-  anything genuinely different from that baseline (a stricter target for
-  one specific endpoint, a new category the baseline doesn't cover). Never
-  restate the baseline numbers as if deriving them fresh.
+  "Baseline (constitution.md → NFR Baseline): {values} — applies to this
+  feature too, no change" and only gives its own NFR-NNN row to anything
+  genuinely different from that baseline (a stricter target for one
+  specific endpoint/screen, a new category the baseline doesn't cover).
+  Never restate the baseline numbers as if deriving them fresh.
 - If this feature's own numbers would require a **stricter or different**
   baseline than what's already in constitution.md (not just an addition),
   that's a Constitution Amendment — flag it and follow the amendment flow

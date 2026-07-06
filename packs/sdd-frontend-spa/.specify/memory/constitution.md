@@ -156,6 +156,22 @@ multi-stage Dockerfile and nginx config matching these rules.
 | CI/CD | {extracted from context} | |
 | Hosting/CDN | {extracted from context} | vercel / netlify / s3+cloudfront / nginx |
 
+## App NFR Baseline
+
+> Filled at `/specify` from `context.md`'s NFR section (if stated) or the
+> first feature's `srd.md`. This is the app-wide performance floor —
+> every screen/route in every feature meets this unless a feature's own
+> `srd.md` explicitly states a stricter or different target. Later
+> features reference this row instead of restating it; only a genuinely
+> different target gets its own NFR-NNN row in that feature's `srd.md`.
+
+| Category | Target | Notes |
+|---|---|---|
+| Load Time | {extracted from context, e.g. LCP < 2.5s} | |
+| Bundle Size | {extracted from context, e.g. < 250KB gzipped initial} | |
+| Interactivity | {extracted from context, e.g. TTI < 3.5s, INP < 200ms} | |
+| Accessibility | {extracted from context, e.g. WCAG 2.1 AA, 0 axe-core critical} | |
+
 ## Core Principles
 | Principle | Applied As |
 |---|---|

@@ -1,6 +1,13 @@
 # API Specification
-# Feature: {Feature Name}
+# Service: {Service Name}
 > Version: 1.0 | Date: {date}
+>
+> **Living document** — describes the whole service's API surface, not one
+> feature. Lives at `.specify/service/api-spec.md`. Every feature after the
+> first one extends this file with new/changed endpoints (see
+> `plan-design.prompt.md` §3) — it is never regenerated from a blank
+> template. `design.md` §3 (per-feature) points here and lists only this
+> feature's contribution.
 
 ---
 

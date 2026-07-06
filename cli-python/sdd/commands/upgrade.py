@@ -166,6 +166,70 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.7"},
     },
+    {
+        "from":        "2.7.7",
+        "to":          "2.7.8",
+        "description": "Content release — per-pack consistency fixes, no manifest schema changes",
+        "notes": [
+            "Fixed: frontend-spa/mobile design.md §3 now names "
+            "api-spec-template.md explicitly for the consumer-view "
+            "branch — it existed but was never referenced by any prompt",
+            "Fixed: CLAUDE.md Scope Reference table's API Spec row split "
+            "into provider (living, .specify/service/api-spec.md) vs "
+            "consumer (per-feature, design.md §3) — the single "
+            "unconditional row contradicted frontend-spa/mobile's own "
+            "consumer-view carve-out",
+            "Fixed: release-template.md in frontend-spa/mobile/fullstack "
+            "said plain \"runbook.md\" — corrected to "
+            "docs/runbook/local-setup.md, matching what /implement "
+            "actually generates in every pack",
+            "Fixed: frontend-spa/mobile CLAUDE.md and HOW-TO-USE.md "
+            "marked data-model as \"full only\" — corrected to mvp+, "
+            "matching the Scope Reference table and every other pack",
+            "Fixed: universal CLAUDE.md/HOW-TO-USE.md referenced a stale "
+            "/specify-doc api-spec command — api-spec moved to "
+            "/plan-design §3 back in 2.7.6 but universal's docs were "
+            "never updated",
+            "data-model.md, security-design.md, and api-spec.md now "
+            "carry the same living-document banners/framing in "
+            "fullstack and universal as they already had in "
+            "backend-service — the underlying living-doc mechanism "
+            "(specify-doc.prompt.md, plan-design.prompt.md) was already "
+            "shared/active in these packs, only the pack-specific "
+            "template headers were missing it",
+            "Added a 'Service NFR Baseline' table to fullstack (split "
+            "Backend/Frontend) and universal constitution.md, wired "
+            "into each pack's own specify.prompt.md — same mechanism "
+            "backend-service got in 2.7.7",
+            "Added an 'App NFR Baseline' table (pack-appropriate "
+            "categories — load time/bundle size for frontend-spa; cold "
+            "start/offline sync latency for mobile) to frontend-spa/"
+            "mobile constitution.md, wired into specify.prompt.md and "
+            "the shared specify-srd.prompt.md NFR-baseline-reference "
+            "logic (now pack-agnostic wording)",
+            "Frontend-spa/mobile's data-model.md (Frontend State & "
+            "Storage Model / Local Data & Cache Model) and "
+            "security-design.md are now explicitly living/app-level "
+            "documents — same mechanism as backend-service's "
+            "data-model.md, just describing state/storage and "
+            "client-side security instead of a DB schema",
+            "New living document for frontend-spa/fullstack: "
+            ".specify/service/component-library.md catalogs "
+            "shared/reusable components across features — "
+            "component-spec.md's \"Shared Components Used\" section "
+            "now points here instead of restating each shared "
+            "component's full prop/event spec per feature",
+            "release.md's Deployment Plan / Post-Deploy Smoke Test in "
+            "frontend-spa, mobile, fullstack, and universal now "
+            "reference docs/runbook/local-setup.md as the standard, "
+            "established-once strategy instead of re-describing it "
+            "every release — the same pattern backend-service got in "
+            "2.7.7",
+            "Re-copy the pack (or run sdd init over it) to pick up the "
+            "updated prompt/template files",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.8"},
+    },
 ]
 
 

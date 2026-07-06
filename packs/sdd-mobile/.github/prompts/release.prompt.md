@@ -40,15 +40,24 @@ Produce the release plan:
    roles.yml), device/OS target, environment, result checkbox
 
 3. STORE RELEASE PLAN
-   Steps from design.md: build + sign, staged rollout
-   percentage (Play Console) / TestFlight phase, OTA update push
-   (CodePush/EAS, if applicable), smoke test on real device — each with
-   owner and rollback-if-fails action (halt rollout / OTA rollback /
-   emergency hotfix)
+   **The release strategy and rollback steps are standard for this app,
+   not re-derived per release** — pull them from
+   `docs/runbook/local-setup.md` (living document, established once) and
+   `constitution.md`'s App Store Distribution row. Write "Standard
+   release — see docs/runbook/local-setup.md §{N}" rather than
+   re-describing the strategy (build + sign, staged rollout percentage,
+   TestFlight phase, OTA update push). Fill in only what's specific to
+   this release: staged rollout percentage/schedule for this version,
+   owner, and confirmation the standard steps still apply (or a note on
+   what's different this time, e.g. a native module requiring a full
+   store review instead of OTA)
 
 4. POST-RELEASE SMOKE TEST
-   App launch + cold start check, key happy-path screen flow, crash-free
-   rate check (Crashlytics/Play Vitals), key NFR check
+   **The checks themselves are standard** — pull from
+   `docs/runbook/local-setup.md`. Fill in only this release's specific
+   happy-path screen flow and NFR target to verify: app launch + cold
+   start check, {this release's key happy-path screen flow}, crash-free
+   rate check (Crashlytics/Play Vitals), {this release's key NFR target}
 
 5. GO-LIVE GATE
    Check the preconditions first — all tasks merged, UAT passed, §7 Rollback

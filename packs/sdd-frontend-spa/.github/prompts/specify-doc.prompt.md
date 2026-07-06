@@ -60,18 +60,21 @@ two only:
 
 ### Updating a living, service-level document (not per-feature)
 
-Before generating `data-model.md` or `security-design.md`, check whether
-`.specify/service/{doc}.md` already exists.
+This applies to `.specify/service/data-model.md`, `.specify/service/security-design.md`,
+and (when the current command is `component-spec` and this feature introduces
+a reusable component) `.specify/service/component-library.md`. Before
+generating, check whether the relevant `.specify/service/{file}.md` already
+exists.
 
 **If it does NOT exist yet** (first feature in this service to need it):
-Generate it fresh from the template, as normal, at `.specify/service/{doc}.md`.
+Generate it fresh from the template, as normal, at `.specify/service/{file}.md`.
 State clearly that this is now the service's living reference for this
 document — future features will extend it, not recreate it.
 
 **If it already exists** (a prior feature already created it):
 Read the full current file. Work through it one logical unit at a time (one
 table/entity for a data model, one threat-model entry for a security
-design) and classify each:
+design, one component for a component library) and classify each:
 
 - **No change needed** — note `{unit}: unchanged`, move on. No user input needed.
 - **New addition** — this feature needs something the document doesn't have
@@ -125,6 +128,24 @@ an existing shared artifact" instead of "a requirement changed."
 `investigation`, `component-spec`, `ux-flow`, `screen-spec`) stays per-feature:
 - Save to: `.specify/features/{manifest.project.feature}/{doc}.md`
 - Write `.specify/features/{manifest.project.feature}/{doc}.summary.md` (max SUMMARY_MAX_LINES lines)
+
+**Exception — `component-spec`'s "Shared Components Used" section is
+living, app-level** (packs with a `component-spec-template.md`: frontend-spa,
+fullstack). The rest of `component-spec.md` (component hierarchy, this
+feature's own page/container components) stays per-feature as above, but
+any component this feature intends to be **reused by other features**
+(a shared/design-system component, not a one-off page component) is
+catalogued in `.specify/service/component-library.md` instead of only
+inside this feature's own file:
+- Save to: `.specify/service/component-library.md` (NOT under `.specify/features/`)
+- Write `.specify/service/component-library.summary.md` (max SUMMARY_MAX_LINES lines)
+- This feature's own `component-spec.md` §"Shared Components Used" lists
+  only the component name + this feature's usage purpose, and points to
+  `component-library.md` for the full prop/event/accessibility spec —
+  never restate the full spec in both places
+- Follow the same "check exists → SKIP/ADD-unit/UPDATE-unit → one
+  approval" discipline described below for `data-model`/`security-design`,
+  treating each shared component as one unit
 
 **For `security` / `security-design`:**
 

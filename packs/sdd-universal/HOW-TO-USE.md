@@ -282,14 +282,17 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 **Prerequisites:** SRD approval + `srd.summary.md` exists.
 
 **Available document names (select based on your `project_type`):**
-- `security` → `security-design.md` — **all types, all scopes**
-- `api-spec` → `api-spec.md` (OpenAPI / REST contract) — backend-service, serverless (mvp+)
-- `data-model` → `data-model.md` (entities, relationships, PII) — backend-service, fullstack, data-ml (mvp+)
+- `security` → `.specify/service/security-design.md` (living, service-level) — **all types, all scopes**
+- `data-model` → `.specify/service/data-model.md` (entities, relationships, PII — living, service-level) — backend-service, fullstack, data-ml (mvp+)
 - `component-spec` → `component-spec.md` (component props, state, accessibility) — frontend-spa, fullstack (mvp+)
 - `ux-flow` → `ux-flow.md` (user journey flows, transitions) — frontend-spa, fullstack, mobile (mvp+)
 - `screen-spec` → `screen-spec.md` (screen layout, gestures, interactions) — mobile (mvp+)
 - `resilience` → `resilience.md` (circuit breakers, retry, bulkhead) — all types (full only)
 - `investigation` → `investigation.md` (spike / technical investigation) — all types (full only)
+
+> **Note:** API contract (`api-spec.md`) is not generated via `/specify-doc`
+> — for API-providing types (backend-service, fullstack, serverless) it's
+> extracted at `/plan-design` §3 into the living `.specify/service/api-spec.md`.
 
 **You do next:** Review each doc. The agent presents it; you approve or request changes before generating the next one.
 

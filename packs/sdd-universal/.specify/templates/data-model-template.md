@@ -1,6 +1,12 @@
 # Data Model
-# Feature: {Feature Name}
+# Service: {Service Name}
 > Version: 1.0 | Date: {date} | Scope: MVP+
+>
+> **Living document** — describes the whole service's schema, not one
+> feature. Lives at `.specify/service/data-model.md`. Every feature after
+> the first one that needs a schema change extends this file (see the
+> living-doc-update shared block in `specify-doc.prompt.md`) — it is never
+> regenerated from a blank template.
 
 ---
 

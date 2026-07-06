@@ -30,7 +30,7 @@ Included in addition to the 28 core spec templates:
 | Security Design (MASVS) | `/specify-doc security` | All scopes |
 | Screen Spec | `/specify-doc screen-spec` | mvp+ |
 | UX Flow | `/specify-doc ux-flow` | mvp+ |
-| Data Model | `/specify-doc data-model` | full only |
+| Data Model (living — `.specify/service/data-model.md`) | `/specify-doc data-model` | mvp+ |
 | Resilience Plan | `/specify-doc resilience` | full only |
 | Technical Investigation | `/specify-doc investigation` | full only |
 
@@ -270,7 +270,7 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 | Scope | Documents to generate |
 |---|---|
 | pilot | None required (Security Design §1 already in SRD) |
-| mvp | `/specify-doc security` → `/specify-doc screen-spec` → `/specify-doc ux-flow` |
+| mvp | `/specify-doc security` → `/specify-doc screen-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` |
 | full | `/specify-doc security` → `/specify-doc screen-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` → `/specify-doc resilience` → `/specify-doc investigation` |
 
 **When to run:** After SRD is approved, one at a time.
@@ -281,7 +281,7 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 - `security` → `security-design.md` (STRIDE + MASVS threat model, §1-2 for mvp, §1-4 for full)
 - `screen-spec` → `screen-spec.md` (screen layout, components, gestures, interactions) — **mvp+**
 - `ux-flow` → `ux-flow.md` (user journey flows, screen-to-screen transitions) — **mvp+**
-- `data-model` → `data-model.md` (local DB schema, sync model, PII handling) — **full only**
+- `data-model` → `.specify/service/data-model.md` (local DB schema, sync model, PII handling — living, app-level) — **mvp+**
 - `resilience` → `resilience.md` (offline queue, retry, background sync) — **full only**
 - `investigation` → `investigation.md` (spike / technical investigation) — **full only**
 

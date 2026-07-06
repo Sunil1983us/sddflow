@@ -120,7 +120,7 @@ Every diagram must use actual names from the feature context, not placeholders.
 ### Section 3 — API Design
 
 > Skip for: `iac`, `library` (replace with Public Library API section), `desktop` with no backend calls.
-> For `frontend-spa` and `mobile`: document the API contract this component **consumes** (consumer view) — write this directly into design.md §3 as before, per-feature. The living-doc treatment below applies only when this service **provides** the API (backend-service, fullstack backend).
+> For `frontend-spa` and `mobile`: use `.specify/templates/api-spec-template.md` (this pack's "Backend API Contract — Consumer" version) as the structure, and document the API contract this component **consumes** (consumer view) — write this directly into design.md §3 as before, per-feature, never `.specify/service/`. The living-doc treatment below applies only when this service **provides** the API (backend-service, fullstack backend, universal).
 
 **The API surface is a living, service-level document, not per-feature** —
 `.specify/service/api-spec.md` is the one current API surface for the

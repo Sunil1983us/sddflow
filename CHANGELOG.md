@@ -4,6 +4,83 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.8] — 2026-07-06 (Framework content — per-pack consistency audit, all 5 packs)
+
+### Fixed — bugs introduced or surfaced by the 2.7.6/2.7.7 living-doc work
+
+`2.7.6`/`2.7.7` built the living-document mechanism against
+`sdd-backend-service` and assumed it generalized cleanly. A follow-up
+per-pack audit (frontend-spa, mobile, fullstack, universal each have a
+different shape — no API in frontend-spa/mobile, a split Backend/Frontend
+stack in fullstack, ten auto-detected project types in universal) found
+real bugs and real gaps that single-pack testing had missed:
+
+- **Orphaned template wired in**: frontend-spa/mobile's own
+  `api-spec-template.md` ("Backend API Contract — Consumer") was correctly
+  written but never referenced by name in any prompt — `plan-design.prompt.md`
+  §3's consumer-view branch now names it explicitly
+- **Self-contradicting Scope Reference table**: the `2.7.6` edit asserted
+  API Spec is living unconditionally across all packs, contradicting
+  frontend-spa/mobile's own per-feature consumer-view carve-out for the
+  same concept. Split into two explicit rows (provider vs consumer)
+- **`runbook.md` path drift**: frontend-spa/mobile/fullstack's
+  `release-template.md` said plain `runbook.md` in the References table
+  and Rollback Plan text; `/implement` actually generates
+  `docs/runbook/local-setup.md` in every pack — corrected
+- **Stale scope marking**: frontend-spa/mobile's CLAUDE.md and
+  HOW-TO-USE.md marked `data-model` as "full only", contradicting the
+  Scope Reference table (mvp+) and every other pack — corrected
+- **Stale command reference**: universal's CLAUDE.md/HOW-TO-USE.md still
+  listed a `/specify-doc api-spec` command — api-spec moved to
+  `/plan-design` §3 back in `2.7.6`, universal's docs were never updated
+
+### Changed — living-doc treatment extended to the packs it was missing from
+
+- **fullstack + universal**: `data-model-template.md`,
+  `security-design-template.md`, `api-spec-template.md` now carry the same
+  "Living document" banner/framing `sdd-backend-service` had — the
+  underlying mechanism (`specify-doc.prompt.md`, `plan-design.prompt.md`)
+  is shared across all 5 packs and was already active here; only the
+  pack-specific template headers were missing the framing
+- **fullstack + universal**: `constitution.md` gains a **Service NFR
+  Baseline** table, wired into each pack's own `specify.prompt.md` —
+  fullstack's is split Backend/Frontend (Performance/Availability/
+  Throughput/Data Retention vs Load Time/Bundle Size/Interactivity)
+- **frontend-spa + mobile**: `data-model.md` (Frontend State & Storage
+  Model / Local Data & Cache Model) and `security-design.md` are now
+  explicitly living/app-level documents, same mechanism as
+  `sdd-backend-service`'s `data-model.md` — just describing state/storage
+  and client-side security instead of a database schema
+- **frontend-spa + mobile**: `constitution.md` gains an **App NFR
+  Baseline** table with pack-appropriate categories (Load Time/Bundle
+  Size/Interactivity/Accessibility for frontend-spa; Cold Start Time/
+  Offline Sync Latency/Crash-Free Rate/App Size for mobile), wired into
+  each pack's `specify.prompt.md`. The shared `specify-srd.prompt.md`
+  NFR-baseline-reference logic is now pack-agnostic wording ("Service NFR
+  Baseline" or "App NFR Baseline" depending on pack — same mechanism)
+- **New living document — frontend-spa + fullstack**:
+  `.specify/service/component-library.md` catalogs shared/reusable
+  components used across multiple features. `component-spec.md`'s
+  "Shared Components Used" section now lists only component name +
+  this feature's usage purpose, pointing to the library for the full
+  prop/event/accessibility spec — never restated per feature.
+  `specify-doc.prompt.md`'s living-doc walk-and-diff mechanism now covers
+  this document alongside `data-model.md`/`security-design.md`
+- **frontend-spa, mobile, fullstack, universal**: `release.prompt.md`'s
+  Deployment Plan and Post-Deploy Smoke Test now reference
+  `docs/runbook/local-setup.md` as the standard, established-once
+  strategy instead of re-describing it every release — the same pattern
+  `sdd-backend-service` got in `2.7.7`
+
+### Verification
+- `cli-python` pytest suite: 102/102 passed
+- `packs/_shared/tests/test-setup.sh`: 15/15 passed (all project types,
+  injection-class names, non-interactive execution)
+- `packs/_shared/tests/assert-output.sh` against `examples/todo-api`: 33/33
+  structural assertions passed
+
+---
+
 ## [2.7.7] — 2026-07-06 (Framework content — sdd-backend-service, propagated to all 5 packs)
 
 ### Changed — the rest of the "reduce duplication across features" audit: reference instead of re-author

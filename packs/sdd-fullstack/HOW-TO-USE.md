@@ -281,9 +281,9 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 **Available document names:**
 - `security` → `security-design.md` (STRIDE threat model, §1-2 for mvp, §1-4 for full)
-- `component-spec` → `component-spec.md` (UI component props, state, accessibility) — **mvp+**
+- `component-spec` → `component-spec.md` (UI component props, state, accessibility) — **mvp+** (its "Shared Components Used" section is living, at `.specify/service/component-library.md`)
 - `ux-flow` → `ux-flow.md` (user journey flows, screen transitions) — **mvp+**
-- `data-model` → `data-model.md` (entities, relationships, API contracts) — **mvp+**
+- `data-model` → `.specify/service/data-model.md` (entities, relationships, API contracts — living, service-level) — **mvp+**
 - `resilience` → `resilience.md` (circuit breakers, retry, error boundaries — both layers) — **full only**
 - `investigation` → `investigation.md` (spike / technical investigation) — **full only**
 

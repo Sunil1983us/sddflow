@@ -42,14 +42,26 @@ Produce the release plan:
    (API/data) and frontend (screen/component) scenarios
 
 3. DEPLOYMENT PLAN
-   Steps from design.md: DB migrations, backend app deploy
-   strategy, frontend build + static asset deploy / CDN invalidation,
-   smoke test, feature flag / traffic shift — each with owner and
-   rollback-if-fails action
+   **The deployment strategy and rollback steps are standard for this
+   service, not re-derived per release** — pull them from
+   `docs/runbook/local-setup.md` (living document, established once,
+   covers both backend service and frontend deploy) and `constitution.md`'s
+   Orchestration/Hosting rows. Write "Standard deployment — see
+   docs/runbook/local-setup.md §{N} (backend) / §{N}a (frontend)" rather
+   than re-describing the strategy (DB migrations, backend app deploy,
+   frontend build + static asset deploy / CDN invalidation, feature flag
+   / traffic shift). Fill in only what's specific to this release: DB
+   migration version(s) this release adds, any new feature flag, owner,
+   and confirmation the standard steps still apply (or a note on what's
+   different this time)
 
 4. POST-DEPLOY SMOKE TEST
-   Backend health check, key happy-path endpoint, frontend app loads +
-   key screen renders, log check, key NFR check
+   **The checks themselves are standard** — pull from
+   `docs/runbook/local-setup.md`. Fill in only this release's specific
+   happy-path endpoint/screen and NFR target to verify: backend health
+   check, {this release's key happy-path endpoint}, frontend app loads +
+   {this release's key screen renders}, log check, {this release's key
+   NFR target}
 
 5. GO-LIVE GATE
    Check the preconditions first — all tasks merged, UAT passed, §7 Rollback

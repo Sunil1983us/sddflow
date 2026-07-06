@@ -136,8 +136,9 @@ Scope upgrade is a **Major amendment** to constitution Part 2 (version bump X.0)
 | BRD, Use Cases, SRD | ✅ | ✅ | ✅ |
 | `/checklist` | Optional | **Mandatory** | **Mandatory** |
 | Security Design (living — `.specify/service/security-design.md`) | §1 only | §1–2 | §1–4 |
-| API Spec (living — `.specify/service/api-spec.md`, via `/plan-design` §3) | — | ✅ | ✅ |
-| Data Model (living — `.specify/service/data-model.md`) | — | ✅ | ✅ |
+| API Spec — services that **provide** an API (living — `.specify/service/api-spec.md`, via `/plan-design` §3) | — | ✅ | ✅ |
+| API Spec — components that only **consume** an API (frontend-spa, mobile: per-feature, in `design.md` §3 — not living, see `plan-design.prompt.md`) | — | ✅ | ✅ |
+| Data Model (living — `.specify/service/data-model.md`, or this pack's equivalent — state/storage model, local cache model) | — | ✅ | ✅ |
 | Resilience (`resilience.md`) | — | — | ✅ |
 | Investigation (`investigation.md`) | — | — | ✅ |
 | `/plan-lld` | **SKIPPED** | ✅ | ✅ |

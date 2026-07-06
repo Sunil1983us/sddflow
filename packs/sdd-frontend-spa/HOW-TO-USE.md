@@ -30,7 +30,7 @@ Included in addition to the 28 core spec templates:
 | Security Design | `/specify-doc security` | All scopes |
 | Component Spec | `/specify-doc component-spec` | mvp+ |
 | UX Flow | `/specify-doc ux-flow` | mvp+ |
-| Data Model | `/specify-doc data-model` | full only |
+| Data Model (living — `.specify/service/data-model.md`) | `/specify-doc data-model` | mvp+ |
 | Resilience Plan | `/specify-doc resilience` | full only |
 | Technical Investigation | `/specify-doc investigation` | full only |
 
@@ -270,7 +270,7 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 | Scope | Documents to generate |
 |---|---|
 | pilot | None required (Security Design §1 already in SRD) |
-| mvp | `/specify-doc security` → `/specify-doc component-spec` → `/specify-doc ux-flow` |
+| mvp | `/specify-doc security` → `/specify-doc component-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` |
 | full | `/specify-doc security` → `/specify-doc component-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` → `/specify-doc resilience` → `/specify-doc investigation` |
 
 **When to run:** After SRD is approved, one at a time.
@@ -279,9 +279,9 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 **Available document names:**
 - `security` → `security-design.md` (STRIDE threat model, §1-2 for mvp, §1-4 for full)
-- `component-spec` → `component-spec.md` (component props, state, events, accessibility) — **mvp+**
+- `component-spec` → `component-spec.md` (component props, state, events, accessibility) — **mvp+** (its "Shared Components Used" section is living, at `.specify/service/component-library.md`)
 - `ux-flow` → `ux-flow.md` (user journey flows, screen transitions) — **mvp+**
-- `data-model` → `data-model.md` (client data structures, API response shapes) — **full only**
+- `data-model` → `.specify/service/data-model.md` (client data structures, API response shapes — living, app-level) — **mvp+**
 - `resilience` → `resilience.md` (error boundaries, retry, offline handling) — **full only**
 - `investigation` → `investigation.md` (spike / technical investigation) — **full only**
 
