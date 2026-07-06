@@ -4,6 +4,74 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.7] — 2026-07-06 (Framework content — sdd-backend-service, propagated to all 5 packs)
+
+### Changed — the rest of the "reduce duplication across features" audit: reference instead of re-author
+
+Follow-up to `2.7.6`. That release solved the clearest case (data model,
+security baseline, API surface — full relocation to `.specify/service/`
+with a walk-and-diff mechanism). This release covers the remaining
+documents flagged in the same audit as "boilerplate shell + genuinely new
+content, redescribed from scratch every feature" — a cheaper fix since
+none of these needed relocation, just a reference instead of a restatement:
+
+- **`srd.md` NFRs**: `constitution.md` Part 2 gains a **Service NFR
+  Baseline** table (Performance/Availability/Throughput/Data Retention).
+  The first feature to reach `/specify-srd` fills it from its own
+  NFR-NNN rows; every feature after that writes "Baseline (constitution.md
+  → Service NFR Baseline): {values} — applies to this feature too, no
+  change" instead of restating the same numbers, and only gets its own
+  NFR-NNN row for something genuinely different (a stricter target on one
+  specific endpoint). A feature needing a different *baseline* (not an
+  addition) triggers a Constitution Amendment instead of silently
+  overwriting the row
+- **`use-cases.md` Actor Registry**: an actor already defined in another
+  feature's `use-cases.md` (same real-world role — "Ops Analyst",
+  "Settlement Engine") is now reused, not re-derived. ACT-NNN numbering
+  stays local to each feature's own file (Main/Alternate/Exception Path
+  steps need a local ID to reference) — only the Name/Type/Description
+  content carries over, noted as "(same as {prior-feature}'s ACT-NNN)"
+- **`design.md`/`arch.md`/`hld.md` architecture shell**: Architecture
+  Pattern, Layer Responsibilities, Cross-Cutting Concerns (auth, logging,
+  error handling, idempotency, observability), and the System
+  Context/Container diagrams are established once by the first feature
+  to reach `/plan-design` (or `/plan-arch`/`/plan-hld` in separate mode)
+  and referenced — "unchanged from {prior-feature}/design.md §1, see
+  there" — by every later feature, instead of re-derived from scratch
+  each time. Component diagrams, sequence diagrams, state machines, and
+  DEC-NNN decisions stay fully per-feature, since those genuinely are new
+  each time
+- **`tasks.md` Phase A**: the "Project Scaffold + Dependencies" task
+  gained the same check-before-regenerate guidance Phase F (Docker/k8s)
+  already had in `2.7.6` — it's a once-per-service task, not
+  once-per-feature; a later feature only adds a genuinely new dependency,
+  it doesn't regenerate the build config
+- **`release.md`**: Deployment Plan and Post-Deploy Smoke Test now point
+  at `docs/runbook/local-setup.md` (already living as of `2.7.6`) for the
+  standard steps/strategy instead of re-deriving them each release —
+  only the release-specific migration version, feature flag, and target
+  endpoint get filled in fresh
+- Left alone, on purpose: `validate.md`, `clarify.md`, `checklist.md`,
+  `changeset-template.md`, `constitution-amendment-template.md`,
+  `jira-export.md` — genuinely one-off or already correctly incremental
+- `specify-srd.prompt.md`, `specify-uc.prompt.md`, `plan-design.prompt.md`,
+  `plan-arch.prompt.md`, `plan-hld.prompt.md`, and `tasks-template.md` are
+  full-synced across all 5 packs — edited on the canonical `_shared/full/`
+  source and propagated, since the new behavior is a no-op for any
+  project without a prior feature to reference. `constitution.md`,
+  `specify.prompt.md`, `release.prompt.md`, and `release-template.md` are
+  pack-specific and were updated directly for `sdd-backend-service`
+- Verified: full pytest suite (102 passed, no CLI code changed this
+  release — pure prompt/template text), setup smoke tests (15/15),
+  output-assertion tests against `examples/todo-api` (33/33), a live
+  simulated upgrade from `2.7.6` confirming the new migration fires, and
+  a dogfooding pass extending the same instant-payment/payment-dashboard
+  scratch scenario from `2.7.6`: feature 2's `srd.md` and `use-cases.md`
+  came out referencing feature 1's baseline/actors correctly instead of
+  restating them
+
+---
+
 ## [2.7.6] — 2026-07-04 (Framework content — sdd-backend-service, propagated to all 5 packs)
 
 ### Changed — data-model.md, security-design.md, and API design are now living, service-level documents

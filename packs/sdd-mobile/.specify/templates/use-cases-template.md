@@ -10,6 +10,11 @@
 
 ## §1 Actor Registry
 
+> An actor already defined in another feature's `use-cases.md` (same
+> real-world role) is reused here, not re-derived — its Description notes
+> "(same as {prior-feature}'s ACT-NNN)". Numbering is still local to this
+> file; only the description content carries over.
+
 | Actor ID | Name | Type | Description |
 |---|---|---|---|
 | ACT-{NNN} | {Primary User} | Primary | Human actor who initiates the main flow |

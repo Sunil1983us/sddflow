@@ -75,18 +75,41 @@ Generate `design.md` for the current feature using `.specify/templates/design-te
 
 ### Section 1 — Architecture Overview
 
-From `analyze.summary.md` + `constitution.md`:
-- Choose and state the architecture pattern (hexagonal, layered, event-driven, CQRS, microservices, etc.)
-- Define system layers with package paths and responsibilities
+**Architecture pattern, system layers, and cross-cutting concerns describe
+the whole service, not this feature — they're established once and
+reused, not re-derived every time.**
+- **If this is the first feature to reach `/plan-design`:** choose and
+  state the architecture pattern (hexagonal, layered, event-driven, CQRS,
+  microservices, etc.), define system layers with package paths and
+  responsibilities, and cover cross-cutting concerns (auth, logging,
+  error handling, idempotency, observability) as normal — this
+  establishes the shell every later feature reuses.
+- **If a prior feature already established them:** write "Architecture
+  pattern, system layers, and cross-cutting concerns — unchanged from
+  {prior-feature}/design.md §1, see there" instead of re-deriving them.
+  Only expand a specific part again if this feature genuinely needs a
+  change (e.g. a new layer, a new auth scheme) — show that as a delta
+  against the prior version (BEFORE/AFTER, one item), not a full restatement.
+
+From `analyze.summary.md` + `constitution.md` (always feature-specific,
+every feature, never reused):
 - Document every key design decision as DEC-NNN
 - Map every NFR from `analyze.summary.md §5` to the design decision that satisfies it
-- Cover cross-cutting concerns: auth, logging, error handling, idempotency, observability
 
 ### Section 2 — Diagrams
 
-Produce ALL diagrams in Mermaid (renders in GitHub, VS Code, Claude):
-- **System Context (C4 L1):** actors, this service, external systems
-- **Container Diagram (C4 L2):** service, database, cache, message broker, external
+**System Context (C4 L1) and Container Diagram (C4 L2) describe the whole
+service's topology (actors, this service, external systems, database,
+cache, message broker) — they don't change feature to feature unless
+this feature adds a new external system, database, or integration.**
+Same reuse rule as §1: if a prior feature already drew these and nothing
+changed, write "System Context / Container Diagram — unchanged from
+{prior-feature}/design.md §2, see there" instead of redrawing them. If
+this feature adds something new, show only the updated diagram with a
+short note on what changed.
+
+**Always produce fresh, feature-specific diagrams for the rest** — these
+describe this feature's own behavior, not the service's static shape:
 - **Component Diagram (C4 L3):** internal components and their relationships
 - **Happy Path Sequence:** the primary UC Main Path end-to-end (from `use-cases.md`)
 - **Error/Failure Paths:** UC Exception Paths (EP-NNN-X) — validation errors, downstream failures, retries

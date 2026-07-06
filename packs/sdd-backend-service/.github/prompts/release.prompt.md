@@ -45,12 +45,22 @@ Produce the release plan:
    roles.yml), environment, result checkbox
 
 3. DEPLOYMENT PLAN
-   Steps from design.md: DB migrations, app deploy strategy,
-   smoke test, feature flag / traffic shift — each with owner and
-   rollback-if-fails action
+   **The deployment strategy and rollback steps are standard for this
+   service, not re-derived per release** — pull them from
+   `docs/runbook/local-setup.md` (living document, established once) and
+   `constitution.md`'s Orchestration row. Write "Standard deployment —
+   see docs/runbook/local-setup.md §{N}" rather than re-describing the
+   strategy. Fill in only what's specific to this release: DB migration
+   version(s) this release adds, any new feature flag, owner, and
+   confirmation the standard steps still apply (or a note on what's
+   different this time, e.g. a first-time schema change requiring a
+   maintenance window)
 
 4. POST-DEPLOY SMOKE TEST
-   Health check, key happy-path endpoint, log check, key NFR check
+   **The checks themselves are standard** — pull from
+   `docs/runbook/local-setup.md`. Fill in only this release's specific
+   happy-path endpoint and NFR target to verify: health check, {this
+   release's key endpoint}, log check, {this release's key NFR target}
 
 5. GO-LIVE GATE
    Check the preconditions first — all tasks merged, UAT passed, §7 Rollback

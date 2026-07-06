@@ -66,25 +66,35 @@ If any remain — STOP. State: "PLAN-ARCH blocked — unresolved assumptions: {l
 
 Generate `arch.md` using `.specify/templates/arch-template.md`.
 
+**Sections 1, 3, and 6 describe the whole service, not this feature —
+established once and reused, not re-derived every time.** If a prior
+feature already has an approved `arch.md`, write "unchanged from
+{prior-feature}/arch.md §{N}, see there" for each of these three
+sections instead of redoing them — only expand a section again if this
+feature genuinely changes it (new layer, new cross-cutting concern),
+shown as a delta against the prior version. If this is the first feature
+to reach `/plan-arch`, generate them fully as below; this establishes the
+shell every later feature reuses.
+
 ### Section 1 — Architecture Overview
 From `analyze.summary.md` + `constitution.md`:
 - Choose and state the architecture pattern (hexagonal, layered, event-driven, CQRS, etc.) and explain why this pattern fits this project
 - Define every system layer with its package path and responsibility
-- Document every key design decision as DEC-NNN with rationale
+- Document every key design decision as DEC-NNN with rationale (DEC-NNN is always feature-specific, even when §1's pattern/layers are reused)
 
 ### Section 2 — Component Structure
 Using Mermaid `graph TD`:
-- Show all internal components and how they connect
+- Show all internal components and how they connect — always feature-specific
 - Use actual names from the feature context — no placeholders
 
 ### Section 3 — Layer Responsibilities
 Table: Layer | Package path | What it owns | What it must NOT do
 
 ### Section 4 — Key Design Decisions (DEC-NNN)
-One row per decision. Each must state: what was decided, why, what was rejected.
+One row per decision. Each must state: what was decided, why, what was rejected. Always feature-specific.
 
 ### Section 5 — NFR → Architecture Decision Mapping
-Every NFR from `analyze.summary.md §5` must appear here with the design decision (DEC-NNN) that satisfies it. No NFR left unmapped.
+Every NFR from `analyze.summary.md §5` must appear here with the design decision (DEC-NNN) that satisfies it. No NFR left unmapped. Always feature-specific.
 
 ### Section 6 — Cross-Cutting Concerns
 | Concern | Approach |

@@ -62,6 +62,15 @@ Generate `hld.md` using `.specify/templates/hld-template.md`.
 
 All diagrams must use **actual names** from `arch.summary.md` and `use-cases.summary.md` — no generic placeholders.
 
+**Diagrams 1 and 2 describe the whole service's topology, not this
+feature — if a prior feature already has an approved `hld.md` and this
+feature adds no new actor/external system/datastore, write "System
+Context / Container Diagram — unchanged from {prior-feature}/hld.md
+Diagram 1/2, see there" instead of redrawing them.** If this feature adds
+something new, redraw with only the addition noted. If this is the first
+feature to reach `/plan-hld`, generate them fully — this establishes the
+diagrams every later feature reuses.
+
 ### Diagram 1 — System Context (C4 Level 1)
 ```mermaid
 graph TD

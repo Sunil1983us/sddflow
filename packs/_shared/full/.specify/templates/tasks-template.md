@@ -68,6 +68,10 @@ Files:
   {build file — package.json / pom.xml / pubspec.yaml / build.gradle / Cargo.toml / pyproject.toml}
   {config file — tsconfig.json / .eslintrc / application.yml / pytest.ini}
 Acceptance criteria:
+  - [ ] **If the build/config files already exist from a prior feature:
+        this task is a no-op unless this feature adds a genuinely new
+        dependency — add only that dependency, don't regenerate the
+        file.** Scaffold is a once-per-service task, not once-per-feature.
   - [ ] Build tool configured with all required dependencies
   - [ ] Language version locked (from constitution.md Language row)
   - [ ] `{build command}` completes with zero errors

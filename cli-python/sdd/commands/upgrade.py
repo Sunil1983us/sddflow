@@ -135,6 +135,37 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.6"},
     },
+    {
+        "from":        "2.7.6",
+        "to":          "2.7.7",
+        "description": "Content release — no manifest schema changes",
+        "notes": [
+            "Constitution Part 2 gains a 'Service NFR Baseline' table — "
+            "the first feature to reach /specify-srd fills it from its "
+            "own NFR-NNN rows; every later feature's srd.md references it "
+            "instead of restating the same performance/availability "
+            "numbers, and only gives its own NFR-NNN row to something "
+            "genuinely different from the baseline",
+            "/specify-uc: an actor already defined in another feature's "
+            "use-cases.md (same real-world role) is now reused, not "
+            "re-derived — numbering stays local per file, only the "
+            "description content carries over",
+            "/plan-design, /plan-arch, /plan-hld: architecture pattern, "
+            "system layers, cross-cutting concerns, and the System "
+            "Context/Container diagrams are established once by the "
+            "first feature and referenced ('unchanged from {feature}, "
+            "see there') by every later feature instead of being "
+            "re-derived every time",
+            "tasks.md Phase A (scaffold/dependencies) gained the same "
+            "check-before-regenerate guidance Phase F already had",
+            "release.md's Deployment Plan and Post-Deploy Smoke Test now "
+            "point at docs/runbook/local-setup.md for the standard "
+            "steps instead of re-deriving the strategy each release",
+            "Re-copy the pack (or run sdd init over it) to pick up the "
+            "updated prompt files",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.7"},
+    },
 ]
 
 

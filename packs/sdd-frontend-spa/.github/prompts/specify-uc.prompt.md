@@ -40,6 +40,14 @@ Generate `use-cases.md` for the current feature:
 - Derive all actors from stakeholders, systems, and integrations named in BRD
   - Every actor: **ACT-NNN** with type (Primary / Secondary / System)
   - Primary — human who initiates; Secondary — human who participates; System — automated
+  - **Before deriving an actor from scratch:** check whether it already
+    appears in another feature's `use-cases.md` in this service (same
+    real-world role — e.g. "Ops Analyst", "Settlement Engine"). If so,
+    reuse its Name/Type/Description verbatim rather than re-deriving them,
+    and note it in the Description column: "(same as {prior-feature}'s
+    ACT-NNN)". Actor numbering (ACT-NNN) is still local to this feature's
+    own `use-cases.md` — Main/Alternate/Exception Path steps need a local
+    ID to reference — only the description content is reused, not the ID
 - Every use case: **UC-NNN**
   - Title must name the goal achieved by the primary actor
   - **Trigger:** what event or user action starts this UC
