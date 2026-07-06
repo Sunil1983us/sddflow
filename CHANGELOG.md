@@ -4,6 +4,55 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.5] — 2026-07-04 (Python CLI — path traversal fix)
+
+### Fixed — sdd confluence / sdd cr / sdd jira accepted unvalidated feature names
+
+- Found during a security audit: `sdd pr` and `sdd review` both route the
+  `feature` name (from `--feature` or `manifest.yml`'s `project.feature`)
+  through `safe_feature_path()` before touching disk, which rejects `../`
+  traversal. `sdd confluence`, `sdd cr`, and `sdd jira` built the same
+  `.specify/features/{feature}/...` path with a plain string join and no
+  check at all — an inconsistency, not a designed difference
+- Impact if a `manifest.yml` value like `project.feature:
+  "../../../../tmp/pwned"` reached one of these commands unnoticed:
+  `sdd confluence pull` would write pulled content to an arbitrary path
+  outside `.specify/features/`; `sdd cr submit` / `sdd jira push` /
+  `sdd jira sync` would read whatever file existed at the traversed path
+  and push its contents to Confluence/Jira — arbitrary local file
+  exfiltration to an external service, gated only on a teammate running
+  the command without an explicit `--feature` override
+- Fix: `confluence.py`, `cr.py`, and `jira.py` now call the same
+  `safe_feature_path()` helper `pr.py`/`review.py` already used, with the
+  same graceful `ValueError` → clean CLI error + exit 1 handling
+- Also fixed a real bug in `safe_feature_path()` itself, found while
+  strengthening it: the containment check compared resolved paths with a
+  raw string-prefix test (`str(resolved).startswith(str(base))`), with no
+  separator boundary — so a feature name resolving to a *sibling*
+  directory that merely shares a string prefix with the base (e.g.
+  `features-legacy` next to `features`) incorrectly passed validation.
+  Replaced with `Path.relative_to()`, which correctly requires actual
+  containment
+- 14 new tests: direct coverage of `safe_feature_path()` (traversal
+  rejection, the sibling-prefix bypass, and the normal-name path), plus
+  regression tests calling `confluence.py`'s and `cr.py`'s actual path
+  helpers to lock in the fixed call chain — 100 total, up from 86
+- Verified beyond unit tests: reproduced the exact exploit scenario from
+  the audit — a scratch project with `project.feature` set to a
+  traversal string and a configured `integrations.yml`, then ran
+  `sdd jira push` for real through Click's CliRunner. Confirmed clean
+  rejection (exit 1, clear error message) where the old code would have
+  attempted to read from the traversed path
+- Version bumped to `2.7.5` in both CLIs (this fix is Python-only — the
+  Node CLI has no `confluence`/`cr`/`jira` commands — but both package
+  versions move together per this project's convention; the Node CLI's
+  migration entry notes explicitly that nothing in it changed)
+- Also verified: full pytest suite (100 passed), setup smoke tests
+  (15/15), a live simulated upgrade from `2.7.4` confirming the new
+  migration fires and lands on `2.7.5`
+
+---
+
 ## [2.7.4] — 2026-07-04 (Framework content — all 5 packs — /change)
 
 ### Added — /change recommends a feature rename when scope fundamentally changes

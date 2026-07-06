@@ -10,6 +10,7 @@ from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.cf_to_md import cf_to_md
 from sdd.utils.manifest import read_manifest
+from sdd.utils.validate import safe_feature_path
 
 console = Console()
 
@@ -32,8 +33,8 @@ def _save_drafts(drafts: dict) -> None:
 def _resolve_doc_path(doc: str, feature: str) -> Path:
     """Return local file path for a doc key."""
     if doc == "context":
-        return Path(".specify") / "contexts" / f"{feature}.md"
-    return Path(".specify") / "features" / feature / f"{doc}.md"
+        return safe_feature_path(Path(".specify") / "contexts", f"{feature}.md")
+    return safe_feature_path(Path(".specify") / "features", feature) / f"{doc}.md"
 
 
 def _resolve_page_title(doc: str, project_name: str, feature: str,
@@ -84,7 +85,11 @@ def confluence_push(profile, feature, doc, dry_run):
     project_name = proj.get("name", "Project")
     feature_name = feature or proj.get("feature", "")
 
-    features_dir = Path(".specify") / "features" / feature_name
+    try:
+        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
     if not features_dir.exists():
         console.print(f"  [red]✗  Feature directory not found: {features_dir}[/red]")
         raise SystemExit(1)
@@ -188,7 +193,11 @@ def confluence_draft(doc, profile, feature, dry_run):
     project_name = proj.get("name", "Project")
     feature_name = feature or proj.get("feature", "")
 
-    doc_path = _resolve_doc_path(doc, feature_name)
+    try:
+        doc_path = _resolve_doc_path(doc, feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
     if not doc_path.exists():
         console.print(f"  [red]✗  File not found: {doc_path}[/red]")
         console.print("  [dim]Generate the document first, then run this command.[/dim]")
@@ -349,7 +358,11 @@ def confluence_pull(doc, profile, feature, page_id):
             lines.append("")
         markdown = markdown + "\n" + "\n".join(lines)
 
-    doc_path = _resolve_doc_path(doc, feature_name)
+    try:
+        doc_path = _resolve_doc_path(doc, feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
     doc_path.parent.mkdir(parents=True, exist_ok=True)
 
     old_text = doc_path.read_text() if doc_path.exists() else ""

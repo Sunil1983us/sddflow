@@ -96,6 +96,21 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.4',
+    to:   '2.7.5',
+    description: 'Version alignment only — no Node CLI changes',
+    notes: [
+      'This release fixed a path-traversal gap in the Python CLI only ' +
+      '(sdd confluence / sdd cr / sdd jira, which have no Node ' +
+      'equivalent commands) — nothing in the Node CLI changed. Version ' +
+      'bumped to keep sdd_version aligned across both CLIs.',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.5';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

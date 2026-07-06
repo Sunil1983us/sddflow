@@ -83,6 +83,31 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.4"},
     },
+    {
+        "from":        "2.7.4",
+        "to":          "2.7.5",
+        "description": "Security fix — no manifest schema changes",
+        "notes": [
+            "sdd confluence / sdd cr / sdd jira now validate the feature "
+            "name against path traversal before touching disk, matching "
+            "sdd pr / sdd review, which already did this — previously "
+            "a feature name containing '../' sequences (e.g. from a "
+            "manifest.yml value not everyone on the project reviewed "
+            "carefully) could read or write files outside "
+            "'.specify/features/', including pushing arbitrary local "
+            "file contents to Confluence/Jira",
+            "Also fixed a bypass in the underlying containment check "
+            "itself: a feature name resolving to a sibling directory "
+            "sharing a string prefix with the base directory (e.g. "
+            "'features-legacy' next to 'features') incorrectly passed "
+            "validation — it now correctly requires the resolved path "
+            "to be inside the base directory, not just prefix-matching",
+            "No action needed unless you use --feature or "
+            "project.feature values with '../' in them, which was never "
+            "valid usage",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.5"},
+    },
 ]
 
 

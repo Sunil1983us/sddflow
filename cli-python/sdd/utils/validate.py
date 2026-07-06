@@ -30,7 +30,9 @@ def safe_feature_path(base: Path, feature_name: str) -> Path:
             "feature name is empty — pass --feature or set project.feature in manifest.yml"
         )
     resolved = (base / feature_name).resolve()
-    if not str(resolved).startswith(str(base.resolve())):
+    try:
+        resolved.relative_to(base.resolve())
+    except ValueError:
         raise ValueError(
             f"feature name '{feature_name}' is invalid — path escapes the features directory"
         )

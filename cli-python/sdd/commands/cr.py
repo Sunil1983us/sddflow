@@ -10,12 +10,13 @@ from sdd.utils.jira_client import JiraClient
 from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.manifest import read_manifest
+from sdd.utils.validate import safe_feature_path
 
 console = Console()
 
 
 def _cr_path(feature: str, cr_id: str) -> Path:
-    return Path(".specify") / "features" / feature / "changesets" / f"{cr_id}.md"
+    return safe_feature_path(Path(".specify") / "features", feature) / "changesets" / f"{cr_id}.md"
 
 
 def _extract_cr_summary(text: str) -> str:
@@ -69,7 +70,11 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
     project_name = proj.get("name", "Project")
     feature_name = feature or proj.get("feature", "")
 
-    cr_file = _cr_path(feature_name, cr_id)
+    try:
+        cr_file = _cr_path(feature_name, cr_id)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
     if not cr_file.exists():
         console.print(f"  [red]✗  CR file not found: {cr_file}[/red]")
         console.print("  Run /change first to generate the changeset record.")

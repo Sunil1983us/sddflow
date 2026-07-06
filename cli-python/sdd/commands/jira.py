@@ -8,6 +8,7 @@ from sdd.utils.integrations import load_integrations, JiraConfig
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.sdd_parser import parse_stories, parse_tasks, Story, Task
 from sdd.utils.manifest import read_manifest
+from sdd.utils.validate import safe_feature_path
 
 console = Console()
 
@@ -47,7 +48,11 @@ def jira_push(profile, feature, dry_run):
     project_name = proj.get("name", "Unknown Project")
     feature_name = feature or proj.get("feature", "")
 
-    features_dir = Path(".specify") / "features" / feature_name
+    try:
+        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
     if not features_dir.exists():
         console.print(f"  [red]✗  Feature directory not found: {features_dir}[/red]")
         raise SystemExit(1)
@@ -236,10 +241,15 @@ def jira_sync(profile, feature):
 
     manifest     = read_manifest() or {}
     feature_name = feature or (manifest.get("project") or {}).get("feature", "")
-    features_dir = Path(".specify") / "features" / feature_name
 
     if not cfg.jira:
         console.print("  [red]✗  No jira: section in .specify/integrations.yml[/red]")
+        raise SystemExit(1)
+
+    try:
+        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
     tasks   = parse_tasks(features_dir)
