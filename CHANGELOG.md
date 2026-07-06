@@ -4,6 +4,44 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.9] — 2026-07-06 (Framework content — /create-context, all 5 packs)
+
+### Added — Feature Size Check in `/create-context`
+
+Users pasting informal notes into `/create-context` sometimes describe
+more than one feature-sized slice at once (e.g. "a payment processor,
+and also a dashboard to view payment details"). Every downstream
+document — use-cases.md, srd.md, design.md, tasks.md, release.md — is
+authored per feature, so cramming multiple independent capabilities into
+one context.md meant they all inherited an oversized, tangled spec
+instead of each getting its own clean, reviewable slice.
+
+- New **Step 1.5 — Feature Size Check**, run before the full template
+  mapping: clusters the described actions by "actor + goal" and looks
+  for 2+ clusters that are independently shippable (don't block or get
+  blocked by each other), have non-overlapping actor sets, or span
+  separate resource domains with no shared entity
+- If only one cluster is found (the common case), the check is silent —
+  no behavior change for a normal, single-scope input
+- If 2+ clusters are found, the agent stops and asks the user directly:
+  build it as **one feature** anyway, or **split it and build one at a
+  time** — the user's call, not an automatic decision
+- On a split: the chosen cluster continues through drafting as normal
+  (with `feature-name` re-derived from that cluster, not the original
+  all-encompassing description); every other cluster's raw notes are
+  saved to its own `.specify/contexts/{slug}.raw.md` so nothing is lost
+  and it can be picked up later with a plain `/create-context` run
+  pointed at that file
+- Single edit to the shared `create-context.prompt.md`, propagated to
+  all 5 packs
+
+### Verification
+- `cli-python` pytest suite: 102/102 passed
+- `packs/_shared/tests/test-setup.sh`: 15/15 passed
+- `packs/_shared/tests/assert-output.sh` against `examples/todo-api`: 33/33 passed
+
+---
+
 ## [2.7.8] — 2026-07-06 (Framework content — per-pack consistency audit, all 5 packs)
 
 ### Fixed — bugs introduced or surfaced by the 2.7.6/2.7.7 living-doc work

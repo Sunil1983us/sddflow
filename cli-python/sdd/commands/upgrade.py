@@ -230,6 +230,27 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.8"},
     },
+    {
+        "from":        "2.7.8",
+        "to":          "2.7.9",
+        "description": "Content release — no manifest schema changes",
+        "notes": [
+            "/create-context gains a Feature Size Check (Step 1.5): "
+            "before drafting context.md, it clusters the raw notes by "
+            "actor+goal and flags it if 2+ independently-shippable "
+            "capabilities were pasted in as one feature (e.g. \"submit "
+            "a payment\" + \"view a payments dashboard\")",
+            "If a split is found, the agent asks whether to treat it as "
+            "one feature or build one slice at a time — on a split, the "
+            "chosen slice's raw text continues through drafting as "
+            "normal, and every other slice's raw notes are saved to its "
+            "own .specify/contexts/{slug}.raw.md so nothing is lost and "
+            "it can be picked up later with /create-context",
+            "Re-copy the pack (or run sdd init over it) to pick up the "
+            "updated .github/prompts/create-context.prompt.md",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.9"},
+    },
 ]
 
 

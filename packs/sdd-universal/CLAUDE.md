@@ -10,7 +10,10 @@ If `.specify/contexts/{feature}.md` does not exist yet, or is empty/a
 placeholder, offer `/create-context`: the user pastes informal notes (any
 format), the agent drafts context.md against context-template.md, lists a
 plain-language "Missing Information" checklist, and iterates with the user
-until it's ready. See .github/prompts/create-context.prompt.md and
+until it's ready. If the notes actually describe more than one
+independently-shippable feature, the agent flags the split and asks
+whether to build them one at a time (Step 1.5 — Feature Size Check). See
+.github/prompts/create-context.prompt.md and
 .specify/contexts/CONTEXT-GUIDE.md. Skip this entirely if the user already
 has a structured context.md.
 

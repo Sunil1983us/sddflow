@@ -53,6 +53,74 @@ When this header is present the agent:
 If no header is present, the agent continues as normal and asks for the
 feature name if blank in manifest.
 
+## Step 1.5 — Feature Size Check
+
+Before mapping the input onto the full template, check whether it
+actually describes ONE feature-sized slice or several. Every document
+downstream — use-cases.md, srd.md, design.md, tasks.md, release.md — is
+authored per feature; cramming multiple independent capabilities into one
+context.md means they all inherit an oversized, tangled spec instead of
+each getting its own clean, reviewable slice.
+
+**Cluster the described actions by "actor + goal."** Signals that 2+
+clusters exist:
+- Each cluster is independently shippable — usable/testable on its own
+  without the other cluster existing yet (e.g. "submit a payment" vs.
+  "view a payments dashboard" — the dashboard doesn't block, or get
+  blocked by, the payment flow)
+- Actor sets barely overlap between clusters (a submission flow used by
+  "Customer"/"Payment Gateway" vs. a reporting flow used only by "Ops
+  Analyst")
+- Endpoints/screens span clearly separate resource domains with no
+  shared entity between them
+- The notes themselves use epic-style language — numbered phases, "and
+  also", a bullet list of otherwise-unrelated capabilities
+
+**If only one cluster is found** (the common case) — skip this step
+silently, continue to Step 2 with the full input.
+
+**If 2+ independently-shippable clusters are found** — STOP before
+drafting. Ask the user directly:
+
+> This looks like it describes **{N} separate features** rather than one:
+> 1. **{kebab-slug-1}** — {one-line description} (~{M} flows, {K} actions)
+> 2. **{kebab-slug-2}** — {one-line description} (~{M} flows, {K} actions)
+> {...}
+>
+> Smaller, independent features are easier to review, and — per this
+> pack's living-doc model — a second feature reuses/extends the first
+> one's data model, API surface, and security baseline instead of
+> duplicating them.
+>
+> Do you want this as **one feature** (reply "all"), or should I **split
+> it and build one at a time** (reply with the number to start with, or
+> "custom: {your own grouping}")?
+
+**If the user says "all":** proceed to Step 2 using the complete,
+unsplit input, exactly as if this step had found only one cluster. Do
+not raise the size check again for this same input.
+
+**If the user picks a cluster (or gives a custom split):**
+1. Continue Step 2 using only that cluster's portion of the raw input.
+2. Re-derive `feature-name`/`manifest.project.feature` from the CHOSEN
+   cluster, not the original all-encompassing description — and not the
+   `# specify:` header sentence if one was given, since that sentence
+   described the whole set, not this slice. Confirm the new name with
+   the user before saving, same as the header-derivation rule above.
+3. Save each OTHER cluster's raw text to
+   `.specify/contexts/{other-slug}.raw.md`, using the same header as
+   Step 5's raw-notes convention:
+   ```
+   # Pre-context notes — reference only
+   # Not read by /specify or any other SDD command (AI-2)
+   # Source for .specify/contexts/{other-slug}.md — regenerate via /create-context
+   ```
+4. Tell the user: "Building **{chosen-slug}** first. Reserved for later:
+   {other-slug-1}, {other-slug-2} — raw notes saved at
+   `.specify/contexts/{slug}.raw.md`. Run `/create-context` again
+   pointing at one of those files when you're ready to start it as its
+   own feature."
+
 ## Step 2 — Draft context.md
 Map the raw input onto every section of context-template.md:
   1. What This Service Does
@@ -222,3 +290,8 @@ with this header:
   confirming with the user first (offer to show a diff / merge instead)
 - Never read `.specify/contexts/{feature}.raw.md` in any command other than
   /create-context (AI-2 — it is reference-only)
+- Never silently split or silently combine a multi-capability input —
+  Step 1.5 always surfaces the split option and waits for the user's
+  choice ("all" vs. a specific slice) before drafting
+- Never discard a deferred cluster's raw notes when splitting — always
+  save each one to its own `.specify/contexts/{other-slug}.raw.md` first
