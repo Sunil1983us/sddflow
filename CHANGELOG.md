@@ -4,6 +4,72 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.10] — 2026-07-06 (Bug fix — /change living-document handling, all 5 packs)
+
+### Fixed — found via live end-to-end dogfooding of a two-feature service
+
+Built a real two-feature scenario (an `instant-payment` service +
+`payment-dashboard`, sharing one data model/API surface/security
+baseline) to exercise `/create-context`'s Feature Size Check and the
+living-doc mechanism end to end, then specifically stress-tested how
+`/change` behaves once a service has more than one feature. This surfaced
+two real bugs:
+
+- **Stale path assumption**: `/change`'s Stage Detection (`Step 3`) scanned
+  only `.specify/features/{feature}/` to determine which documents exist.
+  `context.md` has always lived at `.specify/contexts/{feature}.md`, and
+  `data-model.md`/`security-design.md`/`api-spec.md`/`component-library.md`
+  have lived at `.specify/service/{doc}.md` since the living-document
+  mechanism shipped in `2.7.6` — neither location was ever checked. A CR
+  touching any of these could be reported as "not yet created" even though
+  the document existed and was approved, meaning the CR's real impact was
+  never assessed or shown to the reviewer.
+- **No cross-feature impact awareness**: even with paths resolved
+  correctly, nothing checked whether a *different* feature depends on the
+  specific unit (entity, endpoint, threat, component) being changed in a
+  shared living document. A CR raised against one feature that happens to
+  touch a unit another feature owns could be silently approved with zero
+  indication that the sibling feature is affected — because that feature's
+  own `srd.md`/`design.md` are never read during a `/change` session
+  scoped to the feature that raised the CR.
+
+### Added
+
+- `change.prompt.md` Step 3 now resolves each document's real location
+  (a lookup table for the four exceptions) before concluding anything
+  "does not exist yet"
+- New "Special handling — when the document being walked is a living
+  document" section: before proposing an UPDATE/RERUN to a living
+  document, `/change` reads its `## Version History`, identifies which
+  feature last touched the affected unit, and — if it's a different
+  feature than the one raising this CR — includes an explicit
+  cross-feature warning in the same proposal (advisory, not a hard block;
+  verified this does not fire on same-feature edits — no false positives)
+- `changeset-template.md` and `change-rules.md` (all 5 packs) updated to
+  document the real file locations and the cross-feature impact rule
+- Fixed the identical stale-path bug in `packs/_shared/tests/assert-output.sh`'s
+  own `data-model.md`/`security-design.md exists` checks — this had been
+  silently wrong since `2.7.6` because the only CI-exercised worked example
+  (`examples/todo-api`) runs at `pilot` scope, which skips those checks
+  entirely
+
+### Verification
+- Full live simulation: two features built end to end (context → BRD →
+  use-cases → SRD → living data-model/security-design/api-spec → design →
+  tasks), confirming Actor Registry reuse, NFR baseline reference, and
+  living-doc walk-and-diff all work as designed
+- `/change` cross-feature warning confirmed to fire correctly on a
+  genuine cross-feature case (a status-enum change originating in one
+  feature, raised as a CR from another) and confirmed *not* to fire on a
+  same-feature edit
+- `cli-python` pytest suite: 102/102 passed
+- `packs/_shared/tests/test-setup.sh`: 15/15 passed
+- `packs/_shared/tests/assert-output.sh` against `examples/todo-api`
+  (pilot): 33/33 passed; against the new mvp-scope test feature: the
+  fixed `data-model.md exists (living doc)` check now correctly passes
+
+---
+
 ## [2.7.9] — 2026-07-06 (Framework content — /create-context, all 5 packs)
 
 ### Added — Feature Size Check in `/create-context`

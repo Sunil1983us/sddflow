@@ -251,6 +251,45 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.9"},
     },
+    {
+        "from":        "2.7.9",
+        "to":          "2.7.10",
+        "description": "Bug fix — /change living-document handling, no manifest schema changes",
+        "notes": [
+            "Fixed: /change's Stage Detection scanned only "
+            ".specify/features/{feature}/ for every document, but "
+            "context.md (.specify/contexts/) and data-model.md/"
+            "security-design.md/api-spec.md/component-library.md "
+            "(.specify/service/, living since 2.7.6) never lived there — "
+            "a CR could report all four as \"not yet created\" even when "
+            "they existed and were approved, hiding the CR's real impact "
+            "entirely",
+            "Added: cross-feature impact check for living documents — "
+            "before /change approves an UPDATE/RERUN to data-model.md/"
+            "security-design.md/api-spec.md/component-library.md, it now "
+            "checks the Version History to see which feature last "
+            "touched the specific unit being changed. If a different "
+            "feature than the one raising the CR touched it, the "
+            "proposal includes an explicit warning naming that feature "
+            "and what to check — advisory, not a hard block",
+            "changeset-template.md rows for the three/four living "
+            "documents now note their real (.specify/service/) location, "
+            "with a new line explaining how to record cross-feature "
+            "impact in the walk table",
+            "change-rules.md (all 5 packs) documents the same real file "
+            "locations and the cross-feature impact rule",
+            "Fixed the same stale-path bug in the test harness itself — "
+            "packs/_shared/tests/assert-output.sh checked data-model.md/"
+            "security-design.md under the feature directory; it now "
+            "checks .specify/service/ — this had been silently wrong "
+            "since 2.7.6 because the only CI-exercised example runs at "
+            "pilot scope, which skips those checks entirely",
+            "Re-copy the pack (or run sdd init over it) to pick up the "
+            "updated .github/prompts/change.prompt.md and "
+            "changeset-template.md",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.10"},
+    },
 ]
 
 

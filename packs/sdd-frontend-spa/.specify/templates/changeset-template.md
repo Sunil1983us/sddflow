@@ -28,14 +28,14 @@
 
 | # | Document | Exists? | Action | Sections Affected | Approved |
 |---|---|---|---|---|---|
-| 1 | context.md | Yes / No | SKIP / ANNOTATE / UPDATE / RERUN / INCORPORATE | {sections or —} | [ ] / — |
+| 1 | context.md (`.specify/contexts/`) | Yes / No | SKIP / ANNOTATE / UPDATE / RERUN / INCORPORATE | {sections or —} | [ ] / — |
 | 2 | constitution.md (Part 2) | Yes / No | {action} | {sections or —} | [ ] / — |
 | 3 | brd.md | Yes / No | {action} | {sections or —} | [ ] / — |
 | 4 | use-cases.md | Yes / No | {action} | {sections or —} | [ ] / — |
 | 5 | srd.md | Yes / No | {action} | {sections or —} | [ ] / — |
-| 6 | security-design.md | Yes / No | {action} | {sections or —} | [ ] / — |
-| 7 | api-spec.md | Yes / No | {action} | {sections or —} | [ ] / — |
-| 8 | data-model.md | Yes / No | {action} | {sections or —} | [ ] / — |
+| 6 | security-design.md (living — `.specify/service/`) | Yes / No | {action} | {sections or —} | [ ] / — |
+| 7 | api-spec.md (living — `.specify/service/`, if this pack provides an API) | Yes / No | {action} | {sections or —} | [ ] / — |
+| 8 | data-model.md (living — `.specify/service/`) | Yes / No | {action} | {sections or —} | [ ] / — |
 | 9 | validate.md | Yes / No | {action} | {sections or —} | [ ] / — |
 | 10 | analyze.md | Yes / No | {action} | {sections or —} | [ ] / — |
 | 11 | clarify.md | Yes / No | {action} | {sections or —} | [ ] / — |
@@ -52,6 +52,12 @@
 - **INCORPORATE** — Document not yet created; CR is automatically built in when that document is generated
 
 **Ripple-Forward Rule:** Documents earlier in the chain that are already approved are ANNOTATED only (not re-approved unless the CR directly invalidates them). Documents later in the chain that are not yet created will INCORPORATE the CR automatically.
+
+**Cross-feature impact (living documents only, rows 6–8):** if the unit
+being changed in a living document was last touched by a *different*
+feature than the one raising this CR, note it in that row's "Sections
+Affected" cell, e.g. `§4 Endpoints (cross-feature: instant-payment)` — see
+`change.prompt.md`'s living-document special handling.
 
 ---
 
