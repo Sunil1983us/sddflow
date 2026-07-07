@@ -811,6 +811,40 @@ Tell agent: "Summary rules updated — re-read summary-rules.md"
 
 ---
 
+## Token Usage Logging (optional, self-estimated)
+
+**What:** A per-feature running log of estimated token usage and cost,
+one row appended after every command. Off by default.
+
+**Enable it:** `cp .specify/memory/token-pricing.yml.example .specify/memory/token-pricing.yml`,
+then fill in current $/million-token rates from your provider's own
+pricing page (they ship as `null` — this framework has no way to fetch
+live pricing). From the next command onward, the agent creates
+`.specify/features/{feature}/token-usage.md` (from
+`token-usage-template.md`) and appends a row each time.
+
+**What each row contains:** command name, model, estimated input tokens,
+estimated output tokens, estimated cost, timestamp — plus a running-total
+table at the top of the file.
+
+**Important limits — read before trusting the numbers:**
+- **Estimated, not measured.** No AI tool this framework supports (Claude
+  Code, Copilot, Cursor, Windsurf, or copy-paste "any AI") exposes an API
+  for an agent to introspect its own exact token consumption. Every
+  number is approximated as `characters ÷ 4`, which ignores
+  prompt-caching, tool overhead, and model-specific tokenization — real
+  usage is typically higher.
+- **Cost is only as current as your pricing file.** If a model has no row,
+  or the row still has `null` rates, the cost column shows
+  `token-pricing.yml`'s `unknown_model_fallback` text instead of a number.
+- **Good for relative comparison** (which command or feature costs more
+  than another), **not for reconciling against your actual invoice.**
+
+**Disable it:** delete or rename `.specify/memory/token-pricing.yml` —
+logging stops immediately; nothing else in the pipeline depends on it.
+
+---
+
 ## Workflow Mode — GitHub or Local
 
 ```yaml

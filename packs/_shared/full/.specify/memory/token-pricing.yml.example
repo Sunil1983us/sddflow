@@ -1,0 +1,54 @@
+# .specify/memory/token-pricing.yml.example
+# Reference pricing for the "Est. Cost" column in
+# .specify/features/{feature}/token-usage.md.
+#
+# Copy this file to .specify/memory/token-pricing.yml to turn on
+# token-usage logging (see "Token Usage Logging" in CLAUDE.md and
+# HOW-TO-USE.md). Logging is OFF by default — the agent only starts
+# appending rows to token-usage.md once the real (non-.example) file
+# exists here.
+#
+# IMPORTANT — prices below are NOT filled in. They change over time and
+# vary by provider, and this framework has no way to fetch them live.
+# Fill in current rates from each provider's own pricing page before
+# trusting the "Est. Cost" column for anything. Re-verify periodically —
+# a stale rate produces a confidently wrong-looking number, which is
+# worse than "n/a". Set last_verified so staleness is visible at a glance.
+#
+# Rate unit: USD per 1,000,000 tokens.
+
+models:
+  claude-sonnet-5:
+    input_per_million:  null   # [FILL IN — see anthropic.com/pricing]
+    output_per_million: null   # [FILL IN]
+    last_verified: null        # [FILL IN — e.g. "2026-07-01"]
+
+  claude-opus-4-8:
+    input_per_million:  null
+    output_per_million: null
+    last_verified: null
+
+  claude-haiku-4-5:
+    input_per_million:  null
+    output_per_million: null
+    last_verified: null
+
+  claude-fable-5:
+    input_per_million:  null
+    output_per_million: null
+    last_verified: null
+
+  # Add one row per model you actually use with this framework — copy the
+  # shape above. Common examples (uncomment and fill in if you use them):
+  # gpt-4o:
+  #   input_per_million:  null
+  #   output_per_million: null
+  #   last_verified: null
+  # gemini-1.5-pro:
+  #   input_per_million:  null
+  #   output_per_million: null
+  #   last_verified: null
+
+# Used verbatim in token-usage.md when the active model has no row above,
+# or has null rates, or this file doesn't exist at all.
+unknown_model_fallback: "n/a — add/fill in this model's rates in token-pricing.yml"
