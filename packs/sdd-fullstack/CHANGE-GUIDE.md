@@ -26,6 +26,13 @@ Examples:
 /change "scope upgrade from pilot to mvp — add api-spec and data-model (both living, service-level)"
 ```
 
+**On a multi-feature project — which feature does the CR target?**
+By default, `/change` always targets whichever feature `.specify/manifest.yml → project.feature` currently names — it never asks you to pick, and it never scans other features to guess. If you need to raise a CR against a *different* feature without first editing `manifest.yml` (and remembering to switch it back), use:
+```
+/change --feature payments-dashboard "add a discount field to the Payment entity"
+```
+This targets `payments-dashboard` for this one CR only — `manifest.yml` is never read or written for feature selection in this mode, so every other command you run afterward is unaffected. If the named feature doesn't exist under `.specify/features/`, the agent stops and lists the features it actually found, rather than silently falling back to the manifest default. The registered-CR message always states which feature was targeted, so you can confirm it before the document walk starts.
+
 The agent:
 1. **Classifies** the CR type (one of 8 — see table below)
 2. **Detects current stage** from documents that exist — most live at

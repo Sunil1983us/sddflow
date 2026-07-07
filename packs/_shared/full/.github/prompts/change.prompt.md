@@ -11,23 +11,48 @@ You are **Maya** (BA) + **Leo** (Tech Lead) working as a pair on a controlled ch
 
 ## Input
 
-CR description from $ARGUMENTS.
+`/change {description}` — CR description from $ARGUMENTS, targets whichever
+feature `.specify/manifest.yml → project.feature` currently names.
 
-If $ARGUMENTS is empty, ask:
+`/change --feature {slug} {description}` — same, but targets `{slug}`
+for this invocation only (must match an existing directory under
+`.specify/features/`). Does not read or write `manifest.yml` — every
+other command you run afterward still uses whatever feature
+`manifest.yml` names, unchanged. Use this on multi-feature projects to
+raise a CR against a feature that isn't the currently-active one,
+without having to edit `manifest.yml` first and switch it back after.
+
+If `--feature {slug}` is given but no such directory exists under
+`.specify/features/`, stop and state:
+> "No feature named '{slug}' found under .specify/features/. Existing
+> features: {list the actual subdirectory names found there}."
+Do not fall back to `manifest.yml`'s feature in this case — ask the user
+to correct the slug or omit `--feature` to use the default.
+
+If, after removing any `--feature {slug}` token, the remaining
+description is empty, ask:
 > "Describe the change — what needs to change, why, and who is raising it? Include as much context as you have (missing requirement, wrong field, new regulation, discovered bug, etc.)"
 
 ---
 
 ## Step 1 — Register the CR
 
+Resolve the target feature:
+- `--feature {slug}` given → target = `{slug}`
+- otherwise → target = `.specify/manifest.yml → project.feature`
+
 Read:
-- `.specify/manifest.yml` — feature name, scope, current project_type
+- `.specify/manifest.yml` — scope, current project_type (feature name
+  only used if no `--feature` override was given)
 - `.specify/memory/change-rules.md` — Change Impact Matrix and dependency chain
 - `.specify/memory/constitution.md` — Part 2 domain context (tech stack, domain rules)
 
-Scan `.specify/features/{feature}/changesets/` for existing CR-NNN files.
+Scan `.specify/features/{target feature}/changesets/` for existing CR-NNN files.
 If the `changesets/` directory does not exist, treat it as empty — do NOT create it yet (it is created in Step 7).
-Assign: **CR-{NNN}** — next available number (CR-001 if no prior changesets).
+Assign: **CR-{NNN}** — next available number (CR-001 if no prior changesets), numbered independently per feature.
+
+State the resolved feature explicitly as part of registering the CR (see
+Step 2) so the user can catch a wrong target before the walk starts.
 
 ---
 
@@ -49,7 +74,7 @@ Analyse the description. Assign ONE primary type (and optionally one secondary):
 If the CR spans two types (e.g. new payment integration = Technical + Security), classify the PRIMARY and note the secondary.
 
 State clearly:
-> "**CR-{NNN} registered**
+> "**CR-{NNN} registered — feature: {target feature}**{ (overridden via --feature, manifest.yml still points to {manifest feature}) if an override was given}
 > Type: {primary type} {(+ secondary type if any)}
 > Description: {1-sentence plain-language summary}
 > Raised at: {current stage detected from existing documents}"
@@ -253,7 +278,8 @@ narrowed to one specific slice).
 
 **Signals this has happened (look for both):**
 - The new §1 description no longer contains the specific nouns the
-  current feature slug (`manifest.project.feature`) was built from —
+  target feature's slug (resolved in Step 1 — `manifest.project.feature`,
+  or the `--feature` override if one was given) was built from —
   e.g. slug `pain001-pacs008-parser`, new §1 talks about "any ISO 20022
   message pair"; the two specific message names the slug was named after
   are gone from the description
@@ -267,7 +293,7 @@ automatically:
 Scope-change detected: this CR broadens/narrows the feature well beyond
 what its current name describes.
 
-Current feature slug     : {manifest.project.feature}
+Current feature slug     : {target feature}
 New scope (from context.md §1): {1-sentence paraphrase of the new description}
 Suggested new slug       : {kebab-case name derived from the new §1}
 
@@ -282,8 +308,14 @@ of this CR, then continue the document walk:
 1. `git mv .specify/features/{old-slug} .specify/features/{new-slug}`
 2. `git mv .specify/contexts/{old-slug}.md .specify/contexts/{new-slug}.md`
    (and `{old-slug}.raw.md`, if it exists)
-3. Update `manifest.yml`: `project.feature` and `project.context_file` to
-   the new slug
+3. **Only if `manifest.yml → project.feature` currently equals
+   `{old-slug}`** (i.e. this CR was raised against the manifest's own
+   active feature, not via a `--feature` override targeting a different
+   one): update `manifest.yml`'s `project.feature` and `project.context_file`
+   to the new slug. If a `--feature` override targeted a feature other
+   than the one `manifest.yml` currently names, leave `manifest.yml`
+   untouched — this rename must not silently switch which feature is
+   "active" for every other command.
 4. Grep the renamed directory for the literal old slug string
    (`grep -rl "{old-slug}" .specify/features/{new-slug}/`) and flag any
    hits for the user to review — most cross-links are relative and won't
