@@ -58,11 +58,11 @@ derivable state stored explicitly.
 blocking I/O on hot path, large closure capturing full enclosing scope.
 
 **G Threat-model conformance [HIGH]** — only if
-`.specify/features/{feature}/security-design.md` exists: read its §1 threat
-table (TH-NNN) and check the diff against each mitigation that touches the
-changed files (auth checks, ownership scoping, input limits, log content).
-A diff that weakens or bypasses a listed mitigation is a finding — cite the
-TH-NNN id.
+`.specify/service/security-design.md` exists (living, service-level —
+shared across every feature): read its §1 threat table (TH-NNN) and check
+the diff against each mitigation that touches the changed files (auth
+checks, ownership scoping, input limits, log content). A diff that
+weakens or bypasses a listed mitigation is a finding — cite the TH-NNN id.
 
 **H Test-first evidence [MEDIUM]** — only if `manifest.testing_style: tdd`:
 verify the task's commits include a test-only red commit

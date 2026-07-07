@@ -30,7 +30,7 @@ touching the next document.
 | 2 | `/specify-brd` | Business Requirements Document | GATE-1 passed |
 | 3 | `/specify-uc` | Use Case Specification (Actors + UC-NNN) | BRD approved |
 | 4 | `/specify-srd` | Software Requirements Document | Use cases approved |
-| 5 | `/specify-doc {name}` | Extended docs: security, api-spec, data-model, resilience… | SRD approved |
+| 5 | `/specify-doc {name}` | Extended docs: security, data-model (both living, `.specify/service/`), screen-spec, ux-flow, resilience… | SRD approved |
 | 6 | `/checklist` | Spec quality gate (mandatory mvp+, optional pilot) | After specify docs |
 | 7 | `/validate` | Business sign-off on BRD + SRD | GATE-1 passed |
 | 8 | `/analyze` | Risks, dependencies, complexity | validate.summary.md exists |
@@ -59,6 +59,13 @@ credit card transactions for the checkout flow, integrated with Stripe
 ```
 The agent extracts the feature name and seeds §1 "What This Service Does" from it.
 
+**Feature Size Check (Step 1.5):** before drafting, the agent checks
+whether your notes actually describe 2+ independently-shippable features
+rather than one. If so, it asks whether to build them one at a time —
+the chosen feature proceeds as normal, and every other feature's raw
+notes are saved to `.specify/contexts/{slug}.raw.md` for a later
+`/create-context` run.
+
 ---
 
 ## /specify — Five Sub-Commands
@@ -72,20 +79,28 @@ time using dedicated sub-commands.
 | `/specify-brd` | Business Requirements Document | GATE-1 passed |
 | `/specify-uc` | Use Case Specification (Actors + UC-NNN with MP/AP/EP) | BRD approved |
 | `/specify-srd` | Software Requirements Document | Use cases approved |
-| `/specify-doc {name}` | security / api-spec / data-model / resilience / investigation / ux-flow / component-spec / screen-spec | SRD approved |
+| `/specify-doc {name}` | security / data-model / screen-spec / ux-flow / resilience / investigation — `security` and `data-model` are **living, app-level** documents at `.specify/service/`, extended by every feature after the first (SKIP/ADD-unit/UPDATE-unit), never regenerated. `api-spec` is NOT one of these — this pack only consumes an API, so its contract stays per-feature in `design.md` §3. | SRD approved |
 
 **Constitution Part 2 contents:**
-Tech Stack (Language, Framework, Build Tool, API Style, Messaging/Async, Serialisation,
-Schema, Data Store, Data Cache, DB Migration, Configuration, Secrets, Resilience,
-Observability, Logging, Testing, Coverage Gate, Quality/Security, Orchestration, CI/CD)
-+ Core Principles, Domain Rules, Never Do
+Tech Stack (Language/Framework, Navigation, State Management, Local Storage/DB, API
+Client, Push Notifications, Crash/Analytics, Build Tool, Testing, Coverage Gate,
+Quality/Security, CI/CD, App Store Distribution) + App NFR Baseline (Cold Start
+Time/Offline Sync Latency/Crash-Free Rate/App Size — filled once by the first feature
+to reach `/specify-srd`, referenced by every later feature instead of restating the
+same numbers) + Core Principles, Domain Rules, Never Do
 
 **Spec document inventory by scope:**
 ```
 pilot: brd → use-cases → srd → security-design (§1)
-mvp:   + api-spec → data-model → security-design (§1-2)
+mvp:   + screen-spec → ux-flow → data-model → security-design (§1-2)
 full:  + resilience → investigation → security-design (§1-4)
 ```
+`data-model.md` and `security-design.md` are **living, app-level**
+documents at `.specify/service/` — the first feature creates them, every
+later feature extends them (SKIP/ADD-unit/UPDATE-unit), never regenerated
+from a blank template. `/specify-uc` also reuses an actor already defined
+in another feature's `use-cases.md` (same real-world role) instead of
+re-deriving it.
 
 ---
 
@@ -146,16 +161,22 @@ Reviewer: **Tech Lead** (accountable) + **Architect** (consulted, mvp+)
 **Gate:** `clarify.summary.md` exists, all RESOLVED + no unresolved [ASSUMPTION-NNN]
 
 Produces `design.md` — single document covering:
-- Architecture decisions (component map, technology choices)
+- Architecture decisions (component map, technology choices) — established
+  once by the first feature; later features reference it ("unchanged from
+  {feature}, see there") instead of re-deriving the same pattern/layers/
+  cross-cutting concerns
 - Sequence / flow diagrams (Mermaid)
-- API Design: endpoints, request/response shapes, error codes
+- API Design (§3): the full API contract this feature consumes, written
+  directly here per-feature (this pack only consumes an API — there is no
+  living api-spec.md)
 - ADR entries (Architecture Decision Records)
 - NFR → technology decision mapping
 
 Reviewer: Architect + Tech Lead + stakeholders (all scopes)
 
-> `design.md` replaces the former `arch.md`, `hld.md`, `api-spec.md`, and `adr.md`.
-> `/plan-arch`, `/plan-hld`, `/plan-adr` redirect to `/plan-design` for backwards compatibility.
+> `design.md` replaces the former `arch.md`, `hld.md`, and `adr.md`.
+> `/plan-arch`, `/plan-hld`, `/plan-adr` redirect to `/plan-design` for
+> backwards compatibility.
 
 ---
 
@@ -186,7 +207,7 @@ Reviewer: Senior developer
 /create-context (if needed)
 → /specify → [GATE-1]
 → /specify-brd → /specify-uc → /specify-srd
-→ /specify-doc security → /specify-doc api-spec → /specify-doc data-model
+→ /specify-doc security → /specify-doc screen-spec → /specify-doc ux-flow → /specify-doc data-model
 → /checklist (mandatory)
 → /validate → /analyze → /clarify
 → /plan-design (review) → /plan-lld (review)
@@ -230,18 +251,26 @@ Per task:
 
 ---
 
-## /release — UAT, Deployment, Go-Live
+## /release — UAT, Store Release, Go-Live
 
 Runs after all tasks complete.
 
 1. Pre-Release Checklist (tests green, coverage, security evidence, traceability)
-2. UAT Plan — UC-NNN → tester → environment prerequisites → result
-3. Deployment Strategy — rolling / blue-green / canary (decision table keyed to NFRs)
-4. Deployment Steps — each with owner + rollback-if-fails
-5. Post-Deploy Smoke Test (including APM/monitoring checks)
-6. Go-Live Gate — Tech Lead / Product Owner / DevOps-SRE: Go / No-Go
-7. Business Objective Closure — BO-NNN → measured result → met?
-8. Rollback Plan — full step table
+2. UAT Plan — UC-NNN → tester → device/OS target → environment → result
+3. Store Release Plan — the release strategy and rollback steps are
+   standard for this app, not re-derived per release: pulled from
+   `docs/runbook/local-setup.md` (living document, established once) —
+   build + sign, staged rollout percentage, TestFlight phase, OTA update
+   push (CodePush/EAS, if applicable)
+4. Post-Release Smoke Test — the checks themselves are standard, pulled
+   from the runbook; only this release's specific happy-path screen flow
+   and NFR target are filled in — app launch + cold start check, crash-free
+   rate check (Crashlytics/Play Vitals)
+5. Go-Live Gate — Tech Lead / Product Owner / DevOps-SRE: Go / No-Go
+6. Business Objective Closure — BO-NNN → measured result → met?
+7. Rollback Plan — summary, points to `docs/runbook/local-setup.md` §6
+   for full detail (staged rollout halt, OTA rollback, store-listing
+   rollback / emergency hotfix path)
 
 ---
 
@@ -290,7 +319,7 @@ See `CHANGE-GUIDE.md` for the full CR type matrix and examples.
 - [ ] `/specify-uc` — Use Cases reviewed by BA + PO
 - [ ] `/specify-srd` — SRD reviewed by BA
 - [ ] `/specify-doc security` — security-design reviewed by Security Officer
-- [ ] Additional `/specify-doc` calls for api-spec, data-model (mvp+), resilience (full)
+- [ ] Additional `/specify-doc` calls for screen-spec, ux-flow, data-model (mvp+, living), resilience (full)
 
 ### GATE-1
 - [ ] Every Part 2 row reviewed, `[MISSING]` markers resolved
@@ -337,11 +366,11 @@ See `CHANGE-GUIDE.md` for the full CR type matrix and examples.
 - [ ] Paired test every PR
 - [ ] Pre-review run, findings addressed
 - [ ] Tests passing before merge
-- [ ] qa-testcases / runbook generated (mvp+), openapi (full)
+- [ ] qa-testcases / runbook generated (mvp+) — no openapi.yaml in this pack (consumer-only, no API to document)
 
 ### /release
-- [ ] Pre-release checklist green (including monitoring/APM evidence)
+- [ ] Pre-release checklist green (including crash/analytics evidence)
 - [ ] UAT plan executed, sign-off recorded
-- [ ] Deployment strategy selected, steps + rollback reviewed
+- [ ] Store release plan confirmed standard (or deviation noted), rollback reviewed
 - [ ] Go-live gate: all roles "Go"
 - [ ] Business objective closure recorded

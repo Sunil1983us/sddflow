@@ -135,6 +135,8 @@ A detailed guide for every command: what it is, exactly when to run it, what it 
 
 **What:** You paste informal notes (emails, Confluence pages, rough bullets); the agent drafts a structured `context.md`. For Endpoints and NFRs it also proposes scope-appropriate starting defaults (marked `SUGGESTED DEFAULT`) instead of leaving them blank, then lists a plain-language review checklist split into "confirm or edit these defaults" and "still need your input." You iterate until complete.
 
+Before drafting, a **Feature Size Check** (Step 1.5) looks for signs your notes actually describe 2+ independently-shippable features rather than one. If found, it asks whether to build them one at a time — the chosen feature proceeds as normal, and every other feature's raw notes are saved to `.specify/contexts/{slug}.raw.md` for a later `/create-context` run.
+
 **When to run:** Before `/specify`, only if you do not already have a `.specify/contexts/{feature}.md`.
 
 **Produces:** `.specify/contexts/{feature}.md`
@@ -235,7 +237,7 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 #### `/specify-uc` — Use Case Specification
 
-**What:** Writes the Use Case Specification. Identifies all actors (ACT-NNN), defines use cases (UC-NNN), and documents the Main Path, Alternative Paths (AP-NNN-X), and Exception Paths (EP-NNN-X) for each.
+**What:** Writes the Use Case Specification. Identifies all actors (ACT-NNN), defines use cases (UC-NNN), and documents the Main Path, Alternative Paths (AP-NNN-X), and Exception Paths (EP-NNN-X) for each. An actor already defined in another feature's `use-cases.md` (same real-world role) is reused, not re-derived — its description carries over, only the local ACT-NNN numbering is fresh.
 
 **When to run:** After BRD is approved.
 
@@ -251,7 +253,7 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 #### `/specify-srd` — Software Requirements Document
 
-**What:** Writes the Software Requirements Document. Defines Functional Requirements (FR-NNN), Non-Functional Requirements (NFR-NNN), acceptance scenarios for every FR, and Security Design §1 (threat model basics).
+**What:** Writes the Software Requirements Document. Defines Functional Requirements (FR-NNN), Non-Functional Requirements (NFR-NNN), acceptance scenarios for every FR, and Security Design §1 (threat model basics). The first feature to reach this command fills constitution.md's Service NFR Baseline — split Backend (Performance/Availability/...) and Frontend (Load Time/Interactivity/...) tables; every later feature references that baseline instead of restating the same numbers, and only adds its own NFR-NNN row for something genuinely different.
 
 **When to run:** After Use Cases are approved.
 
@@ -385,10 +387,10 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 #### `/plan-design` — Architecture + API Design + ADRs
 
 **What:** Unified design document. Generates:
-- System architecture (hexagonal / layered / event-driven — derived from context)
-- Component / service decomposition
+- System architecture (hexagonal / layered / event-driven — derived from context) — established once by the first feature; later features reference it ("unchanged from {feature}, see there") instead of re-deriving the same pattern/layers/cross-cutting concerns
+- Component / service decomposition (backend + frontend)
 - Sequence diagrams for all critical flows (including exception paths)
-- API design (endpoints, request/response schemas, error codes)
+- API design (§3): this feature's new/changed endpoints only — the full, current API surface is extracted into the living `.specify/service/api-spec.md`, never restated here in full
 - Architecture Decision Records (ADR-NNN) — one per major technology decision
 
 **When to run:** After `clarify.md` all RESOLVED and no unresolved `[ASSUMPTION-NNN]` in any spec doc.

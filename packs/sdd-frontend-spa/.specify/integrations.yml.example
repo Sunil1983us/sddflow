@@ -132,7 +132,15 @@ confluence:
 #   Server/DC: use the Jira username (login name)
 #             Note: change "accountId" to "name" in the CLI if using Server/DC
 
-# The doc keys below match the .md filenames in .specify/features/{feature}/.
+# The doc keys below match the .md filenames — most live in
+# .specify/features/{feature}/; two exceptions: `runbook` lives at
+# docs/runbook/local-setup.md, and living/service-level documents
+# (data-model, security-design, api-spec, component-library — shared
+# across every feature in this service, see CLAUDE.md "Living
+# Documents") live at .specify/service/. This example only wires up the
+# main spec-phase gate (brd/use-cases/srd/design/lld/tasks/runbook/
+# release) — add entries here for any other document you want a Jira/
+# Confluence review gate on.
 # The specify-phase sequence depends on plan_mode (manifest.yml):
 #   unified  (default): BRD → Use Cases → SRD → Design       (design.md)
 #   separate:           BRD → Use Cases → SRD, then in the planning phase

@@ -1,6 +1,6 @@
 # Frontend State & Storage Model
 # App: {App Name}
-> Version: 1.0 | Date: {date} | Scope: Full
+> Version: 1.0 | Date: {date} | Scope: MVP+
 >
 > **Living document** — describes the whole app's global state shape and
 > browser storage usage, not one feature. Lives at

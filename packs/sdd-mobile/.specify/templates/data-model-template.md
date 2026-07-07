@@ -1,6 +1,6 @@
 # Local Data & Cache Model
 # App: {App Name}
-> Version: 1.0 | Date: {date} | Scope: Full
+> Version: 1.0 | Date: {date} | Scope: MVP+
 >
 > **Living document** — describes the whole app's local schema (tables,
 > key-value entries, sync outbox), not one feature. Lives at

@@ -75,7 +75,7 @@ Sequence: BRD → Use Cases → SRD → Design (specify) · LLD (planning) · Ta
 - /plan-lld → skip (state: pilot scope)
 - /specify-doc screen-spec → skip (state: pilot scope)
 - /specify-doc ux-flow → skip (state: pilot scope)
-- /specify-doc data-model → skip (full scope only)
+- /specify-doc data-model → skip (state: pilot scope)
 - /specify-doc resilience → skip (state: pilot scope)
 
 ## AI-7 — Apply Glob-Scoped Instructions

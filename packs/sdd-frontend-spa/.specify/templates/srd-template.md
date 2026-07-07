@@ -22,11 +22,14 @@
 
 ## 3. Non-Functional Requirements
 
-{First feature to reach /specify-srd: "Establishes the service NFR
-baseline — see constitution.md → Service NFR Baseline."}
-{Later feature: "Baseline (constitution.md → Service NFR Baseline):
-{Performance/Availability/Throughput/Data Retention values} — applies to
-this feature too, no change."}
+{First feature to reach /specify-srd: "Establishes the NFR baseline —
+see constitution.md → {Service NFR Baseline | App NFR Baseline —
+use this pack's actual heading}."}
+{Later feature: "Baseline (constitution.md → {Service NFR Baseline |
+App NFR Baseline — use this pack's actual heading}): {baseline category
+values, e.g. Performance/Availability/Throughput/Data Retention or
+Load Time/Bundle Size/Interactivity — use this pack's actual categories}
+— applies to this feature too, no change."}
 
 | ID | Category | Requirement |
 |---|---|---|

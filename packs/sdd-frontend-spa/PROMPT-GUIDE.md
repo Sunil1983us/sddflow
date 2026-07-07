@@ -16,16 +16,19 @@
 |---|---|---|---|
 | `/create-context` (optional) | `/create-context` | `/create-context` | Turn informal notes into context.md |
 | Startup | `/start` | Step 0 | Read files + confirm |
-| `/specify` | `/specify` | `/specify` | Constitution Part 2 (DRAFT) + spec docs |
+| `/specify` | `/specify` | `/specify` | Constitution Part 2 (DRAFT) only |
 | **GATE-1** | Manual | Manual | You review + finalize constitution Part 2 |
+| `/specify-brd` | `/specify-brd` | `/specify-brd` | Business Requirements Document |
+| `/specify-uc` | `/specify-uc` | `/specify-uc` | Use Case Specification (Actors + MP/AP/EP) |
+| `/specify-srd` | `/specify-srd` | `/specify-srd` | Software Requirements Document |
+| `/specify-doc {name}` | `/specify-doc {name}` | `/specify-doc {name}` | One extended doc per run: security, component-spec, ux-flow, data-model, resilience, investigation |
 | `/checklist` (optional) | `/checklist` | `/checklist` | Spec-quality validation (CHK-NNN) |
-| `/validate` | `/validate` | `/validate` | Business sign-off on BRD/SRD |
+| `/validate` | `/validate` | `/validate` | Business sign-off on BRD/Use Cases/SRD |
 | `/analyze` | `/analyze` | `/analyze` | Risks + complexity |
 | `/clarify` | `/clarify` | `/clarify` | Questions → you answer |
-| `/plan-design` | `/plan-design` | `/plan-design` | Component architecture + plan + refine scope docs |
-| `/plan-design` | `/plan-design` | `/plan-design` | HLD + diagrams |
-| `/plan-lld` | `/plan-lld` | `/plan-lld` | LLD (mvp+ only) |
-| `/plan-design` | `/plan-design` | `/plan-design` | ADRs (mvp+ only) |
+| `/plan-design` (unified mode) | `/plan-design` | `/plan-design` | Architecture + diagrams + API contribution note + ADRs — one document |
+| `/plan-arch` → `/plan-hld` → `/plan-adr` (separate mode) | same | same | Same content as `/plan-design`, split into three reviewed-individually documents |
+| `/plan-lld` | `/plan-lld` | `/plan-lld` | LLD — class/sequence diagrams (mvp+ only) |
 | `/task` | `/task` | `/task` | Stories + Tasks + Jira |
 | `/implement` | `/implement TASK-NNN` | `/implement TASK-NNN` | Code one task |
 | `/release` | `/release` | `/release` | UAT + deployment + go-live gate |
@@ -52,19 +55,30 @@
 ## Claude Code Native Slash Commands (setup, once)
 
 This pack ships a `.claude/commands/` directory with one Markdown file per
-command (`create-context.md`, `start.md`, `specify.md`, `validate.md`,
-`analyze.md`, `clarify.md`, `plan-design.md`, `plan-design.md`, `plan-lld.md`,
-`plan-adr.md`, `task.md`, `implement.md`, `release.md`). Claude Code
-auto-discovers these — nothing to install or configure.
+command, including `create-context.md`, `start.md`, `specify.md`,
+`specify-brd.md`, `specify-uc.md`, `specify-srd.md`, `specify-doc.md`,
+`checklist.md`, `validate.md`, `analyze.md`, `clarify.md`, `plan-design.md`,
+`plan-arch.md`, `plan-hld.md`, `plan-adr.md`, `plan-lld.md`, `task.md`,
+`implement.md`, `release.md` (plus team-member and utility commands such as
+`maya.md`, `change.md`, `pre-review.md`). Claude Code auto-discovers these —
+nothing to install or configure.
 
 - Type `/start` at the beginning of every session — equivalent to STEP 0
   below (reads CLAUDE.md, manifest, constitution, summary-rules,
   change-rules, roles.yml, instructions).
-- Type `/specify`, `/validate`, `/analyze`, `/clarify`, `/plan-design`,
-  `/plan-design`, `/plan-lld`, `/plan-design`, `/task`, `/release` to run each
-  command — Claude reads the matching `.github/prompts/<name>.prompt.md` and
-  executes it.
+- Type `/specify` to generate constitution Part 2 only, then — after
+  GATE-1 — `/specify-brd`, `/specify-uc`, `/specify-srd`, and
+  `/specify-doc {name}` (once per extended document) to generate the spec
+  documents one at a time.
+- Type `/checklist`, `/validate`, `/analyze`, `/clarify` to run each gate.
+- Type `/plan-design` in unified mode, or `/plan-arch` → `/plan-hld` →
+  `/plan-adr` in separate mode (see "PLAN Sub-Commands" below), then
+  `/plan-lld` (mvp+).
+- Type `/task`, `/release` to run each command — Claude reads the matching
+  `.github/prompts/<name>.prompt.md` and executes it.
 - `/implement TASK-NNN` passes the task ID through to the implement prompt.
+- `/specify-doc {name}` passes the document name through (e.g.
+  `/specify-doc data-model`) — same pattern.
 - Editing a `.github/prompts/<name>.prompt.md` file (as described in
   CHANGE-GUIDE.md) automatically updates the matching slash command — the
   command files only delegate, they don't duplicate instructions.
@@ -87,12 +101,26 @@ The agent:
 1. Maps your input onto context-template.md's sections (What This Does,
    Actors, Key Flows, Endpoints, Integrations, Business Rules, NFRs,
    Constraints, Out of Scope, Open Questions, Tech Stack).
-2. Fills in what it can infer, marks the rest `[MISSING — ask user]`.
-3. Gives you a plain-language "Missing Information" checklist.
-4. You answer what you can — "not sure" is fine for technical questions
-   (the architect decides later at /plan-design).
-5. Repeat until you say "good enough, proceed" or nothing is missing.
-6. Saves `.specify/contexts/{feature}.md` — the file /specify reads.
+2. **Feature Size Check (Step 1.5):** before drafting, checks whether the
+   pasted notes actually describe 2+ independently-shippable features
+   (barely-overlapping actor sets, clusters usable/testable on their own,
+   epic-style "and also" language). If only one feature is found, this
+   step is silent. If 2+ are found, the agent STOPS and asks whether to
+   build them as "one feature" (proceed with everything) or split and
+   build one at a time — reserved clusters have their raw notes saved to
+   `.specify/contexts/{other-slug}.raw.md` for a later `/create-context`
+   run, never discarded.
+3. Fills in what it can infer, marks the rest `[MISSING — ask user]`; for
+   Endpoints/NFRs specifically, proposes a scope-appropriate
+   `(SUGGESTED DEFAULT — edit or confirm)` starting point instead of a
+   blank.
+4. Gives you a plain-language "Missing Information" checklist, split into
+   Group A (confirm/edit suggested defaults) and Group B (still need your
+   input).
+5. You answer what you can — "not sure" is fine for technical questions
+   (the architect decides later at `/plan-design`).
+6. Repeat until you say "good enough, proceed" or nothing is missing.
+7. Saves `.specify/contexts/{feature}.md` — the file `/specify` reads.
 
 Optionally keeps your original notes at
 `.specify/contexts/{feature}.raw.md` (reference only, never read by any
@@ -136,83 +164,193 @@ If Part 2 generated but not finalized → remind: complete GATE-1 before
 
 | Command | Pilot | MVP | Full |
 |---|---|---|---|
-| `/specify` | brd, srd, security-design (§1) | + component-spec, ux-flow, api-spec (Backend API Contract — Consumer), security-design (§1-2) | + data-model (Frontend State & Storage Model), resilience (Frontend Resilience), investigation (Production Debugging & Error Tracking), security-design (§1-4) |
+| `/specify` | Constitution Part 2 (DRAFT) only — all scopes |||
 | GATE-1 (manual) | constitution Part 2 finalized — all scopes |||
+| `/specify-brd` | brd.md — all scopes |||
+| `/specify-uc` | use-cases.md — all scopes |||
+| `/specify-srd` | srd.md (+ security-design.md §1, via SRD) | same | same |
+| `/specify-doc security` | — (§1 already covered in SRD) | security-design.md §1-2 (living, `.specify/service/`) | security-design.md §1-4 (living, `.specify/service/`) |
+| `/specify-doc component-spec` | — | component-spec.md (+ living "Shared Components Used" → `.specify/service/component-library.md`) | same |
+| `/specify-doc ux-flow` | — | ux-flow.md | ux-flow.md |
+| `/specify-doc data-model` | — | data-model.md — Frontend State & Storage Model (living, `.specify/service/data-model.md`) | same |
+| `/specify-doc resilience` | — | — | resilience.md |
+| `/specify-doc investigation` | — | — | investigation.md |
+| API contract (consumer view) | design.md §3, per-feature (**not** a `/specify-doc` output, **not** living) — all scopes |||
+| `/checklist` | Optional | Mandatory | Mandatory |
 | `/validate` | validate.md — all scopes |||
 | `/analyze` | analyze.md — all scopes |||
 | `/clarify` | clarify.md — all scopes |||
-| `/plan-design` | design.md, plan.md + refine the scope-scaled docs above | same | same |
-| `/plan-design` | design.md — all scopes |||
+| `/plan-design` (unified) or `/plan-arch`→`/plan-hld`→`/plan-adr` (separate) | design.md, or arch.md+hld.md (ADRs skipped) | + ADRs (adr.md or design.md §4) | same as mvp |
 | `/plan-lld` | skip | lld.md | lld.md |
-| `/plan-design` | skip | ADRs | ADRs |
 | `/task` | stories.md, tasks.md, jira — all scopes |||
-| `/implement` | code + paired tests | + qa_cases, runbook | + qa_cases, runbook |
+| `/implement` | code + paired tests | + qa_cases, runbook (`docs/runbook/local-setup.md`) | + qa_cases, runbook |
 | `/release` | release.md — all scopes |||
 
 If any other document in this pack lists a different mapping, this table
 wins — fix the other document.
 
+**Notes:**
+- `data-model` and `security-design` are **living, app-level** documents at
+  `.specify/service/` — available from **mvp scope up** (mvp and full),
+  not full-only. They are generated once by the first feature that needs
+  them and extended (never regenerated) by every later feature.
+- `component-library.md` (`.specify/service/component-library.md`) is a
+  third living document — it catalogs shared/reusable UI components. It is
+  populated as a side effect of `/specify-doc component-spec` whenever a
+  feature introduces a component meant to be reused by others.
+- This pack only **consumes** an API (it does not provide one) — the API
+  contract lives per-feature inside `design.md` §3, following the shape of
+  `api-spec-template.md`'s "Backend API Contract (Consumer)" structure. It
+  is never a `/specify` or `/specify-doc` output and never lives at
+  `.specify/service/`.
+
 ---
 
-## /specify — Constitution + Spec Docs
+## SPECIFY — Five Sub-Commands
+
+`/specify` generates the constitution only. Spec documents are generated
+**one at a time** using dedicated sub-commands — same pattern as the PLAN
+sub-commands.
+
+| Command | What it generates | Gate |
+|---|---|---|
+| `/specify` | Constitution Part 2 (DRAFT) | — |
+| `/specify-brd` | Business Requirements Document | GATE-1 passed |
+| `/specify-uc` | Use Case Specification (Actors + UC-NNN with MP/AP/EP) | BRD approved |
+| `/specify-srd` | Software Requirements Document | Use Cases approved |
+| `/specify-doc {name}` | Any extended doc — `security`, `component-spec`, `ux-flow`, `data-model`, `resilience`, `investigation` | SRD approved |
+
+### `/specify` — Constitution Part 2 Only
 
 ```
 Read .specify/manifest.yml
 Read .specify/memory/constitution.md + summary-rules.md
 Read .specify/contexts/{manifest.project.context_file}
-Read all templates needed per scope
 
-ACTION 1 — Generate constitution.md Part 2 (DRAFT):
-  Extract from context and fill:
-
-  Tech Stack (extract each concern):
-  Language/Framework, Build Tool, State Management,
-  Component Library/Design System, Routing, API Client,
-  Bundler, Data Cache, Configuration, Secrets,
-  Resilience, Observability, Logging, Testing,
-  Coverage Gate, Linting/Formatting, Accessibility,
-  CI/CD, Hosting/CDN
+Generate constitution.md Part 2 (DRAFT):
+  Fill Tech Stack table (Language, Framework, Build Tool, State
+  Management, Component Library/Design System, Routing, API Client,
+  Bundler, Data Cache, Configuration, Secrets, Resilience, Observability,
+  Logging, Testing, Coverage Gate, Linting/Formatting, Accessibility,
+  CI/CD, Hosting/CDN)
 
   If concern not in context → use sensible default
   If critical concern missing → mark [MISSING — ask user]
 
-  Core Principles → derive from domain type (Component-First,
-    Accessible, Performant + Specification First, Test First,
-    Traceability)
-  Domain Rules → extract from business/UX rules section
-  Never Do → extract from constraints section
+  App NFR Baseline — extract from context.md's NFR section if stated
+  (Load Time, Bundle Size, Interactivity, Accessibility). If not stated,
+  leave [MISSING — ask user]: the first feature's /specify-srd run fills
+  it retroactively once its own NFR-NNN rows are approved — never
+  regenerate this row from a later feature's numbers without an explicit
+  Constitution Amendment.
 
-  Save constitution.md (Part 1 unchanged, Part 2 = DRAFT)
-  Report: "Constitution Part 2 generated — DRAFT. Review and finalize
-  every row (GATE-1) before /validate."
+  Core Principles → derive from domain (Component-First, Accessible,
+    Performant + Specification First, Test Discipline, Traceability)
+  Domain Rules → extract from UX/business rules in context
+  Never Do → extract from constraints + add: API calls in components,
+    inline styles, console.log in prod, any type
 
-ACTION 2 — Generate spec documents per scope (canonical table above):
-  pilot: brd → srd → security-design (§1 — pilot checklist)
-  mvp:   + component-spec → ux-flow → api-spec (Backend API Contract —
-         Consumer) → security-design (§1-2)
-  full:  + data-model (Frontend State & Storage Model) →
-         resilience (Frontend Resilience) →
-         investigation (Production Debugging & Error Tracking) →
-         security-design (§1-4)
-
-  For each: read template → derive from context → save .md + .summary.md
-  Mark assumptions: [ASSUMPTION-NNN: ...]
-  FR IDs: FR-NNN | NFR IDs: NFR-NNN
-  For every UC-NNN: at least 2 Given/When/Then acceptance scenarios
-  + "Independent Test" statement (these become TC-NNN at /task)
-  Marker discipline:
-    [ASSUMPTION-NNN] → reasonable default applied; confirm at /validate
-    [NEEDS CLARIFICATION: {question}] → no safe default; must be answered
-    before /validate can proceed — never leave a gap silently
-
-List generated + skipped.
-State: "SPECIFY complete. If GATE-1 not yet passed, finalize constitution
-Part 2 now (see GATE-1 prompt below). Then run /validate."
+  Save constitution.md (Part 1 unchanged, Part 2 is a DRAFT)
+  State: "Constitution Part 2 generated — DRAFT. Review and finalize
+  every row (GATE-1), then run /specify-brd."
 ```
+
+Do NOT proceed to spec documents in the same turn as a first-time
+generation unless the user has already reviewed Part 2. A later `/specify`
+re-run on an already-finalized Part 2 must propose changes for review —
+never silently overwrite finalized rows.
+
+### `/specify-brd` → `brd.md` — gate: GATE-1 passed
+
+Generates the Business Requirements Document (BG-NNN business goals,
+measurable NFR-NNN targets, §3 Stakeholders filled from `roles.yml` with
+ACT-ID cells left for `/specify-uc` to back-fill). Stakeholder review
+(Confluence draft + Jira submit, or chat approval), then Progressive Jira
+Epic export. Ends: "Run **/specify-uc** to generate the Use Case
+Specification."
+
+### `/specify-uc` → `use-cases.md` — gate: BRD approved
+
+Generates Actors (ACT-NNN) and Use Cases (UC-NNN) with Main Path,
+Alternate Paths (≥1), and Exception Paths (≥1) per UC.
+
+**Actor Registry reuse:** before deriving an actor from scratch, checks
+whether it already appears in another feature's `use-cases.md` in this
+service (same real-world role). If so, reuses its Name/Type/Description
+verbatim instead of re-deriving it, noting "(same as {prior-feature}'s
+ACT-NNN)" — the ACT-NNN identifier itself is still assigned locally to
+this feature's own file.
+
+Back-fills BRD §3 Stakeholders with the newly assigned ACT-NNN values.
+Ends: "Run **/specify-srd** to continue."
+
+### `/specify-srd` → `srd.md` — gate: Use Cases approved
+
+Generates FR-NNN (traced to UC-NNN) and NFR-NNN (refining BRD NFRs with
+technical targets).
+
+**App NFR Baseline mechanism:** reads constitution.md's NFR Baseline
+row(s). If still `[MISSING — ask user]` (this is the first feature to
+reach `/specify-srd`), derives the baseline categories from this feature's
+own NFRs and fills the constitution row — `srd.md` §3 states "Establishes
+the NFR baseline — see constitution.md." If already filled (a later
+feature), `srd.md` §3 states "Baseline (constitution.md → NFR Baseline):
+{values} — applies to this feature too, no change" and only adds its own
+NFR-NNN row for something genuinely different from the baseline — never
+restates the baseline numbers as freshly derived. A stricter/different
+baseline requirement is a Constitution Amendment, not a silent overwrite.
+
+Back-fills `use-cases.md` with FR-NNN trace links. Ends: "Run
+**/specify-doc {next-doc}**" — the next document is determined from the
+Document Inventory table above.
+
+### `/specify-doc {name}` — gate: SRD approved
+
+One document per invocation — `security`, `component-spec`, `ux-flow`,
+`data-model`, `resilience`, `investigation`. **`api-spec` is not a valid
+argument here** — this pack's API contract is written per-feature into
+`design.md` §3 during `/plan-design` (consumer view), not generated by
+`/specify-doc`.
+
+**Living/app-level documents — extended, never regenerated:**
+
+| Document | Lives at | Mechanism |
+|---|---|---|
+| `data-model` (Frontend State & Storage Model) | `.specify/service/data-model.md` | SKIP / ADD-unit / UPDATE-unit walk |
+| `security` (security-design.md) | `.specify/service/security-design.md` | SKIP / ADD-unit / UPDATE-unit walk |
+| `component-spec`'s "Shared Components Used" section | `.specify/service/component-library.md` | SKIP / ADD-unit / UPDATE-unit walk, per shared component |
+
+For these, `/specify-doc` first checks whether the file already exists.
+**If not** (first feature in the service to need it): generates it fresh
+and states it is now the service's living reference. **If it already
+exists:** reads the full current file, walks it one logical unit at a
+time (one entity, one threat entry, one shared component), and classifies
+each as **no change needed** / **new addition** (show only the proposed
+new unit) / **modification** (show BEFORE/AFTER for only that unit) — the
+same before/after, one-approval discipline `/change` uses. Never discards
+or regenerates the whole file from a blank template — that would destroy
+other features' contributions. On approval: merges the delta, bumps the
+version header, appends a `## Version History` row naming this feature,
+regenerates the `.summary.md`.
+
+The rest of `component-spec.md` (this feature's own component hierarchy)
+stays per-feature as normal, at `.specify/features/{feature}/component-spec.md`.
+
+**Every other extended doc** (`ux-flow`, `resilience`, `investigation`,
+and the per-feature parts of `component-spec`) stays per-feature:
+`.specify/features/{feature}/{doc}.md` + `.summary.md`.
+
+**For `security` specifically:** scope-based sections (pilot §1 only,
+mvp §1-2 + OWASP/STRIDE, full §1-4 + DAST/pentest scope), STRIDE threat
+enumeration with DREAD scoring, sign-off marker inserted above Approvals.
+
+Stakeholder review (Confluence + Jira, or chat). Ends: "Run
+**/specify-doc {next-doc}**" until none remain, then: "Run **/validate**
+for business sign-off."
 
 ---
 
-## GATE-1 — Finalize Constitution Part 2 (manual, blocking)
+## GATE-1 — Constitution Part 2 Finalized (manual, blocking)
 
 ```
 Open .specify/memory/constitution.md → Part 2 (DRAFT from /specify)
@@ -231,21 +369,21 @@ Tell the agent: "Constitution Part 2 finalized"
 ```
 
 Rules:
-- No `/validate`, `/analyze`, or any later command runs until this gate
-  passes.
+- No `/specify-brd`, `/validate`, `/analyze`, or any later command runs
+  until this gate passes.
 - A later `/specify` re-run must propose changes for review — it must
   never silently overwrite a finalized Part 2.
 
 ---
 
-## /checklist — Spec-Quality Validation (Optional, after GATE-1)
+## /checklist — Spec-Quality Validation (Optional for pilot, Mandatory for mvp+, after all `/specify-doc` runs)
 
-Run this between GATE-1 and /validate to catch spec quality issues early —
-before the business sign-off meeting.
+Run this between the last `/specify-doc` and `/validate` to catch spec
+quality issues early — before the business sign-off meeting.
 
 ```
 Read manifest.yml + constitution.md
-Read brd.summary.md + srd.summary.md
+Read brd.summary.md + use-cases.summary.md + srd.summary.md
 Read checklist-template.md
 
 Checks (in order):
@@ -271,17 +409,18 @@ Checks (in order):
 Save: .specify/features/{feature}/checklists/{feature}-spec-quality.md
 Present findings table. State count by severity.
 
-If CRITICAL items: State "Fix CRITICAL items → re-run /specify → re-run /checklist"
+If CRITICAL items: State "Fix CRITICAL items → re-run affected /specify-*
+command → re-run /checklist"
 If no CRITICAL: State "Spec quality gate passed — ready for /validate"
 ```
 
 ---
 
-## /validate — Business Sign-Off (runs after GATE-1)
+## /validate — Business Sign-Off (runs after GATE-1 + all spec docs approved)
 
 ```
 Read .specify/manifest.yml + constitution.md + roles.yml
-Read brd.summary.md + srd.summary.md
+Read brd.summary.md + use-cases.summary.md + srd.summary.md
 Read validate-template.md
 
 GATE-1 CHECK: constitution Part 2 finalized?
@@ -307,8 +446,8 @@ Present report. WAIT for sign-off.
 If approved:
   State: "VALIDATE complete — ready for /analyze."
 Else:
-  State: "VALIDATE incomplete — {N} items need changes. Update
-  context.md, re-run /specify for affected docs, re-run /validate."
+  State: "VALIDATE incomplete — {N} items need changes. Update the
+  relevant spec doc(s), re-run /validate."
   Do NOT proceed to /analyze.
 ```
 
@@ -397,166 +536,86 @@ Read clarify.md with answers
 Update affected spec docs → mark: <!-- Clarified: {ID} -->
 Regenerate .summary.md for each updated doc
 Write clarify.summary.md — all items RESOLVED
-State: "CLARIFY complete — ready for /plan-design"
+State: "CLARIFY complete — ready for PLAN"
 ```
 
 ---
 
-## /plan-design — Component Architecture + Plan + Refine Scope Docs
+## PLAN Sub-Commands
 
-```
-Read constitution.md + summary-rules.md
-Read clarify.summary.md (MUST exist, all RESOLVED — stop if missing)
-Read analyze.summary.md + all spec summaries
-Read arch-template.md + plan-template.md
+PLAN adapts to your `plan_mode` setting in `manifest.yml` (set during
+`setup.sh`, switchable in-session by replying "unified"/"separate" when
+prompted).
 
-AI-8 GATE CHECK: scan brd.md, srd.md, component-spec.md, ux-flow.md,
-api-spec.md, data-model.md, security-design.md for any
-[ASSUMPTION-NNN] without a matching <!-- Clarified: {ID} --> note.
-  If any remain — STOP. State: "PLAN-DESIGN blocked — unresolved
-  assumptions {list}. Run /clarify first."
+### Unified mode (`plan_mode: unified`, default) — one document, one review gate
 
-ARCHITECTURE:
-  Pattern from constitution tech stack (component-based, feature
-    folders, container/presentational split)
-  Component tree + responsibilities
-  State management design (store/slices/modules)
-  Routing structure
-  Service/API client layer (ports + adapters to backend APIs)
-  Cross-cutting concerns (auth, error boundaries, logging, a11y)
-  Risk mitigations from analyze.md applied
-  NFR → Decision mapping (arch-template §4a) for every NFR in
-  analyze.md §5
+**`/plan-design`** → `design.md`: Architecture Overview + Diagrams + API
+Design (§3) + Architecture Decisions (§4, ADRs), all in one file.
 
-IMPLEMENTATION PLAN:
-  Layer-by-layer breakdown (components, hooks/composables, services,
-    store)
-  Component/module names per layer
-  Key prop/interface signatures
-  Implementation order
-  Test strategy per layer (unit, component, a11y)
+- **Gate:** `clarify.summary.md` exists, all RESOLVED; no unresolved
+  `[ASSUMPTION-NNN]` across brd/use-cases/srd/security-design (AI-8)
+- **§1 Architecture Overview & §2 System Context/Container diagrams:**
+  established once by the first feature to reach `/plan-design` and
+  **reused** by later features — write "unchanged from
+  {prior-feature}/design.md §1/§2, see there" instead of re-deriving,
+  unless this feature genuinely adds something (new layer, new external
+  system) — show only that delta. DEC-NNN decisions and the rest of §2's
+  diagrams (component diagram, sequence, state machine) are always
+  feature-specific.
+- **§3 API Design:** for this pack (consumer-only), the API contract this
+  feature consumes is written **directly into `design.md` §3, per-feature**
+  — using `api-spec-template.md`'s "Backend API Contract (Consumer)"
+  structure. This is **not** a living document and is **not**
+  `.specify/service/api-spec.md` — that living-doc treatment applies only
+  to services that *provide* an API (backend-service, fullstack backend,
+  universal), not to this pack.
+- **§4 ADRs:** one per DEC-NNN from §1; pilot scope needs a minimum of 2.
+- Review: tech lead + architect + stakeholders
+- Scope: all scopes (pilot, mvp, full) — pilot skips nothing in §1-4, only
+  `/plan-lld` afterward is skipped
 
-Save: design.md + arch.summary.md
-Save: plan.md + plan.summary.md
+### Separate mode (`plan_mode: separate`) — three focused documents, reviewed individually
 
-REFINE SCOPE-SCALED DOCS (now that design.md exists):
-  mvp+: component-spec.md, ux-flow.md, api-spec.md — align with
-        component tree + service layer design in design.md
-  all:  security-design.md — align controls with design.md cross-cutting
-        concerns section
-  full: data-model.md — align with design.md state management design
-  full: resilience.md — align with design.md integration list
-  full: investigation.md — align with design.md flows
-  Re-save each refined doc + its .summary.md.
+- **`/plan-arch`** → `arch.md`: Architecture pattern, layers, cross-cutting
+  concerns, key decisions (DEC-NNN), NFR→decision mapping — Step 1 of 3
+  - Gate: `clarify.summary.md` exists, all RESOLVED; no unresolved
+    `[ASSUMPTION-NNN]` (AI-8)
+  - §1 pattern/layers/§3 layer table/§6 cross-cutting concerns: reused
+    from a prior feature's approved `arch.md` if one exists, same
+    unchanged/delta rule as unified mode's §1
+- **`/plan-hld`** → `hld.md`: System diagrams — C4 context, container,
+  happy-path sequence, state machine — Step 2 of 3
+  - Gate: `arch.md` approved
+  - Diagrams 1-2 (System Context, Container): reused from a prior
+    feature's `hld.md` if unchanged, same rule as above
+- **`/plan-adr`** → `adr.md`: Architecture Decision Records, one per
+  DEC-NNN from `arch.md` §4 — Step 3 of 3 (mvp+ only; **skipped at pilot**
+  — pilot's ADRs live inside `arch.md` §4 itself, no separate file)
+  - Gate: `hld.md` approved
 
-State: "PLAN-DESIGN complete — review design.md + plan.md (+ refined scope
-docs) before PLAN-DESIGN"
-Wait for approval before /plan-design.
-```
+> Note: this pack's API contract (consumer view) is written into
+> `design.md` §3 only in **unified** mode. In **separate** mode there is no
+> dedicated API document either — the per-feature consumer contract is
+> still authored alongside the design work (see `plan-design.prompt.md`'s
+> consumer-view branch); `arch.md`/`hld.md`/`adr.md` cover architecture,
+> diagrams, and decisions only.
 
----
+### Both modes
 
-## /plan-design — High Level Design + Diagrams
+- **`/plan-lld`** → `lld.md`: Detailed technical design — folder/module
+  structure, component/class diagrams, per-flow sequence diagrams
+  (including error/retry paths), prop/interface signatures (mvp+ only;
+  SKIP if pilot)
+  - Unified gate: `design.md` approved
+  - Separate gate: `adr.md` approved (mvp+) — pilot scope also skips
+    `/plan-lld` entirely, going straight to `/task` after `hld.md`
 
-```
-Read constitution.md + summary-rules.md
-Read arch.summary.md + analyze.summary.md
-Read hld-template.md
+### Diagram Self-Check (all diagram-producing commands)
 
-VERIFY: design.md exists and reviewed. Stop if not.
-
-Generate HLD — ALL diagrams in Mermaid:
-
-  ALWAYS:
-    System context (C4 L1) — graph TD
-    Component tree / container diagram (C4 L2) — graph TD
-    Happy path sequence — sequenceDiagram
-    State machine (if states exist) — stateDiagram-v2
-
-  IF APPLICABLE:
-    Screen/route flow — graph TD
-    Component tree (detailed) — graph TD
-    Event flow (e.g. websocket/real-time) — sequenceDiagram
-    Deployment diagram (CDN/static hosting — OPS-7) — graph TD
-
-  SCOPE RULES:
-    pilot: happy path only
-    mvp+:  all flows including unhappy paths
-
-Save: docs/hld/design.md + hld.summary.md
-
-If scope = pilot:
-  State: "PLAN-DESIGN complete — SKIP /plan-lld and /plan-design
-          Scope is pilot. Ready for /task after review."
-Else:
-  State: "PLAN-DESIGN complete — review design.md
-          Run /plan-lld next."
-Wait for review.
-```
-
----
-
-## /plan-lld — Low Level Design (mvp+ only)
-
-```
-Read constitution.md + summary-rules.md
-Read plan.summary.md + arch.summary.md
-Read lld-template.md
-
-SCOPE CHECK:
-  If scope = pilot → STOP.
-  State: "/plan-lld skipped — pilot scope.
-          Run /plan-design or proceed to /task."
-
-VERIFY: design.md + design.md exist. Stop if not.
-
-Generate LLD — all diagrams in Mermaid:
-
-  Folder/module structure — full tree
-  Component diagram — classDiagram or graph TD
-  Detailed sequence per key flow — sequenceDiagram
-    Include error handling + retry paths (resilience.md, full)
-  State shape diagram (if applicable) — classDiagram or erDiagram
-  Key prop/interface signatures — per component
-  Hook/composable/service signatures
-
-Save: docs/lld/lld.md + lld.summary.md
-State: "PLAN-LLD complete — review lld.md"
-Wait for review.
-```
-
----
-
-## /plan-design — Architecture Decision Records (mvp+ only)
-
-```
-Read constitution.md
-Read arch.summary.md + analyze.summary.md
-Read adr-template.md
-
-SCOPE CHECK:
-  If scope = pilot → STOP.
-  State: "/plan-design skipped — pilot scope. Proceed to /task."
-
-VERIFY: design.md exists. Stop if not.
-
-One ADR per key decision (design.md §4 DEC-NNN rows):
-  Pattern choice (component architecture, state management approach)
-  Technology choice where alternatives existed (framework, routing,
-    component library)
-  Integration approach (API client, polling vs websocket)
-  Browser storage choice (data-model.md, full)
-  Hosting/CDN + deployment approach (OPS-7)
-  Any HIGH risk item from analyze.md
-
-Each ADR format:
-  Context → Options Considered → Decision → Consequences
-
-Save: docs/architecture/adr/ADR-{NNN}-{title}.md
-Save: docs/architecture/decisions.md (index)
-Update design.md §4 — fill ADR column for each DEC-NNN now covered.
-State: "/plan-design complete — {N} ADRs. Ready for /task."
-```
+Before saving, verify every Mermaid diagram: every node ID used in an edge
+is defined; parentheses/brackets/braces are balanced; sequence participant
+names are consistent; no empty node labels. Fix any error found before
+saving, then state "Diagram self-check passed — {N} diagrams verified."
 
 ---
 
@@ -564,11 +623,12 @@ State: "/plan-design complete — {N} ADRs. Ready for /task."
 
 ```
 Read constitution.md + summary-rules.md
-Read plan.summary.md + analyze.summary.md + clarify.summary.md
+Read plan.summary.md (or design.summary.md/arch.summary.md) + analyze.summary.md + clarify.summary.md
 Read feature-story-template.md + tasks-template.md + jira-export-template.md
 Read qa-testcases.summary.md (mvp+, if already generated)
 
-VERIFY: design.md exists and reviewed. Stop if not.
+VERIFY: design.md (unified) or adr.md/hld.md (separate, per scope) exists
+and reviewed. Stop if not.
 
 1. FEATURE + STORIES:
    FEATURE: business capability from BRD
@@ -647,7 +707,8 @@ AFTER CODING:
 AFTER ALL TASKS:
   Generate delivery per scope:
     qa_cases  → docs/qa/functional-test-cases.md (mvp+)
-    runbook   → docs/runbook/local-setup.md (mvp+)
+    runbook   → docs/runbook/local-setup.md (mvp+, living/continuity
+                artifact — reused by /release, not re-derived per release)
   State: "IMPLEMENT complete — all tasks merged. Ready for /release."
 ```
 
@@ -669,17 +730,24 @@ Produce:
      tests green, coverage ≥ gate, accessibility checks passed,
      security checklist passed (security-design.md §1, +§2 mvp+),
      traceability complete
-  2. UAT PLAN — one row per UC-NNN from srd.md: scenario, tester (from
-     roles.yml), environment/browser-matrix, result
-  3. DEPLOYMENT PLAN — build static assets, upload to CDN/object storage,
-     cache invalidation (constitution Part 1 — OPS-7), smoke test,
-     feature flag/traffic shift — owner + rollback-if-fails per step
-  4. POST-DEPLOY SMOKE TEST — app loads, key route renders, key API call
-     succeeds, Core Web Vitals within budget, error-tracking SDK live
+  2. UAT PLAN — one row per UC-NNN from srd.md/use-cases.md: scenario,
+     tester (from roles.yml), environment/browser-matrix, result
+  3. DEPLOYMENT PLAN — the deploy strategy and rollback steps are
+     standard for this app, not re-derived per release: pulled from
+     docs/runbook/local-setup.md (living/continuity document, established
+     once) and constitution.md's Hosting/CDN row. States "Standard deploy
+     — see docs/runbook/local-setup.md §{N}" and fills in only what's
+     specific to this release (new feature flag(s), owner, confirmation
+     the standard steps still apply, or what's different this time)
+  4. POST-DEPLOY SMOKE TEST — the checks themselves are standard, pulled
+     from docs/runbook/local-setup.md; fills in only this release's
+     specific happy-path screen flow and NFR target (app loads, key
+     route renders, key API call succeeds, Core Web Vitals within budget,
+     error-tracking SDK live)
   5. GO-LIVE GATE — Tech Lead / Product Owner / Ops-SRE: Go / No-Go
   6. BUSINESS OBJECTIVE CLOSURE — every BO-NNN: metric, measured result
      or "measure after N days", met? yes/pending
-  7. ROLLBACK PLAN — summary, points to runbook §6
+  7. ROLLBACK PLAN — summary, points to docs/runbook/local-setup.md §6
 
 Save: release.md + release.summary.md
 Present report. WAIT for go-live sign-off (section 5).
@@ -706,7 +774,7 @@ Continue from here.
 Constitution Part 2 was generated as DRAFT but not yet finalized.
 Re-read .specify/memory/constitution.md Part 2 — review every row,
 resolve [MISSING — ask user] markers, edit anything wrong.
-Tell agent "Constitution Part 2 finalized" to unblock /validate.
+Tell agent "Constitution Part 2 finalized" to unblock /specify-brd.
 ```
 
 ### Regenerate a Document
@@ -715,6 +783,15 @@ Discard .specify/features/{feature}/{doc}.md
 Re-read template + context
 Regenerate → save same path + summary
 ```
+
+> **Living documents are the exception.** `data-model.md`,
+> `security-design.md`, and `component-library.md` at `.specify/service/`
+> must **never** be discarded or regenerated wholesale — doing so destroys
+> every other feature's contribution to that shared file. To fix or extend
+> one of these, re-run the owning command (`/specify-doc data-model`,
+> `/specify-doc security`, or `/specify-doc component-spec`) and go through
+> its SKIP / ADD-unit / UPDATE-unit walk instead, or raise a `/change` CR
+> if the edit originates from a change request.
 
 ### Fix Failing Test
 ```
@@ -740,6 +817,10 @@ Apply to all future summaries.
 ```
 manifest.yml updated: scope = {new}
 Re-read manifest.yml.
-Run /plan-lld and /plan-design (now enabled).
+Run sdd review status to see newly required documents.
+Generate newly required /specify-doc {name} docs (data-model,
+resilience, etc. — living docs extend via their SKIP/ADD-unit/
+UPDATE-unit walk, not regeneration).
+Run /plan-lld if upgrading from pilot (now enabled).
 Then update /task with new tasks.
 ```
