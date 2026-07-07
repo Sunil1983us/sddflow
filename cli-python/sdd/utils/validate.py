@@ -42,7 +42,7 @@ def safe_feature_path(base: Path, feature_name: str) -> Path:
 # Documents that describe something singular for the whole service, not one
 # feature — generated once, then extended/amended by every later feature
 # instead of being regenerated per feature. See living-doc-update shared block.
-LIVING_SERVICE_DOCS = {"data-model", "security-design", "api-spec"}
+LIVING_SERVICE_DOCS = {"data-model", "security-design", "api-spec", "component-library"}
 
 
 def resolve_doc_path(doc: str, feature_name: str) -> Path:

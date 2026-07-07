@@ -117,6 +117,19 @@ def _print_dry_run(feature_name: str, stories: list[Story],
     console.print()
 
 
+def _item_label(feature_name: str, item_id: str) -> str:
+    """Idempotency label for a Story/Task issue, qualified by feature.
+
+    STORY-NNN/TASK-NNN numbering restarts independently per feature (same
+    as CR-NNN), so an un-qualified label like "sdd:STORY-001" would let a
+    second feature's STORY-001 find and silently overwrite the first
+    feature's Jira issue on push. Namespacing by feature_name keeps every
+    feature's Story/Task issues distinct, matching the Feature-level
+    label (f"sdd-feature:{feature_name}") which was already feature-safe.
+    """
+    return f"sdd:{feature_name}:{item_id}"
+
+
 def _push(client: JiraClient, feature_name: str, stories: list[Story],
           tasks: list[Task], cfg: JiraConfig) -> None:
     project_key = cfg.project_key
@@ -164,7 +177,7 @@ def _push(client: JiraClient, feature_name: str, stories: list[Story],
             h["story"],
             f"{story.id} — {story.title}",
             extra,
-            f"sdd:{story.id}",
+            _item_label(feature_name, story.id),
         )
         story_key_map[story.id] = key
 
@@ -192,7 +205,7 @@ def _push(client: JiraClient, feature_name: str, stories: list[Story],
             h["task"],
             f"{task.id} — {task.title}",
             extra,
-            f"sdd:{task.id}",
+            _item_label(feature_name, task.id),
         )
 
         # Link Task → Story
@@ -260,7 +273,7 @@ def jira_sync(profile, feature):
     console.print(f"  {'─'*12} {'─'*14} {'─'*20}")
 
     for task in tasks:
-        issue = client.find_by_label(project_key, f"sdd:{task.id}")
+        issue = client.find_by_label(project_key, _item_label(feature_name, task.id))
         if issue:
             status = (
                 issue.get("fields", {}).get("status", {}).get("name", "Unknown")

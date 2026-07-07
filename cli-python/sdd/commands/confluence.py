@@ -10,7 +10,7 @@ from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.cf_to_md import cf_to_md
 from sdd.utils.manifest import read_manifest
-from sdd.utils.validate import resolve_doc_path
+from sdd.utils.validate import resolve_doc_path, LIVING_SERVICE_DOCS
 
 console = Console()
 
@@ -37,10 +37,31 @@ def _resolve_doc_path(doc: str, feature: str) -> Path:
 
 def _resolve_page_title(doc: str, project_name: str, feature: str,
                          page_map: dict) -> str:
+    """Build the Confluence page title for a doc key.
+
+    Living/service-level docs (LIVING_SERVICE_DOCS) always resolve to ONE
+    page for the whole project — {feature} is stripped even if present in
+    the template, since these documents are shared across every feature,
+    never per-feature.
+
+    Per-feature docs substitute {feature} into the title ONLY if the
+    user's own page_map template contains that placeholder. This is
+    opt-in by design: existing single-feature projects whose page_map
+    entries don't have {feature} keep today's exact title (no silent
+    behavior change on upgrade — nothing gets orphaned or duplicated).
+    Add {feature} to a page_map entry to get per-feature page separation
+    on a multi-feature project — without it, two features pushing the
+    same doc type will upsert the SAME Confluence page and overwrite
+    each other's content.
+    """
     if doc == "context":
         return _CONTEXT_PAGE_TITLE.replace("{project}", project_name).replace("{feature}", feature)
     template = page_map.get(doc, f"{{project}} — {doc.upper()}")
-    return template.replace("{project}", project_name)
+    title = template.replace("{project}", project_name)
+    if doc in LIVING_SERVICE_DOCS:
+        title = title.replace(" — {feature}", "").replace("{feature}", "")
+        return title.strip().rstrip("—").strip()
+    return title.replace("{feature}", feature)
 
 
 @click.group()
@@ -97,8 +118,7 @@ def confluence_push(profile, feature, doc, dry_run):
         if not md_path.exists():
             console.print(f"  [dim]·[/dim]  {key}.md not found — skipped")
             continue
-        title = page_map.get(key, f"{project_name} — {key.upper()}")
-        title = title.replace("{project}", project_name)
+        title = _resolve_page_title(key, project_name, feature_name, page_map)
         available.append((key, md_path, title))
 
     if not available:

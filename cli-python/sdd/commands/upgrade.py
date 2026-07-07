@@ -290,6 +290,67 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.10"},
     },
+    {
+        "from":        "2.7.10",
+        "to":          "2.7.11",
+        "description": "Multi-feature safety fixes for sdd jira push and sdd confluence push, plus /change --feature override, no manifest schema changes",
+        "notes": [
+            "Fixed: LIVING_SERVICE_DOCS was missing \"component-library\" "
+            "(frontend-spa/fullstack's shared component catalog) — "
+            "resolve_doc_path() routed it to .specify/features/{feature}/ "
+            "instead of the correct .specify/service/, breaking sdd review "
+            "and sdd confluence for that one doc type",
+            "Fixed: sdd confluence push/draft/pull built a page title from "
+            "only {project}, never {feature} — on a multi-feature project, "
+            "two features pushing the same per-feature doc type (brd, "
+            "use-cases, srd, design, lld, ...) upserted the SAME Confluence "
+            "page and silently overwrote each other's content. "
+            "_resolve_page_title() now substitutes {feature} into the "
+            "title when the page_map template includes that placeholder "
+            "(opt-in — existing configs without it see no title change, "
+            "so no page gets orphaned), and always strips {feature} for "
+            "living/service-level docs, which must stay ONE shared page "
+            "regardless of which feature pushed them",
+            "Fixed: sdd jira push/sync keyed Story/Task idempotency labels "
+            "on sdd:{id} only, not qualified by feature — since STORY-NNN/"
+            "TASK-NNN numbering restarts independently per feature (same "
+            "as CR-NNN), two features' STORY-001 collided and the second "
+            "feature's push silently overwrote the first feature's Jira "
+            "issue. Labels are now sdd:{feature}:{id}, matching the "
+            "Feature-level label (sdd-feature:{feature}) which was already "
+            "feature-safe. One-time migration cost: the first push after "
+            "upgrading creates fresh issues under the new label rather "
+            "than finding old ones under the old label — nothing is "
+            "deleted or overwritten, but pre-upgrade issues should be "
+            "manually closed if they're now duplicates",
+            "Added: /change --feature {slug} \"description\" — targets a "
+            "feature other than manifest.yml's active one for this CR "
+            "only, without editing manifest.yml. Errors clearly (lists "
+            "the features it actually found) if the named feature doesn't "
+            "exist, rather than silently falling back to the manifest "
+            "default. Also fixed a related gap this surfaced: the "
+            "context.md-rename special handling used to update "
+            "manifest.yml's active feature unconditionally on a rename — "
+            "now only does so when the renamed feature is the one "
+            "manifest.yml already points to, so a --feature-scoped CR "
+            "can't silently switch which feature every other command "
+            "operates on",
+            "Added: optional per-feature token/cost usage logging "
+            "(.specify/features/{feature}/token-usage.md) — off by "
+            "default, turns on by copying token-pricing.yml.example to "
+            "token-pricing.yml. Self-estimated (characters ÷ 4), not "
+            "measured — no AI tool this framework supports exposes exact "
+            "token introspection",
+            "jira-config.yml (legacy Jira integration path, contains "
+            "credential placeholders) is now gitignored by default in all "
+            "5 packs — it wasn't before, despite its own header comment "
+            "saying it should be",
+            "Re-copy the pack (or run sdd init over it) to pick up the "
+            "updated .specify/integrations.yml.example (per-feature "
+            "page_map entries now include {feature}) and .gitignore",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.11"},
+    },
 ]
 
 

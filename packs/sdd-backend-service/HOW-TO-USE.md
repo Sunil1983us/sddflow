@@ -584,7 +584,7 @@ sdd jira push                    # create/update Feature → Story → Task in J
 sdd jira push --dry-run          # preview the plan without calling the API
 sdd jira push --feature payments # push a specific feature (default: from manifest.yml)
 ```
-Pushes are idempotent — re-running updates existing issues rather than creating duplicates (keyed on `sdd:STORY-001` labels).
+Pushes are idempotent — re-running updates existing issues rather than creating duplicates (keyed on `sdd:{feature}:STORY-001`-style labels, qualified by feature). On a multi-feature project, each feature's Story/Task issues stay distinct even when both features independently number their own stories/tasks starting from 001 — matching the Feature → Story → Task hierarchy: the Feature-level issue is already keyed by feature name (`sdd-feature:{feature}`), and Story/Task labels now are too.
 
 ---
 
@@ -632,6 +632,8 @@ sdd confluence push --doc srd    # push SRD
 sdd confluence push --all        # push all documents listed in integrations.yml page_map
 ```
 Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page.
+
+**On a multi-feature project — living docs get ONE page, per-feature docs get one page each.** Living/service-level documents (`data-model`, `security-design`, `api-spec`, `component-library`) always resolve to a single shared page regardless of which feature is active — that's correct, since the underlying document itself is shared. Per-feature documents (`brd`, `use-cases`, `srd`, `design`/`arch`/`hld`/`adr`, `lld`, `validate`, `release`) need `{feature}` in their `page_map` title template to get a separate page per feature — the shipped `integrations.yml.example` already includes it. If your `integrations.yml` predates this and its titles don't have `{feature}`, every feature pushing the same doc type will silently overwrite the same page — add `{feature}` to those entries to fix it.
 
 ---
 

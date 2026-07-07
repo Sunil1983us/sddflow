@@ -4,6 +4,71 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.11] — 2026-07-07 (Multi-feature safety fixes — Jira/Confluence, all 5 packs)
+
+### Fixed — found while reviewing how multi-feature projects push to Jira/Confluence
+
+- **`sdd confluence push/draft/pull`** built each page title from only
+  `{project}`, never `{feature}`. On a multi-feature project, two
+  features pushing the same per-feature doc type (`brd`, `use-cases`,
+  `srd`, `design`, `lld`, etc.) upserted the identical Confluence page
+  and silently overwrote each other's content. `_resolve_page_title()`
+  now substitutes `{feature}` into the title whenever the `page_map`
+  template includes that placeholder — opt-in, so existing configs
+  without it see no title change and no page gets orphaned. Living/
+  service-level documents (`data-model`, `security-design`, `api-spec`,
+  `component-library`) always strip `{feature}` even if present, since
+  they must stay one shared page regardless of which feature pushed them.
+- **`sdd jira push`/`sdd jira sync`** keyed Story/Task idempotency labels
+  on `sdd:{id}` only, not qualified by feature. Since `STORY-NNN`/
+  `TASK-NNN` numbering restarts independently per feature (same as
+  `CR-NNN`), two features' `STORY-001` collided and the second feature's
+  push silently overwrote the first feature's Jira issue. Labels are now
+  `sdd:{feature}:{id}`, matching the Feature-level label
+  (`sdd-feature:{feature}`) which was already feature-safe.
+- **`LIVING_SERVICE_DOCS`** was missing `"component-library"`
+  (frontend-spa/fullstack's shared component catalog) — `resolve_doc_path()`
+  routed it to the wrong (per-feature) path, breaking `sdd review` and
+  `sdd confluence` for that one doc type.
+
+### Added
+
+- **`/change --feature {slug} "description"`** — targets a feature other
+  than `manifest.yml`'s active one for this CR only, without editing
+  `manifest.yml` (same pattern already used by `sdd jira push --feature`
+  and `sdd confluence push --feature`). Errors clearly (lists the
+  features it actually found) if the named feature doesn't exist. Also
+  fixed a gap this surfaced: the context.md-rename special handling used
+  to update `manifest.yml`'s active feature unconditionally on a rename —
+  it now only does so when the renamed feature is the one `manifest.yml`
+  already points to, so a `--feature`-scoped CR can't silently switch
+  which feature every other command operates on.
+- **Optional per-feature token/cost usage logging**
+  (`.specify/features/{feature}/token-usage.md`) — off by default, turns
+  on by copying `token-pricing.yml.example` to `token-pricing.yml`.
+  Self-estimated (`characters ÷ 4`), not measured — no AI tool this
+  framework supports exposes exact token introspection.
+- Consolidated "Configuration Files (YAML)" table in every pack's
+  `README.md` — `integrations.yml`, `jira-config.yml`, and the CI
+  pipeline YAMLs were previously undiscoverable from the entry-point doc.
+
+### Security
+
+- `.specify/jira-config.yml` (legacy Jira integration path, contains
+  credential placeholders) is now gitignored by default in all 5 packs —
+  it wasn't before, despite its own header comment saying it should be.
+
+### Migration note
+Re-copy the pack (or run `sdd init`/`sdd upgrade` over it) to pick up the
+updated `.specify/integrations.yml.example` (per-feature `page_map`
+entries now include `{feature}`) and `.gitignore`. First Jira push after
+upgrading creates fresh Story/Task issues under the new label rather than
+finding old ones under the old label — nothing is deleted or overwritten,
+but pre-upgrade issues should be manually closed if they're now
+duplicates.
+
+---
+
 ## [2.7.10] — 2026-07-06 (Bug fix — /change living-document handling, all 5 packs)
 
 ### Fixed — found via live end-to-end dogfooding of a two-feature service

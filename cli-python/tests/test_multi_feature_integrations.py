@@ -1,0 +1,75 @@
+# Unit tests for multi-feature safety in Confluence page titles and Jira
+# issue labels — both bugs found while reviewing how /change, sdd jira
+# push, and sdd confluence push behave on a project with 2+ features.
+from sdd.utils.validate import LIVING_SERVICE_DOCS
+from sdd.commands.confluence import _resolve_page_title
+from sdd.commands.jira import _item_label
+
+
+def test_component_library_is_a_living_service_doc():
+    """component-library.md (frontend-spa/fullstack's shared component
+    catalog) was missing from LIVING_SERVICE_DOCS, so resolve_doc_path()
+    routed it to .specify/features/{feature}/ instead of the correct
+    .specify/service/ — breaking sdd review/confluence for that doc."""
+    assert "component-library" in LIVING_SERVICE_DOCS
+
+
+def test_living_doc_title_is_identical_across_features():
+    """A living document must resolve to the SAME Confluence page title
+    no matter which feature is active — it's shared/service-level, never
+    per-feature. Even if a user's page_map template mistakenly includes
+    {feature}, it must be stripped, not substituted."""
+    page_map = {"data-model": "{project} — Data Model — {feature}"}
+    title_a = _resolve_page_title("data-model", "MyProj", "instant-payment", page_map)
+    title_b = _resolve_page_title("data-model", "MyProj", "payment-dashboard", page_map)
+    assert title_a == title_b == "MyProj — Data Model"
+
+
+def test_living_doc_title_unaffected_when_template_has_no_feature_placeholder():
+    page_map = {"security-design": "{project} — Security Design"}
+    assert _resolve_page_title(
+        "security-design", "MyProj", "instant-payment", page_map
+    ) == "MyProj — Security Design"
+
+
+def test_per_feature_doc_title_differs_when_template_opts_in():
+    """A per-feature doc (brd, use-cases, srd, design, ...) must resolve to
+    a DIFFERENT title per feature once the page_map template includes
+    {feature} — otherwise two features pushing the same doc type upsert
+    the same Confluence page and overwrite each other's content."""
+    page_map = {"brd": "{project} — Business Requirements — {feature}"}
+    title_a = _resolve_page_title("brd", "MyProj", "instant-payment", page_map)
+    title_b = _resolve_page_title("brd", "MyProj", "payment-dashboard", page_map)
+    assert title_a == "MyProj — Business Requirements — instant-payment"
+    assert title_b == "MyProj — Business Requirements — payment-dashboard"
+    assert title_a != title_b
+
+
+def test_per_feature_doc_title_backward_compatible_without_feature_placeholder():
+    """Existing single-feature projects whose page_map entries predate this
+    fix (no {feature} placeholder) must see NO title change — the fix is
+    opt-in via the template, not a silent default-behavior change that
+    would orphan an already-pushed Confluence page."""
+    page_map = {"brd": "{project} — Business Requirements"}
+    assert _resolve_page_title(
+        "brd", "MyProj", "instant-payment", page_map
+    ) == "MyProj — Business Requirements"
+
+
+def test_context_page_title_always_includes_feature():
+    page_map: dict = {}
+    title = _resolve_page_title("context", "MyProj", "instant-payment", page_map)
+    assert title == "MyProj — Context: instant-payment"
+
+
+def test_jira_item_label_is_qualified_by_feature():
+    """STORY-NNN/TASK-NNN numbering restarts independently per feature, so
+    the idempotency label used to find/update a Jira issue must include
+    the feature name — otherwise instant-payment's STORY-001 and
+    payment-dashboard's STORY-001 collide and the second push silently
+    overwrites the first feature's Jira issue."""
+    label_a = _item_label("instant-payment", "STORY-001")
+    label_b = _item_label("payment-dashboard", "STORY-001")
+    assert label_a != label_b
+    assert label_a == "sdd:instant-payment:STORY-001"
+    assert label_b == "sdd:payment-dashboard:STORY-001"
