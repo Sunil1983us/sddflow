@@ -147,7 +147,9 @@ the authoritative gate.
 
 After approval (Step C complete), generate draft Story definitions:
 
-1. Write `docs/jira/stories-draft.md` with one Story entry per UC-NNN:
+1. Write `docs/jira/{manifest.project.feature}/stories-draft.md` (scoped
+   per feature, same as `.specify/features/{feature}/`) with one Story
+   entry per UC-NNN:
    ```
    # Jira Stories Draft — {Feature Name}
    > Source: use-cases.md | Stage: after-uc | Status: DRAFT
@@ -170,7 +172,7 @@ After approval (Step C complete), generate draft Story definitions:
 
 2. Check whether `.specify/jira-config.yml` exists.
    - If yes: state "Draft story definitions ready. Run `/jira-push --level story` to create them in Jira now. Story points and FR-NNN links will be added after /specify-srd — run `/jira-push --level story` again then to update the existing issues."
-   - If no: state "Draft story definitions saved to `docs/jira/stories-draft.md`. FR-NNN links and MoSCoW priority will be added after /specify-srd. Configure `.specify/jira-config.yml` and run `/jira-push --level story` when ready."
+   - If no: state "Draft story definitions saved to `docs/jira/{feature}/stories-draft.md`. FR-NNN links and MoSCoW priority will be added after /specify-srd. Configure `.specify/jira-config.yml` and run `/jira-push --level story` when ready."
 
 State: "**Use Cases generated.** Review and approve, then run **/specify-srd** to continue."
 

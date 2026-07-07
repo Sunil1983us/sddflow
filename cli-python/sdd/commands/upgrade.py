@@ -351,6 +351,44 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.11"},
     },
+    {
+        "from":        "2.7.11",
+        "to":          "2.7.12",
+        "description": "Multi-feature safety fix for the progressive Jira export path (/jira-push, jira-push.py), no manifest schema changes",
+        "notes": [
+            "Fixed: the progressive Jira export mechanism (/specify-brd, "
+            "/specify-uc, /specify-srd writing docs/jira/epic.md, "
+            "stories-draft.md, stories-refined.md; /jira-push and "
+            ".specify/scripts/jira-push.py reading them and writing "
+            "docs/jira/keys.yml) lived at one fixed global path, not "
+            "scoped per feature like .specify/features/{feature}/ already "
+            "is. On a multi-feature project, a second feature's BRD/UC/SRD "
+            "approval overwrote the first feature's staged Epic/Story "
+            "export files on disk, and pushing the second feature's Epic "
+            "overwrote the first feature's locally-tracked Jira key in "
+            "keys.yml -- corrupting parent-link lookups for the first "
+            "feature's Stories/Tasks the next time it was touched. This is "
+            "a more severe version of the same class of bug fixed in "
+            "2.7.11 for sdd jira push/sdd confluence push: there, the "
+            "Jira issues themselves were protected by title-based "
+            "matching in most cases; here, the LOCAL staging files had no "
+            "per-feature isolation at all",
+            "All docs/jira/ artifacts are now under docs/jira/{feature}/ -- "
+            "epic.md, stories-draft.md, stories-refined.md, keys.yml, "
+            "stories.md, jira-import.csv -- mirroring "
+            ".specify/features/{feature}/. Verified with a direct "
+            "load_keys/save_keys round-trip for two features confirming "
+            "no cross-feature collision",
+            "Re-copy the pack (or run sdd init/sdd upgrade over it) to "
+            "pick up the updated .specify/scripts/jira-push.py and the "
+            "five .github/prompts/*.prompt.md files that write/read these "
+            "paths (specify-brd, specify-uc, specify-srd, task, "
+            "jira-push). Any docs/jira/*.md or keys.yml files from before "
+            "this upgrade are not migrated automatically -- move them "
+            "into docs/jira/{feature}/ manually if you want to keep them.",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.12"},
+    },
 ]
 
 

@@ -372,7 +372,7 @@ Jira submission (if configured) → any approval signal in chat flips
 `Status: Draft` → `Approved`, fills the Approvals table, appends Version
 History, and records the approval (`sdd review approve --doc brd`).
 
-After approval, an Epic definition (`docs/jira/epic.md`) is generated for
+After approval, an Epic definition (`docs/jira/{feature}/epic.md`) is generated for
 progressive Jira export (see Document Review Gates below).
 
 State: "BRD generated. Review, then run **/specify-uc**." — do not
@@ -407,7 +407,7 @@ Save: use-cases.md + use-cases.summary.md
 ```
 
 Same Confluence/Jira review-and-approval flow as BRD. After approval, a
-draft Story definition (`docs/jira/stories-draft.md`) is written — one
+draft Story definition (`docs/jira/{feature}/stories-draft.md`) is written — one
 entry per UC-NNN — for progressive Jira export.
 
 State: "Use Cases generated. Review, then run **/specify-srd**." — stop,
@@ -450,7 +450,7 @@ Save: srd.md + srd.summary.md
 
 Same Confluence/Jira review-and-approval flow. After approval, story
 definitions are refined with FR-NNN links + MoSCoW priority
-(`docs/jira/stories-refined.md`).
+(`docs/jira/{feature}/stories-refined.md`).
 
 State: "SRD generated. Review, then run **/specify-doc {next-doc}**.
 Remaining for this scope: {list}." — the next doc name is determined from
@@ -807,7 +807,7 @@ and reviewed. Stop if not.
    Feature → Story → Task hierarchy (or Tasks-only if Epic/Stories already
    pushed to Jira)
    Story points, sprint, MoSCoW, acceptance criteria
-   Save: docs/jira/stories.md + docs/jira/jira-import.csv
+   Save: docs/jira/{feature}/stories.md + docs/jira/{feature}/jira-import.csv
 
 List all stories + tasks + PR strategy.
 State: "TASK complete — review stories.md AND tasks.md

@@ -354,7 +354,7 @@ Save: brd.md + brd.summary.md
 Stakeholder review (Confluence draft if configured → Jira submit → approval
 → Status: Approved + Approvals table + Version History).
 
-Progressive Jira: after approval, write docs/jira/epic.md (Stage:
+Progressive Jira: after approval, write docs/jira/{feature}/epic.md (Stage:
 after-brd) with Business Objectives and Epic Done Condition.
 
 State: "BRD generated. Review, then run /specify-uc."
@@ -394,7 +394,7 @@ Save: use-cases.md + use-cases.summary.md
 
 Stakeholder review + approval (same Confluence/Jira/chat flow as BRD).
 
-Progressive Jira: docs/jira/stories-draft.md — one draft Story per UC-NNN.
+Progressive Jira: docs/jira/{feature}/stories-draft.md — one draft Story per UC-NNN.
 
 State: "Use Cases generated. Review, then run /specify-srd."
 ```
@@ -437,7 +437,7 @@ Save: srd.md + srd.summary.md
 
 Stakeholder review + approval (same flow).
 
-Progressive Jira: docs/jira/stories-refined.md — FR-NNN links + MoSCoW
+Progressive Jira: docs/jira/{feature}/stories-refined.md — FR-NNN links + MoSCoW
 priority added to each draft story.
 
 State: "SRD generated. Review, then run /specify-doc {next-doc} — remaining
@@ -801,9 +801,9 @@ lld.md reviewed (mvp+). Stop if not.
    Save: tasks.md
 
 4. JIRA CSV:
-   Tasks-only CSV if Epic/Story keys already exist (docs/jira/keys.yml);
+   Tasks-only CSV if Epic/Story keys already exist (docs/jira/{feature}/keys.yml);
    full hierarchy otherwise.
-   Save: docs/jira/stories.md + docs/jira/jira-import.csv
+   Save: docs/jira/{feature}/stories.md + docs/jira/{feature}/jira-import.csv
 
 State: "TASK complete — review stories.md AND tasks.md
         BOTH must be approved before /implement"

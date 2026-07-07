@@ -319,7 +319,7 @@ Generate brd.md:
 
 Save: brd.md + brd.summary.md
 Stakeholder review → approval flips Status: Draft → Approved
-Generate docs/jira/epic.md (progressive Jira export)
+Generate docs/jira/{feature}/epic.md (progressive Jira export)
 ```
 
 State: "**BRD generated.** Review and approve, then run **/specify-uc**."
@@ -354,7 +354,7 @@ Back-fill brd.md §3 Stakeholders with the assigned ACT-NNN values.
 
 Save: use-cases.md + use-cases.summary.md
 Stakeholder review → approval flips Status
-Generate docs/jira/stories-draft.md (progressive Jira export)
+Generate docs/jira/{feature}/stories-draft.md (progressive Jira export)
 ```
 
 State: "**Use Cases generated.** Review and approve, then run
@@ -398,7 +398,7 @@ placeholder.
 
 Save: srd.md + srd.summary.md
 Stakeholder review → approval flips Status
-Generate docs/jira/stories-refined.md (FR-NNN links + MoSCoW priority)
+Generate docs/jira/{feature}/stories-refined.md (FR-NNN links + MoSCoW priority)
 ```
 
 State: "**SRD generated.** Review and approve, then run **/specify-doc
@@ -877,8 +877,8 @@ VERIFY: design.md (unified) or lld.md/hld.md (separate) approved. Stop if not.
 
 4. JIRA CSV:
    Epic → Story → Task hierarchy (or Tasks-only if Epic/Story keys
-   already exist in docs/jira/keys.yml)
-   Save: docs/jira/stories.md + docs/jira/jira-import.csv
+   already exist in docs/jira/{feature}/keys.yml)
+   Save: docs/jira/{feature}/stories.md + docs/jira/{feature}/jira-import.csv
 
 List all stories + tasks + PR strategy.
 State: "TASK complete — review stories.md AND tasks.md

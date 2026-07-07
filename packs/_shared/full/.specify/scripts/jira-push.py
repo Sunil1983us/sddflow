@@ -12,10 +12,19 @@ Usage:
 
 Reads:  .specify/jira-config.yml  (copy from .specify/templates/jira-config-template.yml)
 Reads:  .specify/manifest.yml
-Reads:  docs/jira/epic.md, stories-refined.md, stories-draft.md
-Reads:  .specify/features/{feature}/tasks.md
+Reads:  docs/jira/{feature}/stories-refined.md, stories-draft.md
+Reads:  .specify/features/{feature}/brd.md, tasks.md
 Reads:  .specify/features/{feature}/changesets/CR-NNN.md
-Writes: docs/jira/keys.yml
+Writes: docs/jira/{feature}/keys.yml
+
+(docs/jira/{feature}/epic.md is written by /specify-brd as a human-review
+staging artifact, but this script derives the Epic directly from brd.md
+via parse_brd() — epic.md itself is never parsed)
+
+All docs/jira/ artifacts are scoped per feature (docs/jira/{feature}/...),
+same as .specify/features/{feature}/ — two features pushing independently
+never share or overwrite each other's staged Epic/Story definitions or
+locally-tracked Jira keys.
 
 Requirements: pip install pyyaml
 """
@@ -43,8 +52,18 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".specify" / "jira-config.yml"
 MANIFEST_PATH = ROOT / ".specify" / "manifest.yml"
-KEYS_PATH = ROOT / "docs" / "jira" / "keys.yml"
 TODAY = date.today().isoformat()
+
+
+def jira_docs_dir(feature):
+    """docs/jira/{feature}/ — scoped per feature, same as .specify/features/{feature}/,
+    so two features pushing independently never share or overwrite each
+    other's staged Epic/Story definitions or locally-tracked Jira keys."""
+    return ROOT / "docs" / "jira" / feature
+
+
+def keys_path(feature):
+    return jira_docs_dir(feature) / "keys.yml"
 
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
@@ -86,15 +105,17 @@ def load_manifest():
     with open(MANIFEST_PATH) as f:
         return yaml.safe_load(f) or {}
 
-def load_keys():
-    if not KEYS_PATH.exists():
+def load_keys(feature):
+    path = keys_path(feature)
+    if not path.exists():
         return {}
-    with open(KEYS_PATH) as f:
+    with open(path) as f:
         return yaml.safe_load(f) or {}
 
-def save_keys(keys):
-    KEYS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(KEYS_PATH, "w") as f:
+def save_keys(feature, keys):
+    path = keys_path(feature)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
         yaml.dump(keys, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
@@ -392,11 +413,11 @@ def push_epic(client, cfg, feature, feature_name, keys):
 
 def push_stories(client, cfg, feature, keys):
     print("\n── Stories ──────────────────────────────────────────────────")
-    refined = ROOT / "docs" / "jira" / "stories-refined.md"
-    draft   = ROOT / "docs" / "jira" / "stories-draft.md"
+    refined = jira_docs_dir(feature) / "stories-refined.md"
+    draft   = jira_docs_dir(feature) / "stories-draft.md"
     source  = refined if refined.exists() else draft
     if not source.exists():
-        die("No story definitions found. Run /specify-uc to generate docs/jira/stories-draft.md.")
+        die(f"No story definitions found. Run /specify-uc to generate docs/jira/{feature}/stories-draft.md.")
     stage   = "after-srd" if source == refined else "after-uc"
     stories = parse_stories_file(source)
     if not stories:
@@ -584,7 +605,16 @@ def main():
 
     cfg      = load_config()
     manifest = load_manifest()
-    keys     = load_keys()
+
+    # Feature name — resolved before loading keys.yml, since keys.yml is
+    # scoped per feature (docs/jira/{feature}/keys.yml)
+    project_cfg = manifest.get("project", {})
+    feature     = args.feature or project_cfg.get("feature", "")
+    feature_name = project_cfg.get("name") or feature.replace("-", " ").title()
+    if not feature:
+        die("No feature resolved — set --feature or manifest.yml's project.feature.")
+
+    keys = load_keys(feature)
 
     dry_run = args.dry_run or cfg.get("dry_run", False)
     if dry_run:
@@ -597,11 +627,6 @@ def main():
         die("JIRA_EMAIL environment variable is not set.")
     if not token or "${JIRA_API_TOKEN}" in token:
         die("JIRA_API_TOKEN environment variable is not set.")
-
-    # Feature name
-    project_cfg = manifest.get("project", {})
-    feature     = args.feature or project_cfg.get("feature", "")
-    feature_name = project_cfg.get("name") or feature.replace("-", " ").title()
 
     client = JiraClient(cfg, dry_run=dry_run)
 
@@ -641,7 +666,7 @@ def main():
         elif lv == "chg":   push_chg(client, cfg, feature, keys, args.cr)
 
     if not dry_run:
-        save_keys(keys)
+        save_keys(feature, keys)
 
     # ── Summary ───────────────────────────────────────────────────────────────
     base = cfg["base_url"]
@@ -659,7 +684,7 @@ def main():
         keys_list = ", ".join(c["jira_key"] for c in keys["chg_tasks"][:6])
         print(f"  CHG:     {len(keys['chg_tasks'])} — {keys_list}")
     if not dry_run:
-        print(f"\n  Keys saved: docs/jira/keys.yml")
+        print(f"\n  Keys saved: docs/jira/{feature}/keys.yml")
     else:
         print("\n  Dry run complete — no changes made. Remove --dry-run to push.")
     print("─────────────────────────────────────────────────────────────")

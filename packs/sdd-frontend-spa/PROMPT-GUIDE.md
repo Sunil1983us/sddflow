@@ -658,7 +658,7 @@ and reviewed. Stop if not.
 3. JIRA CSV:
    Epic → Story → Task hierarchy
    Story points, sprint, acceptance criteria
-   Save: docs/jira/stories.md + docs/jira/jira-import.csv
+   Save: docs/jira/{feature}/stories.md + docs/jira/{feature}/jira-import.csv
 
 List all stories + tasks + PR strategy.
 State: "TASK complete — review stories.md AND tasks.md

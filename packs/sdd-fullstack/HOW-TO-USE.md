@@ -625,7 +625,7 @@ export JIRA_API_TOKEN=your-api-token
 /jira-push chg CR-001    # after /change approval
 /jira-push --level all --dry-run   # preview every level before pushing for real
 ```
-Keys created/updated are tracked in `docs/jira/keys.yml`.
+Keys created/updated are tracked in `docs/jira/{feature}/keys.yml` — scoped per feature, same as `.specify/features/{feature}/`, so two features' progressive Jira exports never overwrite each other's Epic/Story staging files or locally-tracked keys.
 
 ---
 

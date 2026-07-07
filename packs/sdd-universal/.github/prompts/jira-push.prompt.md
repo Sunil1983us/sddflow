@@ -108,7 +108,7 @@ Relay the script's output to the user verbatim. Then add context:
 | `HTTP 403` | User lacks Create Issue permission for the target project — check Jira project permissions |
 | `Cannot reach Jira at` | Wrong `base_url` in jira-config.yml — must be `https://your-org.atlassian.net` with no trailing slash |
 | `WARNING: customfield_NNNNN not found` | That field ID doesn't exist in this Jira instance — run `GET /rest/api/3/field` to find correct IDs |
-| `No story definitions found` | Run `/specify-uc` first to generate `docs/jira/stories-draft.md` |
+| `No story definitions found` | Run `/specify-uc` first to generate `docs/jira/{feature}/stories-draft.md` |
 | `No tasks found` | Run `/task` first to generate `tasks.md` |
 | `Changeset not found` | Check the CR number — file must exist at `.specify/features/{feature}/changesets/CR-NNN.md` |
 
@@ -119,7 +119,7 @@ Relay the script's output to the user verbatim. Then add context:
 ## After a Successful Push
 
 1. State which Jira issues were created/updated and their browse URLs.
-2. Note that `docs/jira/keys.yml` has been updated with all Jira keys.
+2. Note that `docs/jira/{feature}/keys.yml` has been updated with all Jira keys — scoped to this one feature, so other features' keys are untouched.
 3. Suggest the next stage:
    - After epic push → "Run `/specify-uc`, then `/jira-push --level story` after approval."
    - After story push → "Run `/task`, then `/jira-push --level task` after approval."

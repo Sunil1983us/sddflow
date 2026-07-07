@@ -298,7 +298,7 @@ Stakeholder review: Confluence draft (if configured) → incorporate
   comments → Jira/chat submit → on approval: Status Draft → Approved,
   Approvals table filled, Version History row appended, summary
   regenerated
-Progressive Jira Epic export: docs/jira/epic.md
+Progressive Jira Epic export: docs/jira/{feature}/epic.md
 
 State: "BRD generated. Review, then run /specify-uc."
 Stop — do not generate use-cases.md or any other document in this turn.
@@ -342,7 +342,7 @@ Back-fill: brd.md §3 Stakeholders — replace "_(set by /specify-uc)_" with
 Save: use-cases.md + use-cases.summary.md
 
 Stakeholder review → approval (same flow as BRD)
-Progressive Jira Story Draft export: docs/jira/stories-draft.md
+Progressive Jira Story Draft export: docs/jira/{feature}/stories-draft.md
 
 State: "Use Cases generated. Review and approve, then run /specify-srd."
 Stop — do not generate any further document in this turn.
@@ -387,7 +387,7 @@ Back-fill: use-cases.md — replace every "_(filled by /specify-srd)_" in
 Save: srd.md + srd.summary.md
 
 Stakeholder review → approval (same flow as BRD)
-Progressive Jira Story Refinement: docs/jira/stories-refined.md (adds
+Progressive Jira Story Refinement: docs/jira/{feature}/stories-refined.md (adds
   FR-NNN links + MoSCoW priority to the draft stories)
 
 State: "SRD generated. Review, then run /specify-doc {next-doc}.
@@ -855,9 +855,9 @@ VERIFY GATE (per plan_mode):
 
 4. JIRA CSV:
    Epic → Story → Task hierarchy (or Tasks-only if Epic/Story keys
-   already pushed — check docs/jira/keys.yml)
+   already pushed — check docs/jira/{feature}/keys.yml)
    Story points, sprint, acceptance criteria
-   Save: docs/jira/stories.md + docs/jira/jira-import.csv
+   Save: docs/jira/{feature}/stories.md + docs/jira/{feature}/jira-import.csv
 
 List all stories + tasks + PR strategy.
 State: "TASK complete — review stories.md AND tasks.md
