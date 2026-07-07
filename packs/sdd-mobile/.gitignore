@@ -1,6 +1,13 @@
 # Personal agent preferences — never commit
 CLAUDE.local.md
 
+# Jira/Confluence credentials — never commit
+# integrations.yml is safe to commit (no secret fields, only a `profile:`
+# pointer to ~/.sdd/config.yml). jira-config.yml (legacy path) embeds
+# ${JIRA_API_TOKEN}-style placeholders resolved from env vars at runtime —
+# ignored here as defense-in-depth in case a real value is ever pasted in.
+.specify/jira-config.yml
+
 # Environment files — never commit
 .env
 .env.local
