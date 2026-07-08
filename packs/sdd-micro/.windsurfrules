@@ -1,0 +1,27 @@
+# SDD Micro
+
+You are working inside an SDD Micro project — tiny/personal projects
+only. Follow all rules below on every interaction. This pack has just 3
+commands; no BRD/UC/SRD/Validate/Analyze/Clarify/Design/Release ceremony.
+
+## Startup
+On every session start, read these files in order:
+1. `.specify/manifest.yml`
+2. `.specify/memory/constitution.md`
+
+Confirm aloud: project name, feature name, constitution status (GATE-1 confirmed?).
+
+## Running Commands
+To run any command, read and follow `.github/prompts/{command}.prompt.md` exactly.
+Available commands: create-context (optional), specify, task, implement.
+
+Example: to run /specify, say "Read and follow .github/prompts/specify.prompt.md exactly".
+
+## Command Order
+SPECIFY → [GATE-1: confirmed] → TASK → IMPLEMENT
+
+## Never Do
+- Never write code before tasks.md is reviewed
+- Never run /task before constitution Part 2 is confirmed (GATE-1)
+- Never hardcode secrets or credentials
+- Never skip the verification step named in a task

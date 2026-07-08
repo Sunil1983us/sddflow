@@ -5,7 +5,7 @@ from rich.console import Console
 
 from sdd.utils.detect import detect_project_type, PROJECT_TYPES
 from sdd.utils.validate import validate_name, assert_valid_name
-from sdd.utils.manifest import patch_manifest, MANIFEST_PATH, SDD_VERSION
+from sdd.utils.manifest import patch_manifest, read_manifest, MANIFEST_PATH, SDD_VERSION
 from sdd.utils.scaffold import (
     recommended_pack, scaffold_pack,
     PACK_DESCRIPTIONS, ALL_PACKS, TYPE_TO_PACK,
@@ -48,14 +48,27 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     console.print(_BANNER)
 
     # ── Scaffold mode: no pack present yet ───────────────────────────────────
+    chosen_pack = None
     if not Path(MANIFEST_PATH).exists():
-        _scaffold_mode(project_type, pack)
+        chosen_pack = _scaffold_mode(project_type, pack)
 
     # ── Fill mode: manifest.yml already exists ────────────────────────────────
     # (also reached after scaffold_mode copies the pack)
 
+    # sdd-micro has no scope/project_type ceremony — its manifest.yml
+    # template has neither key, which is how we detect it in fill mode
+    # (existing manifest, chosen_pack unknown) without tracking the pack
+    # name anywhere persistent.
+    if chosen_pack == "sdd-micro":
+        is_micro = True
+    elif chosen_pack is None:
+        existing = read_manifest() or {}
+        is_micro = "project_type" not in existing and "scope" not in existing.get("project", {})
+    else:
+        is_micro = False
+
     # ── Project type (needed for manifest even in fill mode) ─────────────────
-    if not project_type:
+    if not is_micro and not project_type:
         console.print("[dim]  Detecting project type...[/dim] ", end="")
         detected = detect_project_type(".")
         if detected:
@@ -84,7 +97,7 @@ def init_command(project_name, feature_name, scope, project_type, pack):
             validate=lambda v: validate_name(v, "Feature name") or True,
         ).ask()
 
-    if not scope:
+    if not is_micro and not scope:
         scope = questionary.select(
             "Scope:",
             choices=[
@@ -106,24 +119,29 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     console.print()
     console.print("  Setting up:")
     console.print(f"  Project : [cyan]{project_name}[/cyan]")
-    console.print(f"  Type    : [cyan]{project_type}[/cyan]")
+    if not is_micro:
+        console.print(f"  Type    : [cyan]{project_type}[/cyan]")
     console.print(f"  Feature : [cyan]{feature_name}[/cyan]")
-    console.print(f"  Scope   : [cyan]{scope}[/cyan]")
+    if not is_micro:
+        console.print(f"  Scope   : [cyan]{scope}[/cyan]")
     console.print(f"  AI tool : [cyan]{ai_tool}[/cyan]")
     console.print()
 
     # ── Update manifest.yml via PyYAML (no string injection possible) ─────────
-    patch_manifest({
-        "project": {
-            "name":         project_name,
-            "scope":        scope,
-            "feature":      feature_name,
-            "context_file": f"{feature_name}.md",
-        },
-        "project_type": project_type,
+    project_patch = {
+        "name":         project_name,
+        "feature":      feature_name,
+        "context_file": f"{feature_name}.md",
+    }
+    manifest_patch = {
+        "project":      project_patch,
         "sdd_version":  SDD_VERSION,
         "ai_tool":      ai_tool,
-    })
+    }
+    if not is_micro:
+        project_patch["scope"] = scope
+        manifest_patch["project_type"] = project_type
+    patch_manifest(manifest_patch)
     console.print(f"  [green]✓[/green]  {MANIFEST_PATH} filled")
 
     # ── Create context file ───────────────────────────────────────────────────
@@ -158,11 +176,13 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     console.print()
 
 
-def _scaffold_mode(project_type: str | None, pack_override: str | None) -> None:
+def _scaffold_mode(project_type: str | None, pack_override: str | None) -> str:
     """
     No SDD pack found — detect project type, recommend a pack, copy it here.
     Exits (raises SystemExit) only on error; on success the manifest will now
-    exist and init_command continues normally.
+    exist, init_command continues normally, and the chosen pack name is
+    returned so callers can branch on pack-specific manifest shape (e.g.
+    sdd-micro skips the scope/project_type questions).
     """
     console.print("  [yellow]No SDD pack found in this directory.[/yellow]")
     console.print()
@@ -219,6 +239,8 @@ def _scaffold_mode(project_type: str | None, pack_override: str | None) -> None:
 
     console.print(f"  [green]✓[/green]  {chosen_pack} scaffolded ({n} files copied)")
     console.print()
+
+    return chosen_pack
 
 
 def _build_pack_choices(project_type: str | None, rec: str) -> list:

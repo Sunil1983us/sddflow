@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { detectProjectType, PROJECT_TYPES } from '../utils/detect.js';
 import { validateName, assertValidName } from '../utils/validate.js';
-import { patchManifest, MANIFEST_PATH, SDD_VERSION } from '../utils/manifest.js';
+import { patchManifest, readManifest, MANIFEST_PATH, SDD_VERSION } from '../utils/manifest.js';
 import {
   recommendedPack, scaffoldPack,
   PACK_DESCRIPTIONS, ALL_PACKS, TYPE_TO_PACK,
@@ -38,17 +38,32 @@ export async function initCommand(opts) {
   console.log(BANNER);
 
   // ── Scaffold mode: no pack present yet ───────────────────────────────────
+  let chosenPack = null;
   if (!existsSync(MANIFEST_PATH)) {
-    await scaffoldMode(opts.type ?? null, opts.pack ?? null);
+    chosenPack = await scaffoldMode(opts.type ?? null, opts.pack ?? null);
     // After scaffold, manifest.yml now exists — continue with fill mode below
   }
 
   // ── Fill mode: manifest.yml exists ───────────────────────────────────────
 
+  // sdd-micro has no scope/project_type ceremony — its manifest.yml
+  // template has neither key, which is how fill mode (existing manifest,
+  // chosenPack unknown) detects it without tracking the pack name anywhere
+  // persistent.
+  let isMicro;
+  if (chosenPack === 'sdd-micro') {
+    isMicro = true;
+  } else if (chosenPack === null) {
+    const existing = readManifest() ?? {};
+    isMicro = !('project_type' in existing) && !('scope' in (existing.project ?? {}));
+  } else {
+    isMicro = false;
+  }
+
   // ── Project type ─────────────────────────────────────────────────────────
   let projectType = opts.type ?? null;
 
-  if (!projectType) {
+  if (!isMicro && !projectType) {
     process.stdout.write(chalk.dim('  Detecting project type... '));
     const detected = detectProjectType('.');
     if (detected) {
@@ -104,7 +119,7 @@ export async function initCommand(opts) {
         { name: 'full   — enterprise (+ resilience, investigation, security-design)', value: 'full' },
       ],
       default: SCOPES.indexOf(opts.scope ?? 'pilot'),
-      when: !opts.scope || !SCOPES.includes(opts.scope),
+      when: !isMicro && (!opts.scope || !SCOPES.includes(opts.scope)),
     },
   ]);
 
@@ -126,24 +141,28 @@ export async function initCommand(opts) {
   console.log('');
   console.log('  Setting up:');
   console.log(`  Project : ${chalk.cyan(projectName)}`);
-  console.log(`  Type    : ${chalk.cyan(projectType)}`);
+  if (!isMicro) console.log(`  Type    : ${chalk.cyan(projectType)}`);
   console.log(`  Feature : ${chalk.cyan(featureName)}`);
-  console.log(`  Scope   : ${chalk.cyan(scope)}`);
+  if (!isMicro) console.log(`  Scope   : ${chalk.cyan(scope)}`);
   console.log(`  AI tool : ${chalk.cyan(aiTool)}`);
   console.log('');
 
   // ── Update manifest.yml ───────────────────────────────────────────────────
-  patchManifest({
-    project: {
-      name:         projectName,
-      scope,
-      feature:      featureName,
-      context_file: `${featureName}.md`,
-    },
-    project_type: projectType,
+  const projectPatch = {
+    name:         projectName,
+    feature:      featureName,
+    context_file: `${featureName}.md`,
+  };
+  const manifestPatch = {
+    project:      projectPatch,
     sdd_version:  SDD_VERSION,
     ai_tool:      aiTool,
-  });
+  };
+  if (!isMicro) {
+    projectPatch.scope = scope;
+    manifestPatch.project_type = projectType;
+  }
+  patchManifest(manifestPatch);
   console.log(`  ${chalk.green('✓')}  ${MANIFEST_PATH} filled`);
 
   // ── Create context file ───────────────────────────────────────────────────
@@ -244,6 +263,8 @@ async function scaffoldMode(projectType, packOverride) {
     console.error(chalk.red(`✗  ${err.message}`));
     process.exit(1);
   }
+
+  return chosenPack;
 }
 
 function buildPackChoices(projectType, rec) {

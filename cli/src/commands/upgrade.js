@@ -378,6 +378,32 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.12',
+    to:   '2.7.13',
+    description: 'New sdd-micro pack for tiny/personal projects; no changes for existing packs’ manifest schema',
+    notes: [
+      'Added a 6th pack, sdd-micro, for scripts and small personal ' +
+      "projects that don't need the full 11-command SDLC: just " +
+      '/specify → [GATE-1] → /task → /implement. It intentionally ' +
+      'does not follow PACK-SPEC.md (no BRD/Use Cases/SRD, no ' +
+      'Validate/Analyze/Clarify/Design/Release) and is hand-maintained ' +
+      'rather than wired into packs/_shared/sync-blocks.sh — see ' +
+      'packs/sdd-micro/CLAUDE.md and WHY-SDD.md',
+      "sdd init --pack sdd-micro (or the interactive picker's " +
+      "'Choose from all packs…' option) now scaffolds it. Its " +
+      'manifest.yml has no scope/project_type fields, so sdd init skips ' +
+      'those two questions when it detects a micro-shaped manifest (no ' +
+      'scope/project_type keys) — existing packs’ manifests are ' +
+      'unaffected, they always carry both keys',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for the 5 existing packs',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.13';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

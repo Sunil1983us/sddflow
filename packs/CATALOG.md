@@ -14,8 +14,12 @@
 | [sdd-frontend-spa](sdd-frontend-spa/) | React / Vue / Angular / Svelte SPAs | — | pilot / mvp / full |
 | [sdd-mobile](sdd-mobile/) | React Native / Flutter (iOS + Android) | — | pilot / mvp / full |
 | [sdd-fullstack](sdd-fullstack/) | Backend + Frontend in one repo | — | pilot / mvp / full |
+| [sdd-micro](sdd-micro/) | Tiny/personal projects — scripts, small tools | — | n/a — single tier, 3 commands |
 
 **Not sure which to use?** → Start with `sdd-universal`.
+**Just a script or a small personal tool?** → Use `sdd-micro` — see
+[PACK-SPEC.md](../PACK-SPEC.md) note on why it intentionally doesn't
+follow the full spec below.
 
 ---
 
@@ -36,6 +40,10 @@ I'm building a mobile app (React Native, Flutter, Expo)
 
 I'm building a monorepo with a backend API and frontend client
   → sdd-fullstack
+
+I'm building a script, a small CLI tool, or a personal project — no
+team, no formal requirements, no BRD/UC/SRD ceremony needed
+  → sdd-micro
 ```
 
 ---

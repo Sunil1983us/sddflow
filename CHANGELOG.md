@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.13] — 2026-07-08 (New pack — sdd-micro, for tiny/personal projects)
+
+### Added
+
+- **`sdd-micro`** — a 6th, standalone pack for scripts and small personal
+  projects that don't need the full 11-command SDLC: a script that
+  prints "Hello, world!", a small CLI utility, a weekend project. Flow
+  is just `/specify → [GATE-1: confirmed] → /task → /implement` — no
+  BRD, Use Cases, SRD, Validate, Analyze, Clarify, Design, or Release.
+  It keeps the two things that actually prevent drift on a small
+  project — a short constitution (tech stack + ground rules, confirmed
+  once at GATE-1) and a flat, verified task list — and drops everything
+  that exists in the bigger packs to make a multi-stakeholder, audited
+  project traceable. See `packs/sdd-micro/CLAUDE.md` and `WHY-SDD.md`
+  for the full reasoning, and `README.md` → "Outgrowing sdd-micro" for
+  when to move to `sdd-universal`.
+- `sdd init --pack sdd-micro` (or the interactive picker's "Choose from
+  all packs…" option, both CLIs) now scaffolds it. Because its
+  `manifest.yml` has no `scope`/`project_type` fields, `sdd init`
+  detects a micro-shaped manifest (fill mode: existing manifest missing
+  both keys; scaffold mode: `sdd-micro` was the chosen pack) and skips
+  the scope and project-type questions for it — existing packs are
+  unaffected, their manifests always carry both keys.
+
+### Divergence note
+`sdd-micro` intentionally does not follow `PACK-SPEC.md` (the full-SDLC
+pack spec) or `packs/_shared/sync-blocks.sh` (no `_shared/blocks/`
+markers in its files) — see the exception note added to the top of
+`PACK-SPEC.md`. It is hand-maintained, not generated from `_shared/`.
+
+---
+
 ## [2.7.12] — 2026-07-07 (Multi-feature safety fix — progressive Jira export, all 5 packs)
 
 ### Fixed — a more severe version of the bug fixed in 2.7.11

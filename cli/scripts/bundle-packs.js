@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copies the 5 sdd-* pack folders into cli/packs/ so `sdd init` can find
+// Copies the sdd-* pack folders into cli/packs/ so `sdd init` can find
 // them once this package is installed from npm (a published tarball
 // contains only what "files" in package.json lists — the rest of the
 // monorepo, including packs/, is not there unless bundled here first).
@@ -28,6 +28,7 @@ const PACKS = [
   'sdd-fullstack',
   'sdd-mobile',
   'sdd-universal',
+  'sdd-micro',
 ];
 
 rmSync(packsDest, { recursive: true, force: true });

@@ -15,6 +15,7 @@ pipeline from business requirements through to release notes.
 | [`sdd-frontend-spa`](packs/sdd-frontend-spa/) | React, Vue, Angular, Svelte, Next.js, Nuxt |
 | [`sdd-mobile`](packs/sdd-mobile/) | React Native, Expo, or Flutter |
 | [`sdd-fullstack`](packs/sdd-fullstack/) | Monorepo with a JS frontend + separate backend |
+| [`sdd-micro`](packs/sdd-micro/) | Tiny/personal project — a script, a small tool — with no BRD/UC/SRD ceremony |
 
 Not sure which to use? See [`packs/CATALOG.md`](packs/CATALOG.md) for a decision tree.
 
@@ -118,6 +119,7 @@ packs/
   sdd-frontend-spa/
   sdd-mobile/
   sdd-fullstack/
+  sdd-micro/          # Tiny/personal projects — no BRD/UC/SRD, 3 commands
 cli/                  # Node.js CLI (from source; maintenance mode)
 cli-python/           # Python CLI (pip install sddflow)
 examples/
