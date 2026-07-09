@@ -426,6 +426,29 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.14',
+    to:   '2.7.15',
+    description: 'sdd dashboard (Python CLI) gains Jira/Confluence links, LAN sharing, and an in-page doc viewer; no manifest schema changes',
+    notes: [
+      'The Python CLI (sddflow) dashboard now shows local Jira Epic/' +
+      'Story/Task links and Confluence page links on each pipeline doc ' +
+      '(no network call), plus an on-demand button to live-check ' +
+      "sdd review submit's review-gate tickets (never cached locally), " +
+      'and a View button that reads a doc straight from disk into the page',
+      'New --host flag (default 127.0.0.1) lets teammates on the same ' +
+      'network reach a shared instance via --host 0.0.0.0 — still one ' +
+      'unauthenticated process on one machine, not a hosted service',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.15';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

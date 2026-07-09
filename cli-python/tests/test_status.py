@@ -3,6 +3,7 @@
 # network/Jira dependency (unlike `sdd review status`).
 from pathlib import Path
 
+import sdd.utils.status as status_mod
 from sdd.utils.status import build_project_status, build_feature_status
 
 
@@ -246,3 +247,96 @@ def test_constitution_missing_reports_not_exists(tmp_path, monkeypatch):
     _write_manifest(tmp_path)
     status = build_project_status(".")
     assert status["constitution"]["exists"] is False
+
+
+# ── Local Jira/Confluence link resolution (no network) ────────────────────
+
+def test_jira_keys_yield_no_links_without_keys_file(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["local_links"]["jira"] == {"epic": None, "stories": [], "tasks": []}
+
+
+def test_jira_keys_parsed_with_base_url(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    jira_dir = tmp_path / "docs" / "jira" / "payments"
+    jira_dir.mkdir(parents=True)
+    (jira_dir / "keys.yml").write_text(
+        "epic:\n  jira_key: PROJ-1\n"
+        "stories:\n  - jira_key: PROJ-2\n  - jira_key: PROJ-3\n"
+        "tasks:\n  - jira_key: PROJ-4\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    jira = feat["local_links"]["jira"]
+    assert jira["epic"] == {"key": "PROJ-1", "url": "https://acme.atlassian.net/browse/PROJ-1"}
+    assert [s["key"] for s in jira["stories"]] == ["PROJ-2", "PROJ-3"]
+    assert jira["tasks"][0]["url"] == "https://acme.atlassian.net/browse/PROJ-4"
+
+
+def test_jira_keys_scoped_to_own_feature(tmp_path, monkeypatch):
+    """A different feature's keys.yml must never leak into this feature's links."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    _write_manifest(tmp_path)
+    for f in ["payments", "dashboard"]:
+        (tmp_path / ".specify" / "features" / f).mkdir(parents=True)
+    jira_dir = tmp_path / "docs" / "jira" / "dashboard"
+    jira_dir.mkdir(parents=True)
+    (jira_dir / "keys.yml").write_text("epic:\n  jira_key: OTHER-1\n")
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["local_links"]["jira"]["epic"] is None
+
+
+def test_jira_keys_without_base_url_omit_url_but_keep_key(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
+    jira_dir = tmp_path / "docs" / "jira" / "payments"
+    jira_dir.mkdir(parents=True)
+    (jira_dir / "keys.yml").write_text("epic:\n  jira_key: PROJ-1\n")
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["local_links"]["jira"]["epic"] == {"key": "PROJ-1", "url": None}
+
+
+def test_confluence_drafts_parsed(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
+    (tmp_path / ".specify" / ".confluence-drafts.json").write_text(
+        '{"brd": {"page_id": "123", "title": "Acme \\u2014 BRD"}}'
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    cf = feat["local_links"]["confluence"]
+    assert cf["brd"]["url"] == "https://acme.atlassian.net/wiki/pages/viewpage.action?pageId=123"
+    assert cf["brd"]["title"] == "Acme — BRD"
+
+
+def test_confluence_drafts_absent_returns_empty_dict(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["local_links"]["confluence"] == {}
+
+
+def test_malformed_keys_yml_does_not_crash(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
+    jira_dir = tmp_path / "docs" / "jira" / "payments"
+    jira_dir.mkdir(parents=True)
+    (jira_dir / "keys.yml").write_text("not: valid: yaml: [")
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["local_links"]["jira"] == {"epic": None, "stories": [], "tasks": []}

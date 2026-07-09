@@ -6,9 +6,12 @@ the authoritative gate in every mode (see CLAUDE.md "Document Review
 Gates"). This is what `sdd dashboard` and `sdd status` render.
 """
 from __future__ import annotations
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+
+import yaml
 
 from sdd.utils.manifest import read_manifest
 
@@ -219,15 +222,87 @@ def _constitution_status(root: Path) -> dict:
     }
 
 
+def _local_base_url() -> str | None:
+    """Best-effort Atlassian base_url from ~/.sdd/config.yml — a local file
+    read only (no network, no credential check), so this is safe to call
+    on every dashboard poll. Returns None if unconfigured/ambiguous."""
+    try:
+        from sdd.utils.atlassian_auth import load_profile
+        from sdd.utils.integrations import load_integrations
+        profile_name = None
+        try:
+            profile_name = load_integrations().profile
+        except FileNotFoundError:
+            pass
+        return load_profile(profile_name).base_url
+    except Exception:
+        return None
+
+
+def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
+    """Jira Epic/Story/Task links already persisted by the progressive
+    export (docs/jira/{feature}/keys.yml, written by jira-push.py). No
+    network call — review-gate ticket links (from `sdd review submit`)
+    are never cached locally, see the live /api/review-links endpoint."""
+    result: dict = {"epic": None, "stories": [], "tasks": []}
+    keys_path = root / "docs" / "jira" / feature / "keys.yml"
+    if not keys_path.exists():
+        return result
+    try:
+        keys = yaml.safe_load(keys_path.read_text()) or {}
+    except Exception:
+        return result
+
+    def _link(jira_key: str) -> dict:
+        return {"key": jira_key, "url": f"{base_url}/browse/{jira_key}" if base_url else None}
+
+    epic = keys.get("epic") or {}
+    if epic.get("jira_key"):
+        result["epic"] = _link(epic["jira_key"])
+    result["stories"] = [_link(s["jira_key"]) for s in (keys.get("stories") or []) if s.get("jira_key")]
+    result["tasks"] = [_link(t["jira_key"]) for t in (keys.get("tasks") or []) if t.get("jira_key")]
+    return result
+
+
+def _local_confluence_links(root: Path, base_url: str | None) -> dict:
+    """Confluence page links already persisted by `sdd confluence push`/
+    `draft` (.specify/.confluence-drafts.json). No network call — pages
+    pushed via `sdd review submit` are never cached locally the same way,
+    see the live /api/review-links endpoint. Project-wide, not per-feature
+    (the drafts file isn't feature-scoped)."""
+    drafts_path = root / ".specify" / ".confluence-drafts.json"
+    if not drafts_path.exists():
+        return {}
+    try:
+        drafts = json.loads(drafts_path.read_text())
+    except Exception:
+        return {}
+    links = {}
+    for doc_key, entry in drafts.items():
+        page_id = entry.get("page_id")
+        if not page_id:
+            continue
+        links[doc_key] = {
+            "title": entry.get("title"),
+            "url": f"{base_url}/wiki/pages/viewpage.action?pageId={page_id}" if base_url else None,
+        }
+    return links
+
+
 def build_feature_status(root: Path, feature: str) -> dict:
     feature_dir = root / ".specify" / "features" / feature
     docs = _feature_docs(feature_dir)
+    base_url = _local_base_url()
     return {
         "name": feature,
         "docs": docs,
         "current_stage": _current_stage(docs),
         "tasks": _parse_tasks(feature_dir / "tasks.md"),
         "token_usage": _parse_token_usage(feature_dir / "token-usage.md"),
+        "local_links": {
+            "jira": _local_jira_links(root, feature, base_url),
+            "confluence": _local_confluence_links(root, base_url),
+        },
     }
 
 

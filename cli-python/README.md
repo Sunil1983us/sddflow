@@ -342,21 +342,44 @@ the `Status:` headers already written into each doc's `.md` file, which
 are the authoritative gate in every review mode.
 
 ```bash
-sdd dashboard              # starts a local server, opens your browser
-sdd dashboard --port 5050  # use a different port
-sdd dashboard --no-open    # don't auto-open a browser tab
+sdd dashboard                  # starts a local server, opens your browser
+sdd dashboard --port 5050      # use a different port
+sdd dashboard --no-open        # don't auto-open a browser tab
+sdd dashboard --host 0.0.0.0   # let teammates on the same network reach it (see below)
 ```
 
 Shows, per feature under `.specify/features/`:
-- **Pipeline** — every generated doc and its `Status:` (Draft/Approved/etc.), with a best-effort "what's next" guess
+- **Pipeline** — every generated doc and its `Status:` (Draft/Approved/etc.), with a best-effort "what's next" guess. Each doc has a **View** button that reads the raw `.md` straight from disk into the page — no need to leave the browser to check content.
 - **Tasks** — parsed from `tasks.md` (works with both the full packs' checkbox-based tasks and sdd-micro's `**Status:**` field)
 - **Token Usage** — the running totals from `token-usage.md`, if token usage logging is enabled for that feature
+- **Jira Export** — the Epic/Story/Task links from the progressive export (`docs/jira/{feature}/keys.yml`), if you've run `/jira-push` or `sdd jira push`
 
 It's a viewer only — nothing here writes to `.specify/`. The page polls
 `/api/status` every 5 seconds, so it reflects new commands as the agent
 runs them. Task/PR status reflects `tasks.md`, not live PR state on your
 git host (that would require its own credentials/API calls per host —
 out of scope for this command).
+
+**Jira/Confluence links** come in two tiers:
+- **Local, instant, always shown** — Jira Epic/Story/Task links (from
+  `docs/jira/{feature}/keys.yml`) and Confluence page links for docs
+  pushed via `sdd confluence push`/`draft` (from
+  `.specify/.confluence-drafts.json`). Pure file reads, no network call.
+- **Live, on demand** — click **"🔄 Check Jira/Confluence review links"**
+  on a feature to look up that feature's `sdd review submit` tickets
+  (these aren't cached anywhere locally, unlike the progressive export).
+  This one call uses your existing `~/.sdd/config.yml` profile and
+  `.specify/integrations.yml` — same credentials as `sdd review status`,
+  and only fires when you click the button, never on the automatic poll.
+
+**Sharing with a team.** By default the server only listens on
+`127.0.0.1` — just you. `--host 0.0.0.0` lets teammates on the same
+network open it from their own browser at your machine's IP (the CLI
+prints that URL). This is still one process on one machine, not a hosted
+service — it stops when you close the terminal, and it's unauthenticated,
+so only use it on a network you trust. It's read-only and never sends
+credentials to the browser, but it does expose your project's `.specify/`
+status (doc contents, task titles, etc.) to anyone who can reach the port.
 
 ---
 

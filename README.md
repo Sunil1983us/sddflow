@@ -44,7 +44,7 @@ Includes:
 - `sdd confluence push`
 - `sdd review submit` / `sdd review check` / `sdd review apply` / `sdd review status`
 - `sdd pr create`
-- `sdd dashboard` — local, read-only web UI: pipeline progress, task status, and token usage per feature, no Jira/Confluence needed
+- `sdd dashboard` — local, read-only web UI: pipeline progress, task status, and token usage per feature; Jira/Confluence links (local + on-demand live check); `--host 0.0.0.0` to share with teammates on the same network
 
 Reviews don't require Jira: document approval works in chat out of the box (the
 `Status:` header in each `.md` is the authoritative gate). With only a

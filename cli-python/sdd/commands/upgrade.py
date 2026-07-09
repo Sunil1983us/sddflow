@@ -434,6 +434,42 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.14"},
     },
+    {
+        "from":        "2.7.14",
+        "to":          "2.7.15",
+        "description": "sdd dashboard gains Jira/Confluence links, LAN sharing, and an in-page doc viewer; no manifest schema changes",
+        "notes": [
+            "Local, instant links (no network) now show on each pipeline "
+            "doc: Jira Epic/Story/Task links from docs/jira/{feature}/"
+            "keys.yml, and Confluence page links from "
+            ".specify/.confluence-drafts.json, when either exists",
+            "New 'Check Jira/Confluence review links' button per feature "
+            "queries Jira/Confluence live (via your existing ~/.sdd/"
+            "config.yml profile and .specify/integrations.yml) to resolve "
+            "the sdd review submit review-gate tickets, which are never "
+            "cached locally -- this is on-demand only, never on the "
+            "automatic 5s poll",
+            "New 'View' button per document reads the raw .md straight "
+            "from disk into the page, so you don't have to leave the "
+            "browser to check content",
+            "New `--host` flag (default 127.0.0.1) -- run with "
+            "`--host 0.0.0.0` on a shared devbox so teammates on the same "
+            "network can open the dashboard from their own browser; the "
+            "CLI now prints a caution and the reachable LAN URL when "
+            "bound non-locally. Still one process on one machine, not a "
+            "hosted service, and unauthenticated -- only use on a trusted "
+            "network",
+            "The new /api/doc and /api/review-links endpoints take "
+            "feature/doc query params from HTTP requests, not just local "
+            "CLI flags -- both are validated against a strict "
+            "[A-Za-z0-9_-]+ pattern before touching the filesystem, "
+            "closing off path traversal now that --host can make this "
+            "network-reachable",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.15"},
+    },
 ]
 
 

@@ -4,6 +4,47 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.15] — 2026-07-09 (`sdd dashboard`: Jira/Confluence links, LAN sharing, doc viewer)
+
+### Added
+
+- **Local Jira/Confluence links, always instant.** Each pipeline doc now
+  shows an Epic/Story/Task link (from `docs/jira/{feature}/keys.yml`,
+  written by the progressive Jira export) and a Confluence page link
+  (from `.specify/.confluence-drafts.json`, written by `sdd confluence
+  push`/`draft`), when either exists. Pure file reads, no network call —
+  consistent with the dashboard's existing offline-by-default design.
+- **"🔄 Check Jira/Confluence review links" button**, per feature. The
+  tickets `sdd review submit` creates per document are never cached
+  locally (unlike the progressive export), so resolving them needs a
+  live Jira/Confluence lookup — this makes that lookup explicit and
+  on-demand, using your existing `~/.sdd/config.yml` profile and
+  `.specify/integrations.yml`, and never fires on the automatic 5s poll.
+- **"View" button per document** reads the raw `.md` straight from disk
+  into the page (new `/api/doc` endpoint) — no need to leave the browser
+  to check a document's content.
+- **`--host` flag** (default `127.0.0.1`). Run with `--host 0.0.0.0` on
+  a shared devbox so teammates on the same network can open the
+  dashboard from their own browser — the CLI prints the reachable LAN
+  URL and a caution. This is still one unauthenticated process on one
+  machine, not a hosted/always-on service; it stops when you close the
+  terminal, and it's read-only and never sends credentials to the
+  browser, but it does expose the project's `.specify/` status to
+  anyone who can reach the port — only use it on a trusted network.
+
+### Security
+
+- The new `/api/doc` and `/api/review-links` endpoints take
+  `feature`/`doc` values from HTTP query params rather than trusted
+  local CLI flags — once `--host` makes the server reachable beyond
+  `127.0.0.1`, that's untrusted network input. Both are validated
+  against a strict `[A-Za-z0-9_-]+` pattern before ever being used to
+  build a filesystem path, closing off path traversal. Verified with a
+  live request containing `../../../etc` in both `feature` and `doc` —
+  correctly rejected with 400 before any file access.
+
+---
+
 ## [2.7.14] — 2026-07-09 (New `sdd dashboard` — local status UI, Python CLI)
 
 ### Added
