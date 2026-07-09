@@ -327,6 +327,36 @@ Output:
 ```
 
 Blocked = predecessor in the same phase is not yet approved.
+**Requires Jira** (`integrations.yml` with a `jira:` section) — for a
+status view that works with any review mode (chat, local, or jira), see
+`sdd dashboard` below.
+
+---
+
+### `sdd dashboard`
+
+A local, read-only web UI over the current project's `.specify/` —
+pipeline progress per feature, task completion, and token usage. Unlike
+`sdd review status`, it needs no Jira/Confluence configuration: it reads
+the `Status:` headers already written into each doc's `.md` file, which
+are the authoritative gate in every review mode.
+
+```bash
+sdd dashboard              # starts a local server, opens your browser
+sdd dashboard --port 5050  # use a different port
+sdd dashboard --no-open    # don't auto-open a browser tab
+```
+
+Shows, per feature under `.specify/features/`:
+- **Pipeline** — every generated doc and its `Status:` (Draft/Approved/etc.), with a best-effort "what's next" guess
+- **Tasks** — parsed from `tasks.md` (works with both the full packs' checkbox-based tasks and sdd-micro's `**Status:**` field)
+- **Token Usage** — the running totals from `token-usage.md`, if token usage logging is enabled for that feature
+
+It's a viewer only — nothing here writes to `.specify/`. The page polls
+`/api/status` every 5 seconds, so it reflects new commands as the agent
+runs them. Task/PR status reflects `tasks.md`, not live PR state on your
+git host (that would require its own credentials/API calls per host —
+out of scope for this command).
 
 ---
 

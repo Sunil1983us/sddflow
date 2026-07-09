@@ -8,6 +8,7 @@ from sdd.commands.confluence import confluence_command
 from sdd.commands.review import review_command
 from sdd.commands.cr import cr_command
 from sdd.commands.pr import pr_command
+from sdd.commands.dashboard import dashboard_command
 
 
 @click.group()
@@ -24,6 +25,7 @@ cli.add_command(confluence_command,  name="confluence")
 cli.add_command(review_command,      name="review")
 cli.add_command(cr_command,          name="cr")
 cli.add_command(pr_command,          name="pr")
+cli.add_command(dashboard_command,   name="dashboard")
 
 
 if __name__ == "__main__":

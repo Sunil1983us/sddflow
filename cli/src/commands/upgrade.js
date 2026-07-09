@@ -404,6 +404,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.13',
+    to:   '2.7.14',
+    description: 'New sdd dashboard command (Python CLI only, local status UI); no manifest schema changes',
+    notes: [
+      'The Python CLI (sddflow) added `sdd dashboard`: a local, ' +
+      'read-only web UI over .specify/ — pipeline progress, task ' +
+      'completion, and token usage per feature. Stdlib-only HTTP ' +
+      'server, no new dependency. Unlike `sdd review status`, it needs ' +
+      'no Jira/Confluence configuration — it reads the `Status:` header ' +
+      "already written into each doc's .md file, the authoritative " +
+      'gate in every review mode (chat/local/jira)',
+      'This is a Python-CLI-only command — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.14';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.14] — 2026-07-09 (New `sdd dashboard` — local status UI, Python CLI)
+
+### Added
+
+- **`sdd dashboard`** — a local, read-only web UI over the current
+  project's `.specify/`: pipeline progress per feature (every generated
+  doc and its `Status:` header, plus a best-effort "what's next" guess),
+  task completion (parses both the full packs' checkbox-based `tasks.md`
+  and `sdd-micro`'s `**Status:**` field), and token usage (the running
+  totals from `token-usage.md`, when logging is enabled). Multi-feature
+  aware — every folder under `.specify/features/` gets its own section.
+  `sdd dashboard [--port N] [--no-open]`.
+- Unlike `sdd review status`, this needs **no Jira/Confluence
+  configuration** — it reads the `Status:` header already written into
+  each doc's `.md` file, which is the authoritative gate in every review
+  mode (chat, local, jira) per each pack's CLAUDE.md. It's a viewer
+  only — nothing it does writes to `.specify/`. The page polls
+  `/api/status` every 5 seconds so it reflects new commands as the agent
+  runs them.
+- Implemented with the stdlib `http.server` — no new pip dependency.
+  New pure-function module `sdd/utils/status.py`
+  (`build_project_status`, `build_feature_status`), unit tested
+  (16 new tests) independent of the HTTP layer.
+- Task/PR status reflects `tasks.md` only, not live PR state on your git
+  host — that would need per-host credentials/API calls and is out of
+  scope for this command (see `sdd pr create`/`sdd pr comments` for
+  live PR interaction instead).
+- Python-CLI-only (`sddflow`) — the Node CLI stays scoped to
+  init/upgrade scaffolding per its own README.
+
+---
+
 ## [2.7.13] — 2026-07-08 (New pack — sdd-micro, for tiny/personal projects)
 
 ### Added

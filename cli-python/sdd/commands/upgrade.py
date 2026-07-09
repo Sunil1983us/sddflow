@@ -412,6 +412,28 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.13"},
     },
+    {
+        "from":        "2.7.13",
+        "to":          "2.7.14",
+        "description": "New sdd dashboard command (local status UI); no manifest schema changes",
+        "notes": [
+            "Added `sdd dashboard`: a local, read-only web UI over "
+            ".specify/ -- pipeline progress, task completion, and token "
+            "usage per feature. Stdlib-only HTTP server, no new pip "
+            "dependency. Unlike `sdd review status`, it needs no Jira/"
+            "Confluence configuration -- it reads the `Status:` header "
+            "already written into each doc's .md file, which is the "
+            "authoritative gate in every review mode (chat/local/jira)",
+            "New module sdd/utils/status.py (build_project_status, "
+            "build_feature_status) parses per-feature docs, tasks.md "
+            "(both the full packs' checkbox format and sdd-micro's "
+            "**Status:** field), and token-usage.md running totals -- "
+            "pure filesystem reads, no writes, safe to poll",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.14"},
+    },
 ]
 
 
