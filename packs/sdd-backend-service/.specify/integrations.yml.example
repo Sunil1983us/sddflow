@@ -101,21 +101,28 @@ confluence:
 
   # Page title templates for each SDD document type.
   # {project} is replaced with the project name from manifest.yml at push time.
+  # {feature} is replaced with the active feature (or --feature override) at
+  # push time — include it for any per-feature document on a multi-feature
+  # project, or two features will upsert the SAME Confluence page and
+  # silently overwrite each other's content. Living/service-level documents
+  # (data-model, security-design, api-spec, component-library, runbook) are
+  # shared across every feature by design — {feature} is ignored for those
+  # even if present, so there's no harm leaving it out of their entries.
   #
   # Only documents listed here are pushed. Remove any you don't want published.
   # Add extra entries if your team uses additional document types.
   page_map:
-    brd:       "{project} — Business Requirements"
-    use-cases: "{project} — Use Cases"
-    srd:       "{project} — System Requirements"
-    design:    "{project} — Design"                 # unified plan_mode
-    arch:      "{project} — Architecture Overview"  # separate plan_mode
-    hld:       "{project} — High-Level Design"      # separate plan_mode
-    adr:       "{project} — Architecture Decisions" # separate plan_mode
-    lld:       "{project} — Low-Level Design"
-    runbook:   "{project} — Runbook"
-    # validate: "{project} — Validation Report"
-    # release:  "{project} — Release Notes"
+    brd:       "{project} — Business Requirements — {feature}"
+    use-cases: "{project} — Use Cases — {feature}"
+    srd:       "{project} — System Requirements — {feature}"
+    design:    "{project} — Design — {feature}"                 # unified plan_mode
+    arch:      "{project} — Architecture Overview — {feature}"  # separate plan_mode
+    hld:       "{project} — High-Level Design — {feature}"      # separate plan_mode
+    adr:       "{project} — Architecture Decisions — {feature}" # separate plan_mode
+    lld:       "{project} — Low-Level Design — {feature}"
+    runbook:   "{project} — Runbook"                            # living — no {feature}
+    # validate: "{project} — Validation Report — {feature}"
+    # release:  "{project} — Release Notes — {feature}"
 
 
 # ── Document review gates ─────────────────────────────────────────────────────
@@ -132,7 +139,15 @@ confluence:
 #   Server/DC: use the Jira username (login name)
 #             Note: change "accountId" to "name" in the CLI if using Server/DC
 
-# The doc keys below match the .md filenames in .specify/features/{feature}/.
+# The doc keys below match the .md filenames — most live in
+# .specify/features/{feature}/; two exceptions: `runbook` lives at
+# docs/runbook/local-setup.md, and living/service-level documents
+# (data-model, security-design, api-spec, component-library — shared
+# across every feature in this service, see CLAUDE.md "Living
+# Documents") live at .specify/service/. This example only wires up the
+# main spec-phase gate (brd/use-cases/srd/design/lld/tasks/runbook/
+# release) — add entries here for any other document you want a Jira/
+# Confluence review gate on.
 # The specify-phase sequence depends on plan_mode (manifest.yml):
 #   unified  (default): BRD → Use Cases → SRD → Design       (design.md)
 #   separate:           BRD → Use Cases → SRD, then in the planning phase

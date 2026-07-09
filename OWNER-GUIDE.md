@@ -20,7 +20,7 @@ They never touch this repo.
 
 ## 2. What Was Built — Full Inventory
 
-### 2.1 The Five Packs
+### 2.1 The Packs
 
 | Pack | Who uses it |
 |---|---|
@@ -29,8 +29,9 @@ They never touch this repo.
 | `packs/sdd-frontend-spa` | React, Vue, Angular single-page apps |
 | `packs/sdd-fullstack` | Projects with both a backend and a frontend |
 | `packs/sdd-mobile` | React Native / Flutter iOS + Android apps |
+| `packs/sdd-micro` | Tiny/personal projects — a script, a small tool. **Exception:** does not follow PACK-SPEC.md (no BRD/UC/SRD, 3 commands only) and is not wired into `sync-blocks.sh` (no `_shared/blocks/` markers) — see its own `CLAUDE.md`/`WHY-SDD.md` before treating it like the other five below |
 
-Each pack is **fully self-contained** — a user copies the whole folder and it works standalone. Packs share no runtime dependencies with each other or with `_shared/`.
+Each of the first five packs is **fully self-contained** and built from the shared-block sync system described below. `sdd-micro` is also self-contained but is hand-maintained, not synced — everything in section 2.2-2.4 below describes the other five packs unless noted.
 
 ### 2.2 Inside Every Pack
 

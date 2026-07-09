@@ -40,6 +40,14 @@ Generate `use-cases.md` for the current feature:
 - Derive all actors from stakeholders, systems, and integrations named in BRD
   - Every actor: **ACT-NNN** with type (Primary / Secondary / System)
   - Primary — human who initiates; Secondary — human who participates; System — automated
+  - **Before deriving an actor from scratch:** check whether it already
+    appears in another feature's `use-cases.md` in this service (same
+    real-world role — e.g. "Ops Analyst", "Settlement Engine"). If so,
+    reuse its Name/Type/Description verbatim rather than re-deriving them,
+    and note it in the Description column: "(same as {prior-feature}'s
+    ACT-NNN)". Actor numbering (ACT-NNN) is still local to this feature's
+    own `use-cases.md` — Main/Alternate/Exception Path steps need a local
+    ID to reference — only the description content is reused, not the ID
 - Every use case: **UC-NNN**
   - Title must name the goal achieved by the primary actor
   - **Trigger:** what event or user action starts this UC
@@ -139,7 +147,9 @@ the authoritative gate.
 
 After approval (Step C complete), generate draft Story definitions:
 
-1. Write `docs/jira/stories-draft.md` with one Story entry per UC-NNN:
+1. Write `docs/jira/{manifest.project.feature}/stories-draft.md` (scoped
+   per feature, same as `.specify/features/{feature}/`) with one Story
+   entry per UC-NNN:
    ```
    # Jira Stories Draft — {Feature Name}
    > Source: use-cases.md | Stage: after-uc | Status: DRAFT
@@ -162,7 +172,7 @@ After approval (Step C complete), generate draft Story definitions:
 
 2. Check whether `.specify/jira-config.yml` exists.
    - If yes: state "Draft story definitions ready. Run `/jira-push --level story` to create them in Jira now. Story points and FR-NNN links will be added after /specify-srd — run `/jira-push --level story` again then to update the existing issues."
-   - If no: state "Draft story definitions saved to `docs/jira/stories-draft.md`. FR-NNN links and MoSCoW priority will be added after /specify-srd. Configure `.specify/jira-config.yml` and run `/jira-push --level story` when ready."
+   - If no: state "Draft story definitions saved to `docs/jira/{feature}/stories-draft.md`. FR-NNN links and MoSCoW priority will be added after /specify-srd. Configure `.specify/jira-config.yml` and run `/jira-push --level story` when ready."
 
 State: "**Use Cases generated.** Review and approve, then run **/specify-srd** to continue."
 

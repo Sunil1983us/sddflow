@@ -147,14 +147,16 @@ Save: tasks.md
 
 ### 4. Jira Export
 - Read jira-export-template.md
-- Check `docs/jira/keys.yml`:
+- Check `docs/jira/{manifest.project.feature}/keys.yml` (scoped per
+  feature, same as `.specify/features/{feature}/` — a different
+  feature's keys.yml is never read or written here):
   - If Epic and Story keys already exist in keys.yml (pushed after BRD/SRD):
     Generate **Tasks-only** CSV — Epic and Stories are already in Jira; only new Task rows needed.
     Task rows reference parent Story by Jira key from keys.yml.
   - If no prior Jira export exists:
     Generate **full hierarchy** CSV — Epic → Story → Task.
 - Include: story points, sprint, MoSCoW priority, acceptance criteria, FR-NNN, TC-NNN (mvp+)
-- Save: docs/jira/stories.md + docs/jira/jira-import.csv
+- Save: docs/jira/{feature}/stories.md + docs/jira/{feature}/jira-import.csv
 - If `.specify/jira-config.yml` exists:
   State: "Task export ready. Run `/jira-push --level task` to push Tasks to Jira.
   {If keys.yml has Epic+Story entries: 'Tasks will be linked to the existing Jira issues automatically.'}"

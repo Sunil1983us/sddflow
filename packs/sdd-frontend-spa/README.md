@@ -135,7 +135,7 @@ Pauses at every human gate. Supports `--list`, `--from STEP`, `--to STEP`.
 #### MVP+ (full path)
 ```
 /specify → [GATE-1] → /specify-brd → /specify-uc → /specify-srd
-→ /specify-doc security → /specify-doc component-spec → /specify-doc ux-flow
+→ /specify-doc security → /specify-doc component-spec → /specify-doc ux-flow → /specify-doc data-model
 → /checklist (mandatory) → /validate → /analyze → /clarify
 → /plan-design → /plan-lld → /task → /implement → /release
 ```
@@ -150,7 +150,7 @@ Pauses at every human gate. Supports `--list`, `--from STEP`, `--to STEP`.
 | `/specify-brd` | BRD | same | same |
 | `/specify-uc` | Use Cases | same | same |
 | `/specify-srd` | SRD + Security-Design §1 | + §1-2 | + §1-4 |
-| `/specify-doc` | security | + component-spec, ux-flow | + data-model, resilience, investigation |
+| `/specify-doc` | security | + component-spec, ux-flow, data-model (living) | + resilience, investigation |
 | `/checklist` | Optional | Mandatory | Mandatory |
 | `/validate` | Validation report | same | same |
 | `/analyze` | Analysis report | same | same |
@@ -185,11 +185,28 @@ To upgrade `pilot → mvp` or `mvp → full`:
 
 ---
 
+## Configuration Files (YAML) — What to Edit and When
+
+| File | Required? | When to edit | What to fill in |
+|---|---|---|---|
+| `.specify/manifest.yml` | **Required — day 1** | Before `/specify` | The 4 required `project:` fields (name, scope, feature, context_file), plus `reading_mode`, `workflow_mode` (github/local), `plan_mode` (unified/separate), and PR rules (`max_lines_per_pr`, `max_files_per_pr`) |
+| `.specify/memory/roles.yml` | Recommended — day 1 | Before your first review gate (`/specify-brd` onward) | Names/teams for `product_owner`, `tech_lead`, `qa_lead`, etc. (RACI) — routes each document's approval to the right person. Chat-mode review works without it (defaults to "reviewer"), but named approvers give a real audit trail |
+| `.specify/integrations.yml.example` → copy to `.specify/integrations.yml` | **Optional** | Only if you want Jira/Confluence review tracking, custom reviewer routing per document, or non-default `code_review.pre_review` behavior | Copy the example, then uncomment/fill the `jira:`, `confluence:`, and `document_reviews:` sections — reviewer IDs, Confluence `page_map`, Jira `custom_fields.story_points`. Easiest path: run `sdd config init` (interactive wizard) instead of hand-editing |
+| `.specify/templates/jira-config-template.yml` → copy to `.specify/jira-config.yml` | Optional — legacy path | Only if you're using the older per-level Jira CSV export instead of the `integrations.yml` review-gate flow | `cp` it in, then fill project keys, issue types, and `customfield_NNNNN` IDs for story points/etc. |
+| `.github/workflows/quality-gate.yml` (or the matching `.gitlab-ci.yml` / `bitbucket-pipelines.yml` / `azure-pipelines.yml` at the repo root) | Pre-wired — edit only if needed | Only if your build/test/lint commands differ from the pack's default stack assumption (stated in the file's own header comment) | Update the build/test/coverage/secret-scan steps to match your actual tech stack. Only the file matching your git host ever runs in CI — the other three are harmless to leave in place, or delete them |
+| `.specify/memory/token-pricing.yml.example` → copy to `.specify/memory/token-pricing.yml` | Optional | Only if you want a per-feature estimated token/cost log (`token-usage.md`) | Copy it in, fill in current $/million-token rates from your provider's pricing page. Logging is off until this file exists — see HOW-TO-USE.md "Token Usage Logging" |
+
+Full detail on each file (what each field does, sample values, troubleshooting) is in
+[`HOW-TO-USE.md`](HOW-TO-USE.md).
+
+---
+
 ## Read Next
 
 | File | Purpose |
 |---|---|
 | `QUICKSTART.md` | Steps to first run |
+| `HOW-TO-USE.md` | Every command explained — what/when/produces/next |
 | `.specify/memory/constitution.md` | Universal rules + your tech stack |
 | `.specify/memory/roles.yml` | RACI — fill in reviewer names |
 | `.specify/contexts/CONTEXT-GUIDE.md` | How to write a good context file |

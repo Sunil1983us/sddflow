@@ -41,17 +41,26 @@ Produce the release plan:
    roles.yml), browser/device target, environment, result checkbox
 
 3. STATIC DEPLOY PLAN
-   Steps from design.md: build static assets, deploy to
-   CDN/object storage (constitution OPS-7), cache invalidation/purge for
-   `index.html` vs hashed assets, feature flag / staged rollout (if
-   applicable) — each with owner and rollback-if-fails action (CDN
-   rollback to previous build / revert flag)
+   **The deploy strategy and rollback steps are standard for this app,
+   not re-derived per release** — pull them from
+   `docs/runbook/local-setup.md` (living document, established once) and
+   `constitution.md`'s Hosting/CDN row. Write "Standard deploy —
+   see docs/runbook/local-setup.md §{N}" rather than re-describing the
+   strategy (build static assets, deploy to CDN/object storage, cache
+   invalidation/purge for `index.html` vs hashed assets, feature flag /
+   staged rollout). Fill in only what's specific to this release: new
+   feature flag(s), owner, and confirmation the standard steps still
+   apply (or a note on what's different this time, e.g. a new CDN
+   region or cache-key scheme change)
 
 4. POST-DEPLOY SMOKE TEST
-   App loads at production URL (200, correct bundle hash), key
-   happy-path screen flow, no console errors / failed network requests,
-   error-tracking dashboard (Sentry/RUM) shows no new error spike, key
-   NFR check (e.g. Core Web Vitals)
+   **The checks themselves are standard** — pull from
+   `docs/runbook/local-setup.md`. Fill in only this release's specific
+   happy-path screen flow and NFR target to verify: app loads at
+   production URL (200, correct bundle hash), {this release's key
+   happy-path screen flow}, no console errors / failed network requests,
+   error-tracking dashboard (Sentry/RUM) shows no new error spike,
+   {this release's key NFR target, e.g. Core Web Vitals}
 
 5. GO-LIVE GATE
    Check the preconditions first — all tasks merged, UAT passed, §7 Rollback

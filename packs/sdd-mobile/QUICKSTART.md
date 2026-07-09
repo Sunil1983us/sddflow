@@ -134,7 +134,7 @@ Or run everything at once:
 
 Pick your scope in `manifest.yml`:
 - **pilot** — runs: specify → validate → analyze → clarify → plan → task → implement → release; skips `/plan-lld`, ADRs, extended docs
-- **mvp** — adds: `/plan-lld`, ADRs (separate mode), `api-spec.md`, `data-model.md`, QA test cases
+- **mvp** — adds: `/plan-lld`, ADRs (separate mode), API contract in `design.md` §3 (per-feature — this pack only consumes an API), `data-model.md` (living), QA test cases
 - **full** — adds: `resilience.md`, `investigation.md`, full STRIDE security design
 
 ---
@@ -169,7 +169,7 @@ Pick your scope in `manifest.yml`:
 
 **"Constitution Part 2 not finalized"** → Open `constitution.md`, review Part 2, resolve `[MISSING — ask user]` markers, tell the agent "Constitution Part 2 finalized".
 
-**"Where are the output documents?"** → `.specify/features/{your-feature}/` — one subfolder per feature.
+**"Where are the output documents?"** → Most live at `.specify/features/{your-feature}/` — one subfolder per feature. Exceptions: `data-model.md` and `security-design.md` are living, shared across every feature in the app, at `.specify/service/`.
 
 **"The PR is too large"** → The agent will propose a SPLIT plan automatically. Confirm the split, then do sub-tasks one at a time.
 

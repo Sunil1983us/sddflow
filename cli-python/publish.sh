@@ -33,7 +33,7 @@ echo "▶ Bundling packs..."
 rm -rf "$PACKS_DEST"
 mkdir -p "$PACKS_DEST"
 
-for pack in sdd-backend-service sdd-frontend-spa sdd-fullstack sdd-mobile sdd-universal; do
+for pack in sdd-backend-service sdd-frontend-spa sdd-fullstack sdd-mobile sdd-universal sdd-micro; do
   src="$PACKS_SRC/$pack"
   if [ -d "$src" ]; then
     cp -r "$src" "$PACKS_DEST/$pack"

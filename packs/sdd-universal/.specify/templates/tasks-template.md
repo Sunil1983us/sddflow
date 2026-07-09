@@ -68,6 +68,10 @@ Files:
   {build file — package.json / pom.xml / pubspec.yaml / build.gradle / Cargo.toml / pyproject.toml}
   {config file — tsconfig.json / .eslintrc / application.yml / pytest.ini}
 Acceptance criteria:
+  - [ ] **If the build/config files already exist from a prior feature:
+        this task is a no-op unless this feature adds a genuinely new
+        dependency — add only that dependency, don't regenerate the
+        file.** Scaffold is a once-per-service task, not once-per-feature.
   - [ ] Build tool configured with all required dependencies
   - [ ] Language version locked (from constitution.md Language row)
   - [ ] `{build command}` completes with zero errors
@@ -278,6 +282,10 @@ Files:
   docker-compose.yml
   {runtime config — application.yml / .env.example / config.ts / settings.py}
 Acceptance criteria:
+  - [ ] **If `Dockerfile`/`docker-compose.yml` already exist from a prior
+        feature: extend them (add only the new service(s)/config this
+        feature needs) — do NOT regenerate from the template. A blind
+        regeneration silently drops whatever a previous feature added.**
   - [ ] `docker-compose up` (or equivalent) starts all services
   - [ ] Health check / readiness probe passes
   - [ ] Test / mock profile activates correctly in compose
@@ -289,6 +297,8 @@ Acceptance criteria:
 >   k8s/deployment.yaml, k8s/service.yaml, k8s/hpa.yaml,
 >   k8s/networkpolicy.yaml, k8s/configmap.yaml, k8s/secret.yaml
 > Extra acceptance criteria:
+>   - [ ] **If these manifests already exist from a prior feature: extend
+>         them — do NOT regenerate from the template.**
 >   - [ ] `kubectl apply --dry-run=client -f k8s/` validates cleanly
 >   - [ ] HPA min / max replicas satisfy NFR-{NNN} throughput target
 >   - [ ] NetworkPolicy restricts ingress to intended services only

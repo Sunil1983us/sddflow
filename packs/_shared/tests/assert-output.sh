@@ -230,10 +230,26 @@ check "release.md closes BO-NNN"      "release.md" "BO-[0-9]+"
 
 # ── mvp+ checks ──────────────────────────────────────────────────────────────
 
+# data-model.md and security-design.md became living, service-level
+# documents in 2.7.6 — they live at .specify/service/{doc}.md, a sibling
+# of .specify/features/, not under the feature directory itself.
+_service_dir="$(dirname "$(dirname "$FEATURE_DIR")")/service"
+
+check_service_file() {
+  # check_service_file <label> <file> — existence check against .specify/service/
+  local label="$1" file="$_service_dir/$2"
+  printf "  %-52s" "$label"
+  if [[ -f "$file" ]]; then
+    echo "PASS"; PASS=$((PASS+1))
+  else
+    echo "FAIL — file missing at $file"; FAIL=$((FAIL+1))
+  fi
+}
+
 if [[ "$SCOPE" == "mvp" || "$SCOPE" == "full" ]]; then
   echo ""
   echo "MVP+ scope additional checks:"
-  check_file "data-model.md exists"        "data-model.md"
+  check_service_file "data-model.md exists (living doc)"   "data-model.md"
   check_file "lld.md exists"               "lld.md"
   check "design.md has ADR entries"        "design.md" "ADR-[0-9]+|## Architecture Decision"
 fi
@@ -242,7 +258,7 @@ if [[ "$SCOPE" == "full" ]]; then
   echo ""
   echo "Full scope additional checks:"
   check_file "resilience.md exists"        "resilience.md"
-  check_file "security-design.md exists"   "security-design.md"
+  check_service_file "security-design.md exists (living doc)" "security-design.md"
 fi
 
 # ── results ──────────────────────────────────────────────────────────────────

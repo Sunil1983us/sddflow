@@ -42,6 +42,16 @@ Tech Stack table — extract every concern:
 | Orchestration | deployment mentioned | derive from deployment |
 | CI/CD | pipeline mentioned | none if not stated |
 
+Service NFR Baseline — extract from context.md's NFR section, if stated:
+- Performance, Availability, Throughput, Data Retention
+- If not stated at `/specify` time, leave as `[MISSING — ask user]` — the
+  first feature's `/specify-srd` run fills it retroactively from its own
+  NFR-NNN rows once approved (see specify-srd.prompt.md)
+- This is the floor every feature's `srd.md` references instead of
+  restating — never regenerate this row from a later feature's numbers
+  without an explicit Constitution Amendment (the service-wide floor
+  shouldn't silently drift because one feature's numbers were looser)
+
 Core Principles — derive from domain:
 - If payments domain → "Idempotency First"
 - If regulated domain → "Compliance First"

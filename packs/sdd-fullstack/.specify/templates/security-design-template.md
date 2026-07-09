@@ -1,9 +1,16 @@
 # Security Design
-# Feature: {Feature Name}
+# Service: {Service Name}
 > Version: 1.0 | Date: {date} | Generated at ALL scopes — depth scales
 > with scope (see section markers)
 > Covers: Server-side / backend (OWASP Top 10, ASVS) AND
 > Client-side / frontend (XSS, CSRF, token storage, SCA) — see subsections
+>
+> **Living document** — describes the whole service's security baseline,
+> not one feature. Lives at `.specify/service/security-design.md`. Every
+> feature after the first one extends this file (new threats, new audit
+> events, new regulatory trace rows) via the living-doc-update shared
+> block in `specify-doc.prompt.md` — it is never regenerated from a blank
+> template.
 
 ---
 

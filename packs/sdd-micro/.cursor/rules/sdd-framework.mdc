@@ -1,0 +1,40 @@
+---
+description: SDD Micro — startup, commands, and governance
+alwaysApply: true
+---
+
+# SDD Micro
+
+Tiny/personal projects only — 3 commands, no BRD/UC/SRD/Validate/
+Analyze/Clarify/Design/Release ceremony. See `CLAUDE.md` for why.
+
+## Startup (every session)
+Read these files in order before doing anything else:
+1. `.specify/manifest.yml` — project name, feature, workflow mode
+2. `.specify/memory/constitution.md` — universal rules (Part 1) + project tech stack (Part 2)
+
+Confirm: project.name, feature, constitution status (GATE-1 confirmed?).
+If constitution Part 2 is a DRAFT (not confirmed) → remind the user to
+say "confirmed" before /task.
+
+## Running Commands
+To run any SDD command, read and follow the matching prompt file **exactly as written**:
+
+| Command | Prompt File |
+|---|---|
+| create-context *(optional)* | `.github/prompts/create-context.prompt.md` |
+| specify | `.github/prompts/specify.prompt.md` |
+| task | `.github/prompts/task.prompt.md` |
+| implement | `.github/prompts/implement.prompt.md` |
+
+**How to invoke in Cursor:** In the chat panel, type:
+`Read and follow .github/prompts/specify.prompt.md exactly`
+
+## Command Order
+SPECIFY → [GATE-1: confirmed] → TASK → IMPLEMENT
+
+## Never Do
+- Never run /task before constitution Part 2 is confirmed (GATE-1)
+- Never run /implement without a tasks.md the user has seen
+- Never hardcode secrets or credentials
+- Never skip the verification step named in a task

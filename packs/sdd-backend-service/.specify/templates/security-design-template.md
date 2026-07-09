@@ -1,7 +1,14 @@
 # Security Design
-# Feature: {Feature Name}
+# Service: {Service Name}
 > Version: 1.0 | Date: {date} | Generated at ALL scopes — depth scales
 > with scope (see section markers)
+>
+> **Living document** — describes the whole service's security baseline,
+> not one feature. Lives at `.specify/service/security-design.md`. Every
+> feature after the first one extends this file (new threats, new audit
+> events, new regulatory trace rows) via the living-doc-update shared
+> block in `specify-doc.prompt.md` — it is never regenerated from a blank
+> template.
 
 ---
 
@@ -105,3 +112,9 @@
 | Role | Status | Date |
 |---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+
+## Version History
+
+| Version | Date | Feature | Change | CR |
+|---|---|---|---|---|
+| 1.0 | {date} | {feature that first created this document} | Initial security baseline | — |

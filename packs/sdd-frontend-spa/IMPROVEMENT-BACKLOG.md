@@ -45,8 +45,8 @@ release-template.md §3 "Enable feature flag / staged rollout"). Add a
 data-model-template.md (Frontend State & Storage Model) and
 qa-testcases-template.md define test cases but not a strategy for
 mock-data management across environments — MSW handler organization,
-fixture/factory conventions, and how mock data stays in sync with
-api-spec.md when the backend contract changes. Consider a
+fixture/factory conventions, and how mock data stays in sync with the
+API contract in `design.md` §3 when the backend changes it. Consider a
 `test-data-strategy.md` for mvp+/full.
 
 ## AI-10 — Bundle-Size Budget + Code-Splitting Audit

@@ -22,6 +22,10 @@ packs/
   sdd-frontend-spa/
   sdd-mobile/
   sdd-fullstack/
+  sdd-micro/        # Tiny/personal projects — no BRD/UC/SRD, 3 commands.
+                     # Intentionally diverges from PACK-SPEC.md — see its
+                     # own CLAUDE.md and WHY-SDD.md. Not part of the
+                     # shared-block sync system (no _shared/blocks/ markers).
 cli/                # Node.js CLI (unpublished, from source) — init/upgrade scaffolding only
 cli-python/         # Python CLI (pip: sddflow) — full-featured (Jira, Confluence, reviews, PRs)
 examples/

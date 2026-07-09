@@ -41,6 +41,30 @@ A CR only affects documents DOWNSTREAM from where it is raised.
 context.md → brd → use-cases → srd → security-design → api-spec → data-model
 → validate → analyze → clarify → design → lld → qa-testcases → tasks → release
 
+**Real file locations — not all of these are per-feature files:**
+`context.md` is always at `.specify/contexts/{feature}.md`, never under
+`.specify/features/`. `security-design.md`, `api-spec.md`, `data-model.md`
+(and `component-library.md` where this pack has one) are **living
+documents** shared across every feature in this service, at
+`.specify/service/{doc}.md` — not one copy per feature. Every other
+document in the chain is per-feature at
+`.specify/features/{feature}/{doc}.md`, as the chain above implies.
+
+## Living Documents & Cross-Feature Impact
+
+Because `security-design.md`, `api-spec.md`, and `data-model.md` are
+shared, a CR raised against one feature can change a unit (an endpoint, a
+table, a threat entry) that a *different* feature also depends on — and
+that other feature's own srd.md/design.md are never read during a normal
+`/change` walk, since the walk is scoped to the feature that raised the
+CR. Before `/change` approves an UPDATE/RERUN to a living document, it
+checks that document's Version History to see which feature last touched
+the specific unit being changed; if it's a different feature than the one
+raising this CR, it surfaces a cross-feature warning as part of the same
+proposal (see `change.prompt.md` → "Special handling — when the document
+being walked is a living document"). This is advisory, not a hard block —
+the human reviewer decides whether the sibling feature needs its own CR.
+
 ## Change Impact Matrix (for impact pre-classification)
 
 | Change Type | Documents to Update |

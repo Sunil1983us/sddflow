@@ -152,6 +152,31 @@
 | Orchestration | {extracted from context} | |
 | CI/CD | {extracted from context} | |
 
+## Service NFR Baseline
+
+> Filled at `/specify` from `context.md`'s NFR section (if stated) or the
+> first feature's `srd.md`. This is the service-wide performance/
+> availability floor — every endpoint (Backend) and every screen
+> (Frontend) in every feature meets this unless a feature's own `srd.md`
+> explicitly states a stricter or different target. Later features
+> reference this table instead of restating it; only a genuinely
+> different target gets its own NFR-NNN row in that feature's `srd.md`.
+
+### Backend
+| Category | Target | Notes |
+|---|---|---|
+| Performance | {extracted from context, e.g. P99 < 300ms} | |
+| Availability | {extracted from context, e.g. 99.9% uptime} | |
+| Throughput | {extracted from context, e.g. 100 TPS baseline} | |
+| Data Retention | {extracted from context, e.g. 7 years} | |
+
+### Frontend
+| Category | Target | Notes |
+|---|---|---|
+| Load Time | {extracted from context, e.g. LCP < 2.5s} | |
+| Bundle Size | {extracted from context, e.g. < 250KB gzipped initial} | |
+| Interactivity | {extracted from context, e.g. TTI < 3.5s} | |
+
 ## Core Principles
 | Principle | Applied As |
 |---|---|

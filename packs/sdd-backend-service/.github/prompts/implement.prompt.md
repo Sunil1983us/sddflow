@@ -70,10 +70,21 @@ Execute ONE task at a time. Never batch.
 - WAIT for "go" before starting next task
 
 ### After All Tasks
-Generate delivery artifacts per manifest.project.scope:
+Generate delivery artifacts per manifest.project.scope. Both `docs/runbook/local-setup.md`
+and `docs/openapi.yaml` are living, service-level artifacts — check
+whether each already exists before writing:
 - qa_cases (mvp+) → docs/qa/functional-test-cases.md — finalize
   .specify/features/{manifest.project.feature}/qa-testcases.md (per
   qa-testcases-template.md) with pass/fail results from the paired tests
-- runbook (mvp+) → docs/runbook/local-setup.md (per runbook-template.md)
+- runbook (mvp+) → docs/runbook/local-setup.md (per runbook-template.md).
+  **If this file already exists** (a prior feature created it): read it
+  first. Local Setup, Profiles, Common Operations, and Rollback almost
+  never change feature to feature — leave them as-is. Only add what this
+  feature actually introduces: new Troubleshooting entries, new
+  Environment Variables, new On-Call alert mappings. Never regenerate the
+  whole file from the template once it exists.
 - openapi (full) → docs/openapi.yaml (per openapi-template.md, from
-  api-spec.summary.md)
+  `.specify/service/api-spec.summary.md`). **If this file already exists:**
+  merge in only the new/changed paths this feature's `api-spec.md` delta
+  introduced — do not regenerate the whole file (that would silently drop
+  every previous feature's endpoints until the mapping catches back up).

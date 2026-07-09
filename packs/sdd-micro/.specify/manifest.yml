@@ -1,0 +1,19 @@
+# SDD Micro Manifest — fill these 3 fields, everything else has a sane default
+
+project:
+  name: ""           # REQUIRED
+  feature: ""        # REQUIRED — output folder name
+  context_file: ""   # OPTIONAL — file in .specify/contexts/, or leave blank
+                      # and describe the task directly in chat at /specify
+
+pr_rules:
+  max_lines_per_pr: 200   # DEFAULT:200 — micro tasks stay small on purpose
+  max_files_per_pr: 3     # DEFAULT:3
+
+# Workflow Mode — github | local   DEFAULT: local
+#   local:  no PR ceremony — agent verifies each task and reports the result
+#   github: branch + PR flow, same PR Contract as the full packs
+workflow_mode: "local"
+
+sdd_version: "2.7.13"   # set by sdd init; used by sdd upgrade
+ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other

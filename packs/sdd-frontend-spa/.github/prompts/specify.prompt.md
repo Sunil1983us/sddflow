@@ -42,6 +42,15 @@ Extract from context and fill Tech Stack table:
 If concern not in context → use sensible default
 If critical concern missing → mark [MISSING — ask user]
 
+App NFR Baseline — extract from context.md's NFR section, if stated:
+- Load Time, Bundle Size, Interactivity, Accessibility
+- If not stated at `/specify` time, leave as `[MISSING — ask user]` — the
+  first feature's `/specify-srd` run fills it retroactively from its own
+  NFR-NNN rows once approved (see specify-srd.prompt.md)
+- This is the floor every feature's `srd.md` references instead of
+  restating — never regenerate this row from a later feature's numbers
+  without an explicit Constitution Amendment
+
 Core Principles — derive from domain:
   Component-First, Accessible, Performant
   + Specification First, Test Discipline, Traceability

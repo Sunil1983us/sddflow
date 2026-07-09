@@ -12,7 +12,7 @@ from sdd.utils.jira_client import JiraClient
 from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.manifest import read_manifest
-from sdd.utils.validate import safe_feature_path
+from sdd.utils.validate import resolve_doc_path, LIVING_SERVICE_DOCS
 
 console = Console()
 
@@ -47,17 +47,22 @@ def _is_locally_approved(doc: str) -> bool:
 
 
 def _doc_md_path(doc: str, feature: str | None) -> Path | None:
-    """Resolve .specify/features/{feature}/{doc}.md, or None if unresolvable."""
+    """Resolve the on-disk path for a doc key, or None if unresolvable.
+
+    Living/service-level docs (data-model, security-design, api-spec) resolve
+    to .specify/service/{doc}.md regardless of feature. Everything else
+    resolves to .specify/features/{feature}/{doc}.md."""
+    if doc in LIVING_SERVICE_DOCS:
+        return resolve_doc_path(doc, "")
     manifest     = read_manifest() or {}
     proj         = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
     if not feature_name:
         return None
     try:
-        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+        return resolve_doc_path(doc, feature_name)
     except ValueError:
         return None
-    return features_dir / f"{doc}.md"
 
 
 def _mark_md_approved(md_path: Path) -> bool:
@@ -249,11 +254,10 @@ def review_submit(doc, profile, feature):
 
     # ── Push to Confluence ────────────────────────────────────────────────────
     try:
-        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+        md_path = resolve_doc_path(doc, feature_name)
     except ValueError as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
-    md_path      = features_dir / f"{doc}.md"
     if not md_path.exists():
         console.print(f"  [red]✗  {md_path} not found — run the SDD command that generates it first[/red]")
         raise SystemExit(1)
@@ -502,11 +506,10 @@ def review_apply(doc, profile, feature):
 
     # Re-push updated doc
     try:
-        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+        md_path = resolve_doc_path(doc, feature_name)
     except ValueError as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
-    md_path      = features_dir / f"{doc}.md"
     page_url     = ""
     if md_path.exists():
         page_title = doc_cfg.confluence_page.replace("{project}", project_name)

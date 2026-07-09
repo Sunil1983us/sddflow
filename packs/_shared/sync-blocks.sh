@@ -26,6 +26,14 @@ find full -type f | while read -r src; do
   rel="${src#full/}"
   for pack in ../sdd-*; do
     dest="$pack/$rel"
+    # sdd-micro intentionally does not follow PACK-SPEC.md and is hand-
+    # maintained, not generated from _shared/ — see PACK-SPEC.md's
+    # exception note and packs/sdd-micro/CLAUDE.md. It has none of the
+    # shared:{id} markers either, so the blocks loop above already skips
+    # it; this exclusion covers the full-file loop the same way.
+    if [[ "$pack" == *"sdd-micro"* ]]; then
+      continue
+    fi
     # sdd-universal has pack-specific setup.sh/setup.ps1 (with auto-detection)
     # that must not be overwritten by the shared base versions.
     if [[ "$pack" == *"sdd-universal"* && ( "$rel" == "setup.sh" || "$rel" == "setup.ps1" ) ]]; then

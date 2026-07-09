@@ -39,6 +39,12 @@
 
 ## 3. Deployment Plan
 
+> The strategy and steps below are standard for this service once chosen
+> at the first release — later releases write "Standard deployment, see
+> docs/runbook/local-setup.md §{N}" and only fill in what's specific to
+> **this** release (migration version, feature flag, owner), rather than
+> re-selecting a strategy each time.
+
 ### Strategy Selection
 
 Choose deployment strategy based on NFR requirements:

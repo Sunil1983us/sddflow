@@ -104,8 +104,10 @@ the authoritative gate.
 
 After approval (Step C complete), generate the Epic definition:
 
-1. Create `docs/jira/` directory if it does not exist.
-2. Write `docs/jira/epic.md` with this structure:
+1. Create `docs/jira/{manifest.project.feature}/` directory if it does not
+   exist — scoped per feature, same as `.specify/features/{feature}/`, so
+   a second feature's Epic export never overwrites this one's.
+2. Write `docs/jira/{manifest.project.feature}/epic.md` with this structure:
    ```
    # Jira Epic — {Feature Name}
    > Source: brd.md | Stage: after-brd | Status: PENDING_PUSH
@@ -127,7 +129,7 @@ After approval (Step C complete), generate the Epic definition:
    ```
 3. Check whether `.specify/jira-config.yml` exists.
    - If yes: state "Epic definition ready. Run `/jira-push --level epic` to create it in Jira now, or after stakeholder sign-off."
-   - If no: state "Epic definition saved to `docs/jira/epic.md`. Configure `.specify/jira-config.yml` (copy from `.specify/templates/jira-config-template.yml`) and run `/jira-push --level epic` to create it in Jira."
+   - If no: state "Epic definition saved to `docs/jira/{feature}/epic.md`. Configure `.specify/jira-config.yml` (copy from `.specify/templates/jira-config-template.yml`) and run `/jira-push --level epic` to create it in Jira."
 
 State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-uc** to generate the Use Case Specification."
 

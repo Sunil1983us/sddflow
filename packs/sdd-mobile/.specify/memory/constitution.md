@@ -156,6 +156,22 @@ table.
 | CI/CD | {extracted from context} | github actions / fastlane lanes |
 | App Store Distribution | {extracted from context} | testflight + play console internal track |
 
+## App NFR Baseline
+
+> Filled at `/specify` from `context.md`'s NFR section (if stated) or the
+> first feature's `srd.md`. This is the app-wide performance floor —
+> every screen/flow in every feature meets this unless a feature's own
+> `srd.md` explicitly states a stricter or different target. Later
+> features reference this row instead of restating it; only a genuinely
+> different target gets its own NFR-NNN row in that feature's `srd.md`.
+
+| Category | Target | Notes |
+|---|---|---|
+| Cold Start Time | {extracted from context, e.g. < 2s} | |
+| Offline Sync Latency | {extracted from context, e.g. queued writes sync within 30s of reconnect} | |
+| Crash-Free Rate | {extracted from context, e.g. 99.5% sessions} | |
+| App Size | {extracted from context, e.g. < 50MB install size} | |
+
 ## Core Principles
 | Principle | Applied As |
 |---|---|

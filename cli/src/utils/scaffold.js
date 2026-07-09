@@ -18,6 +18,7 @@ export const PACK_DESCRIPTIONS = {
   'sdd-fullstack':       'Frontend + backend in the same repository',
   'sdd-mobile':          'React Native or Flutter mobile apps',
   'sdd-universal':       'Any project type — auto-detects from your codebase',
+  'sdd-micro':           'Tiny/personal projects — skip the full SDLC, just constitution + tasks + code',
 };
 
 export const ALL_PACKS = Object.keys(PACK_DESCRIPTIONS);

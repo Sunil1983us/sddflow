@@ -75,18 +75,41 @@ Generate `design.md` for the current feature using `.specify/templates/design-te
 
 ### Section 1 — Architecture Overview
 
-From `analyze.summary.md` + `constitution.md`:
-- Choose and state the architecture pattern (hexagonal, layered, event-driven, CQRS, microservices, etc.)
-- Define system layers with package paths and responsibilities
+**Architecture pattern, system layers, and cross-cutting concerns describe
+the whole service, not this feature — they're established once and
+reused, not re-derived every time.**
+- **If this is the first feature to reach `/plan-design`:** choose and
+  state the architecture pattern (hexagonal, layered, event-driven, CQRS,
+  microservices, etc.), define system layers with package paths and
+  responsibilities, and cover cross-cutting concerns (auth, logging,
+  error handling, idempotency, observability) as normal — this
+  establishes the shell every later feature reuses.
+- **If a prior feature already established them:** write "Architecture
+  pattern, system layers, and cross-cutting concerns — unchanged from
+  {prior-feature}/design.md §1, see there" instead of re-deriving them.
+  Only expand a specific part again if this feature genuinely needs a
+  change (e.g. a new layer, a new auth scheme) — show that as a delta
+  against the prior version (BEFORE/AFTER, one item), not a full restatement.
+
+From `analyze.summary.md` + `constitution.md` (always feature-specific,
+every feature, never reused):
 - Document every key design decision as DEC-NNN
 - Map every NFR from `analyze.summary.md §5` to the design decision that satisfies it
-- Cover cross-cutting concerns: auth, logging, error handling, idempotency, observability
 
 ### Section 2 — Diagrams
 
-Produce ALL diagrams in Mermaid (renders in GitHub, VS Code, Claude):
-- **System Context (C4 L1):** actors, this service, external systems
-- **Container Diagram (C4 L2):** service, database, cache, message broker, external
+**System Context (C4 L1) and Container Diagram (C4 L2) describe the whole
+service's topology (actors, this service, external systems, database,
+cache, message broker) — they don't change feature to feature unless
+this feature adds a new external system, database, or integration.**
+Same reuse rule as §1: if a prior feature already drew these and nothing
+changed, write "System Context / Container Diagram — unchanged from
+{prior-feature}/design.md §2, see there" instead of redrawing them. If
+this feature adds something new, show only the updated diagram with a
+short note on what changed.
+
+**Always produce fresh, feature-specific diagrams for the rest** — these
+describe this feature's own behavior, not the service's static shape:
 - **Component Diagram (C4 L3):** internal components and their relationships
 - **Happy Path Sequence:** the primary UC Main Path end-to-end (from `use-cases.md`)
 - **Error/Failure Paths:** UC Exception Paths (EP-NNN-X) — validation errors, downstream failures, retries
@@ -97,9 +120,18 @@ Every diagram must use actual names from the feature context, not placeholders.
 ### Section 3 — API Design
 
 > Skip for: `iac`, `library` (replace with Public Library API section), `desktop` with no backend calls.
-> For `frontend-spa` and `mobile`: document the API contract this component **consumes** (consumer view).
+> For `frontend-spa` and `mobile`: use `.specify/templates/api-spec-template.md` (this pack's "Backend API Contract — Consumer" version) as the structure, and document the API contract this component **consumes** (consumer view) — write this directly into design.md §3 as before, per-feature, never `.specify/service/`. The living-doc treatment below applies only when this service **provides** the API (backend-service, fullstack backend, universal).
 
-From `use-cases.md` UC-NNN flows and `srd.md` FR-NNN:
+**The API surface is a living, service-level document, not per-feature** —
+`.specify/service/api-spec.md` is the one current API surface for the
+whole service. `design.md` §3 never contains the full API design inline;
+it contains only this feature's contribution to it.
+
+Check whether `.specify/service/api-spec.md` already exists:
+
+**If it does NOT exist yet** (first feature in this service with a backend
+API): Generate it fresh at `.specify/service/api-spec.md`, using
+`.specify/templates/api-spec-template.md`:
 - State API style, base URL, auth method, versioning from `constitution.md`
 - Define every endpoint: method, path, purpose, request schema, response schema, all error codes
 - Trace each endpoint back to FR-NNN / UC-NNN
@@ -111,6 +143,39 @@ From `use-cases.md` UC-NNN flows and `srd.md` FR-NNN:
 For **GraphQL**: define queries, mutations, subscriptions, and types.
 For **gRPC**: define proto service, RPCs, message types.
 For **AsyncAPI**: define topics, message schemas, retention.
+
+Write `.specify/service/api-spec.summary.md` alongside it.
+
+**If it already exists** (a prior feature already created it): read the
+full current file and work through it one endpoint/schema at a time:
+- **No change needed** — note `{endpoint}: unchanged`, move on
+- **New endpoint** — show only the new endpoint's full definition (method,
+  path, request/response schema, error codes, FR-NNN/UC-NNN trace), not
+  the whole file
+- **Change to an existing endpoint** — show BEFORE/AFTER for only that
+  endpoint
+
+Use the same format as `/change`'s document walk (BEFORE/AFTER blocks,
+one approval, wait before saving). On approval: merge into
+`.specify/service/api-spec.md`, bump its version header, append a
+Version History row naming this feature, regenerate
+`.specify/service/api-spec.summary.md`.
+
+**Either way, `design.md` §3 itself contains only:**
+```
+## 3. API Design
+This feature's API surface — see `.specify/service/api-spec.md` for the
+full, current API (version {N}).
+
+New in this feature:
+- {METHOD} {path} — {1-line purpose}
+- {METHOD} {path} — {1-line purpose}
+
+Changed in this feature:
+- {METHOD} {path} — {1-line description of the change}
+
+(none, if this feature adds no new/changed endpoints)
+```
 
 ### Section 4 — Architecture Decisions (ADR)
 

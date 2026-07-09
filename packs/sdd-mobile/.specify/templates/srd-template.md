@@ -21,13 +21,20 @@
 | FR-{NNN} | {description} | UC-{NNN} | BR-{NNN} | Should Have |
 
 ## 3. Non-Functional Requirements
+
+{First feature to reach /specify-srd: "Establishes the NFR baseline —
+see constitution.md → {Service NFR Baseline | App NFR Baseline —
+use this pack's actual heading}."}
+{Later feature: "Baseline (constitution.md → {Service NFR Baseline |
+App NFR Baseline — use this pack's actual heading}): {baseline category
+values, e.g. Performance/Availability/Throughput/Data Retention or
+Load Time/Bundle Size/Interactivity — use this pack's actual categories}
+— applies to this feature too, no change."}
+
 | ID | Category | Requirement |
 |---|---|---|
-| NFR-{NNN} | Performance | {e.g. P99 response ≤ 500ms} |
-| NFR-{NNN} | Availability | {e.g. 99.9% uptime} |
-| NFR-{NNN} | Throughput | {e.g. 100 TPS peak} |
-| NFR-{NNN} | Security | {e.g. all endpoints require auth} |
-| NFR-{NNN} | Data Retention | {e.g. 7 years} |
+| NFR-{NNN} | Security | {e.g. all endpoints require auth — always feature-specific, not part of the baseline} |
+| NFR-{NNN} | {only if genuinely different from the baseline, e.g. a stricter target for one endpoint} | {value} |
 
 ## 4. Use Case Coverage
 

@@ -17,7 +17,7 @@ SDD creates Jira artifacts at the right stage — not all at once:
 | After `/task` approval | Tasks linked to existing Stories | `/jira-push --level task` |
 | After `/change` approval | CHG-NNN tasks under existing Stories | `/jira-push --level chg --cr CR-NNN` |
 
-**Jira keys tracking:** `docs/jira/keys.yml` — updated by `/jira-push` after every push.
+**Jira keys tracking:** `docs/jira/{Feature Name}/keys.yml` — updated by `/jira-push` after every push (scoped per feature, same as `.specify/features/{feature}/`).
 **Field mapping:** `.specify/jira-config.yml` — copy from `.specify/templates/jira-config-template.yml`.
 
 ---
@@ -63,7 +63,7 @@ Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 2,,Medium,sdd-task,"{criterion}
 ## Jira Import CSV — Tasks Only
 
 > Use this when Epic and Stories already exist in Jira (pushed after BRD/SRD).
-> Replace STORY-JIRA-KEY with the Jira issue key from `docs/jira/keys.yml`.
+> Replace STORY-JIRA-KEY with the Jira issue key from `docs/jira/{Feature Name}/keys.yml`.
 
 ```csv
 Issue Type,Summary,Parent,Sprint,Story Points,Priority,Labels,Acceptance Criteria,FR Reference
@@ -79,7 +79,7 @@ Task,{TASK-{NNN} title},{STORY-JIRA-KEY},Sprint 2,,Medium,sdd-task,"{criterion}"
 > Use only if `/jira-push` is not configured. Prefer `/jira-push` for automatic field mapping.
 
 1. Jira → Projects → Import Issues → CSV
-2. Upload `docs/jira/jira-import.csv`
+2. Upload `docs/jira/{Feature Name}/jira-import.csv`
 3. Map columns to your Jira fields:
    - Issue Type → Issue Type
    - Summary → Summary
@@ -109,5 +109,5 @@ git commit -m "test(TASK-{NNN}): {test description}"
 ---
 
 *Generated from: stories.md + tasks.md*
-*Keys file: docs/jira/keys.yml*
+*Keys file: docs/jira/{Feature Name}/keys.yml*
 *Config: .specify/jira-config.yml*

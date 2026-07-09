@@ -4,6 +4,19 @@
 > Follow this spec to build a community pack (e.g. `sdd-data-platform`,
 > `sdd-embedded`, `sdd-saas`). Submit via PR to `examples/community-packs/`.
 
+> **Exception — `sdd-micro`:** the official `packs/sdd-micro/` pack
+> deliberately does not follow this spec. It targets tiny/personal
+> projects (a script, a small tool) where the full 11-command SDLC and
+> BO→BR→FR/NFR→UC→STORY→TASK traceability chain below are pure overhead
+> — there's no BRD/Use Cases/SRD, no Validate/Analyze/Clarify/Design/
+> Release, and no `assert-output.sh` conformance. It keeps only a
+> constitution (GATE-1) and a flat task list. See
+> `packs/sdd-micro/CLAUDE.md` and `WHY-SDD.md` for the reasoning. This is
+> a one-off, intentional exception for this specific use case — new
+> community packs should still follow the full spec below unless they
+> have the same "no real stakeholders, no audit need" justification, in
+> which case open an issue to discuss before diverging.
+
 ---
 
 ## What Is a Pack?
@@ -87,7 +100,7 @@ project:
 
 project_type: "auto"  # set during /specify or by setup.sh
 
-sdd_version: "2.7.3"  # REQUIRED — pack version for upgrade tracking
+sdd_version: "2.7.13"  # REQUIRED — pack version for upgrade tracking
 
 pr_rules:
   max_lines_per_pr: 400

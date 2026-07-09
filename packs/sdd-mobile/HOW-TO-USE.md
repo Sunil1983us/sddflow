@@ -30,7 +30,7 @@ Included in addition to the 28 core spec templates:
 | Security Design (MASVS) | `/specify-doc security` | All scopes |
 | Screen Spec | `/specify-doc screen-spec` | mvp+ |
 | UX Flow | `/specify-doc ux-flow` | mvp+ |
-| Data Model | `/specify-doc data-model` | full only |
+| Data Model (living — `.specify/service/data-model.md`) | `/specify-doc data-model` | mvp+ |
 | Resilience Plan | `/specify-doc resilience` | full only |
 | Technical Investigation | `/specify-doc investigation` | full only |
 
@@ -133,6 +133,8 @@ A detailed guide for every command: what it is, exactly when to run it, what it 
 
 **What:** You paste informal notes (emails, Confluence pages, rough bullets); the agent drafts a structured `context.md`. For Endpoints and NFRs it also proposes scope-appropriate starting defaults (marked `SUGGESTED DEFAULT`) instead of leaving them blank, then lists a plain-language review checklist split into "confirm or edit these defaults" and "still need your input." You iterate until complete.
 
+Before drafting, a **Feature Size Check** (Step 1.5) looks for signs your notes actually describe 2+ independently-shippable features rather than one. If found, it asks whether to build them one at a time — the chosen feature proceeds as normal, and every other feature's raw notes are saved to `.specify/contexts/{slug}.raw.md` for a later `/create-context` run.
+
 **When to run:** Before `/specify`, only if you do not already have a `.specify/contexts/{feature}.md`.
 
 **Produces:** `.specify/contexts/{feature}.md`
@@ -233,7 +235,7 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 #### `/specify-uc` — Use Case Specification
 
-**What:** Writes the Use Case Specification. Identifies all actors (ACT-NNN), defines use cases (UC-NNN), and documents the Main Path, Alternative Paths (AP-NNN-X), and Exception Paths (EP-NNN-X) for each.
+**What:** Writes the Use Case Specification. Identifies all actors (ACT-NNN), defines use cases (UC-NNN), and documents the Main Path, Alternative Paths (AP-NNN-X), and Exception Paths (EP-NNN-X) for each. An actor already defined in another feature's `use-cases.md` (same real-world role) is reused, not re-derived — its description carries over, only the local ACT-NNN numbering is fresh.
 
 **When to run:** After BRD is approved.
 
@@ -249,7 +251,7 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 #### `/specify-srd` — Software Requirements Document
 
-**What:** Writes the Software Requirements Document. Defines Functional Requirements (FR-NNN), Non-Functional Requirements (NFR-NNN), acceptance scenarios for every FR, and Security Design §1 (threat model basics).
+**What:** Writes the Software Requirements Document. Defines Functional Requirements (FR-NNN), Non-Functional Requirements (NFR-NNN), acceptance scenarios for every FR, and Security Design §1 (threat model basics). The first feature to reach this command fills constitution.md's App NFR Baseline (Cold Start Time/Offline Sync Latency/Crash-Free Rate/App Size); every later feature references that baseline instead of restating the same numbers, and only adds its own NFR-NNN row for something genuinely different.
 
 **When to run:** After Use Cases are approved.
 
@@ -270,7 +272,7 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 | Scope | Documents to generate |
 |---|---|
 | pilot | None required (Security Design §1 already in SRD) |
-| mvp | `/specify-doc security` → `/specify-doc screen-spec` → `/specify-doc ux-flow` |
+| mvp | `/specify-doc security` → `/specify-doc screen-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` |
 | full | `/specify-doc security` → `/specify-doc screen-spec` → `/specify-doc ux-flow` → `/specify-doc data-model` → `/specify-doc resilience` → `/specify-doc investigation` |
 
 **When to run:** After SRD is approved, one at a time.
@@ -281,7 +283,7 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 - `security` → `security-design.md` (STRIDE + MASVS threat model, §1-2 for mvp, §1-4 for full)
 - `screen-spec` → `screen-spec.md` (screen layout, components, gestures, interactions) — **mvp+**
 - `ux-flow` → `ux-flow.md` (user journey flows, screen-to-screen transitions) — **mvp+**
-- `data-model` → `data-model.md` (local DB schema, sync model, PII handling) — **full only**
+- `data-model` → `.specify/service/data-model.md` (local DB schema, sync model, PII handling — living, app-level) — **mvp+**
 - `resilience` → `resilience.md` (offline queue, retry, background sync) — **full only**
 - `investigation` → `investigation.md` (spike / technical investigation) — **full only**
 
@@ -383,10 +385,10 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 #### `/plan-design` — Architecture + API Design + ADRs
 
 **What:** Unified design document. Generates:
-- System architecture (hexagonal / layered / event-driven — derived from context)
+- System architecture (MVVM / Clean / Redux-style — derived from context) — established once by the first feature; later features reference it ("unchanged from {feature}, see there") instead of re-deriving the same pattern/layers/cross-cutting concerns
 - Component / service decomposition
 - Sequence diagrams for all critical flows (including exception paths)
-- API design (endpoints, request/response schemas, error codes)
+- API design (§3): the API contract this feature consumes (endpoints, request/response schemas, error codes) — a consumer-side view only, since this pack does not own the API; nothing here is a living document
 - Architecture Decision Records (ADR-NNN) — one per major technology decision
 
 **When to run:** After `clarify.md` all RESOLVED and no unresolved `[ASSUMPTION-NNN]` in any spec doc.
@@ -586,7 +588,7 @@ sdd jira push                    # create/update Feature → Story → Task in J
 sdd jira push --dry-run          # preview the plan without calling the API
 sdd jira push --feature payments # push a specific feature (default: from manifest.yml)
 ```
-Pushes are idempotent — re-running updates existing issues rather than creating duplicates (keyed on `sdd:STORY-001` labels).
+Pushes are idempotent — re-running updates existing issues rather than creating duplicates (keyed on `sdd:{feature}:STORY-001`-style labels, qualified by feature). On a multi-feature project, each feature's Story/Task issues stay distinct even when both features independently number their own stories/tasks starting from 001 — matching the Feature → Story → Task hierarchy: the Feature-level issue is already keyed by feature name (`sdd-feature:{feature}`), and Story/Task labels now are too.
 
 ---
 
@@ -621,7 +623,7 @@ export JIRA_API_TOKEN=your-api-token
 /jira-push chg CR-001    # after /change approval
 /jira-push --level all --dry-run   # preview every level before pushing for real
 ```
-Keys created/updated are tracked in `docs/jira/keys.yml`.
+Keys created/updated are tracked in `docs/jira/{feature}/keys.yml` — scoped per feature, same as `.specify/features/{feature}/`, so two features' progressive Jira exports never overwrite each other's Epic/Story staging files or locally-tracked keys.
 
 ---
 
@@ -634,6 +636,8 @@ sdd confluence push --doc srd    # push SRD
 sdd confluence push --all        # push all documents listed in integrations.yml page_map
 ```
 Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page.
+
+**On a multi-feature project — living docs get ONE page, per-feature docs get one page each.** Living/service-level documents (`data-model`, `security-design`, `api-spec`, `component-library`) always resolve to a single shared page regardless of which feature is active — that's correct, since the underlying document itself is shared. Per-feature documents (`brd`, `use-cases`, `srd`, `design`/`arch`/`hld`/`adr`, `lld`, `validate`, `release`) need `{feature}` in their `page_map` title template to get a separate page per feature — the shipped `integrations.yml.example` already includes it. If your `integrations.yml` predates this and its titles don't have `{feature}`, every feature pushing the same doc type will silently overwrite the same page — add `{feature}` to those entries to fix it.
 
 ---
 
@@ -791,6 +795,40 @@ mvp:   SUMMARY_MAX_LINES: 25
 full:  SUMMARY_MAX_LINES: 30
 ```
 Tell agent: "Summary rules updated — re-read summary-rules.md"
+
+---
+
+## Token Usage Logging (optional, self-estimated)
+
+**What:** A per-feature running log of estimated token usage and cost,
+one row appended after every command. Off by default.
+
+**Enable it:** `cp .specify/memory/token-pricing.yml.example .specify/memory/token-pricing.yml`,
+then fill in current $/million-token rates from your provider's own
+pricing page (they ship as `null` — this framework has no way to fetch
+live pricing). From the next command onward, the agent creates
+`.specify/features/{feature}/token-usage.md` (from
+`token-usage-template.md`) and appends a row each time.
+
+**What each row contains:** command name, model, estimated input tokens,
+estimated output tokens, estimated cost, timestamp — plus a running-total
+table at the top of the file.
+
+**Important limits — read before trusting the numbers:**
+- **Estimated, not measured.** No AI tool this framework supports (Claude
+  Code, Copilot, Cursor, Windsurf, or copy-paste "any AI") exposes an API
+  for an agent to introspect its own exact token consumption. Every
+  number is approximated as `characters ÷ 4`, which ignores
+  prompt-caching, tool overhead, and model-specific tokenization — real
+  usage is typically higher.
+- **Cost is only as current as your pricing file.** If a model has no row,
+  or the row still has `null` rates, the cost column shows
+  `token-pricing.yml`'s `unknown_model_fallback` text instead of a number.
+- **Good for relative comparison** (which command or feature costs more
+  than another), **not for reconciling against your actual invoice.**
+
+**Disable it:** delete or rename `.specify/memory/token-pricing.yml` —
+logging stops immediately; nothing else in the pipeline depends on it.
 
 ---
 

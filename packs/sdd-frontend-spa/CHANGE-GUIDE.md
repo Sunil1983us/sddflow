@@ -23,12 +23,26 @@ Examples:
 /change "BA discovered a missing retry requirement for payment gateway 402 errors"
 /change "security team requires field-level encryption for card numbers — PCI finding"
 /change "wrong response shape in UC-003 — payload has orderId not order_id"
-/change "scope upgrade from pilot to mvp — add api-spec and data-model"
+/change "scope upgrade from pilot to mvp — add data-model (living, app-level)"
 ```
+
+**On a multi-feature project — which feature does the CR target?**
+By default, `/change` always targets whichever feature `.specify/manifest.yml → project.feature` currently names — it never asks you to pick, and it never scans other features to guess. If you need to raise a CR against a *different* feature without first editing `manifest.yml` (and remembering to switch it back), use:
+```
+/change --feature payments-dashboard "add a discount field to the Payment entity"
+```
+This targets `payments-dashboard` for this one CR only — `manifest.yml` is never read or written for feature selection in this mode, so every other command you run afterward is unaffected. If the named feature doesn't exist under `.specify/features/`, the agent stops and lists the features it actually found, rather than silently falling back to the manifest default. The registered-CR message always states which feature was targeted, so you can confirm it before the document walk starts.
 
 The agent:
 1. **Classifies** the CR type (one of 8 — see table below)
-2. **Detects current stage** from documents that exist in `.specify/features/{feature}/`
+2. **Detects current stage** from documents that exist — most live at
+   `.specify/features/{feature}/`, but `context.md` is always at
+   `.specify/contexts/{feature}.md`, and `security-design.md`/`data-model.md`/
+   `component-library.md` are **living documents** shared across every
+   feature in this app, at `.specify/service/{doc}.md` — see "Living
+   Documents & Cross-Feature Impact" below. `api-spec.md` is NOT a living
+   document in this pack — this pack only consumes an API, so its contract
+   stays per-feature in `design.md` §3.
 3. **Presents a walk plan** — which documents to check in dependency order
 4. **Walks each document** one at a time — reads it, then decides:
    - **SKIP** — CR has no impact; states reason; moves on immediately
@@ -48,7 +62,7 @@ The agent:
 | Business | Missing requirement, wrong rule, scope change, new stakeholder | context → brd → use-cases → srd → validate |
 | Technical | New integration, tech stack change, architecture decision | context → constitution → design → lld |
 | Security | New regulation, vulnerability, compliance gap | context → brd §6 → srd (NFR) → security-design |
-| Data | New field, new entity, schema change, payload change | context → data-model → srd → api-spec → design |
+| Data | New field, new entity, schema change, payload change | context → data-model (living) → srd → design |
 | UX | New screen, flow change, accessibility gap | context → use-cases → srd → design |
 | Performance | New NFR, SLA change, load target | context → srd (NFR) → analyze → resilience |
 | Operational | Deployment change, config change, runbook update | context → constitution → design → runbook |
@@ -69,9 +83,45 @@ A CR only affects documents **downstream** from where it is raised.
 ## Document Dependency Chain
 
 ```
-context.md → brd → use-cases → srd → security-design → api-spec → data-model
+context.md → brd → use-cases → srd → security-design → data-model
 → validate → analyze → clarify → design → lld → qa-testcases → tasks → release
 ```
+
+**Real file locations:** `context.md` is always at `.specify/contexts/{feature}.md`.
+`security-design.md`, `data-model.md` (Frontend State & Storage Model),
+and `component-library.md` are **living documents** — shared across every
+feature in this app, at `.specify/service/{doc}.md`, not one copy per
+feature. `api-spec.md` stays per-feature, written into `design.md` §3
+(this pack only consumes an API). Every other document in the chain
+above is per-feature, as shown.
+
+---
+
+## Living Documents & Cross-Feature Impact
+
+Because `security-design.md`, `data-model.md`, and `component-library.md`
+are shared, a CR raised against one feature can change a unit (a state
+slice, a storage key, a shared component) that a **different** feature
+also depends on — and that other feature's own `srd.md`/`design.md` are
+never read during a normal `/change` walk, since the walk is scoped to
+the feature that raised the CR.
+
+Before `/change` approves an UPDATE/RERUN to a living document, it checks
+that document's `## Version History` table to see which feature last
+touched the specific unit being changed. If it's a **different** feature
+than the one raising this CR, the proposal includes a warning like:
+
+```
+⚠ Cross-feature impact: {unit} was added/last changed by {other-feature}.
+This CR is raised against {current-feature}, but {other-feature}'s own
+srd.md/design.md may depend on {unit}'s current shape. Check before
+approving — that feature may need its own CR too.
+```
+
+This is **advisory, not a hard block** — you decide whether the sibling
+feature needs its own CR. If the unit was last touched by the *same*
+feature raising the CR, no warning appears; this only fires on genuine
+cross-feature risk.
 
 ---
 
@@ -84,7 +134,8 @@ Something new that was not in scope before. Existing behaviour unchanged.
 Existing behaviour changes. May affect consumers, test cases, or API contracts.
 
 ### Type 3 — Scope Upgrade
-New capability cluster added (e.g. pilot → mvp adds api-spec, data-model, LLD).
+New capability cluster added (e.g. pilot → mvp adds data-model — living,
+at `.specify/service/` — component-spec, ux-flow, and LLD).
 
 For scope upgrades, update `manifest.yml` first, then run `/change "scope upgraded from pilot to mvp"`.
 
@@ -113,17 +164,21 @@ When the agent shows a BEFORE/AFTER diff, reply with one of:
 
 | Change | Primary documents to update |
 |---|---|
-| New field in request/response | api-spec |
-| New endpoint | use-cases + srd + design + lld |
+| New field in an API contract this feature consumes | design.md §3 (per-feature — not living here) |
+| New screen/route | use-cases + srd + design + lld |
 | New actor or use case | use-cases + srd |
-| New status/state | srd + api-spec + data-model |
+| New state slice or storage key | srd + data-model (living — check cross-feature impact) |
+| New shared component | component-spec + component-library (living — check cross-feature impact) |
 | New business rule | srd |
-| New DB table | data-model + design + lld |
 | NFR change | srd + resilience |
-| New integration | srd + design + api-spec + lld + analyze |
-| New security control / regulation | security-design + srd |
-| Scope upgrade | manifest + newly enabled docs (INCORPORATE) |
+| New integration | srd + design + lld + analyze |
+| New security control / regulation | security-design (living — check cross-feature impact) + srd |
+| Scope upgrade | manifest + newly enabled docs (INCORPORATE if new, EXTEND via walk-and-diff if a living doc already exists from a prior feature) |
 | Bug fix / refactor | code only (CHG task, no doc update) |
+
+> Rows marked "living" go through the cross-feature impact check described
+> above — the agent checks Version History, not just this feature's own
+> docs, before approving a change.
 
 ---
 
@@ -160,11 +215,15 @@ git commit -m "test(CHG-002): add integration tests for payment retry flow"
 scope: "mvp"
 
 # 2. Run /change
-/change "scope upgraded from pilot to mvp — need api-spec, data-model, LLD"
+/change "scope upgraded from pilot to mvp — need data-model, component-spec, ux-flow, LLD"
 
 # 3. /change will:
 #    - ANNOTATE upstream docs (context, brd, use-cases, srd, security §1)
-#    - INCORPORATE api-spec + data-model (not yet created)
+#    - INCORPORATE data-model, component-spec, ux-flow if this is the first
+#      feature in the app to need them (or, if a prior feature already
+#      created .specify/service/data-model.md, EXTEND it via the
+#      SKIP/ADD-unit/UPDATE-unit walk instead — never re-INCORPORATE an
+#      existing living document)
 #    - UPDATE design.md to add LLD-scope sections
 #    - INCORPORATE lld (not yet created)
 #    - Propose CHG-NNN tasks for the new scope work

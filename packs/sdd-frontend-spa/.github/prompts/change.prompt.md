@@ -11,23 +11,48 @@ You are **Maya** (BA) + **Leo** (Tech Lead) working as a pair on a controlled ch
 
 ## Input
 
-CR description from $ARGUMENTS.
+`/change {description}` — CR description from $ARGUMENTS, targets whichever
+feature `.specify/manifest.yml → project.feature` currently names.
 
-If $ARGUMENTS is empty, ask:
+`/change --feature {slug} {description}` — same, but targets `{slug}`
+for this invocation only (must match an existing directory under
+`.specify/features/`). Does not read or write `manifest.yml` — every
+other command you run afterward still uses whatever feature
+`manifest.yml` names, unchanged. Use this on multi-feature projects to
+raise a CR against a feature that isn't the currently-active one,
+without having to edit `manifest.yml` first and switch it back after.
+
+If `--feature {slug}` is given but no such directory exists under
+`.specify/features/`, stop and state:
+> "No feature named '{slug}' found under .specify/features/. Existing
+> features: {list the actual subdirectory names found there}."
+Do not fall back to `manifest.yml`'s feature in this case — ask the user
+to correct the slug or omit `--feature` to use the default.
+
+If, after removing any `--feature {slug}` token, the remaining
+description is empty, ask:
 > "Describe the change — what needs to change, why, and who is raising it? Include as much context as you have (missing requirement, wrong field, new regulation, discovered bug, etc.)"
 
 ---
 
 ## Step 1 — Register the CR
 
+Resolve the target feature:
+- `--feature {slug}` given → target = `{slug}`
+- otherwise → target = `.specify/manifest.yml → project.feature`
+
 Read:
-- `.specify/manifest.yml` — feature name, scope, current project_type
+- `.specify/manifest.yml` — scope, current project_type (feature name
+  only used if no `--feature` override was given)
 - `.specify/memory/change-rules.md` — Change Impact Matrix and dependency chain
 - `.specify/memory/constitution.md` — Part 2 domain context (tech stack, domain rules)
 
-Scan `.specify/features/{feature}/changesets/` for existing CR-NNN files.
+Scan `.specify/features/{target feature}/changesets/` for existing CR-NNN files.
 If the `changesets/` directory does not exist, treat it as empty — do NOT create it yet (it is created in Step 7).
-Assign: **CR-{NNN}** — next available number (CR-001 if no prior changesets).
+Assign: **CR-{NNN}** — next available number (CR-001 if no prior changesets), numbered independently per feature.
+
+State the resolved feature explicitly as part of registering the CR (see
+Step 2) so the user can catch a wrong target before the walk starts.
 
 ---
 
@@ -49,7 +74,7 @@ Analyse the description. Assign ONE primary type (and optionally one secondary):
 If the CR spans two types (e.g. new payment integration = Technical + Security), classify the PRIMARY and note the secondary.
 
 State clearly:
-> "**CR-{NNN} registered**
+> "**CR-{NNN} registered — feature: {target feature}**{ (overridden via --feature, manifest.yml still points to {manifest feature}) if an override was given}
 > Type: {primary type} {(+ secondary type if any)}
 > Description: {1-sentence plain-language summary}
 > Raised at: {current stage detected from existing documents}"
@@ -58,7 +83,20 @@ State clearly:
 
 ## Step 3 — Stage Detection
 
-Scan `.specify/features/{feature}/` to determine which documents currently exist.
+Most documents live at `.specify/features/{feature}/{doc}.md` — but four
+do not. Check each in its real location before concluding it "does not
+exist yet":
+
+| Document | Actual location |
+|---|---|
+| context.md | `.specify/contexts/{feature}.md` (never under `.specify/features/`) |
+| data-model.md | `.specify/service/data-model.md` — **living, shared across every feature in this service** (if this pack keeps a per-feature equivalent instead — e.g. frontend-spa's Frontend State & Storage Model — it's still at `.specify/service/data-model.md`) |
+| security-design.md | `.specify/service/security-design.md` — **living, shared** |
+| api-spec.md | `.specify/service/api-spec.md` — **living, shared** — only for services that provide an API (backend-service, fullstack backend, universal). frontend-spa/mobile keep their consumer-view API contract per-feature in `design.md` §3 instead — no living file to check |
+| component-library.md | `.specify/service/component-library.md` — **living, shared** (frontend-spa/fullstack only, if this pack has one) |
+
+Every other document in the chain below is per-feature, at
+`.specify/features/{feature}/{doc}.md`, as normal.
 
 Map the file list to the dependency chain:
 ```
@@ -68,14 +106,18 @@ context.md → constitution.md → brd.md → use-cases.md → srd.md
 ```
 
 Identify:
-- **Existing documents:** files present in `.specify/features/{feature}/`
-- **Not yet created:** files absent — these will get action INCORPORATE
+- **Existing documents:** files present at their real location (see table above)
+- **Not yet created:** files absent from their real location — these will get action INCORPORATE
 - **Current stage:** the last document in the dependency chain that exists
+- **Living documents found:** for each of data-model.md/security-design.md/api-spec.md/component-library.md
+  that exists, note it's shared — the cross-feature impact check in Step 5
+  applies to it
 
 State:
 > "Current stage: after {most recent document}.
 > Existing: {list}
-> Not yet created: {list} — CR will be built in automatically when these are generated."
+> Not yet created: {list} — CR will be built in automatically when these are generated.
+> Living documents in scope: {list, or 'none'} — shared with other features in this service."
 
 ---
 
@@ -223,6 +265,114 @@ On 'update': switch to UPDATE mode for this document, show section diff.
 
 ---
 
+### Special handling — when the document being walked is `context.md`
+
+Apply the standard decision tree above first (SKIP / ANNOTATE / UPDATE / RERUN).
+
+If the resolved action is **RERUN**, or an **UPDATE** that touches §1 "What
+This Service Does", check — after the user approves the change — whether
+this CR represents a fundamental broadening or narrowing of what the
+feature IS, not just a detail-level change to it (e.g. a single fixed
+transformation generalized into a configurable one, or a broad platform
+narrowed to one specific slice).
+
+**Signals this has happened (look for both):**
+- The new §1 description no longer contains the specific nouns the
+  target feature's slug (resolved in Step 1 — `manifest.project.feature`,
+  or the `--feature` override if one was given) was built from —
+  e.g. slug `pain001-pacs008-parser`, new §1 talks about "any ISO 20022
+  message pair"; the two specific message names the slug was named after
+  are gone from the description
+- The walk plan already marked `brd.md` and `use-cases.md` as PRIMARY
+  impact (Step 4) — a detail-level CR rarely reaches that far
+
+If both signals are present, **recommend** a rename — never rename
+automatically:
+
+```
+Scope-change detected: this CR broadens/narrows the feature well beyond
+what its current name describes.
+
+Current feature slug     : {target feature}
+New scope (from context.md §1): {1-sentence paraphrase of the new description}
+Suggested new slug       : {kebab-case name derived from the new §1}
+
+Recommend renaming the feature so the folder/manifest name stays honest
+about what it actually does. Rename now? (yes / no / suggest a different name)
+```
+
+**STOP. Wait for the user's answer before touching anything.**
+
+On **'yes'** (or a supplied alternative name), perform the rename as part
+of this CR, then continue the document walk:
+1. `git mv .specify/features/{old-slug} .specify/features/{new-slug}`
+2. `git mv .specify/contexts/{old-slug}.md .specify/contexts/{new-slug}.md`
+   (and `{old-slug}.raw.md`, if it exists)
+3. **Only if `manifest.yml → project.feature` currently equals
+   `{old-slug}`** (i.e. this CR was raised against the manifest's own
+   active feature, not via a `--feature` override targeting a different
+   one): update `manifest.yml`'s `project.feature` and `project.context_file`
+   to the new slug. If a `--feature` override targeted a feature other
+   than the one `manifest.yml` currently names, leave `manifest.yml`
+   untouched — this rename must not silently switch which feature is
+   "active" for every other command.
+4. Grep the renamed directory for the literal old slug string
+   (`grep -rl "{old-slug}" .specify/features/{new-slug}/`) and flag any
+   hits for the user to review — most cross-links are relative and won't
+   need it, but call out anything hardcoded
+5. Fill the changeset's §1 "Feature renamed" row: `{old-slug} → {new-slug}`
+6. If `.specify/integrations.yml` has `jira:` or `confluence:` sections,
+   note: "Local rename complete. Existing Jira/Confluence pages remain
+   linked under the old name if already pushed — update those manually if
+   you want them to match."
+
+On **'no'**: continue the walk with the slug unchanged — this CR updates
+content only, not identity. On a supplied alternative name: use it in
+place of the suggested slug in steps 1–3 above.
+
+---
+
+### Special handling — when the document being walked is a living document
+
+`data-model.md`, `security-design.md`, `api-spec.md`, and (frontend-spa/
+fullstack) `component-library.md` live at `.specify/service/{doc}.md` —
+shared across every feature in this service, not scoped to the feature
+raising this CR. A change approved here can silently affect a sibling
+feature that was never read during this `/change` session. Before
+proposing any UPDATE or RERUN to one of these documents:
+
+1. Read the document's `## Version History` table.
+2. Identify the specific unit this CR touches (one entity/table, one
+   endpoint, one threat entry, one component).
+3. Find which feature's row last added or changed that exact unit.
+4. **If it's a different feature than the one raising this CR:** include
+   a cross-feature warning as part of the same UPDATE/RERUN proposal
+   (not a separate stop):
+   ```
+   ⚠ Cross-feature impact: {unit} was added/last changed by {other-feature}
+   (Version History v{X.Y}). This CR is raised against {current-feature},
+   but {other-feature}'s own srd.md/design.md may depend on {unit}'s
+   current shape.
+
+   Before approving: check whether {other-feature} is affected — read
+   .specify/features/{other-feature}/design.md and srd.md for usage of
+   {unit}. If it is, that feature needs its own CR too (raise one there
+   after this one, or fold the assessment into this CR's approval
+   decision — your call).
+   ```
+   The user's normal reply (`approved` / `modify` / `skip` / `stop`)
+   covers the whole proposal, warning included — this is not an
+   additional gate.
+5. Record the flagged sibling feature(s) in the changeset's §2 walk table
+   "Sections Affected" column, e.g. `§4 Endpoints (cross-feature:
+   instant-payment)`.
+
+**If the unit was last touched by the SAME feature raising this CR**, or
+the living document doesn't exist yet (INCORPORATE), skip this check —
+no cross-feature risk to flag.
+
+---
+
 ### Special handling — when the document being walked is `qa-testcases.md`
 
 Apply the standard decision tree above first (SKIP / ANNOTATE / UPDATE / RERUN / INCORPORATE).
@@ -310,7 +460,9 @@ Then create: `.specify/features/{feature}/changesets/CR-{NNN}.md`
 Use: `.specify/templates/changeset-template.md`
 
 Populate:
-- §1 Change Description with type classification
+- §1 Change Description with type classification ("Feature renamed" row:
+  `{old-slug} → {new-slug}` if the context.md rename check fired and was
+  accepted, otherwise "No")
 - §2 Walk Results table (every document's action + sections affected)
 - §3 Before/After for every UPDATE or RERUN
 - §4 CHG-NNN tasks

@@ -39,6 +39,15 @@ Extract from context and fill Tech Stack table:
 | CI/CD | github actions / fastlane lanes / bitrise / none |
 | App Store Distribution | testflight + play console internal track |
 
+App NFR Baseline — extract from context.md's NFR section, if stated:
+- Cold Start Time, Offline Sync Latency, Crash-Free Rate, App Size
+- If not stated at `/specify` time, leave as `[MISSING — ask user]` — the
+  first feature's `/specify-srd` run fills it retroactively from its own
+  NFR-NNN rows once approved (see specify-srd.prompt.md)
+- This is the floor every feature's `srd.md` references instead of
+  restating — never regenerate this row from a later feature's numbers
+  without an explicit Constitution Amendment
+
 Core Principles → derive from domain:
   Offline-First, Accessible, Cross-Platform, Performant
   + Specification First, Test Discipline, Traceability

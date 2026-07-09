@@ -3,7 +3,10 @@ description: Startup — read framework files and confirm project state (Step 0)
 ---
 
 <!-- shared:start-command-body:start -->
-Read and follow the "Startup (every session)" steps in `CLAUDE.md`:
+Startup checklist for this session — these are the same files CLAUDE.md's
+"Startup (every session)" section lists; if CLAUDE.md is already in your
+context (e.g. auto-loaded by your tool), do not re-read it separately —
+just work through this list:
 - `.specify/manifest.yml`
 - `.specify/memory/constitution.md`
 - `.specify/memory/summary-rules.md`

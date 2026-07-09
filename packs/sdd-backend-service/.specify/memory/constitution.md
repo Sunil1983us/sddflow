@@ -172,6 +172,23 @@ rules — used instead of docker-compose.yml for cluster deployment.
 | Orchestration | {extracted from context} | |
 | CI/CD | {extracted from context} | |
 
+## Service NFR Baseline
+
+> Filled at `/specify` from `context.md`'s NFR section (if stated) or the
+> first feature's `srd.md`. This is the service-wide performance/
+> availability floor — every endpoint in every feature meets this unless
+> a feature's own `srd.md` explicitly states a stricter or different
+> target. Later features reference this row instead of restating it;
+> only a genuinely different target gets its own NFR-NNN row in that
+> feature's `srd.md`.
+
+| Category | Target | Notes |
+|---|---|---|
+| Performance | {extracted from context, e.g. P99 < 300ms} | |
+| Availability | {extracted from context, e.g. 99.9% uptime} | |
+| Throughput | {extracted from context, e.g. 100 TPS baseline} | |
+| Data Retention | {extracted from context, e.g. 7 years} | |
+
 ## Core Principles
 
 | Principle | Applied As |

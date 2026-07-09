@@ -4,6 +4,540 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.13] — 2026-07-08 (New pack — sdd-micro, for tiny/personal projects)
+
+### Added
+
+- **`sdd-micro`** — a 6th, standalone pack for scripts and small personal
+  projects that don't need the full 11-command SDLC: a script that
+  prints "Hello, world!", a small CLI utility, a weekend project. Flow
+  is just `/specify → [GATE-1: confirmed] → /task → /implement` — no
+  BRD, Use Cases, SRD, Validate, Analyze, Clarify, Design, or Release.
+  It keeps the two things that actually prevent drift on a small
+  project — a short constitution (tech stack + ground rules, confirmed
+  once at GATE-1) and a flat, verified task list — and drops everything
+  that exists in the bigger packs to make a multi-stakeholder, audited
+  project traceable. See `packs/sdd-micro/CLAUDE.md` and `WHY-SDD.md`
+  for the full reasoning, and `README.md` → "Outgrowing sdd-micro" for
+  when to move to `sdd-universal`.
+- `sdd init --pack sdd-micro` (or the interactive picker's "Choose from
+  all packs…" option, both CLIs) now scaffolds it. Because its
+  `manifest.yml` has no `scope`/`project_type` fields, `sdd init`
+  detects a micro-shaped manifest (fill mode: existing manifest missing
+  both keys; scaffold mode: `sdd-micro` was the chosen pack) and skips
+  the scope and project-type questions for it — existing packs are
+  unaffected, their manifests always carry both keys.
+
+### Divergence note
+`sdd-micro` intentionally does not follow `PACK-SPEC.md` (the full-SDLC
+pack spec) or `packs/_shared/sync-blocks.sh` (no `_shared/blocks/`
+markers in its files) — see the exception note added to the top of
+`PACK-SPEC.md`. It is hand-maintained, not generated from `_shared/`.
+
+---
+
+## [2.7.12] — 2026-07-07 (Multi-feature safety fix — progressive Jira export, all 5 packs)
+
+### Fixed — a more severe version of the bug fixed in 2.7.11
+
+The progressive Jira export mechanism — `/specify-brd` writes
+`docs/jira/epic.md`, `/specify-uc` writes `docs/jira/stories-draft.md`,
+`/specify-srd` writes `docs/jira/stories-refined.md`, and `/jira-push`
+(via `.specify/scripts/jira-push.py`) reads all three and writes
+`docs/jira/keys.yml` — lived at one fixed global path, never scoped per
+feature the way `.specify/features/{feature}/` already is.
+
+On a multi-feature project: a second feature's BRD/UC/SRD approval
+**overwrote** the first feature's staged Epic/Story export files on disk
+before they were even pushed, and pushing the second feature's Epic
+**overwrote** the first feature's locally-tracked Jira key in `keys.yml` —
+corrupting parent-link lookups for the first feature's Stories/Tasks the
+next time it was touched. Unlike the `sdd jira push`/`sdd confluence push`
+bug fixed in 2.7.11 (where the Jira issues themselves were mostly
+protected by title-based matching), this one had **no per-feature
+isolation on the local files at all**.
+
+All `docs/jira/` artifacts are now under `docs/jira/{feature}/` —
+`epic.md`, `stories-draft.md`, `stories-refined.md`, `keys.yml`,
+`stories.md`, `jira-import.csv` — mirroring
+`.specify/features/{feature}/`. Verified with a direct
+`load_keys`/`save_keys` round-trip for two features confirming no
+cross-feature collision (no existing pytest coverage for this
+standalone script, so verified by direct execution instead).
+
+### Migration note
+Re-copy the pack (or run `sdd init`/`sdd upgrade` over it) to pick up the
+updated `.specify/scripts/jira-push.py` and the five
+`.github/prompts/*.prompt.md` files that write/read these paths
+(`specify-brd`, `specify-uc`, `specify-srd`, `task`, `jira-push`). Any
+`docs/jira/*.md` or `keys.yml` files from before this upgrade are not
+migrated automatically — move them into `docs/jira/{feature}/` manually
+if you want to keep them.
+
+---
+
+## [2.7.11] — 2026-07-07 (Multi-feature safety fixes — Jira/Confluence, all 5 packs)
+
+### Fixed — found while reviewing how multi-feature projects push to Jira/Confluence
+
+- **`sdd confluence push/draft/pull`** built each page title from only
+  `{project}`, never `{feature}`. On a multi-feature project, two
+  features pushing the same per-feature doc type (`brd`, `use-cases`,
+  `srd`, `design`, `lld`, etc.) upserted the identical Confluence page
+  and silently overwrote each other's content. `_resolve_page_title()`
+  now substitutes `{feature}` into the title whenever the `page_map`
+  template includes that placeholder — opt-in, so existing configs
+  without it see no title change and no page gets orphaned. Living/
+  service-level documents (`data-model`, `security-design`, `api-spec`,
+  `component-library`) always strip `{feature}` even if present, since
+  they must stay one shared page regardless of which feature pushed them.
+- **`sdd jira push`/`sdd jira sync`** keyed Story/Task idempotency labels
+  on `sdd:{id}` only, not qualified by feature. Since `STORY-NNN`/
+  `TASK-NNN` numbering restarts independently per feature (same as
+  `CR-NNN`), two features' `STORY-001` collided and the second feature's
+  push silently overwrote the first feature's Jira issue. Labels are now
+  `sdd:{feature}:{id}`, matching the Feature-level label
+  (`sdd-feature:{feature}`) which was already feature-safe.
+- **`LIVING_SERVICE_DOCS`** was missing `"component-library"`
+  (frontend-spa/fullstack's shared component catalog) — `resolve_doc_path()`
+  routed it to the wrong (per-feature) path, breaking `sdd review` and
+  `sdd confluence` for that one doc type.
+
+### Added
+
+- **`/change --feature {slug} "description"`** — targets a feature other
+  than `manifest.yml`'s active one for this CR only, without editing
+  `manifest.yml` (same pattern already used by `sdd jira push --feature`
+  and `sdd confluence push --feature`). Errors clearly (lists the
+  features it actually found) if the named feature doesn't exist. Also
+  fixed a gap this surfaced: the context.md-rename special handling used
+  to update `manifest.yml`'s active feature unconditionally on a rename —
+  it now only does so when the renamed feature is the one `manifest.yml`
+  already points to, so a `--feature`-scoped CR can't silently switch
+  which feature every other command operates on.
+- **Optional per-feature token/cost usage logging**
+  (`.specify/features/{feature}/token-usage.md`) — off by default, turns
+  on by copying `token-pricing.yml.example` to `token-pricing.yml`.
+  Self-estimated (`characters ÷ 4`), not measured — no AI tool this
+  framework supports exposes exact token introspection.
+- Consolidated "Configuration Files (YAML)" table in every pack's
+  `README.md` — `integrations.yml`, `jira-config.yml`, and the CI
+  pipeline YAMLs were previously undiscoverable from the entry-point doc.
+
+### Security
+
+- `.specify/jira-config.yml` (legacy Jira integration path, contains
+  credential placeholders) is now gitignored by default in all 5 packs —
+  it wasn't before, despite its own header comment saying it should be.
+
+### Migration note
+Re-copy the pack (or run `sdd init`/`sdd upgrade` over it) to pick up the
+updated `.specify/integrations.yml.example` (per-feature `page_map`
+entries now include `{feature}`) and `.gitignore`. First Jira push after
+upgrading creates fresh Story/Task issues under the new label rather than
+finding old ones under the old label — nothing is deleted or overwritten,
+but pre-upgrade issues should be manually closed if they're now
+duplicates.
+
+---
+
+## [2.7.10] — 2026-07-06 (Bug fix — /change living-document handling, all 5 packs)
+
+### Fixed — found via live end-to-end dogfooding of a two-feature service
+
+Built a real two-feature scenario (an `instant-payment` service +
+`payment-dashboard`, sharing one data model/API surface/security
+baseline) to exercise `/create-context`'s Feature Size Check and the
+living-doc mechanism end to end, then specifically stress-tested how
+`/change` behaves once a service has more than one feature. This surfaced
+two real bugs:
+
+- **Stale path assumption**: `/change`'s Stage Detection (`Step 3`) scanned
+  only `.specify/features/{feature}/` to determine which documents exist.
+  `context.md` has always lived at `.specify/contexts/{feature}.md`, and
+  `data-model.md`/`security-design.md`/`api-spec.md`/`component-library.md`
+  have lived at `.specify/service/{doc}.md` since the living-document
+  mechanism shipped in `2.7.6` — neither location was ever checked. A CR
+  touching any of these could be reported as "not yet created" even though
+  the document existed and was approved, meaning the CR's real impact was
+  never assessed or shown to the reviewer.
+- **No cross-feature impact awareness**: even with paths resolved
+  correctly, nothing checked whether a *different* feature depends on the
+  specific unit (entity, endpoint, threat, component) being changed in a
+  shared living document. A CR raised against one feature that happens to
+  touch a unit another feature owns could be silently approved with zero
+  indication that the sibling feature is affected — because that feature's
+  own `srd.md`/`design.md` are never read during a `/change` session
+  scoped to the feature that raised the CR.
+
+### Added
+
+- `change.prompt.md` Step 3 now resolves each document's real location
+  (a lookup table for the four exceptions) before concluding anything
+  "does not exist yet"
+- New "Special handling — when the document being walked is a living
+  document" section: before proposing an UPDATE/RERUN to a living
+  document, `/change` reads its `## Version History`, identifies which
+  feature last touched the affected unit, and — if it's a different
+  feature than the one raising this CR — includes an explicit
+  cross-feature warning in the same proposal (advisory, not a hard block;
+  verified this does not fire on same-feature edits — no false positives)
+- `changeset-template.md` and `change-rules.md` (all 5 packs) updated to
+  document the real file locations and the cross-feature impact rule
+- Fixed the identical stale-path bug in `packs/_shared/tests/assert-output.sh`'s
+  own `data-model.md`/`security-design.md exists` checks — this had been
+  silently wrong since `2.7.6` because the only CI-exercised worked example
+  (`examples/todo-api`) runs at `pilot` scope, which skips those checks
+  entirely
+
+### Verification
+- Full live simulation: two features built end to end (context → BRD →
+  use-cases → SRD → living data-model/security-design/api-spec → design →
+  tasks), confirming Actor Registry reuse, NFR baseline reference, and
+  living-doc walk-and-diff all work as designed
+- `/change` cross-feature warning confirmed to fire correctly on a
+  genuine cross-feature case (a status-enum change originating in one
+  feature, raised as a CR from another) and confirmed *not* to fire on a
+  same-feature edit
+- `cli-python` pytest suite: 102/102 passed
+- `packs/_shared/tests/test-setup.sh`: 15/15 passed
+- `packs/_shared/tests/assert-output.sh` against `examples/todo-api`
+  (pilot): 33/33 passed; against the new mvp-scope test feature: the
+  fixed `data-model.md exists (living doc)` check now correctly passes
+
+---
+
+## [2.7.9] — 2026-07-06 (Framework content — /create-context, all 5 packs)
+
+### Added — Feature Size Check in `/create-context`
+
+Users pasting informal notes into `/create-context` sometimes describe
+more than one feature-sized slice at once (e.g. "a payment processor,
+and also a dashboard to view payment details"). Every downstream
+document — use-cases.md, srd.md, design.md, tasks.md, release.md — is
+authored per feature, so cramming multiple independent capabilities into
+one context.md meant they all inherited an oversized, tangled spec
+instead of each getting its own clean, reviewable slice.
+
+- New **Step 1.5 — Feature Size Check**, run before the full template
+  mapping: clusters the described actions by "actor + goal" and looks
+  for 2+ clusters that are independently shippable (don't block or get
+  blocked by each other), have non-overlapping actor sets, or span
+  separate resource domains with no shared entity
+- If only one cluster is found (the common case), the check is silent —
+  no behavior change for a normal, single-scope input
+- If 2+ clusters are found, the agent stops and asks the user directly:
+  build it as **one feature** anyway, or **split it and build one at a
+  time** — the user's call, not an automatic decision
+- On a split: the chosen cluster continues through drafting as normal
+  (with `feature-name` re-derived from that cluster, not the original
+  all-encompassing description); every other cluster's raw notes are
+  saved to its own `.specify/contexts/{slug}.raw.md` so nothing is lost
+  and it can be picked up later with a plain `/create-context` run
+  pointed at that file
+- Single edit to the shared `create-context.prompt.md`, propagated to
+  all 5 packs
+
+### Verification
+- `cli-python` pytest suite: 102/102 passed
+- `packs/_shared/tests/test-setup.sh`: 15/15 passed
+- `packs/_shared/tests/assert-output.sh` against `examples/todo-api`: 33/33 passed
+
+---
+
+## [2.7.8] — 2026-07-06 (Framework content — per-pack consistency audit, all 5 packs)
+
+### Fixed — bugs introduced or surfaced by the 2.7.6/2.7.7 living-doc work
+
+`2.7.6`/`2.7.7` built the living-document mechanism against
+`sdd-backend-service` and assumed it generalized cleanly. A follow-up
+per-pack audit (frontend-spa, mobile, fullstack, universal each have a
+different shape — no API in frontend-spa/mobile, a split Backend/Frontend
+stack in fullstack, ten auto-detected project types in universal) found
+real bugs and real gaps that single-pack testing had missed:
+
+- **Orphaned template wired in**: frontend-spa/mobile's own
+  `api-spec-template.md` ("Backend API Contract — Consumer") was correctly
+  written but never referenced by name in any prompt — `plan-design.prompt.md`
+  §3's consumer-view branch now names it explicitly
+- **Self-contradicting Scope Reference table**: the `2.7.6` edit asserted
+  API Spec is living unconditionally across all packs, contradicting
+  frontend-spa/mobile's own per-feature consumer-view carve-out for the
+  same concept. Split into two explicit rows (provider vs consumer)
+- **`runbook.md` path drift**: frontend-spa/mobile/fullstack's
+  `release-template.md` said plain `runbook.md` in the References table
+  and Rollback Plan text; `/implement` actually generates
+  `docs/runbook/local-setup.md` in every pack — corrected
+- **Stale scope marking**: frontend-spa/mobile's CLAUDE.md and
+  HOW-TO-USE.md marked `data-model` as "full only", contradicting the
+  Scope Reference table (mvp+) and every other pack — corrected
+- **Stale command reference**: universal's CLAUDE.md/HOW-TO-USE.md still
+  listed a `/specify-doc api-spec` command — api-spec moved to
+  `/plan-design` §3 back in `2.7.6`, universal's docs were never updated
+
+### Changed — living-doc treatment extended to the packs it was missing from
+
+- **fullstack + universal**: `data-model-template.md`,
+  `security-design-template.md`, `api-spec-template.md` now carry the same
+  "Living document" banner/framing `sdd-backend-service` had — the
+  underlying mechanism (`specify-doc.prompt.md`, `plan-design.prompt.md`)
+  is shared across all 5 packs and was already active here; only the
+  pack-specific template headers were missing the framing
+- **fullstack + universal**: `constitution.md` gains a **Service NFR
+  Baseline** table, wired into each pack's own `specify.prompt.md` —
+  fullstack's is split Backend/Frontend (Performance/Availability/
+  Throughput/Data Retention vs Load Time/Bundle Size/Interactivity)
+- **frontend-spa + mobile**: `data-model.md` (Frontend State & Storage
+  Model / Local Data & Cache Model) and `security-design.md` are now
+  explicitly living/app-level documents, same mechanism as
+  `sdd-backend-service`'s `data-model.md` — just describing state/storage
+  and client-side security instead of a database schema
+- **frontend-spa + mobile**: `constitution.md` gains an **App NFR
+  Baseline** table with pack-appropriate categories (Load Time/Bundle
+  Size/Interactivity/Accessibility for frontend-spa; Cold Start Time/
+  Offline Sync Latency/Crash-Free Rate/App Size for mobile), wired into
+  each pack's `specify.prompt.md`. The shared `specify-srd.prompt.md`
+  NFR-baseline-reference logic is now pack-agnostic wording ("Service NFR
+  Baseline" or "App NFR Baseline" depending on pack — same mechanism)
+- **New living document — frontend-spa + fullstack**:
+  `.specify/service/component-library.md` catalogs shared/reusable
+  components used across multiple features. `component-spec.md`'s
+  "Shared Components Used" section now lists only component name +
+  this feature's usage purpose, pointing to the library for the full
+  prop/event/accessibility spec — never restated per feature.
+  `specify-doc.prompt.md`'s living-doc walk-and-diff mechanism now covers
+  this document alongside `data-model.md`/`security-design.md`
+- **frontend-spa, mobile, fullstack, universal**: `release.prompt.md`'s
+  Deployment Plan and Post-Deploy Smoke Test now reference
+  `docs/runbook/local-setup.md` as the standard, established-once
+  strategy instead of re-describing it every release — the same pattern
+  `sdd-backend-service` got in `2.7.7`
+
+### Verification
+- `cli-python` pytest suite: 102/102 passed
+- `packs/_shared/tests/test-setup.sh`: 15/15 passed (all project types,
+  injection-class names, non-interactive execution)
+- `packs/_shared/tests/assert-output.sh` against `examples/todo-api`: 33/33
+  structural assertions passed
+
+---
+
+## [2.7.7] — 2026-07-06 (Framework content — sdd-backend-service, propagated to all 5 packs)
+
+### Changed — the rest of the "reduce duplication across features" audit: reference instead of re-author
+
+Follow-up to `2.7.6`. That release solved the clearest case (data model,
+security baseline, API surface — full relocation to `.specify/service/`
+with a walk-and-diff mechanism). This release covers the remaining
+documents flagged in the same audit as "boilerplate shell + genuinely new
+content, redescribed from scratch every feature" — a cheaper fix since
+none of these needed relocation, just a reference instead of a restatement:
+
+- **`srd.md` NFRs**: `constitution.md` Part 2 gains a **Service NFR
+  Baseline** table (Performance/Availability/Throughput/Data Retention).
+  The first feature to reach `/specify-srd` fills it from its own
+  NFR-NNN rows; every feature after that writes "Baseline (constitution.md
+  → Service NFR Baseline): {values} — applies to this feature too, no
+  change" instead of restating the same numbers, and only gets its own
+  NFR-NNN row for something genuinely different (a stricter target on one
+  specific endpoint). A feature needing a different *baseline* (not an
+  addition) triggers a Constitution Amendment instead of silently
+  overwriting the row
+- **`use-cases.md` Actor Registry**: an actor already defined in another
+  feature's `use-cases.md` (same real-world role — "Ops Analyst",
+  "Settlement Engine") is now reused, not re-derived. ACT-NNN numbering
+  stays local to each feature's own file (Main/Alternate/Exception Path
+  steps need a local ID to reference) — only the Name/Type/Description
+  content carries over, noted as "(same as {prior-feature}'s ACT-NNN)"
+- **`design.md`/`arch.md`/`hld.md` architecture shell**: Architecture
+  Pattern, Layer Responsibilities, Cross-Cutting Concerns (auth, logging,
+  error handling, idempotency, observability), and the System
+  Context/Container diagrams are established once by the first feature
+  to reach `/plan-design` (or `/plan-arch`/`/plan-hld` in separate mode)
+  and referenced — "unchanged from {prior-feature}/design.md §1, see
+  there" — by every later feature, instead of re-derived from scratch
+  each time. Component diagrams, sequence diagrams, state machines, and
+  DEC-NNN decisions stay fully per-feature, since those genuinely are new
+  each time
+- **`tasks.md` Phase A**: the "Project Scaffold + Dependencies" task
+  gained the same check-before-regenerate guidance Phase F (Docker/k8s)
+  already had in `2.7.6` — it's a once-per-service task, not
+  once-per-feature; a later feature only adds a genuinely new dependency,
+  it doesn't regenerate the build config
+- **`release.md`**: Deployment Plan and Post-Deploy Smoke Test now point
+  at `docs/runbook/local-setup.md` (already living as of `2.7.6`) for the
+  standard steps/strategy instead of re-deriving them each release —
+  only the release-specific migration version, feature flag, and target
+  endpoint get filled in fresh
+- Left alone, on purpose: `validate.md`, `clarify.md`, `checklist.md`,
+  `changeset-template.md`, `constitution-amendment-template.md`,
+  `jira-export.md` — genuinely one-off or already correctly incremental
+- `specify-srd.prompt.md`, `specify-uc.prompt.md`, `plan-design.prompt.md`,
+  `plan-arch.prompt.md`, `plan-hld.prompt.md`, and `tasks-template.md` are
+  full-synced across all 5 packs — edited on the canonical `_shared/full/`
+  source and propagated, since the new behavior is a no-op for any
+  project without a prior feature to reference. `constitution.md`,
+  `specify.prompt.md`, `release.prompt.md`, and `release-template.md` are
+  pack-specific and were updated directly for `sdd-backend-service`
+- Verified: full pytest suite (102 passed, no CLI code changed this
+  release — pure prompt/template text), setup smoke tests (15/15),
+  output-assertion tests against `examples/todo-api` (33/33), a live
+  simulated upgrade from `2.7.6` confirming the new migration fires, and
+  a dogfooding pass extending the same instant-payment/payment-dashboard
+  scratch scenario from `2.7.6`: feature 2's `srd.md` and `use-cases.md`
+  came out referencing feature 1's baseline/actors correctly instead of
+  restating them
+
+---
+
+## [2.7.6] — 2026-07-04 (Framework content — sdd-backend-service, propagated to all 5 packs)
+
+### Changed — data-model.md, security-design.md, and API design are now living, service-level documents
+
+- Root problem: within one microservice, a second feature (e.g. a payment
+  dashboard reading data a first feature — instant payment processing —
+  already modeled) had no way to *extend* the existing schema/API surface.
+  `/specify-doc data-model`/`security` and `/plan-design` §3 always
+  generated fresh, per-feature copies — so a second feature either
+  silently duplicated the first feature's tables/endpoints (drift risk:
+  two documents claiming to define the same thing) or ignored them
+  entirely (an index or endpoint that should exist had nowhere correct to
+  live)
+- `data-model.md`, `security-design.md`, and the API design section of
+  `design.md` now live at `.specify/service/{doc}.md` — parallel to
+  `.specify/memory/constitution.md`, generated once, then **extended by
+  every later feature** instead of regenerated. When one already exists,
+  the generating command walks it one unit at a time (one table, one
+  threat entry, one endpoint) — SKIP / ADD / UPDATE, showing only the
+  delta, one approval — the same discipline `/change` already uses for
+  document updates, applied here to "a new feature touches an existing
+  shared artifact" instead of "a requirement changed"
+- `design.md` §3 (still per-feature) no longer contains the full API
+  design — it's a short pointer to `.specify/service/api-spec.md` plus
+  this feature's new/changed endpoints only
+- Also fixed: `docs/runbook/local-setup.md`, `docs/openapi.yaml`, and
+  `docker-compose.yml`/k8s manifests (already correctly living outside
+  any feature folder) had no "already exists?" check before regeneration
+  — a later feature could silently drop an earlier feature's additions.
+  All three now have explicit check-before-regenerate guidance
+- `specify-doc.prompt.md`, `plan-design.prompt.md`, and `tasks-template.md`
+  are shared full-synced files across all 5 packs — this change was made
+  on the canonical `_shared/full/` source and propagated everywhere, since
+  the new behavior is a safe no-op for any project where these documents
+  don't exist yet. `data-model-template.md`, `security-design-template.md`,
+  `api-spec-template.md`, `runbook-template.md`, and `openapi-template.md`
+  are pack-specific and were updated directly for `sdd-backend-service`
+- Migration note for existing multi-feature projects: per-feature
+  `data-model.md`/`security-design.md` files from before this release are
+  **not** automatically merged — the next `/specify-doc data-model` (or
+  `security`) run creates a fresh `.specify/service/` copy; reconcile any
+  existing per-feature versions into it manually
+- Verified: full pytest suite (102 passed — 2 new tests confirming
+  `resolve_doc_path()` routes living docs to `.specify/service/`
+  regardless of active feature), setup smoke tests
+  (15/15), output-assertion tests against `examples/todo-api` (33/33), a
+  live simulated upgrade from `2.7.5` confirming the new migration fires,
+  and an end-to-end dogfooding pass: simulated two real features
+  (instant-payment, payment-dashboard) against the new mechanism,
+  confirmed the second feature's `design.md` stays a 37-line pointer
+  (mentions the shared entity once, in the pointer note) instead of
+  re-describing the schema, and ran the actual `sdd review approve --doc
+  data-model --local` CLI command against the resulting
+  `.specify/service/data-model.md` to confirm the whole path works, not
+  just the path-resolution helper in isolation
+
+---
+
+## [2.7.5] — 2026-07-04 (Python CLI — path traversal fix)
+
+### Fixed — sdd confluence / sdd cr / sdd jira accepted unvalidated feature names
+
+- Found during a security audit: `sdd pr` and `sdd review` both route the
+  `feature` name (from `--feature` or `manifest.yml`'s `project.feature`)
+  through `safe_feature_path()` before touching disk, which rejects `../`
+  traversal. `sdd confluence`, `sdd cr`, and `sdd jira` built the same
+  `.specify/features/{feature}/...` path with a plain string join and no
+  check at all — an inconsistency, not a designed difference
+- Impact if a `manifest.yml` value like `project.feature:
+  "../../../../tmp/pwned"` reached one of these commands unnoticed:
+  `sdd confluence pull` would write pulled content to an arbitrary path
+  outside `.specify/features/`; `sdd cr submit` / `sdd jira push` /
+  `sdd jira sync` would read whatever file existed at the traversed path
+  and push its contents to Confluence/Jira — arbitrary local file
+  exfiltration to an external service, gated only on a teammate running
+  the command without an explicit `--feature` override
+- Fix: `confluence.py`, `cr.py`, and `jira.py` now call the same
+  `safe_feature_path()` helper `pr.py`/`review.py` already used, with the
+  same graceful `ValueError` → clean CLI error + exit 1 handling
+- Also fixed a real bug in `safe_feature_path()` itself, found while
+  strengthening it: the containment check compared resolved paths with a
+  raw string-prefix test (`str(resolved).startswith(str(base))`), with no
+  separator boundary — so a feature name resolving to a *sibling*
+  directory that merely shares a string prefix with the base (e.g.
+  `features-legacy` next to `features`) incorrectly passed validation.
+  Replaced with `Path.relative_to()`, which correctly requires actual
+  containment
+- 14 new tests: direct coverage of `safe_feature_path()` (traversal
+  rejection, the sibling-prefix bypass, and the normal-name path), plus
+  regression tests calling `confluence.py`'s and `cr.py`'s actual path
+  helpers to lock in the fixed call chain — 100 total, up from 86
+- Verified beyond unit tests: reproduced the exact exploit scenario from
+  the audit — a scratch project with `project.feature` set to a
+  traversal string and a configured `integrations.yml`, then ran
+  `sdd jira push` for real through Click's CliRunner. Confirmed clean
+  rejection (exit 1, clear error message) where the old code would have
+  attempted to read from the traversed path
+- Version bumped to `2.7.5` in both CLIs (this fix is Python-only — the
+  Node CLI has no `confluence`/`cr`/`jira` commands — but both package
+  versions move together per this project's convention; the Node CLI's
+  migration entry notes explicitly that nothing in it changed)
+- Also verified: full pytest suite (100 passed), setup smoke tests
+  (15/15), a live simulated upgrade from `2.7.4` confirming the new
+  migration fires and lands on `2.7.5`
+
+---
+
+## [2.7.4] — 2026-07-04 (Framework content — all 5 packs — /change)
+
+### Added — /change recommends a feature rename when scope fundamentally changes
+
+- Previously, `/change` would happily regenerate `context.md`'s content
+  to reflect a broadened or narrowed scope (via RERUN, with a
+  `.pre-CR-{NNN}.md` backup), but never touched the feature's identity —
+  `manifest.project.feature`, `context_file`, and the
+  `.specify/features/{feature}/` directory name stayed whatever they were
+  at `sdd init` time. A feature originally scoped as a single fixed
+  `pain001-pacs008-parser` conversion could get generalized via CR into a
+  generic ISO 20022 parser, and the folder/manifest would still say
+  `pain001-pacs008-parser` — accurate document content, stale plumbing
+- `change.prompt.md` now has a new "Special handling — context.md" check:
+  after a RERUN or scope-touching UPDATE is approved, it looks for two
+  signals together — the new §1 description no longer contains the
+  specific nouns the current feature slug was named after, AND the walk
+  plan already marked `brd.md`/`use-cases.md` as PRIMARY impact (a
+  detail-level CR rarely reaches that far). If both fire, it recommends
+  a new slug and asks before doing anything
+- On approval, performs the rename as part of the same CR: `git mv` the
+  feature directory and context file(s), updates `manifest.yml`, greps
+  for any leftover hardcoded references to the old slug, and notes that
+  already-pushed Jira/Confluence pages stay linked under the old name
+  (local rename doesn't follow them there)
+- `changeset-template.md` gained a "Feature renamed" row in §1 Change
+  Description (`{old-slug} → {new-slug}`, or "No") so the rename is part
+  of the CR's permanent audit trail, not just a chat message
+- `change.prompt.md` is now tracked in `_shared/full/` (previously
+  identical across all 5 packs by coincidence, same gap `create-context`
+  had before it was added to shared tracking)
+- Bumped the unified version to `2.7.4` with a matching migration entry
+  in both CLIs
+- Verified: full pytest suite (86 passed), setup smoke tests (15/15),
+  output-assertion tests against `examples/todo-api` (33/33), a live
+  simulated upgrade from `2.7.3` confirming the new migration fires and
+  lands on `2.7.4`, and `sdd --version` / `SDD_VERSION` both printing
+  `2.7.4` in both CLIs
+
+---
+
 ## [2.7.3] — 2026-07-04 (Both CLIs — version scheme unified)
 
 ### Changed — One version number instead of two
