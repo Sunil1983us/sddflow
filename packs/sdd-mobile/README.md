@@ -207,6 +207,7 @@ Full detail on each file (what each field does, sample values, troubleshooting) 
 |---|---|
 | `QUICKSTART.md` | Steps to first run |
 | `HOW-TO-USE.md` | Every command explained — what/when/produces/next |
+| `FLOW-ROLES-GATES.md` | One-page map: pipeline + every gate's RACI + traceability chain |
 | `.specify/memory/constitution.md` | Universal rules + your tech stack |
 | `.specify/memory/roles.yml` | RACI — fill in reviewer names |
 | `.specify/contexts/CONTEXT-GUIDE.md` | How to write a good context file |
