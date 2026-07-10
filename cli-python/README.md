@@ -327,6 +327,87 @@ Output:
 ```
 
 Blocked = predecessor in the same phase is not yet approved.
+**Requires Jira** (`integrations.yml` with a `jira:` section) — for a
+status view that works with any review mode (chat, local, or jira), see
+`sdd dashboard` below.
+
+---
+
+### `sdd dashboard`
+
+A local, read-only web UI over the current project's `.specify/` —
+pipeline progress per feature, task completion, and token usage. Unlike
+`sdd review status`, it needs no Jira/Confluence configuration: it reads
+the `Status:` headers already written into each doc's `.md` file, which
+are the authoritative gate in every review mode.
+
+```bash
+sdd dashboard                  # starts a local server, opens your browser
+sdd dashboard --port 5050      # use a different port
+sdd dashboard --no-open        # don't auto-open a browser tab
+sdd dashboard --host 0.0.0.0   # let teammates on the same network reach it (see below)
+```
+
+Shows, per feature under `.specify/features/`:
+- **Pipeline** — every generated doc and its `Status:` (Draft/Approved/etc.), with a best-effort "what's next" guess. Each doc has a **View** button that reads the raw `.md` straight from disk into the page — no need to leave the browser to check content.
+- **Tasks** — parsed from `tasks.md` (works with both the full packs' checkbox-based tasks and sdd-micro's `**Status:**` field)
+- **Token Usage** — the running totals from `token-usage.md`, if token usage logging is enabled for that feature
+- **Jira Export** — the Epic/Story/Task links from the progressive export (`docs/jira/{feature}/keys.yml`), if you've run `/jira-push` or `sdd jira push`
+
+It's a viewer only — nothing here writes to `.specify/`. The page polls
+`/api/status` every 5 seconds, so it reflects new commands as the agent
+runs them. Task/PR status reflects `tasks.md`, not live PR state on your
+git host (that would require its own credentials/API calls per host —
+out of scope for this command).
+
+**Jira/Confluence links** come in two tiers:
+- **Local, instant, always shown** — Jira Epic/Story/Task links (from
+  `docs/jira/{feature}/keys.yml`) and Confluence page links for docs
+  pushed via `sdd confluence push`/`draft` (from
+  `.specify/.confluence-drafts.json`). Pure file reads, no network call.
+- **Live, on demand** — click **"🔄 Check Jira/Confluence review links"**
+  on a feature to look up that feature's `sdd review submit` tickets
+  (these aren't cached anywhere locally, unlike the progressive export).
+  This one call uses your existing `~/.sdd/config.yml` profile and
+  `.specify/integrations.yml` — same credentials as `sdd review status`,
+  and only fires when you click the button, never on the automatic poll.
+
+**Approve a document, or leave a review comment** — right from the
+Pipeline card, no need to open a CLI or Jira/Confluence yourself:
+- **Approve** flips that doc's `Status:` header to `Approved` and records
+  who/when/why in `.specify/.local-approvals.yml` — the exact same file
+  and format `sdd review approve --local` already uses, so the CLI and
+  the dashboard share one audit trail. If Confluence is configured, the
+  approved doc is mirrored to its page automatically (same as the CLI
+  command); if Jira is configured, a best-effort comment ("Approved via
+  SDD Dashboard by {name}") is posted to that document's review-gate
+  ticket. Neither Confluence nor Jira failing blocks the local approval.
+- **Comments** (💬 button) save locally to
+  `.specify/.dashboard-comments.json`, scoped per feature+document, and
+  also post to Jira the same way, if configured. Confluence comment
+  posting isn't implemented yet (only page content sync on approve).
+- **Known limitation:** `.local-approvals.yml` is keyed by document name
+  only, not by feature — this matches `sdd review approve`/`review
+  check`'s own existing format. On a multi-feature project, approving
+  "brd" doesn't distinguish which feature's BRD you meant at the
+  `sdd review check` layer (dashboard comments *are* feature-scoped,
+  since that's a new store with no legacy format to match).
+- **Jira only gets a comment, not a status transition.** Actually moving
+  the Jira ticket's workflow status (e.g. to Done) would need the Jira
+  transitions API, which isn't wrapped in this codebase — approve via
+  the dashboard the same way `sdd review approve --local` does: locally
+  first, Jira/Confluence as a mirror, not the source of truth.
+
+**Sharing with a team.** By default the server only listens on
+`127.0.0.1` — just you. `--host 0.0.0.0` lets teammates on the same
+network open it from their own browser at your machine's IP (the CLI
+prints that URL). This is still one process on one machine, not a hosted
+service — it stops when you close the terminal, and it's unauthenticated,
+so only use it on a network you trust: it exposes your project's
+`.specify/` status to anyone who can reach the port, **and** lets them
+approve documents and post comments on your behalf. No credentials pass
+through it either way — Jira/Confluence auth stays server-side, using
+your own `~/.sdd/config.yml`.
 
 ---
 

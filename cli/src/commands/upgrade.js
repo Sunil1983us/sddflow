@@ -404,6 +404,78 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.13',
+    to:   '2.7.14',
+    description: 'New sdd dashboard command (Python CLI only, local status UI); no manifest schema changes',
+    notes: [
+      'The Python CLI (sddflow) added `sdd dashboard`: a local, ' +
+      'read-only web UI over .specify/ — pipeline progress, task ' +
+      'completion, and token usage per feature. Stdlib-only HTTP ' +
+      'server, no new dependency. Unlike `sdd review status`, it needs ' +
+      'no Jira/Confluence configuration — it reads the `Status:` header ' +
+      "already written into each doc's .md file, the authoritative " +
+      'gate in every review mode (chat/local/jira)',
+      'This is a Python-CLI-only command — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.14';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.14',
+    to:   '2.7.15',
+    description: 'sdd dashboard (Python CLI) gains Jira/Confluence links, LAN sharing, and an in-page doc viewer; no manifest schema changes',
+    notes: [
+      'The Python CLI (sddflow) dashboard now shows local Jira Epic/' +
+      'Story/Task links and Confluence page links on each pipeline doc ' +
+      '(no network call), plus an on-demand button to live-check ' +
+      "sdd review submit's review-gate tickets (never cached locally), " +
+      'and a View button that reads a doc straight from disk into the page',
+      'New --host flag (default 127.0.0.1) lets teammates on the same ' +
+      'network reach a shared instance via --host 0.0.0.0 — still one ' +
+      'unauthenticated process on one machine, not a hosted service',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.15';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.15',
+    to:   '2.7.16',
+    description: 'sdd dashboard (Python CLI) gains Approve + review comments (syncs to Confluence/Jira); no manifest schema changes',
+    notes: [
+      'New Approve button per document flips that doc\'s Status: header ' +
+      'to Approved and records it in .specify/.local-approvals.yml — the ' +
+      'same file/format `sdd review approve --local` already uses, ' +
+      'mirrors to Confluence if configured, and posts a best-effort ' +
+      'Jira comment on the review-gate ticket',
+      'New comment box saves review comments locally ' +
+      '(.specify/.dashboard-comments.json, feature-scoped) and ' +
+      'best-effort mirrors to Jira; Confluence comment posting isn\'t ' +
+      'implemented yet',
+      '--host 0.0.0.0\'s warning now also covers write access — ' +
+      'anyone reachable on the network can approve documents and post ' +
+      'comments, not just view status',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.16';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

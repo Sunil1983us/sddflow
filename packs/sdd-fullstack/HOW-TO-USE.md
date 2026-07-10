@@ -666,6 +666,13 @@ sdd review apply  --doc brd      # re-push after addressing reviewer comments
 sdd review status                # dashboard: all documents + their current review state
 ```
 
+**`sdd review status` needs Jira configured.** For a status view that works
+in **every** review mode (chat, local, or jira), run `sdd dashboard`
+instead — a local web UI with pipeline progress, task status, and token
+usage per feature, plus Approve/comment buttons that update the same
+`Status:` header and `.local-approvals.yml` this section describes. See
+`cli-python/README.md` → "sdd dashboard".
+
 **Review sequence is enforced:** BRD must be approved before SRD can be submitted; SRD before design; etc.
 
 **Handling a revision request:**

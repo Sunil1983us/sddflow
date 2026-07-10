@@ -412,6 +412,102 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.13"},
     },
+    {
+        "from":        "2.7.13",
+        "to":          "2.7.14",
+        "description": "New sdd dashboard command (local status UI); no manifest schema changes",
+        "notes": [
+            "Added `sdd dashboard`: a local, read-only web UI over "
+            ".specify/ -- pipeline progress, task completion, and token "
+            "usage per feature. Stdlib-only HTTP server, no new pip "
+            "dependency. Unlike `sdd review status`, it needs no Jira/"
+            "Confluence configuration -- it reads the `Status:` header "
+            "already written into each doc's .md file, which is the "
+            "authoritative gate in every review mode (chat/local/jira)",
+            "New module sdd/utils/status.py (build_project_status, "
+            "build_feature_status) parses per-feature docs, tasks.md "
+            "(both the full packs' checkbox format and sdd-micro's "
+            "**Status:** field), and token-usage.md running totals -- "
+            "pure filesystem reads, no writes, safe to poll",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.14"},
+    },
+    {
+        "from":        "2.7.14",
+        "to":          "2.7.15",
+        "description": "sdd dashboard gains Jira/Confluence links, LAN sharing, and an in-page doc viewer; no manifest schema changes",
+        "notes": [
+            "Local, instant links (no network) now show on each pipeline "
+            "doc: Jira Epic/Story/Task links from docs/jira/{feature}/"
+            "keys.yml, and Confluence page links from "
+            ".specify/.confluence-drafts.json, when either exists",
+            "New 'Check Jira/Confluence review links' button per feature "
+            "queries Jira/Confluence live (via your existing ~/.sdd/"
+            "config.yml profile and .specify/integrations.yml) to resolve "
+            "the sdd review submit review-gate tickets, which are never "
+            "cached locally -- this is on-demand only, never on the "
+            "automatic 5s poll",
+            "New 'View' button per document reads the raw .md straight "
+            "from disk into the page, so you don't have to leave the "
+            "browser to check content",
+            "New `--host` flag (default 127.0.0.1) -- run with "
+            "`--host 0.0.0.0` on a shared devbox so teammates on the same "
+            "network can open the dashboard from their own browser; the "
+            "CLI now prints a caution and the reachable LAN URL when "
+            "bound non-locally. Still one process on one machine, not a "
+            "hosted service, and unauthenticated -- only use on a trusted "
+            "network",
+            "The new /api/doc and /api/review-links endpoints take "
+            "feature/doc query params from HTTP requests, not just local "
+            "CLI flags -- both are validated against a strict "
+            "[A-Za-z0-9_-]+ pattern before touching the filesystem, "
+            "closing off path traversal now that --host can make this "
+            "network-reachable",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.15"},
+    },
+    {
+        "from":        "2.7.15",
+        "to":          "2.7.16",
+        "description": "sdd dashboard gains Approve + review comments (syncs to Confluence/Jira); no manifest schema changes",
+        "notes": [
+            "New 'Approve' button per document flips that doc's Status: "
+            "header to Approved and records who/when/why in "
+            ".specify/.local-approvals.yml -- the exact same file and "
+            "format `sdd review approve --local` already uses, so the "
+            "CLI and the dashboard share one audit trail. Mirrors to "
+            "Confluence automatically if configured (same as the CLI "
+            "command), and posts a best-effort comment to the doc's "
+            "review-gate Jira ticket if configured -- neither failing "
+            "blocks the local approval",
+            "New comment box (new POST /api/comment) saves review "
+            "comments locally to .specify/.dashboard-comments.json, "
+            "scoped per feature+document (a new store, so this one is "
+            "feature-scoped from the start -- unlike .local-approvals.yml, "
+            "which stays keyed by bare doc name to match the CLI format "
+            "exactly), and best-effort mirrors to Jira the same way",
+            "Known limitation carried over from `sdd review approve`/"
+            "`review check`: .local-approvals.yml isn't feature-scoped, "
+            "so on a multi-feature project approving one feature's "
+            "'brd' doesn't distinguish it from another feature's 'brd' "
+            "at the review-check layer. Not something this migration "
+            "introduces or fixes -- see cli-python/README.md's dashboard "
+            "section",
+            "Confluence comment posting isn't implemented (only page "
+            "content sync on approve) -- ConfluenceClient has no "
+            "comment-write method yet",
+            "--host 0.0.0.0's printed warning now also covers write "
+            "access: anyone reachable on the network can approve "
+            "documents and post comments, not just view status",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.16"},
+    },
 ]
 
 

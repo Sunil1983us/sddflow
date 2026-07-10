@@ -4,6 +4,118 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.16] — 2026-07-10 (`sdd dashboard`: Approve + review comments)
+
+### Added
+
+- **"Approve" button** per document. Flips that doc's `Status:` header
+  to `Approved` and records who/when/why in
+  `.specify/.local-approvals.yml` — the exact same file and format
+  `sdd review approve --local` already uses, so the CLI and the
+  dashboard share one audit trail. Mirrors to Confluence automatically
+  if configured (same as the CLI command), and posts a best-effort
+  comment ("Approved via SDD Dashboard by {name}") to that document's
+  review-gate Jira ticket if configured. Neither Confluence nor Jira
+  failing blocks the local approval, matching the CLI's existing
+  behavior.
+- **Review comment box** (💬) per document. Saves locally to a new
+  `.specify/.dashboard-comments.json`, scoped per feature+document (a
+  new store, so — unlike the approvals file — this one is feature-scoped
+  from the start), and best-effort mirrors to Jira as a comment on the
+  same review-gate ticket. Confluence comment posting isn't implemented
+  yet (only page content sync on approve, via the existing mechanism).
+
+### Known limitations (documented, not silently glossed over)
+
+- `.local-approvals.yml` stays keyed by bare document name, matching
+  `sdd review approve`/`sdd review check`'s existing format exactly —
+  interoperability with those CLI commands won over fixing their
+  pre-existing lack of feature-scoping as a side effect of this change.
+  On a multi-feature project, approving "brd" doesn't distinguish which
+  feature's BRD at the `review check` layer.
+- Jira only gets a comment, not a workflow status transition — Jira's
+  transitions API isn't wrapped anywhere in this codebase. Approval
+  stays local-first, same as the CLI's own design.
+- `--host 0.0.0.0`'s printed warning now also covers write access:
+  anyone reachable on the network can approve documents and post
+  comments on your behalf, not just view status. No credentials pass
+  through the dashboard either way.
+
+---
+
+## [2.7.15] — 2026-07-09 (`sdd dashboard`: Jira/Confluence links, LAN sharing, doc viewer)
+
+### Added
+
+- **Local Jira/Confluence links, always instant.** Each pipeline doc now
+  shows an Epic/Story/Task link (from `docs/jira/{feature}/keys.yml`,
+  written by the progressive Jira export) and a Confluence page link
+  (from `.specify/.confluence-drafts.json`, written by `sdd confluence
+  push`/`draft`), when either exists. Pure file reads, no network call —
+  consistent with the dashboard's existing offline-by-default design.
+- **"🔄 Check Jira/Confluence review links" button**, per feature. The
+  tickets `sdd review submit` creates per document are never cached
+  locally (unlike the progressive export), so resolving them needs a
+  live Jira/Confluence lookup — this makes that lookup explicit and
+  on-demand, using your existing `~/.sdd/config.yml` profile and
+  `.specify/integrations.yml`, and never fires on the automatic 5s poll.
+- **"View" button per document** reads the raw `.md` straight from disk
+  into the page (new `/api/doc` endpoint) — no need to leave the browser
+  to check a document's content.
+- **`--host` flag** (default `127.0.0.1`). Run with `--host 0.0.0.0` on
+  a shared devbox so teammates on the same network can open the
+  dashboard from their own browser — the CLI prints the reachable LAN
+  URL and a caution. This is still one unauthenticated process on one
+  machine, not a hosted/always-on service; it stops when you close the
+  terminal, and it's read-only and never sends credentials to the
+  browser, but it does expose the project's `.specify/` status to
+  anyone who can reach the port — only use it on a trusted network.
+
+### Security
+
+- The new `/api/doc` and `/api/review-links` endpoints take
+  `feature`/`doc` values from HTTP query params rather than trusted
+  local CLI flags — once `--host` makes the server reachable beyond
+  `127.0.0.1`, that's untrusted network input. Both are validated
+  against a strict `[A-Za-z0-9_-]+` pattern before ever being used to
+  build a filesystem path, closing off path traversal. Verified with a
+  live request containing `../../../etc` in both `feature` and `doc` —
+  correctly rejected with 400 before any file access.
+
+---
+
+## [2.7.14] — 2026-07-09 (New `sdd dashboard` — local status UI, Python CLI)
+
+### Added
+
+- **`sdd dashboard`** — a local, read-only web UI over the current
+  project's `.specify/`: pipeline progress per feature (every generated
+  doc and its `Status:` header, plus a best-effort "what's next" guess),
+  task completion (parses both the full packs' checkbox-based `tasks.md`
+  and `sdd-micro`'s `**Status:**` field), and token usage (the running
+  totals from `token-usage.md`, when logging is enabled). Multi-feature
+  aware — every folder under `.specify/features/` gets its own section.
+  `sdd dashboard [--port N] [--no-open]`.
+- Unlike `sdd review status`, this needs **no Jira/Confluence
+  configuration** — it reads the `Status:` header already written into
+  each doc's `.md` file, which is the authoritative gate in every review
+  mode (chat, local, jira) per each pack's CLAUDE.md. It's a viewer
+  only — nothing it does writes to `.specify/`. The page polls
+  `/api/status` every 5 seconds so it reflects new commands as the agent
+  runs them.
+- Implemented with the stdlib `http.server` — no new pip dependency.
+  New pure-function module `sdd/utils/status.py`
+  (`build_project_status`, `build_feature_status`), unit tested
+  (16 new tests) independent of the HTTP layer.
+- Task/PR status reflects `tasks.md` only, not live PR state on your git
+  host — that would need per-host credentials/API calls and is out of
+  scope for this command (see `sdd pr create`/`sdd pr comments` for
+  live PR interaction instead).
+- Python-CLI-only (`sddflow`) — the Node CLI stays scoped to
+  init/upgrade scaffolding per its own README.
+
+---
+
 ## [2.7.13] — 2026-07-08 (New pack — sdd-micro, for tiny/personal projects)
 
 ### Added

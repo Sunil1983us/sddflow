@@ -83,6 +83,11 @@ for a small local project — edit only if you want something different.
 | `/task` | Flat, numbered task list (no stories, no Jira) | GATE-1 |
 | `/implement` | One task at a time, verified as you go | tasks.md reviewed |
 
+Want a quick visual on task progress instead of reading `tasks.md`
+directly? `sdd dashboard` (from the `sddflow` CLI) works here too — it
+reads this pack's `tasks.md` format the same as the full packs'. See
+`cli-python/README.md` → "sdd dashboard".
+
 ---
 
 ## Outgrowing sdd-micro
