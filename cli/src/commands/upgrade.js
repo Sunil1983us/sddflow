@@ -449,6 +449,33 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.15',
+    to:   '2.7.16',
+    description: 'sdd dashboard (Python CLI) gains Approve + review comments (syncs to Confluence/Jira); no manifest schema changes',
+    notes: [
+      'New Approve button per document flips that doc\'s Status: header ' +
+      'to Approved and records it in .specify/.local-approvals.yml — the ' +
+      'same file/format `sdd review approve --local` already uses, ' +
+      'mirrors to Confluence if configured, and posts a best-effort ' +
+      'Jira comment on the review-gate ticket',
+      'New comment box saves review comments locally ' +
+      '(.specify/.dashboard-comments.json, feature-scoped) and ' +
+      'best-effort mirrors to Jira; Confluence comment posting isn\'t ' +
+      'implemented yet',
+      '--host 0.0.0.0\'s warning now also covers write access — ' +
+      'anyone reachable on the network can approve documents and post ' +
+      'comments, not just view status',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.16';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

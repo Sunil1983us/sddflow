@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.16] — 2026-07-10 (`sdd dashboard`: Approve + review comments)
+
+### Added
+
+- **"Approve" button** per document. Flips that doc's `Status:` header
+  to `Approved` and records who/when/why in
+  `.specify/.local-approvals.yml` — the exact same file and format
+  `sdd review approve --local` already uses, so the CLI and the
+  dashboard share one audit trail. Mirrors to Confluence automatically
+  if configured (same as the CLI command), and posts a best-effort
+  comment ("Approved via SDD Dashboard by {name}") to that document's
+  review-gate Jira ticket if configured. Neither Confluence nor Jira
+  failing blocks the local approval, matching the CLI's existing
+  behavior.
+- **Review comment box** (💬) per document. Saves locally to a new
+  `.specify/.dashboard-comments.json`, scoped per feature+document (a
+  new store, so — unlike the approvals file — this one is feature-scoped
+  from the start), and best-effort mirrors to Jira as a comment on the
+  same review-gate ticket. Confluence comment posting isn't implemented
+  yet (only page content sync on approve, via the existing mechanism).
+
+### Known limitations (documented, not silently glossed over)
+
+- `.local-approvals.yml` stays keyed by bare document name, matching
+  `sdd review approve`/`sdd review check`'s existing format exactly —
+  interoperability with those CLI commands won over fixing their
+  pre-existing lack of feature-scoping as a side effect of this change.
+  On a multi-feature project, approving "brd" doesn't distinguish which
+  feature's BRD at the `review check` layer.
+- Jira only gets a comment, not a workflow status transition — Jira's
+  transitions API isn't wrapped anywhere in this codebase. Approval
+  stays local-first, same as the CLI's own design.
+- `--host 0.0.0.0`'s printed warning now also covers write access:
+  anyone reachable on the network can approve documents and post
+  comments on your behalf, not just view status. No credentials pass
+  through the dashboard either way.
+
+---
+
 ## [2.7.15] — 2026-07-09 (`sdd dashboard`: Jira/Confluence links, LAN sharing, doc viewer)
 
 ### Added

@@ -372,14 +372,42 @@ out of scope for this command).
   `.specify/integrations.yml` — same credentials as `sdd review status`,
   and only fires when you click the button, never on the automatic poll.
 
+**Approve a document, or leave a review comment** — right from the
+Pipeline card, no need to open a CLI or Jira/Confluence yourself:
+- **Approve** flips that doc's `Status:` header to `Approved` and records
+  who/when/why in `.specify/.local-approvals.yml` — the exact same file
+  and format `sdd review approve --local` already uses, so the CLI and
+  the dashboard share one audit trail. If Confluence is configured, the
+  approved doc is mirrored to its page automatically (same as the CLI
+  command); if Jira is configured, a best-effort comment ("Approved via
+  SDD Dashboard by {name}") is posted to that document's review-gate
+  ticket. Neither Confluence nor Jira failing blocks the local approval.
+- **Comments** (💬 button) save locally to
+  `.specify/.dashboard-comments.json`, scoped per feature+document, and
+  also post to Jira the same way, if configured. Confluence comment
+  posting isn't implemented yet (only page content sync on approve).
+- **Known limitation:** `.local-approvals.yml` is keyed by document name
+  only, not by feature — this matches `sdd review approve`/`review
+  check`'s own existing format. On a multi-feature project, approving
+  "brd" doesn't distinguish which feature's BRD you meant at the
+  `sdd review check` layer (dashboard comments *are* feature-scoped,
+  since that's a new store with no legacy format to match).
+- **Jira only gets a comment, not a status transition.** Actually moving
+  the Jira ticket's workflow status (e.g. to Done) would need the Jira
+  transitions API, which isn't wrapped in this codebase — approve via
+  the dashboard the same way `sdd review approve --local` does: locally
+  first, Jira/Confluence as a mirror, not the source of truth.
+
 **Sharing with a team.** By default the server only listens on
 `127.0.0.1` — just you. `--host 0.0.0.0` lets teammates on the same
 network open it from their own browser at your machine's IP (the CLI
 prints that URL). This is still one process on one machine, not a hosted
 service — it stops when you close the terminal, and it's unauthenticated,
-so only use it on a network you trust. It's read-only and never sends
-credentials to the browser, but it does expose your project's `.specify/`
-status (doc contents, task titles, etc.) to anyone who can reach the port.
+so only use it on a network you trust: it exposes your project's
+`.specify/` status to anyone who can reach the port, **and** lets them
+approve documents and post comments on your behalf. No credentials pass
+through it either way — Jira/Confluence auth stays server-side, using
+your own `~/.sdd/config.yml`.
 
 ---
 

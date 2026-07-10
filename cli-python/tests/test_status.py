@@ -340,3 +340,77 @@ def test_malformed_keys_yml_does_not_crash(tmp_path, monkeypatch):
     (jira_dir / "keys.yml").write_text("not: valid: yaml: [")
     feat = build_feature_status(tmp_path, "payments")
     assert feat["local_links"]["jira"] == {"epic": None, "stories": [], "tasks": []}
+
+
+# ── Approval / comment state surfaced per doc ──────────────────────────────
+
+def test_doc_has_no_local_approval_by_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text("> Status: Draft\n")
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["docs"][0]["local_approval"] is None
+    assert feat["docs"][0]["comments"] == []
+
+
+def test_doc_local_approval_read_from_approvals_file(tmp_path, monkeypatch):
+    """Same file/key format `sdd review approve --local` writes — bare doc
+    name, not feature-scoped (see dashboard.py's _do_approve docstring)."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text("> Status: Approved\n")
+    (tmp_path / ".specify" / ".local-approvals.yml").write_text(
+        "brd:\n  approved_by: \"Jane\"\n  approved_at: \"2026-07-09\"\n  note: \"lgtm\"\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    approval = feat["docs"][0]["local_approval"]
+    assert approval["approved_by"] == "Jane"
+    assert approval["note"] == "lgtm"
+
+
+def test_malformed_local_approvals_file_does_not_crash(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text("> Status: Draft\n")
+    (tmp_path / ".specify" / ".local-approvals.yml").write_text("not: valid: [")
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["docs"][0]["local_approval"] is None
+
+
+def test_doc_comments_read_and_feature_scoped(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path)
+    for f in ["payments", "dashboard"]:
+        feature_dir = tmp_path / ".specify" / "features" / f
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "brd.md").write_text("> Status: Draft\n")
+    (tmp_path / ".specify" / ".dashboard-comments.json").write_text(
+        '{"payments/brd": [{"by": "Jane", "text": "looks good", "at": "2026-07-09T00:00:00+00:00"}],'
+        ' "dashboard/brd": [{"by": "Bob", "text": "different feature", "at": "2026-07-09T00:00:00+00:00"}]}'
+    )
+    payments = build_feature_status(tmp_path, "payments")
+    dashboard = build_feature_status(tmp_path, "dashboard")
+    assert [c["text"] for c in payments["docs"][0]["comments"]] == ["looks good"]
+    assert [c["text"] for c in dashboard["docs"][0]["comments"]] == ["different feature"]
+
+
+def test_malformed_comments_file_does_not_crash(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text("> Status: Draft\n")
+    (tmp_path / ".specify" / ".dashboard-comments.json").write_text("not valid json {")
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["docs"][0]["comments"] == []

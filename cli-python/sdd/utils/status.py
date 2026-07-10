@@ -68,25 +68,53 @@ def _list_feature_names(root: Path) -> list[str]:
 
 
 _NON_PIPELINE_DOCS = {"token-usage"}
+_LOCAL_APPROVALS_PATH = Path(".specify") / ".local-approvals.yml"
+_DASHBOARD_COMMENTS_PATH = Path(".specify") / ".dashboard-comments.json"
 
 
-def _feature_docs(feature_dir: Path) -> list[dict]:
+def _local_approvals(root: Path) -> dict:
+    """Same file/format `sdd review approve --local` writes — bare doc key,
+    not feature-scoped (matches that command's existing format; see
+    dashboard.py's _do_approve docstring for why this isn't changed here)."""
+    path = root / _LOCAL_APPROVALS_PATH
+    if not path.exists():
+        return {}
+    try:
+        return yaml.safe_load(path.read_text()) or {}
+    except Exception:
+        return {}
+
+
+def _dashboard_comments(root: Path, feature: str, doc: str) -> list:
+    path = root / _DASHBOARD_COMMENTS_PATH
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text())
+    except Exception:
+        return []
+    return data.get(f"{feature}/{doc}", [])
+
+
+def _feature_docs(root: Path, feature: str) -> list[dict]:
+    feature_dir = root / ".specify" / "features" / feature
     docs: list[dict] = []
-    seen_keys: set[str] = set()
     md_files = sorted(
         (p for p in feature_dir.glob("*.md")
          if not p.name.endswith(".summary.md") and p.stem not in _NON_PIPELINE_DOCS),
         key=lambda p: _PIPELINE_ORDER.get(p.stem, 999),
     )
+    approvals = _local_approvals(root)
     for path in md_files:
         key = path.stem
-        seen_keys.add(key)
         docs.append({
             "key": key,
             "label": _PIPELINE_LABELS.get(key, key.replace("-", " ").title()),
             "exists": True,
             "status": _doc_status(path),
             "path": str(path),
+            "local_approval": approvals.get(key),
+            "comments": _dashboard_comments(root, feature, key),
         })
     return docs
 
@@ -291,7 +319,7 @@ def _local_confluence_links(root: Path, base_url: str | None) -> dict:
 
 def build_feature_status(root: Path, feature: str) -> dict:
     feature_dir = root / ".specify" / "features" / feature
-    docs = _feature_docs(feature_dir)
+    docs = _feature_docs(root, feature)
     base_url = _local_base_url()
     return {
         "name": feature,

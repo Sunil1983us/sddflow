@@ -470,6 +470,44 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.15"},
     },
+    {
+        "from":        "2.7.15",
+        "to":          "2.7.16",
+        "description": "sdd dashboard gains Approve + review comments (syncs to Confluence/Jira); no manifest schema changes",
+        "notes": [
+            "New 'Approve' button per document flips that doc's Status: "
+            "header to Approved and records who/when/why in "
+            ".specify/.local-approvals.yml -- the exact same file and "
+            "format `sdd review approve --local` already uses, so the "
+            "CLI and the dashboard share one audit trail. Mirrors to "
+            "Confluence automatically if configured (same as the CLI "
+            "command), and posts a best-effort comment to the doc's "
+            "review-gate Jira ticket if configured -- neither failing "
+            "blocks the local approval",
+            "New comment box (new POST /api/comment) saves review "
+            "comments locally to .specify/.dashboard-comments.json, "
+            "scoped per feature+document (a new store, so this one is "
+            "feature-scoped from the start -- unlike .local-approvals.yml, "
+            "which stays keyed by bare doc name to match the CLI format "
+            "exactly), and best-effort mirrors to Jira the same way",
+            "Known limitation carried over from `sdd review approve`/"
+            "`review check`: .local-approvals.yml isn't feature-scoped, "
+            "so on a multi-feature project approving one feature's "
+            "'brd' doesn't distinguish it from another feature's 'brd' "
+            "at the review-check layer. Not something this migration "
+            "introduces or fixes -- see cli-python/README.md's dashboard "
+            "section",
+            "Confluence comment posting isn't implemented (only page "
+            "content sync on approve) -- ConfluenceClient has no "
+            "comment-write method yet",
+            "--host 0.0.0.0's printed warning now also covers write "
+            "access: anyone reachable on the network can approve "
+            "documents and post comments, not just view status",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.16"},
+    },
 ]
 
 
