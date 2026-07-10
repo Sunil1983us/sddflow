@@ -71,8 +71,25 @@ Walks through:
 1. Profile name (e.g. `work-cloud`, `on-prem`)
 2. Atlassian base URL
 3. Auth mode — see [Auth Modes](#auth-modes) below
-4. Credential env var names (never the values themselves)
+4. **Credential storage** — system keychain (recommended) or environment
+   variable, see [Credential Storage](#credential-storage) below
 5. Optionally scaffolds `.specify/integrations.yml`
+
+---
+
+### `sdd config set-secret`
+
+Store or rotate a credential in the system keychain for a profile that
+already uses `credential_store: keyring`.
+
+```bash
+sdd config set-secret --profile work-cloud
+```
+
+Prompts for the new value (masked input) and updates the keychain entry —
+no need to re-run the whole `sdd config init` wizard just to rotate a
+token. For env-var profiles, just export the new value in your shell
+instead; this command only touches keychain-stored credentials.
 
 ---
 
@@ -547,10 +564,47 @@ code_review:
 
 ---
 
+## Credential Storage
+
+Independent of which [auth mode](#auth-modes) you use, `~/.sdd/config.yml`
+never contains a plaintext secret — only *where* to find one, via
+`credential_store`:
+
+| `credential_store` | Where the secret actually lives | Works from |
+|---|---|---|
+| `keyring` *(recommended)* | OS-native secure store — macOS Keychain, Windows Credential Manager, Linux Secret Service, via the [`keyring`](https://pypi.org/project/keyring/) package | Any terminal, any AI tool's subprocess, any new shell — no setup needed after the initial save |
+| `env` | An environment variable you export yourself | Only the shell session where you exported it (and its children) |
+
+**Why this matters in practice:** an AI coding tool (Claude Code, Copilot,
+etc.) runs shell commands in its own subprocess, which does **not**
+inherit an env var you exported in a different terminal tab — even a
+brand-new terminal tab won't have it unless you added the `export` to a
+shell startup file the tool's subprocess actually sources (which varies
+by tool and isn't always `~/.zshrc`/`~/.bashrc`). This is a common source
+of "Jira/Confluence not connecting" reports that turn out to be nothing
+wrong with the credential itself. `credential_store: keyring` sidesteps
+the whole problem — the OS keychain is a system service any process on
+the machine can query, not something scoped to one shell.
+
+`sdd config init` asks which you want and defaults to recommending
+keyring. To store a credential in the keychain outside the wizard (e.g.
+rotating an existing one), use `sdd config set-secret --profile {name}`.
+
+**When to use `env` instead:** CI/CD runners and headless Linux boxes
+often have no keychain backend running at all (`sdd config init` and
+`sdd config set-secret` fail with a clear message if so, and suggest
+switching to `env`) — in those environments, an environment variable
+injected by the CI system's own secret store is the normal approach
+anyway.
+
+---
+
 ## Auth Modes
 
-Credentials are **never stored in config files** — only the name of the
-environment variable that holds them.
+`auth_mode` controls the *authentication mechanism* (HTTP Basic vs.
+Bearer token) — independent of `credential_store` above, which controls
+*where the secret value is read from*. Mix and match freely: e.g. `basic`
++ `keyring` is the default recommendation for most users.
 
 ### `basic` — Atlassian Cloud (email + API token)
 
@@ -602,6 +656,22 @@ profiles:
     auth_mode: oauth2
     base_url: https://myco.atlassian.net
     access_token_env: JIRA_ACCESS_TOKEN
+```
+
+---
+
+### Any auth mode, with `credential_store: keyring` instead
+
+No `*_env` field at all — the secret itself was saved via `sdd config
+init` (or `sdd config set-secret`) directly into the OS keychain:
+
+```yaml
+profiles:
+  work-cloud:
+    auth_mode: basic
+    base_url: https://myco.atlassian.net
+    email: user@myco.com
+    credential_store: keyring
 ```
 
 ---

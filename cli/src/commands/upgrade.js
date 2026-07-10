@@ -524,6 +524,32 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.18',
+    to:   '2.7.19',
+    description: '`sdd config init`/`set-secret` (Python CLI) can store Jira/Confluence credentials in the OS keychain instead of an env var; no manifest schema changes',
+    notes: [
+      'New credential_store option in ~/.sdd/config.yml: "keyring" ' +
+      '(recommended) stores the credential in the OS-native secure ' +
+      'store (macOS Keychain / Windows Credential Manager / Linux ' +
+      'Secret Service); "env" is the pre-existing behavior and stays ' +
+      'the default for profiles written before this version',
+      'Closes a real usability gap — an env var exported in one ' +
+      'terminal is invisible to an AI coding tool\'s own subprocess ' +
+      'shell, which showed up as "can\'t connect to Jira/Confluence" ' +
+      'even when the token itself was fine',
+      'New `sdd config set-secret --profile {name}` command rotates a ' +
+      'keychain-stored credential without re-running the whole wizard',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.19';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

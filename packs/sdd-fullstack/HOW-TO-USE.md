@@ -551,9 +551,14 @@ The `sdd` CLI connects your spec documents and tasks directly to your Atlassian 
 ```bash
 sdd config init
 ```
-This interactive wizard asks for your Atlassian base URL, auth mode, and env var names. Saves the profile to `~/.sdd/config.yml` (no secrets — only env var names). Optionally creates `.specify/integrations.yml` for this project.
+This interactive wizard asks for your Atlassian base URL, auth mode, and — importantly — how to store the credential:
 
-**Step 2 — Export your API token:**
+- **System keychain (recommended)** — the wizard asks for your token directly and saves it via your OS's secure credential store (macOS Keychain / Windows Credential Manager / Linux Secret Service). Works immediately in any terminal or AI tool on this machine — nothing to export, nothing to configure per-shell.
+- **Environment variable** — the wizard only asks for an env var *name* (never the value); you export it yourself. This only works in shells where you've actually run that export — if you're driving `sdd` from an AI coding tool, its subprocess shell often doesn't inherit an env var you set in a different terminal tab, which shows up as "can't connect to Jira/Confluence" even though the token itself is fine.
+
+Either way, `~/.sdd/config.yml` never contains a plaintext secret. Optionally creates `.specify/integrations.yml` for this project too.
+
+**Step 2 — (environment variable option only) export your token:**
 ```bash
 # Jira Cloud (basic auth — email + API token)
 export JIRA_API_TOKEN=your-api-token
@@ -561,7 +566,7 @@ export JIRA_API_TOKEN=your-api-token
 # Jira Server / Data Center (Personal Access Token)
 export JIRA_PAT=your-personal-access-token
 ```
-Get your API token: Atlassian account → Security → API tokens → Create API token.
+Get your API token: Atlassian account → Security → API tokens → Create API token. Skip this step entirely if you chose keychain storage above — the wizard already asked for the token and stored it. To rotate a keychain-stored token later: `sdd config set-secret --profile {name}`.
 
 **Step 3 — Test the connection:**
 ```bash

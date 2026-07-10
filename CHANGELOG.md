@@ -4,6 +4,35 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.19] — 2026-07-11 (Add: store Jira/Confluence credentials in the OS keychain)
+
+### Added
+
+- **`credential_store: keyring`** option for `~/.sdd/config.yml` profiles
+  (alongside the existing `env` behavior, which stays the default for
+  profiles written before this version). When set, `sdd config init`
+  asks for the actual token and stores it via the OS-native secure
+  credential store — macOS Keychain, Windows Credential Manager, Linux
+  Secret Service — through the new `keyring` dependency, instead of
+  asking for an environment variable name.
+- **New `sdd config set-secret --profile {name}`** command to rotate a
+  keychain-stored credential without re-running the whole `config init`
+  wizard.
+- **Why**: an environment variable exported in one terminal is invisible
+  to an AI coding tool's own subprocess shell (or any other new shell) —
+  this showed up as "can't connect to Jira/Confluence" even when the
+  token itself was perfectly valid, and was a genuine barrier for
+  non-technical users. A keychain-stored credential is readable by any
+  process on the machine, not scoped to one shell session, so it works
+  the same way in any terminal or any AI tool without shell setup.
+- If no keychain backend is available (headless Linux, minimal
+  containers), `config init`/`set-secret` fail with a clear message
+  suggesting the `env` option instead of a raw traceback.
+- Existing `env`-mode profiles are completely unaffected — this is
+  purely additive.
+
+---
+
 ## [2.7.18] — 2026-07-11 (Fix: token usage logging instruction was invisible to every command)
 
 ### Fixed

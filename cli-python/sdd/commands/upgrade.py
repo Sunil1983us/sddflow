@@ -565,6 +565,44 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.18"},
     },
+    {
+        "from":        "2.7.18",
+        "to":          "2.7.19",
+        "description": "sdd config init/set-secret can store Jira/Confluence credentials in the OS keychain instead of an env var; no manifest schema changes",
+        "notes": [
+            "New credential_store option in ~/.sdd/config.yml, alongside "
+            "the existing auth_mode: 'keyring' (recommended) stores the "
+            "credential via the OS-native secure store (macOS Keychain / "
+            "Windows Credential Manager / Linux Secret Service, through "
+            "the new keyring dependency); 'env' is the pre-existing "
+            "behavior and remains the default for profiles written before "
+            "this version",
+            "This closes a real usability gap: an env var exported in one "
+            "terminal is invisible to an AI coding tool's own subprocess "
+            "shell (or any other new shell), which showed up as "
+            "'can't connect to Jira/Confluence' even when the token "
+            "itself was fine. A keychain-stored credential is readable by "
+            "any process on the machine, not scoped to one shell session",
+            "sdd config init now asks which storage to use (keychain "
+            "recommended by default) and, for keychain, asks for the "
+            "secret directly and stores it -- no env var name is written "
+            "to config.yml for that profile",
+            "New 'sdd config set-secret --profile {name}' command rotates "
+            "a keychain-stored credential without re-running the whole "
+            "init wizard",
+            "Existing env-var profiles are completely unaffected -- "
+            "credential_store defaults to 'env' when absent from an "
+            "already-written config.yml, and that code path's behavior "
+            "is byte-for-byte unchanged",
+            "If no keychain backend is available (headless Linux, "
+            "minimal containers), config init/set-secret fail with a "
+            "clear message suggesting the env var option instead, rather "
+            "than a raw traceback",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.19"},
+    },
 ]
 
 

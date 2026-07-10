@@ -5,8 +5,15 @@ from pathlib import Path
 import yaml
 import requests
 import requests.auth
+import keyring
 
 CONFIG_PATH = Path.home() / ".sdd" / "config.yml"
+
+# Service name under which credentials are stored in the OS-native secure
+# credential store (macOS Keychain / Windows Credential Manager / Linux
+# Secret Service) when a profile uses credential_store: keyring. The
+# per-profile lookup key is the profile name itself.
+KEYRING_SERVICE = "sdd-framework"
 
 
 @dataclass
@@ -14,11 +21,13 @@ class Profile:
     auth_mode: str        # basic | pat | oauth2
     base_url: str
     email: str | None = None
+    credential_store: str = "env"   # env | keyring
     api_token_env: str | None = None
     pat_env: str | None = None
     client_id_env: str | None = None
     client_secret_env: str | None = None
     access_token_env: str | None = None
+    profile_name: str | None = None   # set by load_profile; the keyring lookup key
 
 
 def load_profile(name: str | None = None) -> Profile:
@@ -47,12 +56,79 @@ def load_profile(name: str | None = None) -> Profile:
         auth_mode=p["auth_mode"],
         base_url=p["base_url"].rstrip("/"),
         email=p.get("email"),
+        credential_store=p.get("credential_store", "env"),
         api_token_env=p.get("api_token_env"),
         pat_env=p.get("pat_env"),
         client_id_env=p.get("client_id_env"),
         client_secret_env=p.get("client_secret_env"),
         access_token_env=p.get("access_token_env"),
+        profile_name=name,
     )
+
+
+def store_secret(profile_name: str, secret: str) -> None:
+    """Store a credential in the OS-native secure credential store (macOS
+    Keychain / Windows Credential Manager / Linux Secret Service).
+
+    This is what makes credential_store: keyring work in any terminal or
+    AI tool without shell setup — the OS keychain is readable by any
+    process on the machine, unlike an environment variable, which only
+    exists in the shell session that exported it (and its children).
+
+    Raises RuntimeError with an actionable message if no backend is
+    available (e.g. headless Linux with no Secret Service running) —
+    callers should suggest credential_store: env as the fallback."""
+    try:
+        keyring.set_password(KEYRING_SERVICE, profile_name, secret)
+    except Exception as e:
+        raise RuntimeError(
+            f"Could not store the credential in the system keychain "
+            f"({type(e).__name__}: {e}). This can happen on headless "
+            f"Linux systems with no Secret Service running, or minimal "
+            f"containers. Re-run 'sdd config init' and choose "
+            f"'Environment variable' storage instead."
+        ) from e
+
+
+def _get_keyring_secret(profile_name: str) -> str:
+    try:
+        token = keyring.get_password(KEYRING_SERVICE, profile_name)
+    except Exception as e:
+        raise RuntimeError(
+            f"Could not read the credential from the system keychain "
+            f"({type(e).__name__}: {e}). This can happen on headless "
+            f"Linux systems with no Secret Service running, or minimal "
+            f"containers. Switch this profile to credential_store: env "
+            f"in ~/.sdd/config.yml as a fallback."
+        ) from e
+    if not token:
+        raise EnvironmentError(
+            f"No credential found in the system keychain for profile "
+            f"'{profile_name}'. Run 'sdd config set-secret --profile "
+            f"{profile_name}' to store it."
+        )
+    return token
+
+
+def _resolve_secret(profile: Profile, env_var_name: str | None, field_name: str) -> str:
+    """Fetch the actual secret value for this profile, from whichever
+    credential_store it's configured for. env_var_name/field_name are only
+    used (and required) in the "env" path — keyring lookups need only the
+    profile name."""
+    if profile.credential_store == "keyring":
+        return _get_keyring_secret(profile.profile_name or "default")
+
+    if not env_var_name:
+        raise ValueError(f"credential_store=env requires {field_name} in config")
+    token = os.environ.get(env_var_name, "")
+    if not token:
+        raise EnvironmentError(
+            f"Environment variable {env_var_name} is not set. Export it "
+            f"before running sdd commands, or switch this profile to "
+            f"credential_store: keyring (run 'sdd config init') so it "
+            f"works in any shell without exporting anything."
+        )
+    return token
 
 
 def build_session(profile: Profile) -> requests.Session:
@@ -61,34 +137,15 @@ def build_session(profile: Profile) -> requests.Session:
     session.headers["Content-Type"] = "application/json"
 
     if profile.auth_mode == "basic":
-        if not profile.api_token_env:
-            raise ValueError("auth_mode=basic requires api_token_env in config")
-        token = os.environ.get(profile.api_token_env, "")
-        if not token:
-            raise EnvironmentError(
-                f"Environment variable {profile.api_token_env} is not set. "
-                "Export it before running sdd commands."
-            )
+        token = _resolve_secret(profile, profile.api_token_env, "api_token_env")
         session.auth = requests.auth.HTTPBasicAuth(profile.email or "", token)
 
     elif profile.auth_mode == "pat":
-        if not profile.pat_env:
-            raise ValueError("auth_mode=pat requires pat_env in config")
-        token = os.environ.get(profile.pat_env, "")
-        if not token:
-            raise EnvironmentError(
-                f"Environment variable {profile.pat_env} is not set."
-            )
+        token = _resolve_secret(profile, profile.pat_env, "pat_env")
         session.headers["Authorization"] = f"Bearer {token}"
 
     elif profile.auth_mode == "oauth2":
-        if not profile.access_token_env:
-            raise ValueError("auth_mode=oauth2 requires access_token_env in config")
-        token = os.environ.get(profile.access_token_env, "")
-        if not token:
-            raise EnvironmentError(
-                f"Environment variable {profile.access_token_env} is not set."
-            )
+        token = _resolve_secret(profile, profile.access_token_env, "access_token_env")
         session.headers["Authorization"] = f"Bearer {token}"
 
     else:
@@ -103,6 +160,8 @@ def build_session(profile: Profile) -> requests.Session:
 def save_config(config: dict) -> None:
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(
-        "# SDD global config — credentials stored as env var names, never values\n"
+        "# SDD global config — credentials stored as env var names, or\n"
+        "# (credential_store: keyring) in the OS keychain — never as\n"
+        "# plaintext values in this file either way\n"
         + yaml.dump(config, default_flow_style=False, allow_unicode=True)
     )

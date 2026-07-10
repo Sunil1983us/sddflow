@@ -5,7 +5,9 @@ import click
 import requests
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_profile, build_session, save_config, CONFIG_PATH
+from sdd.utils.atlassian_auth import (
+    load_profile, build_session, save_config, store_secret, CONFIG_PATH,
+)
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.confluence_client import ConfluenceClient
 
@@ -44,31 +46,87 @@ def config_init():
         ],
     ).ask()
 
-    profile: dict = {"auth_mode": auth_mode, "base_url": base_url}
+    credential_store = questionary.select(
+        "How should the credential be stored?",
+        choices=[
+            questionary.Choice(
+                "System keychain (recommended — works in any terminal or "
+                "AI tool, no shell setup)",
+                value="keyring"),
+            questionary.Choice(
+                "Environment variable (manual shell setup required)",
+                value="env"),
+        ],
+    ).ask()
+
+    profile: dict = {
+        "auth_mode": auth_mode,
+        "base_url": base_url,
+        "credential_store": credential_store,
+    }
 
     if auth_mode == "basic":
-        email         = questionary.text("Your Atlassian account email:").ask()
-        api_token_env = questionary.text(
-            "Name of env var holding your API token:", default="JIRA_API_TOKEN"
-        ).ask()
-        profile["email"]         = email
-        profile["api_token_env"] = api_token_env
-        console.print(f"\n  [dim]Export [cyan]{api_token_env}[/cyan] before running sdd commands.[/dim]")
+        email = questionary.text("Your Atlassian account email:").ask()
+        profile["email"] = email
+        if credential_store == "keyring":
+            secret = questionary.password("Your Atlassian API token:").ask()
+            try:
+                store_secret(profile_name, secret)
+            except RuntimeError as e:
+                console.print(f"\n  [red]✗  {e}[/red]")
+                raise SystemExit(1)
+            console.print(
+                "\n  [dim]Token saved to the system keychain — nothing to "
+                "export, works from any terminal or AI tool on this "
+                "machine.[/dim]"
+            )
+        else:
+            api_token_env = questionary.text(
+                "Name of env var holding your API token:", default="JIRA_API_TOKEN"
+            ).ask()
+            profile["api_token_env"] = api_token_env
+            console.print(f"\n  [dim]Export [cyan]{api_token_env}[/cyan] before running sdd commands.[/dim]")
 
     elif auth_mode == "pat":
-        pat_env = questionary.text(
-            "Name of env var holding your PAT:", default="JIRA_PAT"
-        ).ask()
-        profile["pat_env"] = pat_env
-        console.print(f"\n  [dim]Export [cyan]{pat_env}[/cyan] before running sdd commands.[/dim]")
+        if credential_store == "keyring":
+            secret = questionary.password("Your Personal Access Token:").ask()
+            try:
+                store_secret(profile_name, secret)
+            except RuntimeError as e:
+                console.print(f"\n  [red]✗  {e}[/red]")
+                raise SystemExit(1)
+            console.print(
+                "\n  [dim]Token saved to the system keychain — nothing to "
+                "export, works from any terminal or AI tool on this "
+                "machine.[/dim]"
+            )
+        else:
+            pat_env = questionary.text(
+                "Name of env var holding your PAT:", default="JIRA_PAT"
+            ).ask()
+            profile["pat_env"] = pat_env
+            console.print(f"\n  [dim]Export [cyan]{pat_env}[/cyan] before running sdd commands.[/dim]")
 
     elif auth_mode == "oauth2":
-        access_token_env = questionary.text(
-            "Name of env var holding your OAuth2 access token:",
-            default="JIRA_ACCESS_TOKEN",
-        ).ask()
-        profile["access_token_env"] = access_token_env
-        console.print(f"\n  [dim]Export [cyan]{access_token_env}[/cyan] before running sdd commands.[/dim]")
+        if credential_store == "keyring":
+            secret = questionary.password("Your OAuth2 access token:").ask()
+            try:
+                store_secret(profile_name, secret)
+            except RuntimeError as e:
+                console.print(f"\n  [red]✗  {e}[/red]")
+                raise SystemExit(1)
+            console.print(
+                "\n  [dim]Token saved to the system keychain — nothing to "
+                "export, works from any terminal or AI tool on this "
+                "machine.[/dim]"
+            )
+        else:
+            access_token_env = questionary.text(
+                "Name of env var holding your OAuth2 access token:",
+                default="JIRA_ACCESS_TOKEN",
+            ).ask()
+            profile["access_token_env"] = access_token_env
+            console.print(f"\n  [dim]Export [cyan]{access_token_env}[/cyan] before running sdd commands.[/dim]")
 
     # Merge into existing config
     if CONFIG_PATH.exists():
@@ -126,6 +184,49 @@ def _scaffold_integrations(profile_name: str) -> None:
     console.print(
         "  [dim]Edit [cyan]custom_fields[/cyan] to match your Jira instance.  "
         "Run [cyan]sdd config fields[/cyan] to discover IDs.[/dim]"
+    )
+
+
+@config_command.command("set-secret")
+@click.option("--profile", required=True, help="Profile name from ~/.sdd/config.yml")
+def config_set_secret(profile):
+    """Store or rotate a keychain-stored credential for an existing profile.
+
+    Only for profiles using credential_store: keyring — for env-var
+    profiles, just export the new value in your shell instead."""
+    import questionary
+
+    if not CONFIG_PATH.exists():
+        console.print("  [red]✗  ~/.sdd/config.yml not found. Run 'sdd config init' first.[/red]")
+        raise SystemExit(1)
+
+    data     = yaml.safe_load(CONFIG_PATH.read_text()) or {}
+    profiles = data.get("profiles", {})
+    if profile not in profiles:
+        console.print(f"  [red]✗  Profile '{profile}' not found in ~/.sdd/config.yml[/red]")
+        raise SystemExit(1)
+
+    store = profiles[profile].get("credential_store", "env")
+    if store != "keyring":
+        console.print(
+            f"  [yellow]!  Profile '{profile}' uses credential_store: {store}, "
+            f"not keyring.[/yellow]\n"
+            f"     This command only updates keychain-stored credentials — "
+            f"for an env-var profile, just export the new value in your "
+            f"shell. To switch this profile to keychain storage, re-run "
+            f"[cyan]sdd config init[/cyan] with the same profile name."
+        )
+        raise SystemExit(1)
+
+    secret = questionary.password(f"New credential for profile '{profile}':").ask()
+    try:
+        store_secret(profile, secret)
+    except RuntimeError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
+    console.print(
+        f"  [green]✓[/green]  Credential updated in the system keychain "
+        f"for profile [cyan]{profile}[/cyan]"
     )
 
 
