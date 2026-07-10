@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.20] — 2026-07-10 (Fix: sdd jira push content parity + self-bootstrapping Epic for review tickets)
+
+### Fixed
+
+- **`sdd jira push` content parity**: the CLI's Feature/Epic issue previously
+  got a blank description and Task issues silently dropped their parsed
+  Acceptance Criteria. Both now match the progressive `/jira-push` script:
+  the Feature/Epic description is built from `brd.md`'s Business
+  Objectives, and every Story/Task description includes its Acceptance
+  Criteria.
+- **Review-ticket label collision**: `sdd review submit`'s Jira ticket used
+  an un-feature-qualified idempotency label (`sdd-doc:{doc}`), so on a
+  multi-feature project a second feature's review submission for the same
+  doc key (e.g. `brd`) could silently overwrite the first feature's ticket.
+  Same bug class already fixed for Story/Task labels — now
+  `sdd-doc:{feature}:{doc}`. `sdd review check/status/apply` and the
+  dashboard's approve/comment endpoints were updated to look up the same
+  qualified label.
+
+### Added
+
+- **Self-bootstrapping Feature/Epic**: `sdd review submit` now ensures the
+  project's Feature/Epic exists (creating it from `brd.md`'s Business
+  Objectives if `sdd jira push` hasn't run yet, since BRD is always the
+  first document reviewed) and parents the review ticket under it — so
+  review tickets and later dev Story/Task tickets from `sdd jira push`
+  converge on the same Epic in Jira instead of scattering across
+  unlinked issues.
+
+### Notes
+
+- This lands the highest-value slice of a larger Jira/Confluence
+  consolidation plan. Deferred for later: staged `--level` pushes + CHG
+  support in the CLI, consolidating `jira-config.yml` into
+  `integrations.yml`, routing `/jira-push` through the CLI, and retiring
+  the legacy standalone script.
+
+---
+
 ## [2.7.19] — 2026-07-11 (Add: store Jira/Confluence credentials in the OS keychain)
 
 ### Added

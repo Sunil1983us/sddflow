@@ -456,10 +456,10 @@ def _fetch_review_links(feature: str) -> dict:
     created by `sdd review submit`) — these are never cached locally
     (see status.py's local_links, which covers only the progressive Jira
     export and sdd confluence push/draft). Network call, on-demand only —
-    never invoked by /api/status. feature is accepted for API symmetry;
-    document_reviews page titles only support {project} today, matching
-    `sdd review status`'s own behavior, so results are the same across
-    features until that's extended.
+    never invoked by /api/status. Jira lookup is feature-qualified to match
+    the label `sdd review submit` writes; Confluence page titles only
+    support {project} today, matching `sdd review status`'s own behavior,
+    so the Confluence half is still shared across features on one project.
     """
     from sdd.utils.integrations import load_integrations
     from sdd.utils.atlassian_auth import load_profile, build_session
@@ -491,7 +491,7 @@ def _fetch_review_links(feature: str) -> dict:
 
         if jira_client:
             try:
-                issue = jira_client.find_by_label(cfg.jira.project_key, f"sdd-doc:{doc_key}")
+                issue = jira_client.find_by_label(cfg.jira.project_key, f"sdd-doc:{feature}:{doc_key}")
                 if issue:
                     entry["jira"] = {
                         "key": issue["key"],
@@ -547,19 +547,18 @@ def _jira_client_for_comments():
         return None
 
 
-def _post_jira_comment(doc: str, text: str) -> dict:
+def _post_jira_comment(feature: str, doc: str, text: str) -> dict:
     """Best-effort comment on the doc's review-gate Jira ticket (found via
-    the same sdd-doc:{doc} label sdd review status/check already use).
-    Never raises — a Jira hiccup must never block a local approval or
-    comment, matching the existing Confluence-on-approve behavior in
-    `sdd review approve --local`. Not feature-scoped, same as the
-    review-gate ticket lookup it reuses (see _fetch_review_links)."""
+    the same feature-qualified sdd-doc:{feature}:{doc} label sdd review
+    submit/status/check already use). Never raises — a Jira hiccup must
+    never block a local approval or comment, matching the existing
+    Confluence-on-approve behavior in `sdd review approve --local`."""
     built = _jira_client_for_comments()
     if built is None:
         return {"posted": False, "reason": "Jira not configured"}
     client, cfg = built
     try:
-        issue = client.find_by_label(cfg.jira.project_key, f"sdd-doc:{doc}")
+        issue = client.find_by_label(cfg.jira.project_key, f"sdd-doc:{feature}:{doc}")
         if not issue:
             return {"posted": False, "reason": "no review ticket found for this document"}
         client.add_comment(issue["key"], text)
@@ -602,7 +601,7 @@ def _do_approve(feature: str, doc: str, by: str, note: str) -> dict:
     else:
         result["error"] = f"{doc}.md not found for feature {feature}"
 
-    result["jira_comment"] = _post_jira_comment(doc, f"Approved via SDD Dashboard by {by}.")
+    result["jira_comment"] = _post_jira_comment(feature, doc, f"Approved via SDD Dashboard by {by}.")
     return result
 
 
@@ -633,7 +632,7 @@ def _do_comment(feature: str, doc: str, by: str, text: str) -> dict:
     _COMMENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
     _COMMENTS_FILE.write_text(json.dumps(comments, indent=2))
 
-    jira_comment = _post_jira_comment(doc, f"{by} (via SDD Dashboard): {text}")
+    jira_comment = _post_jira_comment(feature, doc, f"{by} (via SDD Dashboard): {text}")
     return {"saved": True, "comment": entry, "jira_comment": jira_comment}
 
 

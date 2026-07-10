@@ -239,8 +239,10 @@ sdd review submit --doc adr --feature auth
 What it does:
 1. Reads `.specify/features/{feature}/{doc}.md`
 2. Converts Markdown → Confluence Storage Format, creates or updates the page
-3. Creates (or updates) a Jira task with the label `sdd-doc:{doc}`, assigned to
-   the configured reviewer
+3. Ensures a Feature/Epic issue exists for the project (created from the BRD's
+   Business Objectives if needed) and creates (or updates) a Jira task with
+   the label `sdd-doc:{feature}:{doc}`, parented under that Epic and assigned
+   to the configured reviewer
 
 **Sequence enforcement:** Within each phase, a document cannot be submitted
 until its predecessor is approved (e.g. BRD must be approved before SRD can be

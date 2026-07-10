@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 from pathlib import Path
 import click
 from rich.console import Console
@@ -11,6 +12,63 @@ from sdd.utils.manifest import read_manifest
 from sdd.utils.validate import safe_feature_path
 
 console = Console()
+
+
+# ── ADF (Atlassian Document Format) helpers ────────────────────────────────────
+
+def _adf_paragraph(text: str) -> dict:
+    return {"type": "paragraph", "content": [{"type": "text", "text": str(text)}]}
+
+
+def adf_doc(*paragraphs: str, bullet_list: list[str] | None = None) -> dict:
+    """Build a minimal ADF doc from plain-text paragraphs plus an optional
+    bullet list. Blank/falsy paragraphs are skipped so callers can pass
+    conditional lines (e.g. f"Risk: {risk}" if risk else "") directly."""
+    content = [_adf_paragraph(p) for p in paragraphs if p and str(p).strip()]
+    if bullet_list:
+        content.append({
+            "type": "bulletList",
+            "content": [{"type": "listItem", "content": [_adf_paragraph(item)]}
+                        for item in bullet_list if item],
+        })
+    return {"type": "doc", "version": 1, "content": content or [_adf_paragraph(" ")]}
+
+
+def parse_brd_objectives(features_dir: Path) -> list[str]:
+    """Extract up to 10 BO-NNN objective lines from brd.md, for the
+    Feature/Epic issue's description. Returns [] if brd.md doesn't exist
+    yet (e.g. called before /specify-brd has run) -- callers fall back to
+    a placeholder line rather than failing."""
+    path = features_dir / "brd.md"
+    if not path.exists():
+        return []
+    text = path.read_text()
+    objectives = []
+    for m in re.finditer(r"(BO-\d+[^\n]*)", text):
+        line = re.sub(r"[|*`_]", "", m.group(1)).strip()
+        if line and len(line) > 5:
+            objectives.append(line)
+    return objectives[:10]
+
+
+def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str) -> dict:
+    """Extra fields for the top-level Feature/Epic issue: a real
+    description built from brd.md's Business Objectives (falls back to a
+    pointer at brd.md if none are parsed yet), High priority, and the
+    Epic Name custom field for classic/company-managed Jira projects
+    (only if custom_fields.epic_name is configured)."""
+    objectives = parse_brd_objectives(features_dir)
+    extra: dict = {
+        "description": adf_doc(
+            "Business Objectives:",
+            bullet_list=objectives if objectives else ["See brd.md for full objectives."],
+        ),
+        "priority": {"name": "High"},
+    }
+    epic_name_field = cfg.custom_fields.get("epic_name")
+    if epic_name_field:
+        extra[epic_name_field] = feature_name
+    return extra
 
 
 @click.group()
@@ -89,7 +147,7 @@ def jira_push(profile, feature, dry_run):
         raise SystemExit(1)
 
     client = JiraClient(session, prof.base_url)
-    _push(client, feature_name, stories, tasks, jira_cfg)
+    _push(client, feature_name, features_dir, stories, tasks, jira_cfg)
 
 
 def _print_dry_run(feature_name: str, stories: list[Story],
@@ -130,54 +188,66 @@ def _item_label(feature_name: str, item_id: str) -> str:
     return f"sdd:{feature_name}:{item_id}"
 
 
-def _push(client: JiraClient, feature_name: str, stories: list[Story],
-          tasks: list[Task], cfg: JiraConfig) -> None:
+def _upsert_issue(client: JiraClient, project_key: str, issue_type: str,
+                   summary: str, extra: dict, id_label: str,
+                   base_labels: list[str]) -> tuple[str, bool]:
+    """Create or update an issue keyed by an idempotency label. Shared by
+    the Feature/Epic, Story, and Task steps below, and by review.py's
+    review-ticket Epic bootstrap (same idempotent-upsert contract)."""
+    existing = client.find_by_label(project_key, id_label)
+    labels = base_labels + [id_label]
+    fields = {
+        "project":   {"key": project_key},
+        "issuetype": {"name": issue_type},
+        "summary":   summary,
+        "labels":    labels,
+        **extra,
+    }
+    if existing:
+        key = existing["key"]
+        client.update_issue(key, fields)
+        return key, False
+    result = client.create_issue(fields)
+    return result["key"], True
+
+
+def _push(client: JiraClient, feature_name: str, features_dir: Path,
+          stories: list[Story], tasks: list[Task], cfg: JiraConfig) -> None:
     project_key = cfg.project_key
     h = cfg.issue_hierarchy
 
-    def _upsert(issue_type: str, summary: str, extra: dict,
-                id_label: str) -> tuple[str, bool]:
-        existing = client.find_by_label(project_key, id_label)
-        labels = cfg.labels + [id_label]
-        fields = {
-            "project":   {"key": project_key},
-            "issuetype": {"name": issue_type},
-            "summary":   summary,
-            "labels":    labels,
-            **extra,
-        }
-        if existing:
-            key = existing["key"]
-            client.update_issue(key, fields)
-            return key, False
-        result = client.create_issue(fields)
-        return result["key"], True
-
-    # ── Feature ───────────────────────────────────────────────────────────────
-    feature_key, created = _upsert(
-        h["feature"], feature_name, {},
-        f"sdd-feature:{feature_name}",
+    # ── Feature / Epic ───────────────────────────────────────────────────────
+    feature_extra = feature_extra_fields(features_dir, cfg, feature_name)
+    feature_key, created = _upsert_issue(
+        client, project_key, h["feature"], feature_name, feature_extra,
+        f"sdd-feature:{feature_name}", cfg.labels,
     )
     _log(h["feature"], feature_key, feature_name, created)
 
     # ── Stories ───────────────────────────────────────────────────────────────
     story_key_map: dict[str, str] = {}
     for story in stories:
+        ac_text = "; ".join(story.acceptance_criteria) if story.acceptance_criteria else ""
+        description = adf_doc(
+            story.description,
+            f"Satisfies: {', '.join(story.satisfies)}" if story.satisfies else "",
+            f"Acceptance Criteria: {ac_text}" if ac_text else "",
+        )
         extra: dict = {
             "priority": {"name": cfg.priority_map.get(story.moscow, "Medium")},
+            "description": description,
         }
         if story.story_points and "story_points" in cfg.custom_fields:
             extra[cfg.custom_fields["story_points"]] = story.story_points
-        if story.acceptance_criteria and "acceptance_criteria" in cfg.custom_fields:
-            extra[cfg.custom_fields["acceptance_criteria"]] = "\n".join(
-                story.acceptance_criteria
-            )
+        if ac_text and "acceptance_criteria" in cfg.custom_fields:
+            extra[cfg.custom_fields["acceptance_criteria"]] = ac_text
 
-        key, created = _upsert(
-            h["story"],
+        key, created = _upsert_issue(
+            client, project_key, h["story"],
             f"{story.id} — {story.title}",
             extra,
             _item_label(feature_name, story.id),
+            cfg.labels,
         )
         story_key_map[story.id] = key
 
@@ -192,20 +262,22 @@ def _push(client: JiraClient, feature_name: str, stories: list[Story],
 
     # ── Tasks ─────────────────────────────────────────────────────────────────
     for task in tasks:
-        extra = {}
-        if task.description:
-            extra["description"] = {
-                "type": "doc", "version": 1,
-                "content": [{"type": "paragraph", "content": [
-                    {"type": "text", "text": task.description}
-                ]}],
-            }
+        ac_text = "; ".join(task.acceptance_criteria) if task.acceptance_criteria else ""
+        description = adf_doc(
+            task.description,
+            f"Satisfies: {', '.join(task.satisfies)}" if task.satisfies else "",
+            f"Acceptance Criteria: {ac_text}" if ac_text else "",
+        )
+        extra = {"description": description}
+        if ac_text and "acceptance_criteria" in cfg.custom_fields:
+            extra[cfg.custom_fields["acceptance_criteria"]] = ac_text
 
-        key, created = _upsert(
-            h["task"],
+        key, created = _upsert_issue(
+            client, project_key, h["task"],
             f"{task.id} — {task.title}",
             extra,
             _item_label(feature_name, task.id),
+            cfg.labels,
         )
 
         # Link Task → Story

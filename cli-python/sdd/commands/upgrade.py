@@ -603,6 +603,37 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.19"},
     },
+    {
+        "from":        "2.7.19",
+        "to":          "2.7.20",
+        "description": "sdd jira push now matches /jira-push's content (Feature/Epic description, Story/Task Acceptance Criteria) and sdd review submit self-bootstraps that Epic and parents review tickets under it; no manifest schema changes",
+        "notes": [
+            "sdd jira push previously created the Feature/Epic with a "
+            "blank description and dropped Task Acceptance Criteria "
+            "entirely, even though the parser already extracted it -- "
+            "both the Feature/Epic (from brd.md's Business Objectives) "
+            "and every Story/Task description now carry real content, "
+            "matching what the progressive /jira-push script already did",
+            "sdd review submit now ensures the Feature/Epic exists before "
+            "creating a document's review ticket (self-bootstrapping it "
+            "from brd.md if `sdd jira push` hasn't run yet) and parents "
+            "the review ticket under it, so review tickets and later "
+            "dev Story/Task tickets converge on one Epic per feature",
+            "Fixed a label collision: review-ticket idempotency labels "
+            "were not feature-qualified (sdd-doc:{doc}), so a second "
+            "feature's review submission for the same doc key could "
+            "silently overwrite the first feature's ticket on a "
+            "multi-feature project -- now sdd-doc:{feature}:{doc}, "
+            "matching the fix already applied to Story/Task labels. "
+            "sdd review check/status/apply and the dashboard's "
+            "approve/comment endpoints were updated to look up the same "
+            "qualified label, so any review ticket created after "
+            "upgrading is found correctly by all of them",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.20"},
+    },
 ]
 
 

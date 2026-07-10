@@ -6,6 +6,7 @@ import pytest
 import yaml
 
 from sdd.commands import review
+from sdd.utils.integrations import JiraConfig, IntegrationsConfig
 
 
 @pytest.fixture()
@@ -160,3 +161,105 @@ class TestPushDocPage:
         (project / ".specify" / "integrations.yml").write_text("profile: default\n")
         p = _write_doc(project, "brd", "Status: Approved")
         assert review._push_doc_page("brd", p) is None
+
+
+# ── _ensure_epic / feature-qualified review labels ──────────────────────────
+
+class FakeJiraClient:
+    """In-memory double — enough surface for _ensure_epic/_get_review_status,
+    no real HTTP. Mirrors the fake used in test_jira_push_content.py."""
+    def __init__(self):
+        self.by_label: dict[str, dict] = {}
+        self.created: list[dict] = []
+        self.updated: list[tuple[str, dict]] = []
+        self.parents: list[tuple[str, str, str]] = []
+        self.comments_by_key: dict[str, list[dict]] = {}
+        self._next_key = 1
+
+    def find_by_label(self, project_key, label):
+        return self.by_label.get(label)
+
+    def create_issue(self, fields):
+        key = f"PROJ-{self._next_key}"
+        self._next_key += 1
+        self.created.append(fields)
+        for label in fields.get("labels", []):
+            if label.startswith("sdd"):
+                self.by_label[label] = {"key": key, "fields": fields}
+        return {"key": key}
+
+    def update_issue(self, key, fields):
+        self.updated.append((key, fields))
+
+    def set_parent(self, child_key, parent_key, parent_field="parent"):
+        self.parents.append((child_key, parent_key, parent_field))
+
+    def get_comments(self, key):
+        return self.comments_by_key.get(key, [])
+
+
+class TestEnsureEpic:
+    def test_creates_epic_from_brd_objectives(self, project):
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "BO-001 Reduce login friction significantly\n"
+        )
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ")
+        key = review._ensure_epic(client, cfg, "auth")
+
+        assert key == "PROJ-1"
+        assert "sdd-feature:auth" in client.created[0]["labels"]
+
+    def test_idempotent_second_call_updates_not_creates(self, project):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ")
+        first = review._ensure_epic(client, cfg, "auth")
+        second = review._ensure_epic(client, cfg, "auth")
+
+        assert first == second
+        assert len(client.created) == 1
+        assert len(client.updated) == 1
+
+    def test_returns_none_and_warns_on_failure(self, project):
+        class BrokenClient(FakeJiraClient):
+            def find_by_label(self, project_key, label):
+                raise RuntimeError("network down")
+
+        cfg = JiraConfig(project_key="MYPROJ")
+        assert review._ensure_epic(BrokenClient(), cfg, "auth") is None
+
+
+class TestGetReviewStatusFeatureQualified:
+    def _cfg(self):
+        return IntegrationsConfig(profile=None, jira=JiraConfig(project_key="MYPROJ"),
+                                   confluence=None)
+
+    def test_label_is_feature_qualified(self, project):
+        client = FakeJiraClient()
+        client.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-1",
+            "fields": {"status": {"name": "Done"}},
+        }
+        status, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "auth")
+        assert status == "APPROVED"
+
+    def test_unqualified_label_is_not_found(self, project):
+        """A ticket registered under the old bare 'sdd-doc:brd' label must
+        not be matched — this is the exact collision class fixed for
+        Story/Task labels earlier; review labels get the same treatment."""
+        client = FakeJiraClient()
+        client.by_label["sdd-doc:brd"] = {
+            "key": "PROJ-1",
+            "fields": {"status": {"name": "Done"}},
+        }
+        status, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "auth")
+        assert status == "NOT_SUBMITTED"
+
+    def test_different_features_do_not_collide(self, project):
+        client = FakeJiraClient()
+        client.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-1",
+            "fields": {"status": {"name": "Done"}},
+        }
+        status, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "billing")
+        assert status == "NOT_SUBMITTED"
