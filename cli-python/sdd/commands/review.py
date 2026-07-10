@@ -65,17 +65,47 @@ def _doc_md_path(doc: str, feature: str | None) -> Path | None:
         return None
 
 
+def _mark_approvals_table(text: str, date_str: str) -> str:
+    """Flip every 'Pending' row inside the '## Approvals' section to
+    'Approved', filling the Date column. Scoped to that section only — a
+    coincidental 'Pending' cell anywhere else in the doc is left alone.
+
+    Local-mode approval records a single approver for the whole document
+    (see _save_local_approval), not one per RACI row, so every Pending row
+    is flipped together — matching the document-level 'Status: Approved'
+    header rather than trying to attribute individual rows to reviewers
+    the CLI/dashboard were never told about."""
+    heading = re.search(r"^## Approvals\s*$", text, flags=re.IGNORECASE | re.MULTILINE)
+    if not heading:
+        return text
+    start = heading.end()
+    next_heading = re.search(r"^## ", text[start:], flags=re.MULTILINE)
+    end = start + next_heading.start() if next_heading else len(text)
+    section = text[start:end]
+    new_section = re.sub(
+        r"^\|([^|\n]*)\|\s*Pending\s*\|[^|\n]*\|[ \t]*$",
+        lambda m: f"|{m.group(1)}| Approved | {date_str} |",
+        section,
+        flags=re.MULTILINE | re.IGNORECASE,
+    )
+    return text[:start] + new_section + text[end:]
+
+
 def _mark_md_approved(md_path: Path) -> bool:
-    """Flip the document header to 'Status: Approved'.
+    """Flip the document header to 'Status: Approved' and fill any
+    'Pending' rows in the '## Approvals' table with today's date.
 
     Handles the pre-approval statuses case-insensitively: Draft (most docs)
-    and Proposed (ADR lifecycle). Returns True if the file was changed,
-    False if it was already approved (the AI approval flow normally flips
-    the header before calling the CLI — this is the safety net for direct
-    CLI usage)."""
+    and Proposed (ADR lifecycle). Returns True if the file was changed by
+    either edit, False if both were already up to date. This is the safety
+    net for direct CLI/dashboard usage (the AI approval flow normally does
+    both edits itself in chat) — running it again also self-heals a doc
+    whose header was flipped before this function updated the Approvals
+    table too."""
     text = md_path.read_text()
     new  = re.sub(r"Status:\s*(Draft|Proposed)\b", "Status: Approved",
                   text, count=1, flags=re.IGNORECASE)
+    new  = _mark_approvals_table(new, str(date.today()))
     if new == text:
         return False
     md_path.write_text(new)

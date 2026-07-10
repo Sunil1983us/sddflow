@@ -476,6 +476,29 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.16',
+    to:   '2.7.17',
+    description: 'sdd dashboard/CLI (Python CLI) Approve now also fills the doc\'s own "## Approvals" table, not just the Status: header; no manifest schema changes',
+    notes: [
+      'Bug fix: `sdd review approve --local` and the dashboard\'s Approve ' +
+      'button previously only flipped a doc\'s Status: header to Approved ' +
+      '— the "## Approvals" table further down the same file was left ' +
+      'showing "Pending" even after approval',
+      'Every Pending row inside the "## Approvals" section is now ' +
+      'flipped to Approved with today\'s date filled in, scoped to that ' +
+      'section only; running approve again also self-heals a doc whose ' +
+      'header was already Approved by the old code',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.17';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

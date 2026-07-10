@@ -4,6 +4,30 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.17] — 2026-07-11 (Fix: Approve didn't update the doc's own Approvals table)
+
+### Fixed
+
+- **`sdd review approve --local` and the dashboard's Approve button** used
+  to only flip a document's `Status:` header to `Approved` — the `##
+  Approvals` table further down the same file (Role/Status/Date rows)
+  was left showing `Pending` even after approval, so the header and the
+  visible table body disagreed. Every `Pending` row inside the `##
+  Approvals` section now flips to `Approved` with today's date filled
+  in, scoped to that section only so a coincidental "Pending" cell
+  elsewhere in the doc is never touched.
+- **Self-healing**: running approve again on a doc whose header was
+  already `Approved` by the old code, but whose table still says
+  `Pending`, now fixes the table too — no manual edit needed for docs
+  approved before this fix.
+- Multi-role Approvals tables (e.g. `design.md`'s Architect / Tech Lead /
+  Stakeholder rows) have every row flipped together, matching local-mode
+  approval's existing single-approver-per-document model rather than
+  attributing individual rows to reviewers the CLI/dashboard were never
+  told about.
+
+---
+
 ## [2.7.16] — 2026-07-10 (`sdd dashboard`: Approve + review comments)
 
 ### Added

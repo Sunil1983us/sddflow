@@ -54,6 +54,64 @@ class TestMarkMdApproved:
         assert review._mark_md_approved(p) is False
 
 
+class TestMarkApprovalsTable:
+    def _doc_with_approvals(self, project, rows):
+        table = "\n".join(f"| {role} | Pending | |" for role in rows)
+        text = (
+            "# Doc\n> Version: 1.0 | Status: Draft | Date: x | Author: y\n\n"
+            f"## Approvals\n\n| Role | Status | Date |\n|---|---|---|\n{table}\n\n"
+            "## Version History\n\n| Version | Date |\n|---|---|\n| 1.0 | x |\n"
+        )
+        p = project / ".specify" / "features" / "auth" / "brd.md"
+        p.write_text(text)
+        return p
+
+    def test_single_row_flipped_with_date(self, project):
+        p = self._doc_with_approvals(project, ["Product Owner (accountable)"])
+        review._mark_md_approved(p)
+        text = p.read_text()
+        assert "| Product Owner (accountable) | Approved |" in text
+        assert "| Pending |" not in text
+
+    def test_all_rows_in_multi_row_table_flipped(self, project):
+        p = self._doc_with_approvals(project, ["Architect", "Tech Lead", "Stakeholder (HLD sign-off)"])
+        review._mark_md_approved(p)
+        text = p.read_text()
+        assert text.count("| Approved |") == 3
+        assert "Pending" not in text
+
+    def test_blank_line_before_next_heading_preserved(self, project):
+        p = self._doc_with_approvals(project, ["Product Owner"])
+        review._mark_md_approved(p)
+        text = p.read_text()
+        assert "\n\n## Version History" in text
+
+    def test_no_approvals_section_is_noop(self, project):
+        p = _write_doc(project, "brd", "Status: Draft")
+        before = p.read_text()
+        review._mark_md_approved(p)
+        after = p.read_text()
+        assert "Status: Approved" in after  # header still flips
+        assert after.replace("Status: Approved", "Status: Draft") == before  # nothing else changed
+
+    def test_self_heals_stale_table_when_header_already_approved(self, project):
+        """Regression: header was flipped by an older version of this code
+        that only touched the header, leaving the Approvals table stale."""
+        p = self._doc_with_approvals(project, ["Product Owner"])
+        text = p.read_text().replace("Status: Draft", "Status: Approved")
+        p.write_text(text)
+        assert review._mark_md_approved(p) is True
+        assert "| Approved |" in p.read_text()
+        assert "Pending" not in p.read_text()
+
+    def test_already_approved_rows_left_alone(self, project):
+        p = self._doc_with_approvals(project, ["Product Owner"])
+        review._mark_md_approved(p)  # first pass: Pending -> Approved (today)
+        first = p.read_text()
+        assert review._mark_md_approved(p) is False  # second pass: nothing left to change
+        assert p.read_text() == first
+
+
 class TestLocalApprovals:
     def test_save_and_load_roundtrip(self, project):
         review._save_local_approval("brd", "Product Owner", "approved in chat")

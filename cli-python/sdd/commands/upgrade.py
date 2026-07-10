@@ -508,6 +508,35 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.16"},
     },
+    {
+        "from":        "2.7.16",
+        "to":          "2.7.17",
+        "description": "sdd dashboard/CLI Approve now also fills the doc's own '## Approvals' table, not just the Status: header; no manifest schema changes",
+        "notes": [
+            "Bug fix: `sdd review approve --local` and the dashboard's "
+            "Approve button previously only flipped a doc's `Status:` "
+            "header to Approved -- the '## Approvals' table further down "
+            "the same file (Role/Status/Date rows) was left showing "
+            "'Pending' even after approval, so the header and the "
+            "visible table body disagreed",
+            "Every 'Pending' row inside the '## Approvals' section is now "
+            "flipped to 'Approved' with today's date filled in, scoped to "
+            "that section only -- a coincidental 'Pending' cell elsewhere "
+            "in the doc is never touched",
+            "Self-healing: running approve again on a doc whose header "
+            "was already 'Approved' by the old code, but whose table "
+            "still says 'Pending', now fixes the table too",
+            "Local-mode approval records one approver for the whole "
+            "document (not one per RACI row), so a multi-row table (e.g. "
+            "design.md's Architect/Tech Lead/Stakeholder rows) has every "
+            "row flipped together, matching the document-level Status: "
+            "header rather than attributing individual rows to reviewers "
+            "the CLI/dashboard were never told about",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.17"},
+    },
 ]
 
 
