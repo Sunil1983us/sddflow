@@ -131,6 +131,16 @@ After approval (Step C complete), generate the Epic definition:
    - If yes: state "Epic definition ready. Run `/jira-push --level epic` to create it in Jira now, or after stakeholder sign-off."
    - If no: state "Epic definition saved to `docs/jira/{feature}/epic.md`. Configure `.specify/jira-config.yml` (copy from `.specify/templates/jira-config-template.yml`) and run `/jira-push --level epic` to create it in Jira."
 
+<!-- shared:token-usage-log-step:start -->
+## Token Usage Logging (this command)
+If `.specify/memory/token-pricing.yml` exists: log this command now — see
+CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
+them. Append one row to `.specify/features/{feature}/token-usage.md`
+(create it from `token-usage-template.md` if this is the first row for
+this feature) and update its Running Totals table. If that file doesn't
+exist, skip this silently — do not create it and do not mention it.
+<!-- shared:token-usage-log-step:end -->
+
 State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-uc** to generate the Use Case Specification."
 
 **Stop — do not generate SRD or any other document in this turn.**

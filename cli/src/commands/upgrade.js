@@ -499,6 +499,31 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.17',
+    to:   '2.7.18',
+    description: 'Every document-generating command prompt now reminds the agent to log token usage, closing a gap where the instruction only lived in CLAUDE.md; no manifest schema changes',
+    notes: [
+      'Bug fix: token usage logging (opt-in via .specify/memory/' +
+      'token-pricing.yml) was only documented in CLAUDE.md, read once at ' +
+      'session start — no individual command prompt ever referenced it, ' +
+      'so logging was unreliable even when token-pricing.yml existed',
+      'New shared block token-usage-log-step now appears near the end ' +
+      'of every document-generating command prompt (/create-context, ' +
+      'every /specify-*, /plan-*, /task, /implement, /release, /change, ' +
+      '/checklist, /validate, /analyze, /clarify) as a reminder at the ' +
+      'point the agent is about to finish and report',
+      'This is a prompt-content change, not a code change — it makes ' +
+      'the existing token-usage-logging behavior more likely to ' +
+      'actually run, it doesn\'t change what gets logged or how',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.18';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

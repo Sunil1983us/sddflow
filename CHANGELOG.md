@@ -4,6 +4,28 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.18] — 2026-07-11 (Fix: token usage logging instruction was invisible to every command)
+
+### Fixed
+
+- **Token usage logging** (opt-in via `.specify/memory/token-pricing.yml`)
+  was documented only in `CLAUDE.md`, read once at session start — no
+  individual command prompt (`specify-uc.prompt.md`, `task.prompt.md`,
+  etc.) ever referenced it, so the agent had to spontaneously recall a
+  rule from a different, earlier-read file on every command. In practice
+  this made logging unreliable even when `token-pricing.yml` existed and
+  was correctly filled in. Found via manual pre-publish testing.
+- A new shared block (`token-usage-log-step`) now appears near the end of
+  every document-generating command prompt — `/create-context`, every
+  `/specify-*`, `/plan-*`, `/task`, `/implement`, `/release`, `/change`,
+  `/checklist`, `/validate`, `/analyze`, `/clarify` — right at the point
+  the agent is about to finish and report, across all 5 full packs.
+- This is a prompt-content fix, not a behavior change to what gets
+  logged or how — the full field spec still lives in `CLAUDE.md`'s
+  "Token Usage Logging" section.
+
+---
+
 ## [2.7.17] — 2026-07-11 (Fix: Approve didn't update the doc's own Approvals table)
 
 ### Fixed

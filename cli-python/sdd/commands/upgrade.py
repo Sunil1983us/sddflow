@@ -537,6 +537,34 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.17"},
     },
+    {
+        "from":        "2.7.17",
+        "to":          "2.7.18",
+        "description": "Every document-generating command prompt now reminds the agent to log token usage, closing a gap where the instruction only lived in CLAUDE.md; no manifest schema changes",
+        "notes": [
+            "Bug fix: token usage logging (opt-in via .specify/memory/"
+            "token-pricing.yml) was only documented in CLAUDE.md, read "
+            "once at session start -- no individual command prompt ever "
+            "referenced it, so the agent had to spontaneously recall a "
+            "rule from a different, earlier-read file every command. In "
+            "practice this made logging unreliable even when "
+            "token-pricing.yml existed and was correctly filled in",
+            "New shared block token-usage-log-step now appears near the "
+            "end of every document-generating command prompt "
+            "(/create-context, every /specify-*, /plan-*, /task, "
+            "/implement, /release, /change, /checklist, /validate, "
+            "/analyze, /clarify) -- a short reminder to check for "
+            "token-pricing.yml and log this command's usage right there, "
+            "at the point the agent is about to finish and report",
+            "This is a prompt-content change, not a code change -- it "
+            "makes the existing token-usage-logging behavior (still "
+            "documented in full in CLAUDE.md) more likely to actually "
+            "run, it doesn't change what gets logged or how",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.18"},
+    },
 ]
 
 
