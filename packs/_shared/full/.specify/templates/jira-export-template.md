@@ -17,8 +17,8 @@ SDD creates Jira artifacts at the right stage — not all at once:
 | After `/task` approval | Tasks linked to existing Stories | `/jira-push --level task` |
 | After `/change` approval | CHG-NNN tasks under existing Stories | `/jira-push --level chg --cr CR-NNN` |
 
-**Jira keys tracking:** `docs/jira/{Feature Name}/keys.yml` — updated by `/jira-push` after every push (scoped per feature, same as `.specify/features/{feature}/`).
-**Field mapping:** `.specify/jira-config.yml` — copy from `.specify/templates/jira-config-template.yml`.
+**Jira keys tracking:** `docs/jira/{Feature Name}/keys.yml` — a local, human-readable summary written by `sdd jira push` after every push (scoped per feature, same as `.specify/features/{feature}/`). Reference only — never read back by the push itself; parent links and idempotency are always re-derived live from Jira labels.
+**Field mapping:** `.specify/integrations.yml` — run `sdd config init` or copy `.specify/integrations.yml.example`.
 
 ---
 
@@ -110,4 +110,4 @@ git commit -m "test(TASK-{NNN}): {test description}"
 
 *Generated from: stories.md + tasks.md*
 *Keys file: docs/jira/{Feature Name}/keys.yml*
-*Config: .specify/jira-config.yml*
+*Config: .specify/integrations.yml*

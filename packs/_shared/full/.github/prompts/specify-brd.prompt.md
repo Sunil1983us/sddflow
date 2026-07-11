@@ -113,7 +113,7 @@ After approval (Step C complete), generate the Epic definition:
    > Source: brd.md | Stage: after-brd | Status: PENDING_PUSH
 
    Summary: {Feature Name from manifest.yml project.name, or manifest.yml project.feature if absent}
-   Project: {projects.epic from jira-config.yml — or TBD if jira-config.yml not present}
+   Project: {jira.project_key from .specify/integrations.yml — or TBD if not present}
    Issue Type: Epic
    Priority: High
    Labels: sdd-epic
@@ -127,9 +127,19 @@ After approval (Step C complete), generate the Epic definition:
    ## Jira Key
    (set by /jira-push --level epic)
    ```
-3. Check whether `.specify/jira-config.yml` exists.
+3. Check whether `.specify/integrations.yml` exists and has a `jira:` section.
    - If yes: state "Epic definition ready. Run `/jira-push --level epic` to create it in Jira now, or after stakeholder sign-off."
-   - If no: state "Epic definition saved to `docs/jira/{feature}/epic.md`. Configure `.specify/jira-config.yml` (copy from `.specify/templates/jira-config-template.yml`) and run `/jira-push --level epic` to create it in Jira."
+   - If no: state "Epic definition saved to `docs/jira/{feature}/epic.md`. Run `sdd config init` to configure Jira (or add a `jira:` section to `.specify/integrations.yml` — see `.specify/integrations.yml.example`) and run `/jira-push --level epic` to create it in Jira."
+
+<!-- shared:token-usage-log-step:start -->
+## Token Usage Logging (this command)
+If `.specify/memory/token-pricing.yml` exists: log this command now — see
+CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
+them. Append one row to `.specify/features/{feature}/token-usage.md`
+(create it from `token-usage-template.md` if this is the first row for
+this feature) and update its Running Totals table. If that file doesn't
+exist, skip this silently — do not create it and do not mention it.
+<!-- shared:token-usage-log-step:end -->
 
 State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-uc** to generate the Use Case Specification."
 

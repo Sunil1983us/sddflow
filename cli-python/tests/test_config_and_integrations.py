@@ -1,10 +1,14 @@
 # Unit tests for config-init template output and integrations loading.
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
+from click.testing import CliRunner
 
-from sdd.commands.config import _integrations_template
+from sdd.commands import config as config_mod
+from sdd.commands.config import _integrations_template, config_command
+from sdd.utils import atlassian_auth
 from sdd.utils.integrations import load_integrations, _DEFAULT_PAGE_MAP
 
 
@@ -66,3 +70,157 @@ def test_load_integrations_confluence_only(tmp_path, monkeypatch):
     assert cfg.jira is None
     assert cfg.confluence.space_key == "ENG"
     assert cfg.confluence.page_map == _DEFAULT_PAGE_MAP
+
+
+class _Answer:
+    """Stand-in for questionary's Question object -- .ask() returns a
+    canned value instead of driving a real prompt_toolkit UI, which
+    doesn't work under CliRunner's plain stdin feeding."""
+    def __init__(self, value):
+        self._value = value
+
+    def ask(self):
+        return self._value
+
+
+class TestConfigInitCommand:
+    """End-to-end test of the `sdd config init` wizard, both credential
+    storage paths. Interactive prompts are mocked at the questionary
+    function level (not via CliRunner stdin) -- questionary's
+    prompt_toolkit UI needs a real TTY-like input source that CliRunner's
+    plain stdin feeding doesn't provide."""
+
+    @pytest.fixture()
+    def runner(self):
+        return CliRunner()
+
+    @pytest.fixture()
+    def config_home(self, tmp_path, monkeypatch):
+        path = tmp_path / ".sdd" / "config.yml"
+        # config_init() reads/checks CONFIG_PATH via the name imported into
+        # config.py, but the actual write happens inside save_config() in
+        # atlassian_auth.py, which references that module's OWN CONFIG_PATH
+        # binding -- both must be patched or save_config() falls through to
+        # the real ~/.sdd/config.yml on whatever machine runs this test.
+        monkeypatch.setattr(config_mod, "CONFIG_PATH", path)
+        monkeypatch.setattr(atlassian_auth, "CONFIG_PATH", path)
+        monkeypatch.chdir(tmp_path)
+        return path
+
+    def test_keyring_path_stores_secret_and_no_env_field(self, runner, config_home):
+        with patch("questionary.text", side_effect=[
+                _Answer("work-cloud"), _Answer("https://x.atlassian.net"), _Answer("a@b.com")]), \
+             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("keyring")]), \
+             patch("questionary.password", return_value=_Answer("secret-token")), \
+             patch("questionary.confirm", return_value=_Answer(False)), \
+             patch.object(config_mod, "store_secret") as store:
+            result = runner.invoke(config_command, ["init"])
+
+        assert result.exit_code == 0, result.output
+        store.assert_called_once_with("work-cloud", "secret-token")
+
+        saved = yaml.safe_load(config_home.read_text())
+        profile = saved["profiles"]["work-cloud"]
+        assert profile["credential_store"] == "keyring"
+        assert profile["auth_mode"] == "basic"
+        assert profile["email"] == "a@b.com"
+        assert "api_token_env" not in profile  # no env var name for a keyring profile
+
+    def test_env_path_stores_env_var_name_not_secret(self, runner, config_home):
+        with patch("questionary.text", side_effect=[
+                _Answer("work-cloud"), _Answer("https://x.atlassian.net"),
+                _Answer("a@b.com"), _Answer("JIRA_API_TOKEN")]), \
+             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("env")]), \
+             patch("questionary.confirm", return_value=_Answer(False)), \
+             patch.object(config_mod, "store_secret") as store:
+            result = runner.invoke(config_command, ["init"])
+
+        assert result.exit_code == 0, result.output
+        store.assert_not_called()  # env path never touches the keychain
+
+        saved = yaml.safe_load(config_home.read_text())
+        profile = saved["profiles"]["work-cloud"]
+        assert profile["credential_store"] == "env"
+        assert profile["api_token_env"] == "JIRA_API_TOKEN"
+        # the actual secret value is never in this file, only the env var name
+        assert "secret-token" not in config_home.read_text()
+
+    def test_keyring_storage_failure_exits_nonzero_without_partial_config(self, runner, config_home):
+        """If the keychain backend isn't available (e.g. headless Linux),
+        the wizard must fail loudly rather than silently falling back to
+        an unsaved or half-configured profile."""
+        with patch("questionary.text", side_effect=[
+                _Answer("work-cloud"), _Answer("https://x.atlassian.net"), _Answer("a@b.com")]), \
+             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("keyring")]), \
+             patch("questionary.password", return_value=_Answer("secret-token")), \
+             patch.object(config_mod, "store_secret",
+                           side_effect=RuntimeError("no backend available")):
+            result = runner.invoke(config_command, ["init"])
+
+        assert result.exit_code != 0
+        assert "no backend available" in result.output
+
+
+class TestConfigSetSecretCommand:
+    """`sdd config set-secret` — the CLI entry point for rotating a
+    keychain-stored credential. store_secret() itself (the actual keyring
+    call) is covered in test_atlassian_auth.py; these tests cover the
+    command's own validation and error paths."""
+
+    @pytest.fixture()
+    def runner(self):
+        return CliRunner()
+
+    @pytest.fixture()
+    def config_home(self, tmp_path, monkeypatch):
+        path = tmp_path / ".sdd" / "config.yml"
+        monkeypatch.setattr(config_mod, "CONFIG_PATH", path)
+        return path
+
+    def test_missing_config_file_exits_nonzero(self, runner, config_home):
+        result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
+        assert result.exit_code != 0
+        assert "config init" in result.output
+
+    def test_unknown_profile_exits_nonzero(self, runner, config_home):
+        config_home.parent.mkdir(parents=True)
+        config_home.write_text(yaml.dump({"profiles": {"other": {"auth_mode": "basic"}}}))
+        result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
+        assert result.exit_code != 0
+        assert "not found" in result.output
+
+    def test_env_profile_rejected_with_guidance(self, runner, config_home):
+        config_home.parent.mkdir(parents=True)
+        config_home.write_text(yaml.dump({
+            "profiles": {"work": {"auth_mode": "basic", "credential_store": "env"}}
+        }))
+        result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
+        assert result.exit_code != 0
+        assert "credential_store: env" in result.output
+        assert "sdd config init" in result.output
+
+    def test_keyring_profile_stores_new_secret(self, runner, config_home):
+        config_home.parent.mkdir(parents=True)
+        config_home.write_text(yaml.dump({
+            "profiles": {"work": {"auth_mode": "basic", "credential_store": "keyring"}}
+        }))
+        fake_answer = type("Q", (), {"ask": lambda self: "new-secret"})()
+        with patch("questionary.password", return_value=fake_answer) as pw, \
+             patch.object(config_mod, "store_secret") as store:
+            result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
+        assert result.exit_code == 0
+        assert "✓" in result.output
+        store.assert_called_once_with("work", "new-secret")
+
+    def test_keychain_backend_failure_surfaces_and_exits_nonzero(self, runner, config_home):
+        config_home.parent.mkdir(parents=True)
+        config_home.write_text(yaml.dump({
+            "profiles": {"work": {"auth_mode": "basic", "credential_store": "keyring"}}
+        }))
+        fake_answer = type("Q", (), {"ask": lambda self: "new-secret"})()
+        with patch("questionary.password", return_value=fake_answer), \
+             patch.object(config_mod, "store_secret",
+                           side_effect=RuntimeError("no backend available")):
+            result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
+        assert result.exit_code != 0
+        assert "no backend available" in result.output

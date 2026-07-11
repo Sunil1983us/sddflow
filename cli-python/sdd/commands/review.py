@@ -65,17 +65,47 @@ def _doc_md_path(doc: str, feature: str | None) -> Path | None:
         return None
 
 
+def _mark_approvals_table(text: str, date_str: str) -> str:
+    """Flip every 'Pending' row inside the '## Approvals' section to
+    'Approved', filling the Date column. Scoped to that section only — a
+    coincidental 'Pending' cell anywhere else in the doc is left alone.
+
+    Local-mode approval records a single approver for the whole document
+    (see _save_local_approval), not one per RACI row, so every Pending row
+    is flipped together — matching the document-level 'Status: Approved'
+    header rather than trying to attribute individual rows to reviewers
+    the CLI/dashboard were never told about."""
+    heading = re.search(r"^## Approvals\s*$", text, flags=re.IGNORECASE | re.MULTILINE)
+    if not heading:
+        return text
+    start = heading.end()
+    next_heading = re.search(r"^## ", text[start:], flags=re.MULTILINE)
+    end = start + next_heading.start() if next_heading else len(text)
+    section = text[start:end]
+    new_section = re.sub(
+        r"^\|([^|\n]*)\|\s*Pending\s*\|[^|\n]*\|[ \t]*$",
+        lambda m: f"|{m.group(1)}| Approved | {date_str} |",
+        section,
+        flags=re.MULTILINE | re.IGNORECASE,
+    )
+    return text[:start] + new_section + text[end:]
+
+
 def _mark_md_approved(md_path: Path) -> bool:
-    """Flip the document header to 'Status: Approved'.
+    """Flip the document header to 'Status: Approved' and fill any
+    'Pending' rows in the '## Approvals' table with today's date.
 
     Handles the pre-approval statuses case-insensitively: Draft (most docs)
-    and Proposed (ADR lifecycle). Returns True if the file was changed,
-    False if it was already approved (the AI approval flow normally flips
-    the header before calling the CLI — this is the safety net for direct
-    CLI usage)."""
+    and Proposed (ADR lifecycle). Returns True if the file was changed by
+    either edit, False if both were already up to date. This is the safety
+    net for direct CLI/dashboard usage (the AI approval flow normally does
+    both edits itself in chat) — running it again also self-heals a doc
+    whose header was flipped before this function updated the Approvals
+    table too."""
     text = md_path.read_text()
     new  = re.sub(r"Status:\s*(Draft|Proposed)\b", "Status: Approved",
                   text, count=1, flags=re.IGNORECASE)
+    new  = _mark_approvals_table(new, str(date.today()))
     if new == text:
         return False
     md_path.write_text(new)
@@ -144,11 +174,15 @@ def _get_review_status(
     client: JiraClient,
     project_key: str,
     cfg: IntegrationsConfig,
+    feature_name: str,
 ) -> tuple[str, list[dict]]:
     """Return (status, comments).
     status: APPROVED | NEEDS_REVISION | PENDING | NOT_SUBMITTED
+
+    Label is feature-qualified — must match the label `review_submit` writes,
+    or a submitted review would never be found again.
     """
-    issue = client.find_by_label(project_key, f"sdd-doc:{doc_key}")
+    issue = client.find_by_label(project_key, f"sdd-doc:{feature_name}:{doc_key}")
     if not issue:
         return "NOT_SUBMITTED", []
 
@@ -170,6 +204,7 @@ def _check_predecessor(
     doc_key: str,
     cfg: IntegrationsConfig,
     client: JiraClient,
+    feature_name: str,
 ) -> tuple[bool, str | None]:
     """Verify the previous doc in this phase's sequence is approved.
     Returns (ok, blocking_doc_key).
@@ -184,8 +219,37 @@ def _check_predecessor(
     if not preds:
         return True, None
     pred_key = preds[0]
-    status, _ = _get_review_status(pred_key, client, cfg.jira.project_key, cfg)
+    status, _ = _get_review_status(pred_key, client, cfg.jira.project_key, cfg, feature_name)
     return (status == "APPROVED"), (None if status == "APPROVED" else pred_key)
+
+
+def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | None:
+    """Create the Feature/Epic container if it doesn't already exist yet,
+    using the same content and idempotency label `sdd jira push` uses — so a
+    review ticket submitted before any dev Story/Task exists still lands
+    under the same Epic those will use later. Business Objectives are
+    already available at this point since BRD (the first document
+    reviewed) is always drafted before its own review ticket is submitted.
+    Never blocks the review submission — prints a warning and returns None
+    if Epic creation/lookup fails for any reason."""
+    from sdd.commands.jira import _upsert_issue, feature_extra_fields
+    from sdd.utils.validate import safe_feature_path
+
+    try:
+        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+        extra = feature_extra_fields(features_dir, jira_cfg, feature_name)
+        h = jira_cfg.issue_hierarchy
+        key, _ = _upsert_issue(
+            jira_client, jira_cfg.project_key, h["feature"], feature_name,
+            extra, f"sdd-feature:{feature_name}", jira_cfg.labels,
+        )
+        return key
+    except Exception as e:
+        console.print(
+            f"  [yellow]!  Could not create/find the Epic — review ticket "
+            f"will not have a parent link ({e})[/yellow]"
+        )
+        return None
 
 
 # ── Command group ──────────────────────────────────────────────────────────────
@@ -246,7 +310,7 @@ def review_submit(doc, profile, feature):
     doc_cfg     = cfg.document_reviews[doc]
 
     # ── Sequence gate ─────────────────────────────────────────────────────────
-    ok, blocking = _check_predecessor(doc, cfg, jira_client)
+    ok, blocking = _check_predecessor(doc, cfg, jira_client, feature_name)
     if not ok:
         console.print(f"  [red]✗  Cannot submit {doc.upper()} — {blocking.upper()} is not yet approved.[/red]")
         console.print(f"     Run [cyan]sdd review check --doc {blocking}[/cyan] to see its status.")
@@ -273,8 +337,21 @@ def review_submit(doc, profile, feature):
     console.print(f"  {action}  Confluence: [cyan]{page_title}[/cyan]")
     console.print(f"          {page_url}")
 
+    # ── Ensure a Feature/Epic exists ──────────────────────────────────────────
+    # So every review ticket -- and later every dev Story/Task from
+    # `sdd jira push` -- nests under one place in Jira. Self-bootstrapping
+    # here (rather than requiring a separate manual step) works because
+    # BRD is always the first document reviewed, and its Business
+    # Objectives are already written the moment /specify-brd finishes --
+    # well before this review ticket exists to need a parent.
+    epic_key = _ensure_epic(jira_client, cfg.jira, feature_name)
+
     # ── Create / update Jira review task ──────────────────────────────────────
-    idempotency_label = f"sdd-doc:{doc}"
+    # Label is feature-qualified for the same reason Story/Task labels are
+    # (see jira.py's _item_label): an un-qualified "sdd-doc:brd" would let
+    # a second feature's BRD review submission find and silently overwrite
+    # the first feature's review ticket.
+    idempotency_label = f"sdd-doc:{feature_name}:{doc}"
     existing          = jira_client.find_by_label(cfg.jira.project_key, idempotency_label)
     task_summary      = f"Review: {project_name} — {doc.upper()}"
     desc_text = (
@@ -308,6 +385,12 @@ def review_submit(doc, profile, feature):
         task_key = result["key"]
         console.print(f"  [green]✓[/green]  Jira task created: [cyan]{task_key}[/cyan]")
 
+    if epic_key:
+        try:
+            jira_client.set_parent(task_key, epic_key, cfg.jira.parent_field)
+        except Exception:
+            pass  # not all Jira project types support parent on this issue type
+
     console.print(
         f"          Assigned to: [cyan]{doc_cfg.reviewer_role}[/cyan]"
         f"  [dim]({doc_cfg.reviewer_jira_user})[/dim]"
@@ -325,7 +408,8 @@ def review_submit(doc, profile, feature):
 @review_command.command("check")
 @click.option("--doc",     required=True)
 @click.option("--profile", default=None)
-def review_check(doc, profile):
+@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
+def review_check(doc, profile, feature):
     """Check review status. Exit codes: 0=approved 1=needs-revision 2=pending 3=not-submitted."""
     console.print()
 
@@ -359,8 +443,12 @@ def review_check(doc, profile):
         )
         raise SystemExit(3)
 
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+
     client  = JiraClient(session, prof.base_url)
-    status, comments = _get_review_status(doc, client, cfg.jira.project_key, cfg)
+    status, comments = _get_review_status(doc, client, cfg.jira.project_key, cfg, feature_name)
     doc_cfg = cfg.document_reviews.get(doc)
     role    = doc_cfg.reviewer_role if doc_cfg else "reviewer"
 
@@ -524,7 +612,7 @@ def review_apply(doc, profile, feature):
         console.print(f"  [dim]·[/dim]  {md_path} not found — skipping Confluence update")
 
     # Notify reviewer on Jira
-    issue = jira_client.find_by_label(cfg.jira.project_key, f"sdd-doc:{doc}")
+    issue = jira_client.find_by_label(cfg.jira.project_key, f"sdd-doc:{feature_name}:{doc}")
     if issue:
         msg = f"Document updated per review comments. Please re-review: {page_url}"
         jira_client.add_comment(issue["key"], msg)
@@ -544,7 +632,8 @@ def review_apply(doc, profile, feature):
 
 @review_command.command("status")
 @click.option("--profile", default=None)
-def review_status(profile):
+@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
+def review_status(profile, feature):
     """Show review state of all documents for the current project."""
     console.print()
     try:
@@ -558,6 +647,10 @@ def review_status(profile):
     if not cfg.jira:
         console.print("  [red]✗  No jira: section in integrations.yml[/red]")
         raise SystemExit(1)
+
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
 
     client = JiraClient(session, prof.base_url)
 
@@ -592,7 +685,7 @@ def review_status(profile):
                 icon, label, style = "🔒", "Blocked", "dim"
                 all_statuses[key] = "BLOCKED"
             else:
-                st, _ = _get_review_status(key, client, cfg.jira.project_key, cfg)
+                st, _ = _get_review_status(key, client, cfg.jira.project_key, cfg, feature_name)
                 all_statuses[key] = st
                 if st == "APPROVED":
                     icon, label, style = "✓ ", "Approved",       "green"

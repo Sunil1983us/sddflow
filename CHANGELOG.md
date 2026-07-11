@@ -4,6 +4,169 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.21] — 2026-07-10 (Add: sdd jira push --level/--cr; retire the standalone jira-push.py script)
+
+### Added
+
+- **`sdd jira push --level {epic|story|task|chg|all}`** (default `all`) — the
+  CLI can now push progressively at each SDLC gate: Epic right after BRD
+  approval, Stories after Use Cases/SRD approval, Tasks after `/task`, CHG
+  tasks after `/change` — matching what the standalone script used to do.
+  A level pushed on its own finds its parent (Feature/Epic or Story) live
+  via Jira labels, so there's no strict "push epic before story before
+  task" ordering requirement — levels can be pushed in any order and still
+  link up correctly.
+- **`sdd jira push --level chg --cr CR-NNN`** — pushes a changeset's
+  `§4 CHG-NNN` implementation tasks as their own Jira issues, parented to
+  the Story that owns the matching FR reference (falling back to the
+  Feature/Epic).
+- **`docs/jira/{feature}/keys.yml`** — the CLI now writes the same
+  local, human-readable summary of pushed Jira keys the old script did.
+  Reference only: never read back by `sdd jira push` itself, since
+  parent-linking and idempotency are always re-derived live from Jira's
+  `sdd-feature:*`/`sdd:*` labels.
+- Two new optional `custom_fields` keys in `.specify/integrations.yml` —
+  `fr_reference` and `moscow_priority` — let Story/Task/CHG issues carry
+  those as separate Jira fields (in addition to the plain-text line
+  already in every issue's description).
+
+### Removed
+
+- **`.specify/scripts/jira-push.py`** and
+  **`.specify/templates/jira-config-template.yml`** — retired from every
+  pack. The `/jira-push` slash command is now a thin wrapper around
+  `sdd jira push --level ...` (same command the CLI exposes directly),
+  not a separate standalone script. All Jira/Confluence configuration now
+  lives in one place: `.specify/integrations.yml` (set up via
+  `sdd config init` or by copying `.specify/integrations.yml.example`).
+  Both `/jira-push` and `sdd jira push` still run unattended from CI/CD —
+  there was never an AI-session requirement, it just used to be a
+  separate script rather than the CLI itself.
+
+### Notes
+
+- This completes the Jira/Confluence consolidation plan started in
+  2.7.20 (content parity + self-bootstrapping Epic). Remaining, smaller
+  items: a couple of doc/prompt corners describing the old two-path setup
+  may still need a follow-up pass if anything was missed — flag it if you
+  spot one.
+
+---
+
+## [2.7.20] — 2026-07-10 (Fix: sdd jira push content parity + self-bootstrapping Epic for review tickets)
+
+### Fixed
+
+- **`sdd jira push` content parity**: the CLI's Feature/Epic issue previously
+  got a blank description and Task issues silently dropped their parsed
+  Acceptance Criteria. Both now match the progressive `/jira-push` script:
+  the Feature/Epic description is built from `brd.md`'s Business
+  Objectives, and every Story/Task description includes its Acceptance
+  Criteria.
+- **Review-ticket label collision**: `sdd review submit`'s Jira ticket used
+  an un-feature-qualified idempotency label (`sdd-doc:{doc}`), so on a
+  multi-feature project a second feature's review submission for the same
+  doc key (e.g. `brd`) could silently overwrite the first feature's ticket.
+  Same bug class already fixed for Story/Task labels — now
+  `sdd-doc:{feature}:{doc}`. `sdd review check/status/apply` and the
+  dashboard's approve/comment endpoints were updated to look up the same
+  qualified label.
+
+### Added
+
+- **Self-bootstrapping Feature/Epic**: `sdd review submit` now ensures the
+  project's Feature/Epic exists (creating it from `brd.md`'s Business
+  Objectives if `sdd jira push` hasn't run yet, since BRD is always the
+  first document reviewed) and parents the review ticket under it — so
+  review tickets and later dev Story/Task tickets from `sdd jira push`
+  converge on the same Epic in Jira instead of scattering across
+  unlinked issues.
+
+### Notes
+
+- This lands the highest-value slice of a larger Jira/Confluence
+  consolidation plan. Deferred for later: staged `--level` pushes + CHG
+  support in the CLI, consolidating `jira-config.yml` into
+  `integrations.yml`, routing `/jira-push` through the CLI, and retiring
+  the legacy standalone script.
+
+---
+
+## [2.7.19] — 2026-07-11 (Add: store Jira/Confluence credentials in the OS keychain)
+
+### Added
+
+- **`credential_store: keyring`** option for `~/.sdd/config.yml` profiles
+  (alongside the existing `env` behavior, which stays the default for
+  profiles written before this version). When set, `sdd config init`
+  asks for the actual token and stores it via the OS-native secure
+  credential store — macOS Keychain, Windows Credential Manager, Linux
+  Secret Service — through the new `keyring` dependency, instead of
+  asking for an environment variable name.
+- **New `sdd config set-secret --profile {name}`** command to rotate a
+  keychain-stored credential without re-running the whole `config init`
+  wizard.
+- **Why**: an environment variable exported in one terminal is invisible
+  to an AI coding tool's own subprocess shell (or any other new shell) —
+  this showed up as "can't connect to Jira/Confluence" even when the
+  token itself was perfectly valid, and was a genuine barrier for
+  non-technical users. A keychain-stored credential is readable by any
+  process on the machine, not scoped to one shell session, so it works
+  the same way in any terminal or any AI tool without shell setup.
+- If no keychain backend is available (headless Linux, minimal
+  containers), `config init`/`set-secret` fail with a clear message
+  suggesting the `env` option instead of a raw traceback.
+- Existing `env`-mode profiles are completely unaffected — this is
+  purely additive.
+
+---
+
+## [2.7.18] — 2026-07-11 (Fix: token usage logging instruction was invisible to every command)
+
+### Fixed
+
+- **Token usage logging** (opt-in via `.specify/memory/token-pricing.yml`)
+  was documented only in `CLAUDE.md`, read once at session start — no
+  individual command prompt (`specify-uc.prompt.md`, `task.prompt.md`,
+  etc.) ever referenced it, so the agent had to spontaneously recall a
+  rule from a different, earlier-read file on every command. In practice
+  this made logging unreliable even when `token-pricing.yml` existed and
+  was correctly filled in. Found via manual pre-publish testing.
+- A new shared block (`token-usage-log-step`) now appears near the end of
+  every document-generating command prompt — `/create-context`, every
+  `/specify-*`, `/plan-*`, `/task`, `/implement`, `/release`, `/change`,
+  `/checklist`, `/validate`, `/analyze`, `/clarify` — right at the point
+  the agent is about to finish and report, across all 5 full packs.
+- This is a prompt-content fix, not a behavior change to what gets
+  logged or how — the full field spec still lives in `CLAUDE.md`'s
+  "Token Usage Logging" section.
+
+---
+
+## [2.7.17] — 2026-07-11 (Fix: Approve didn't update the doc's own Approvals table)
+
+### Fixed
+
+- **`sdd review approve --local` and the dashboard's Approve button** used
+  to only flip a document's `Status:` header to `Approved` — the `##
+  Approvals` table further down the same file (Role/Status/Date rows)
+  was left showing `Pending` even after approval, so the header and the
+  visible table body disagreed. Every `Pending` row inside the `##
+  Approvals` section now flips to `Approved` with today's date filled
+  in, scoped to that section only so a coincidental "Pending" cell
+  elsewhere in the doc is never touched.
+- **Self-healing**: running approve again on a doc whose header was
+  already `Approved` by the old code, but whose table still says
+  `Pending`, now fixes the table too — no manual edit needed for docs
+  approved before this fix.
+- Multi-role Approvals tables (e.g. `design.md`'s Architect / Tech Lead /
+  Stakeholder rows) have every row flipped together, matching local-mode
+  approval's existing single-approver-per-document model rather than
+  attributing individual rows to reviewers the CLI/dashboard were never
+  told about.
+
+---
+
 ## [2.7.16] — 2026-07-10 (`sdd dashboard`: Approve + review comments)
 
 ### Added

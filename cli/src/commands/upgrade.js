@@ -476,6 +476,139 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.16',
+    to:   '2.7.17',
+    description: 'sdd dashboard/CLI (Python CLI) Approve now also fills the doc\'s own "## Approvals" table, not just the Status: header; no manifest schema changes',
+    notes: [
+      'Bug fix: `sdd review approve --local` and the dashboard\'s Approve ' +
+      'button previously only flipped a doc\'s Status: header to Approved ' +
+      '— the "## Approvals" table further down the same file was left ' +
+      'showing "Pending" even after approval',
+      'Every Pending row inside the "## Approvals" section is now ' +
+      'flipped to Approved with today\'s date filled in, scoped to that ' +
+      'section only; running approve again also self-heals a doc whose ' +
+      'header was already Approved by the old code',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.17';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.17',
+    to:   '2.7.18',
+    description: 'Every document-generating command prompt now reminds the agent to log token usage, closing a gap where the instruction only lived in CLAUDE.md; no manifest schema changes',
+    notes: [
+      'Bug fix: token usage logging (opt-in via .specify/memory/' +
+      'token-pricing.yml) was only documented in CLAUDE.md, read once at ' +
+      'session start — no individual command prompt ever referenced it, ' +
+      'so logging was unreliable even when token-pricing.yml existed',
+      'New shared block token-usage-log-step now appears near the end ' +
+      'of every document-generating command prompt (/create-context, ' +
+      'every /specify-*, /plan-*, /task, /implement, /release, /change, ' +
+      '/checklist, /validate, /analyze, /clarify) as a reminder at the ' +
+      'point the agent is about to finish and report',
+      'This is a prompt-content change, not a code change — it makes ' +
+      'the existing token-usage-logging behavior more likely to ' +
+      'actually run, it doesn\'t change what gets logged or how',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.18';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.18',
+    to:   '2.7.19',
+    description: '`sdd config init`/`set-secret` (Python CLI) can store Jira/Confluence credentials in the OS keychain instead of an env var; no manifest schema changes',
+    notes: [
+      'New credential_store option in ~/.sdd/config.yml: "keyring" ' +
+      '(recommended) stores the credential in the OS-native secure ' +
+      'store (macOS Keychain / Windows Credential Manager / Linux ' +
+      'Secret Service); "env" is the pre-existing behavior and stays ' +
+      'the default for profiles written before this version',
+      'Closes a real usability gap — an env var exported in one ' +
+      'terminal is invisible to an AI coding tool\'s own subprocess ' +
+      'shell, which showed up as "can\'t connect to Jira/Confluence" ' +
+      'even when the token itself was fine',
+      'New `sdd config set-secret --profile {name}` command rotates a ' +
+      'keychain-stored credential without re-running the whole wizard',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.19';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.19',
+    to:   '2.7.20',
+    description: '`sdd jira push` (Python CLI) now matches `/jira-push`\'s content, and `sdd review submit` self-bootstraps the Feature/Epic and parents review tickets under it; no manifest schema changes',
+    notes: [
+      '`sdd jira push` previously created the Feature/Epic with a blank ' +
+      'description and dropped Task Acceptance Criteria entirely, even ' +
+      'though the parser already extracted it — both now carry real ' +
+      'content, matching what the progressive `/jira-push` script ' +
+      'already did',
+      '`sdd review submit` now ensures the Feature/Epic exists before ' +
+      'creating a document\'s review ticket (self-bootstrapping it from ' +
+      'brd.md if `sdd jira push` hasn\'t run yet) and parents the review ' +
+      'ticket under it, so review tickets and later dev Story/Task ' +
+      'tickets converge on one Epic per feature',
+      'Fixed a label collision: review-ticket idempotency labels were ' +
+      'not feature-qualified (sdd-doc:{doc}), so a second feature\'s ' +
+      'review submission for the same doc key could silently overwrite ' +
+      'the first feature\'s ticket on a multi-feature project — now ' +
+      'sdd-doc:{feature}:{doc}, matching the fix already applied to ' +
+      'Story/Task labels',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.20';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.20',
+    to:   '2.7.21',
+    description: '`sdd jira push` (Python CLI) now supports `--level` (progressive pushes) and `--cr` (CHG tasks); `/jira-push` and the standalone jira-push.py script are retired in favor of it; no manifest schema changes',
+    notes: [
+      '`sdd jira push` gained `--level {epic|story|task|chg|all}` (default ' +
+      'all) and `--cr CR-NNN`, so it can push progressively at each SDLC ' +
+      'gate exactly like the old standalone script did — Epic right ' +
+      'after BRD approval, Stories after Use Cases/SRD, Tasks after ' +
+      '`/task`, CHG tasks after `/change`. A level pushed on its own ' +
+      'finds its parent live via Jira labels, so levels can be pushed ' +
+      'in any order',
+      'The `/jira-push` slash command is now a thin wrapper around this ' +
+      'same CLI command instead of invoking a separate standalone ' +
+      'script — `.specify/scripts/jira-push.py` and ' +
+      '`.specify/templates/jira-config-template.yml` are removed from ' +
+      'every pack. All Jira/Confluence configuration now lives in one ' +
+      'place: `.specify/integrations.yml`',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.21';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

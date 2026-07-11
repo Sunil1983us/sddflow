@@ -549,9 +549,14 @@ The `sdd` CLI connects your spec documents and tasks directly to your Atlassian 
 ```bash
 sdd config init
 ```
-This interactive wizard asks for your Atlassian base URL, auth mode, and env var names. Saves the profile to `~/.sdd/config.yml` (no secrets — only env var names). Optionally creates `.specify/integrations.yml` for this project.
+This interactive wizard asks for your Atlassian base URL, auth mode, and — importantly — how to store the credential:
 
-**Step 2 — Export your API token:**
+- **System keychain (recommended)** — the wizard asks for your token directly and saves it via your OS's secure credential store (macOS Keychain / Windows Credential Manager / Linux Secret Service). Works immediately in any terminal or AI tool on this machine — nothing to export, nothing to configure per-shell.
+- **Environment variable** — the wizard only asks for an env var *name* (never the value); you export it yourself. This only works in shells where you've actually run that export — if you're driving `sdd` from an AI coding tool, its subprocess shell often doesn't inherit an env var you set in a different terminal tab, which shows up as "can't connect to Jira/Confluence" even though the token itself is fine.
+
+Either way, `~/.sdd/config.yml` never contains a plaintext secret. Optionally creates `.specify/integrations.yml` for this project too.
+
+**Step 2 — (environment variable option only) export your token:**
 ```bash
 # Jira Cloud (basic auth — email + API token)
 export JIRA_API_TOKEN=your-api-token
@@ -559,7 +564,7 @@ export JIRA_API_TOKEN=your-api-token
 # Jira Server / Data Center (Personal Access Token)
 export JIRA_PAT=your-personal-access-token
 ```
-Get your API token: Atlassian account → Security → API tokens → Create API token.
+Get your API token: Atlassian account → Security → API tokens → Create API token. Skip this step entirely if you chose keychain storage above — the wizard already asked for the token and stored it. To rotate a keychain-stored token later: `sdd config set-secret --profile {name}`.
 
 **Step 3 — Test the connection:**
 ```bash
@@ -594,26 +599,20 @@ Pushes are idempotent — re-running updates existing issues rather than creatin
 
 ### Jira — Progressive Push (`/jira-push`)
 
-`sdd jira push` above pushes Story+Task together, once, after `/task`. If you
-want Jira issues created earlier — Epic right after BRD approval, Stories
-after Use Cases/SRD approval — use the agent's `/jira-push` slash command
-instead. It calls a standalone script (`.specify/scripts/jira-push.py`) that
-also runs unattended from CI/CD.
+`sdd jira push` above pushes everything at once, by default. If you want Jira
+issues created earlier — Epic right after BRD approval, Stories after Use
+Cases/SRD approval — use `--level`, or the agent's `/jira-push` slash command
+(a thin wrapper around the exact same command, with bare-shorthand parsing).
+Both work unattended from CI/CD — there's no separate script anymore.
 
-| | `sdd jira push` (CLI) | `/jira-push` (slash command) |
+| | `sdd jira push` (no `--level`) | `sdd jira push --level ...` / `/jira-push` |
 |---|---|---|
-| Config | `.specify/integrations.yml` + `~/.sdd/config.yml` | `.specify/jira-config.yml` (copy from `jira-config-template.yml`) |
+| Config | `.specify/integrations.yml` + `~/.sdd/config.yml` (same for both) |
 | Timing | Once, after `/task` | Progressive: Epic → BRD, Story → Use Cases/SRD, Task → `/task`, CHG → `/change` |
-| Hierarchy | Story + Task only | Full Epic → Story → Task → CHG |
-| Field mapping | `integrations.yml → jira.custom_fields` | `jira-config.yml → field_mappings` (per-level project keys, issue types, `customfield_NNNNN` IDs) |
+| Hierarchy | Full Feature/Epic → Story → Task | Same, one level at a time (plus CHG) |
+| Field mapping | `integrations.yml → jira.custom_fields` (`fr_reference`, `moscow_priority`, `story_points`, `acceptance_criteria`, `epic_name` — see `integrations.yml.example`) |
 
-**Setup:**
-```bash
-cp .specify/templates/jira-config-template.yml .specify/jira-config.yml
-# edit jira-config.yml: project keys, issue types, custom field IDs
-export JIRA_EMAIL=you@company.com
-export JIRA_API_TOKEN=your-api-token
-```
+**Setup:** `sdd config init` (or copy `.specify/integrations.yml.example` to `.specify/integrations.yml` and fill in `jira:` — project key, issue types, custom field IDs). Credentials live in `~/.sdd/config.yml`, set up the same way.
 
 **Usage** — bare shorthand or full flag syntax, run as your pipeline advances:
 ```
@@ -623,7 +622,13 @@ export JIRA_API_TOKEN=your-api-token
 /jira-push chg CR-001    # after /change approval
 /jira-push --level all --dry-run   # preview every level before pushing for real
 ```
-Keys created/updated are tracked in `docs/jira/{feature}/keys.yml` — scoped per feature, same as `.specify/features/{feature}/`, so two features' progressive Jira exports never overwrite each other's Epic/Story staging files or locally-tracked keys.
+Or directly: `sdd jira push --level epic`, etc. Keys created/updated are
+tracked in `docs/jira/{feature}/keys.yml` — scoped per feature, same as
+`.specify/features/{feature}/`, so two features' progressive Jira exports
+never overwrite each other's locally-tracked keys. This file is a
+human-readable summary only; it is never read back by `sdd jira push` — parent
+links and idempotency are always re-derived live from Jira labels, so a level
+can always be pushed on its own, in any order, and still link up correctly.
 
 ---
 

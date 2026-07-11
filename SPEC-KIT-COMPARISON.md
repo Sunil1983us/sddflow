@@ -286,18 +286,20 @@ Auth modes: `basic` (Jira Cloud — email + API token), `pat` (Jira Server/DC �
 ### Pushing Artifacts
 
 ```bash
-sdd jira push                 # push stories + tasks → Jira issues
-sdd jira push --dry-run       # preview without creating issues
-sdd confluence push --doc brd # publish one SDD document to Confluence
-sdd confluence push --all     # publish all SDD documents
+sdd jira push                       # push Feature/Epic + stories + tasks → Jira issues
+sdd jira push --level task          # push just one SDLC level
+sdd jira push --level chg --cr CR-001   # push a change request's CHG tasks
+sdd jira push --dry-run             # preview without creating issues
+sdd confluence push --doc brd       # publish one SDD document to Confluence
+sdd confluence push --all           # publish all SDD documents
 ```
 
 For progressive pushes — Epic right after BRD approval, Stories after Use
 Cases/SRD, Tasks after `/task`, CHG tasks after `/change` — the agent's
-`/jira-push` slash command calls a standalone script
-(`.specify/scripts/jira-push.py`) instead, configured via
-`.specify/jira-config.yml` (per-level project keys, issue types, parent-link
-strategy, custom field IDs). It also runs unattended from CI/CD.
+`/jira-push` slash command is a wrapper around the same `sdd jira push
+--level {epic|story|task|chg|all}`, configured via `.specify/integrations.yml`
+(project key, issue types, parent-link strategy, custom field IDs). Since
+it's the same CLI underneath, it also runs unattended from CI/CD.
 
 ### Stakeholder Review Workflow
 
@@ -372,7 +374,7 @@ All items selectively borrowed into SDD packs — now fully implemented:
 - ✅ AI tool selection in `sdd init` (claude-code / copilot / cursor / windsurf / other); stored as `ai_tool` in `manifest.yml`; personalized Done message per tool
 - ✅ `sdd config init` / `sdd config test` / `sdd config fields` — Jira + Confluence connection wizard, connectivity test (✓/✗ per service), custom field discovery
 - ✅ `sdd jira push` — push stories + tasks → Jira issues (with `--dry-run` and `--feature` flags)
-- ✅ `/jira-push` — progressive Jira API push (Epic → Story → Task → CHG) at each SDLC gate, via standalone `.specify/scripts/jira-push.py` + `.specify/jira-config.yml`; works from CI/CD too
+- ✅ `/jira-push` — progressive Jira API push (Epic → Story → Task → CHG) at each SDLC gate, via `sdd jira push --level` + `.specify/integrations.yml`; works from CI/CD too
 - ✅ `sdd confluence push` — publish SDD documents to Confluence (`--doc`, `--all`)
 - ✅ `sdd review submit/check/apply/status` — Jira-backed stakeholder approval workflow; enforces review sequence; revision handling with re-push
 - ✅ `sdd review approve --local` — no-Jira fallback: chat approval with audit trail in `.specify/.local-approvals.yml`; auto-updates the document's Confluence page when configured

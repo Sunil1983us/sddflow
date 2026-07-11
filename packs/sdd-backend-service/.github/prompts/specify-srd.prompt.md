@@ -162,12 +162,22 @@ After approval (Step C complete), refine Story definitions with FR-NNN links and
    ```
    One entry per UC-NNN. If `stories-draft.md` does not exist, generate from use-cases.md directly.
 
-3. Check whether `.specify/jira-config.yml` exists and whether `docs/jira/{feature}/keys.yml` has story entries:
+3. Check whether `.specify/integrations.yml` exists and has a `jira:` section, and whether `docs/jira/{feature}/keys.yml` has story entries:
    - Stories already created in Jira (`keys.yml` has story entries): state "Story refinements ready. Run `/jira-push --level story` to update existing Jira stories with FR-NNN links and MoSCoW priority."
    - Stories not yet created: state "Refined story definitions saved to `docs/jira/{feature}/stories-refined.md`. Run `/jira-push --level story` to create them in Jira with full FR context."
-   - jira-config.yml not present: state "Story refinements saved to `docs/jira/{feature}/stories-refined.md`. Configure `.specify/jira-config.yml` and run `/jira-push --level story` when ready."
+   - `jira:` section not present: state "Story refinements saved to `docs/jira/{feature}/stories-refined.md`. Run `sdd config init` to configure Jira and run `/jira-push --level story` when ready."
 
 Determine the next document for this scope and project_type from the doc-set table in `specify.prompt.md`.
+
+<!-- shared:token-usage-log-step:start -->
+## Token Usage Logging (this command)
+If `.specify/memory/token-pricing.yml` exists: log this command now — see
+CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
+them. Append one row to `.specify/features/{feature}/token-usage.md`
+(create it from `token-usage-template.md` if this is the first row for
+this feature) and update its Running Totals table. If that file doesn't
+exist, skip this silently — do not create it and do not mention it.
+<!-- shared:token-usage-log-step:end -->
 
 State: "**SRD generated.** Review in Confluence/Jira (or above), then run **/specify-doc {next-doc}** to continue. Remaining for this scope: {list remaining docs}."
 

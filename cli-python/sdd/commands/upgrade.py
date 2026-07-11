@@ -508,6 +508,172 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.16"},
     },
+    {
+        "from":        "2.7.16",
+        "to":          "2.7.17",
+        "description": "sdd dashboard/CLI Approve now also fills the doc's own '## Approvals' table, not just the Status: header; no manifest schema changes",
+        "notes": [
+            "Bug fix: `sdd review approve --local` and the dashboard's "
+            "Approve button previously only flipped a doc's `Status:` "
+            "header to Approved -- the '## Approvals' table further down "
+            "the same file (Role/Status/Date rows) was left showing "
+            "'Pending' even after approval, so the header and the "
+            "visible table body disagreed",
+            "Every 'Pending' row inside the '## Approvals' section is now "
+            "flipped to 'Approved' with today's date filled in, scoped to "
+            "that section only -- a coincidental 'Pending' cell elsewhere "
+            "in the doc is never touched",
+            "Self-healing: running approve again on a doc whose header "
+            "was already 'Approved' by the old code, but whose table "
+            "still says 'Pending', now fixes the table too",
+            "Local-mode approval records one approver for the whole "
+            "document (not one per RACI row), so a multi-row table (e.g. "
+            "design.md's Architect/Tech Lead/Stakeholder rows) has every "
+            "row flipped together, matching the document-level Status: "
+            "header rather than attributing individual rows to reviewers "
+            "the CLI/dashboard were never told about",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.17"},
+    },
+    {
+        "from":        "2.7.17",
+        "to":          "2.7.18",
+        "description": "Every document-generating command prompt now reminds the agent to log token usage, closing a gap where the instruction only lived in CLAUDE.md; no manifest schema changes",
+        "notes": [
+            "Bug fix: token usage logging (opt-in via .specify/memory/"
+            "token-pricing.yml) was only documented in CLAUDE.md, read "
+            "once at session start -- no individual command prompt ever "
+            "referenced it, so the agent had to spontaneously recall a "
+            "rule from a different, earlier-read file every command. In "
+            "practice this made logging unreliable even when "
+            "token-pricing.yml existed and was correctly filled in",
+            "New shared block token-usage-log-step now appears near the "
+            "end of every document-generating command prompt "
+            "(/create-context, every /specify-*, /plan-*, /task, "
+            "/implement, /release, /change, /checklist, /validate, "
+            "/analyze, /clarify) -- a short reminder to check for "
+            "token-pricing.yml and log this command's usage right there, "
+            "at the point the agent is about to finish and report",
+            "This is a prompt-content change, not a code change -- it "
+            "makes the existing token-usage-logging behavior (still "
+            "documented in full in CLAUDE.md) more likely to actually "
+            "run, it doesn't change what gets logged or how",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.18"},
+    },
+    {
+        "from":        "2.7.18",
+        "to":          "2.7.19",
+        "description": "sdd config init/set-secret can store Jira/Confluence credentials in the OS keychain instead of an env var; no manifest schema changes",
+        "notes": [
+            "New credential_store option in ~/.sdd/config.yml, alongside "
+            "the existing auth_mode: 'keyring' (recommended) stores the "
+            "credential via the OS-native secure store (macOS Keychain / "
+            "Windows Credential Manager / Linux Secret Service, through "
+            "the new keyring dependency); 'env' is the pre-existing "
+            "behavior and remains the default for profiles written before "
+            "this version",
+            "This closes a real usability gap: an env var exported in one "
+            "terminal is invisible to an AI coding tool's own subprocess "
+            "shell (or any other new shell), which showed up as "
+            "'can't connect to Jira/Confluence' even when the token "
+            "itself was fine. A keychain-stored credential is readable by "
+            "any process on the machine, not scoped to one shell session",
+            "sdd config init now asks which storage to use (keychain "
+            "recommended by default) and, for keychain, asks for the "
+            "secret directly and stores it -- no env var name is written "
+            "to config.yml for that profile",
+            "New 'sdd config set-secret --profile {name}' command rotates "
+            "a keychain-stored credential without re-running the whole "
+            "init wizard",
+            "Existing env-var profiles are completely unaffected -- "
+            "credential_store defaults to 'env' when absent from an "
+            "already-written config.yml, and that code path's behavior "
+            "is byte-for-byte unchanged",
+            "If no keychain backend is available (headless Linux, "
+            "minimal containers), config init/set-secret fail with a "
+            "clear message suggesting the env var option instead, rather "
+            "than a raw traceback",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.19"},
+    },
+    {
+        "from":        "2.7.19",
+        "to":          "2.7.20",
+        "description": "sdd jira push now matches /jira-push's content (Feature/Epic description, Story/Task Acceptance Criteria) and sdd review submit self-bootstraps that Epic and parents review tickets under it; no manifest schema changes",
+        "notes": [
+            "sdd jira push previously created the Feature/Epic with a "
+            "blank description and dropped Task Acceptance Criteria "
+            "entirely, even though the parser already extracted it -- "
+            "both the Feature/Epic (from brd.md's Business Objectives) "
+            "and every Story/Task description now carry real content, "
+            "matching what the progressive /jira-push script already did",
+            "sdd review submit now ensures the Feature/Epic exists before "
+            "creating a document's review ticket (self-bootstrapping it "
+            "from brd.md if `sdd jira push` hasn't run yet) and parents "
+            "the review ticket under it, so review tickets and later "
+            "dev Story/Task tickets converge on one Epic per feature",
+            "Fixed a label collision: review-ticket idempotency labels "
+            "were not feature-qualified (sdd-doc:{doc}), so a second "
+            "feature's review submission for the same doc key could "
+            "silently overwrite the first feature's ticket on a "
+            "multi-feature project -- now sdd-doc:{feature}:{doc}, "
+            "matching the fix already applied to Story/Task labels. "
+            "sdd review check/status/apply and the dashboard's "
+            "approve/comment endpoints were updated to look up the same "
+            "qualified label, so any review ticket created after "
+            "upgrading is found correctly by all of them",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.20"},
+    },
+    {
+        "from":        "2.7.20",
+        "to":          "2.7.21",
+        "description": "sdd jira push now supports --level (progressive pushes) and --cr (CHG tasks); /jira-push and .specify/scripts/jira-push.py retired in favor of it; no manifest schema changes",
+        "notes": [
+            "sdd jira push gained --level {epic|story|task|chg|all} (default "
+            "all) and --cr CR-NNN, so it can push progressively at each "
+            "SDLC gate exactly like the old standalone script did -- Epic "
+            "right after BRD approval, Stories after Use Cases/SRD, Tasks "
+            "after /task, CHG tasks after /change. A level pushed on its "
+            "own finds its parent live via Jira labels (no local cache "
+            "needed for correctness), so levels can be pushed in any "
+            "order",
+            "The /jira-push slash command is now a thin wrapper around "
+            "this same CLI command (same config, same behavior) instead "
+            "of invoking a separate standalone script -- "
+            ".specify/scripts/jira-push.py and "
+            ".specify/templates/jira-config-template.yml are removed from "
+            "every pack. All Jira/Confluence configuration now lives in "
+            "one place: .specify/integrations.yml",
+            "docs/jira/{feature}/keys.yml is still written after every "
+            "push, as a local human-readable summary -- but it has never "
+            "been required reading for correctness on either the old or "
+            "new path; it can be deleted or go stale without affecting a "
+            "future push",
+            "Two new optional custom_fields keys (fr_reference, "
+            "moscow_priority) let Story/Task/CHG issues carry those as "
+            "separate Jira fields, in addition to the plain-text line "
+            "already in every issue's description -- see "
+            "integrations.yml.example",
+            "If your project still has .specify/jira-config.yml from "
+            "before this version: it's no longer read by anything. Your "
+            "existing .specify/integrations.yml jira: section (or "
+            "'sdd config init') is now the only config sdd jira push and "
+            "/jira-push use",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.21"},
+    },
 ]
 
 
