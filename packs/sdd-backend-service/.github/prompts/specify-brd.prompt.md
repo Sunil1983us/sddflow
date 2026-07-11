@@ -113,7 +113,7 @@ After approval (Step C complete), generate the Epic definition:
    > Source: brd.md | Stage: after-brd | Status: PENDING_PUSH
 
    Summary: {Feature Name from manifest.yml project.name, or manifest.yml project.feature if absent}
-   Project: {projects.epic from jira-config.yml — or TBD if jira-config.yml not present}
+   Project: {jira.project_key from .specify/integrations.yml — or TBD if not present}
    Issue Type: Epic
    Priority: High
    Labels: sdd-epic
@@ -127,9 +127,9 @@ After approval (Step C complete), generate the Epic definition:
    ## Jira Key
    (set by /jira-push --level epic)
    ```
-3. Check whether `.specify/jira-config.yml` exists.
+3. Check whether `.specify/integrations.yml` exists and has a `jira:` section.
    - If yes: state "Epic definition ready. Run `/jira-push --level epic` to create it in Jira now, or after stakeholder sign-off."
-   - If no: state "Epic definition saved to `docs/jira/{feature}/epic.md`. Configure `.specify/jira-config.yml` (copy from `.specify/templates/jira-config-template.yml`) and run `/jira-push --level epic` to create it in Jira."
+   - If no: state "Epic definition saved to `docs/jira/{feature}/epic.md`. Run `sdd config init` to configure Jira (or add a `jira:` section to `.specify/integrations.yml` — see `.specify/integrations.yml.example`) and run `/jira-push --level epic` to create it in Jira."
 
 <!-- shared:token-usage-log-step:start -->
 ## Token Usage Logging (this command)

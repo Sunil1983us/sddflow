@@ -141,7 +141,6 @@ Every SDD output is generated from a template. Templates live in `packs/_shared/
 | `adr-template.md` | `/plan-design` (ADR entries) |
 | `changeset-template.md` | `/change` |
 | `jira-export-template.md` | `/taskstoissues` |
-| `jira-config-template.yml` | `/jira-push` (copy to `.specify/jira-config.yml`) |
 | `constitution-amendment-template.md` | `/specify` (re-run) |
 
 ### 2.5 The Shared Sync System

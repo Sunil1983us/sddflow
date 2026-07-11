@@ -4,6 +4,55 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.21] — 2026-07-10 (Add: sdd jira push --level/--cr; retire the standalone jira-push.py script)
+
+### Added
+
+- **`sdd jira push --level {epic|story|task|chg|all}`** (default `all`) — the
+  CLI can now push progressively at each SDLC gate: Epic right after BRD
+  approval, Stories after Use Cases/SRD approval, Tasks after `/task`, CHG
+  tasks after `/change` — matching what the standalone script used to do.
+  A level pushed on its own finds its parent (Feature/Epic or Story) live
+  via Jira labels, so there's no strict "push epic before story before
+  task" ordering requirement — levels can be pushed in any order and still
+  link up correctly.
+- **`sdd jira push --level chg --cr CR-NNN`** — pushes a changeset's
+  `§4 CHG-NNN` implementation tasks as their own Jira issues, parented to
+  the Story that owns the matching FR reference (falling back to the
+  Feature/Epic).
+- **`docs/jira/{feature}/keys.yml`** — the CLI now writes the same
+  local, human-readable summary of pushed Jira keys the old script did.
+  Reference only: never read back by `sdd jira push` itself, since
+  parent-linking and idempotency are always re-derived live from Jira's
+  `sdd-feature:*`/`sdd:*` labels.
+- Two new optional `custom_fields` keys in `.specify/integrations.yml` —
+  `fr_reference` and `moscow_priority` — let Story/Task/CHG issues carry
+  those as separate Jira fields (in addition to the plain-text line
+  already in every issue's description).
+
+### Removed
+
+- **`.specify/scripts/jira-push.py`** and
+  **`.specify/templates/jira-config-template.yml`** — retired from every
+  pack. The `/jira-push` slash command is now a thin wrapper around
+  `sdd jira push --level ...` (same command the CLI exposes directly),
+  not a separate standalone script. All Jira/Confluence configuration now
+  lives in one place: `.specify/integrations.yml` (set up via
+  `sdd config init` or by copying `.specify/integrations.yml.example`).
+  Both `/jira-push` and `sdd jira push` still run unattended from CI/CD —
+  there was never an AI-session requirement, it just used to be a
+  separate script rather than the CLI itself.
+
+### Notes
+
+- This completes the Jira/Confluence consolidation plan started in
+  2.7.20 (content parity + self-bootstrapping Epic). Remaining, smaller
+  items: a couple of doc/prompt corners describing the old two-path setup
+  may still need a follow-up pass if anything was missed — flag it if you
+  spot one.
+
+---
+
 ## [2.7.20] — 2026-07-10 (Fix: sdd jira push content parity + self-bootstrapping Epic for review tickets)
 
 ### Fixed

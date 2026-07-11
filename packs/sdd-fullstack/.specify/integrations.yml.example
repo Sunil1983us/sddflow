@@ -75,6 +75,13 @@ jira:
     # acceptance_criteria: customfield_10021
     # team:                customfield_10100
     # sprint:              customfield_10020
+    #
+    # Optional traceability fields — store SDD references as separate Jira
+    # custom fields (in addition to the plain-text "Satisfies: ..." line
+    # already in every issue's description) so you can filter/search Jira
+    # by SDD reference. Only set on Story/Task/CHG when configured here.
+    # fr_reference:    customfield_10101   # e.g. "FR-001, FR-002"
+    # moscow_priority: customfield_10105   # e.g. "must-have"
 
 
 # ── Confluence ────────────────────────────────────────────────────────────────

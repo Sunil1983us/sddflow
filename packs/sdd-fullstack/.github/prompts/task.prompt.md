@@ -157,7 +157,7 @@ Save: tasks.md
     Generate **full hierarchy** CSV — Epic → Story → Task.
 - Include: story points, sprint, MoSCoW priority, acceptance criteria, FR-NNN, TC-NNN (mvp+)
 - Save: docs/jira/{feature}/stories.md + docs/jira/{feature}/jira-import.csv
-- If `.specify/jira-config.yml` exists:
+- If `.specify/integrations.yml` exists and has a `jira:` section:
   State: "Task export ready. Run `/jira-push --level task` to push Tasks to Jira.
   {If keys.yml has Epic+Story entries: 'Tasks will be linked to the existing Jira issues automatically.'}"
 

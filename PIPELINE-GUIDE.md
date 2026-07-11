@@ -586,11 +586,11 @@ Think of it as the flight plan for launch day.
 | | |
 |---|---|
 | **Who** | **Morgan** — Delivery Manager |
-| **Script** | `.specify/scripts/jira-push.py` (standalone — also runs from CI/CD, no AI session needed) |
-| **Config** | `.specify/jira-config.yml` (copy from `.specify/templates/jira-config-template.yml`) |
-| **Keys tracking** | `docs/jira/keys.yml` |
+| **Underlying command** | `sdd jira push` (Python CLI — also runs from CI/CD, no AI session needed) |
+| **Config** | `.specify/integrations.yml` (run `sdd config init` or copy `.specify/integrations.yml.example`) |
+| **Keys tracking** | `docs/jira/{feature}/keys.yml` — local reference only, never read back by the push itself |
 
-**Plain English:** Unlike `/taskstoissues` (which produces a CSV for manual import) or `sdd jira push` (which pushes Story+Task together, once, after `/task`), `/jira-push` calls the Jira REST API directly and progressively — Epic after BRD approval, Stories after Use Cases/SRD approval, Tasks after `/task` approval, CHG tasks after `/change` approval. Field mapping (custom field IDs, per-level project keys/issue types, parent-link strategy) lives in `jira-config.yml`. Bare shorthand works: `/jira-push epic`, `/jira-push story`, `/jira-push task`, or full flag syntax `/jira-push --level all --dry-run`.
+**Plain English:** Unlike `/taskstoissues` (which produces a CSV for manual import), `/jira-push` calls the Jira REST API directly and progressively — Epic after BRD approval, Stories after Use Cases/SRD approval, Tasks after `/task` approval, CHG tasks after `/change` approval — via `sdd jira push --level {epic|story|task|chg|all}`. `/jira-push` is the agent-driven wrapper; running `sdd jira push` directly (e.g. from a CI/CD pipeline) does exactly the same thing with no AI session involved. Field mapping (custom field IDs, project key, issue-type names, parent-link strategy) lives in `.specify/integrations.yml`. Bare shorthand works: `/jira-push epic`, `/jira-push story`, `/jira-push task`, or full flag syntax `/jira-push --level all --dry-run`.
 
 ---
 

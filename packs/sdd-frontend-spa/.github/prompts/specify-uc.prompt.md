@@ -170,9 +170,9 @@ After approval (Step C complete), generate draft Story definitions:
    ```
    Generate one entry per UC-NNN. Use the UC-NNN as a temporary STORY-DRAFT ID until stories.md assigns STORY-NNN numbers at /task.
 
-2. Check whether `.specify/jira-config.yml` exists.
+2. Check whether `.specify/integrations.yml` exists and has a `jira:` section.
    - If yes: state "Draft story definitions ready. Run `/jira-push --level story` to create them in Jira now. Story points and FR-NNN links will be added after /specify-srd — run `/jira-push --level story` again then to update the existing issues."
-   - If no: state "Draft story definitions saved to `docs/jira/{feature}/stories-draft.md`. FR-NNN links and MoSCoW priority will be added after /specify-srd. Configure `.specify/jira-config.yml` and run `/jira-push --level story` when ready."
+   - If no: state "Draft story definitions saved to `docs/jira/{feature}/stories-draft.md`. FR-NNN links and MoSCoW priority will be added after /specify-srd. Run `sdd config init` to configure Jira and run `/jira-push --level story` when ready."
 
 <!-- shared:token-usage-log-step:start -->
 ## Token Usage Logging (this command)

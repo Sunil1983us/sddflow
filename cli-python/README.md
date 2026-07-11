@@ -133,18 +133,22 @@ Output:
 
 ### `sdd jira push`
 
-Create or update Jira issues from `stories.md` and `tasks.md`.  
-Hierarchy: **Feature → Story → Task** (configurable issue type names).
+Create or update Jira issues from `brd.md`, `stories.md`, and `tasks.md`.  
+Hierarchy: **Feature/Epic → Story → Task** (configurable issue type names).
 
-> Need Epic and Stories created earlier — before tasks even exist, right after
-> BRD/Use Case/SRD approval? Use the agent's `/jira-push` slash command instead
-> (per-pack `.specify/scripts/jira-push.py`, config in `.specify/jira-config.yml`).
-> It pushes progressively at each SDLC gate (Epic → Story → Task → CHG) rather
-> than all at once. See each pack's `HOW-TO-USE.md → Jira & Confluence
-> Integration` for a side-by-side comparison.
+By default pushes everything at once. Use `--level` to push progressively at
+each SDLC gate instead — Epic right after BRD approval, Stories after Use
+Case/SRD approval, Tasks after `/task`, CHG tasks after `/change` — matching
+what the agent's `/jira-push` slash command does (it's a thin wrapper around
+this same command). Parent links for a level pushed on its own are found live
+via Jira labels, so there's no strict ordering requirement.
 
 ```bash
-sdd jira push
+sdd jira push                          # push Feature/Epic + Story + Task
+sdd jira push --level epic             # after /specify-brd approval
+sdd jira push --level story            # after /specify-uc or /specify-srd
+sdd jira push --level task             # after /task
+sdd jira push --level chg --cr CR-001  # after /change
 sdd jira push --dry-run          # print plan, no API calls
 sdd jira push --feature auth     # override feature name
 sdd jira push --profile on-prem  # use a specific auth profile
@@ -162,8 +166,15 @@ sdd jira push --profile on-prem  # use a specific auth profile
 ```
 
 **Idempotency:** Re-running never creates duplicates. Each issue is tagged
-`sdd:STORY-001` / `sdd:TASK-001` as a unique label. On re-run, push searches
-by that label — updates if found, creates if not.
+with a feature-qualified label (`sdd:{feature}:STORY-001`, `sdd-feature:{feature}`
+for the top-level Feature/Epic) — feature-qualified so two features' STORY-001
+never collide on a multi-feature project. On re-run, push searches by that
+label — updates if found, creates if not.
+
+**Keys tracking:** each push also writes a best-effort, human-readable summary
+to `docs/jira/{feature}/keys.yml` — for reference only; it is never read back
+by `sdd jira push` itself, since parent-linking and idempotency are always
+re-derived live from the Jira labels above.
 
 **MoSCoW → Jira priority mapping** (configurable in `integrations.yml`):
 

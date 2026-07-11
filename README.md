@@ -55,7 +55,7 @@ stale. See "Document Review Gates — Three Modes" in any pack's `CLAUDE.md`.
 Agent commands (Claude Code / Copilot):
 - `/pre-review` — one-time code review before PR creation; developer picks which findings to fix
 - `/address-review` — address human PR review comments; replies to threads, requests re-review
-- `/jira-push` — progressive Jira push (Epic after BRD, Stories after Use Cases/SRD, Tasks after `/task`, CHG after `/change`) via a standalone script (`.specify/scripts/jira-push.py`), config in `.specify/jira-config.yml`. Complements `sdd jira push`, which pushes Story+Task together in one shot after `/task`.
+- `/jira-push` — progressive Jira push (Epic after BRD, Stories after Use Cases/SRD, Tasks after `/task`, CHG after `/change`) — an agent-driven wrapper around `sdd jira push --level {epic|story|task|chg|all}`, same config (`.specify/integrations.yml`), same CLI underneath.
 
 → Full reference: [`cli-python/README.md`](cli-python/README.md)
 

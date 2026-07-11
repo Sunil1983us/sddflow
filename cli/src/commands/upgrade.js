@@ -581,6 +581,34 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.20',
+    to:   '2.7.21',
+    description: '`sdd jira push` (Python CLI) now supports `--level` (progressive pushes) and `--cr` (CHG tasks); `/jira-push` and the standalone jira-push.py script are retired in favor of it; no manifest schema changes',
+    notes: [
+      '`sdd jira push` gained `--level {epic|story|task|chg|all}` (default ' +
+      'all) and `--cr CR-NNN`, so it can push progressively at each SDLC ' +
+      'gate exactly like the old standalone script did — Epic right ' +
+      'after BRD approval, Stories after Use Cases/SRD, Tasks after ' +
+      '`/task`, CHG tasks after `/change`. A level pushed on its own ' +
+      'finds its parent live via Jira labels, so levels can be pushed ' +
+      'in any order',
+      'The `/jira-push` slash command is now a thin wrapper around this ' +
+      'same CLI command instead of invoking a separate standalone ' +
+      'script — `.specify/scripts/jira-push.py` and ' +
+      '`.specify/templates/jira-config-template.yml` are removed from ' +
+      'every pack. All Jira/Confluence configuration now lives in one ' +
+      'place: `.specify/integrations.yml`',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.21';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

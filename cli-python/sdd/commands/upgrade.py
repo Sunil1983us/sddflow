@@ -634,6 +634,46 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.20"},
     },
+    {
+        "from":        "2.7.20",
+        "to":          "2.7.21",
+        "description": "sdd jira push now supports --level (progressive pushes) and --cr (CHG tasks); /jira-push and .specify/scripts/jira-push.py retired in favor of it; no manifest schema changes",
+        "notes": [
+            "sdd jira push gained --level {epic|story|task|chg|all} (default "
+            "all) and --cr CR-NNN, so it can push progressively at each "
+            "SDLC gate exactly like the old standalone script did -- Epic "
+            "right after BRD approval, Stories after Use Cases/SRD, Tasks "
+            "after /task, CHG tasks after /change. A level pushed on its "
+            "own finds its parent live via Jira labels (no local cache "
+            "needed for correctness), so levels can be pushed in any "
+            "order",
+            "The /jira-push slash command is now a thin wrapper around "
+            "this same CLI command (same config, same behavior) instead "
+            "of invoking a separate standalone script -- "
+            ".specify/scripts/jira-push.py and "
+            ".specify/templates/jira-config-template.yml are removed from "
+            "every pack. All Jira/Confluence configuration now lives in "
+            "one place: .specify/integrations.yml",
+            "docs/jira/{feature}/keys.yml is still written after every "
+            "push, as a local human-readable summary -- but it has never "
+            "been required reading for correctness on either the old or "
+            "new path; it can be deleted or go stale without affecting a "
+            "future push",
+            "Two new optional custom_fields keys (fr_reference, "
+            "moscow_priority) let Story/Task/CHG issues carry those as "
+            "separate Jira fields, in addition to the plain-text line "
+            "already in every issue's description -- see "
+            "integrations.yml.example",
+            "If your project still has .specify/jira-config.yml from "
+            "before this version: it's no longer read by anything. Your "
+            "existing .specify/integrations.yml jira: section (or "
+            "'sdd config init') is now the only config sdd jira push and "
+            "/jira-push use",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.21"},
+    },
 ]
 
 

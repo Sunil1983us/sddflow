@@ -162,10 +162,10 @@ After approval (Step C complete), refine Story definitions with FR-NNN links and
    ```
    One entry per UC-NNN. If `stories-draft.md` does not exist, generate from use-cases.md directly.
 
-3. Check whether `.specify/jira-config.yml` exists and whether `docs/jira/{feature}/keys.yml` has story entries:
+3. Check whether `.specify/integrations.yml` exists and has a `jira:` section, and whether `docs/jira/{feature}/keys.yml` has story entries:
    - Stories already created in Jira (`keys.yml` has story entries): state "Story refinements ready. Run `/jira-push --level story` to update existing Jira stories with FR-NNN links and MoSCoW priority."
    - Stories not yet created: state "Refined story definitions saved to `docs/jira/{feature}/stories-refined.md`. Run `/jira-push --level story` to create them in Jira with full FR context."
-   - jira-config.yml not present: state "Story refinements saved to `docs/jira/{feature}/stories-refined.md`. Configure `.specify/jira-config.yml` and run `/jira-push --level story` when ready."
+   - `jira:` section not present: state "Story refinements saved to `docs/jira/{feature}/stories-refined.md`. Run `sdd config init` to configure Jira and run `/jira-push --level story` when ready."
 
 Determine the next document for this scope and project_type from the doc-set table in `specify.prompt.md`.
 

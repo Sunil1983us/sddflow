@@ -158,6 +158,13 @@ class TestPushContentParity:
     Acceptance Criteria (the bug fixed in this pass) and the Feature/Epic
     gets real content, using the fake client instead of real HTTP."""
 
+    @pytest.fixture(autouse=True)
+    def _isolate_cwd(self, tmp_path, monkeypatch):
+        # _push() writes a best-effort docs/jira/{feature}/keys.yml summary
+        # relative to cwd -- chdir into tmp_path so that write can never
+        # land in the real repo tree during a test run.
+        monkeypatch.chdir(tmp_path)
+
     def _cfg(self):
         return JiraConfig(project_key="MYPROJ")
 
