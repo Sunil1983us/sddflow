@@ -379,7 +379,20 @@ sdd dashboard --host 0.0.0.0   # let teammates on the same network reach it (see
 ```
 
 Shows, per feature under `.specify/features/`:
-- **Pipeline** — every generated doc and its `Status:` (Draft/Approved/etc.), with a best-effort "what's next" guess. Each doc has a **View** button that reads the raw `.md` straight from disk into the page — no need to leave the browser to check content.
+- **Full Pipeline** — the *complete* command sequence for this project's
+  scope and plan mode (`/specify` → `GATE-1` → `/specify-brd` → ... →
+  `/release`), not just the docs generated so far. Every step is shown,
+  including ones this scope/plan mode skips (struck through, hover for
+  why — e.g. "skipped — pilot scope"), so you can see the whole shape of
+  the workflow up front. Each step is marked **✓ done**, **● current**
+  (either awaiting review or in progress), or **○ upcoming**, and a
+  highlighted **Next** box below the stepper spells out exactly what to
+  run next in plain language (e.g. "Run `/specify-uc` to generate the Use
+  Case Specification" or `"BRD" is generated and waiting on review — check
+  with sdd review check --doc brd`). This is derived purely from
+  `manifest.yml` (`scope`, `plan_mode`) and each doc's `Status:` header —
+  no extra configuration needed.
+- **Documents** — every generated doc and its `Status:` (Draft/Approved/etc.), with a best-effort "what's next" guess. Each doc has a **View** button that reads the raw `.md` straight from disk into the page — no need to leave the browser to check content.
 - **Tasks** — parsed from `tasks.md` (works with both the full packs' checkbox-based tasks and sdd-micro's `**Status:**` field)
 - **Token Usage** — the running totals from `token-usage.md`, if token usage logging is enabled for that feature
 - **Jira Export** — the Epic/Story/Task links from the progressive export (`docs/jira/{feature}/keys.yml`), if you've run `/jira-push` or `sdd jira push`
@@ -403,7 +416,7 @@ out of scope for this command).
   and only fires when you click the button, never on the automatic poll.
 
 **Approve a document, or leave a review comment** — right from the
-Pipeline card, no need to open a CLI or Jira/Confluence yourself:
+Documents card, no need to open a CLI or Jira/Confluence yourself:
 - **Approve** flips that doc's `Status:` header to `Approved` and records
   who/when/why in `.specify/.local-approvals.yml` — the exact same file
   and format `sdd review approve --local` already uses, so the CLI and

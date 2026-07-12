@@ -5,7 +5,7 @@
 from pathlib import Path
 
 from sdd.commands.dashboard import (
-    _SAFE_TOKEN, _clip_text, _do_approve, _do_comment, _load_comments,
+    _PAGE, _SAFE_TOKEN, _clip_text, _do_approve, _do_comment, _load_comments,
 )
 
 
@@ -111,3 +111,43 @@ def test_comment_does_not_leak_across_features(tmp_path, monkeypatch):
     comments = _load_comments()
     assert comments["payments/brd"][0]["text"] == "payments comment"
     assert comments["dashboard/brd"][0]["text"] == "dashboard comment"
+
+
+# Regression guards for the "typed comment text disappears" bug: the 5s
+# auto-poll rebuilds #root wholesale, which used to wipe whatever the user
+# was mid-typing into the comment form. Live-browser-verified via Playwright
+# during development; these are lightweight source guards so a future edit
+# can't silently drop the fix without a test noticing.
+def test_page_persists_comment_drafts_across_rerenders():
+    assert "commentDrafts" in _PAGE
+    # inputs must be re-hydrated from the draft on every render, not left
+    # empty, and tagged with data-feature/data-doc so drafts + focus-restore
+    # can find the right field after #root is rebuilt
+    assert 'class="comment-by"' in _PAGE and "draft.by" in _PAGE
+    assert 'class="comment-text"' in _PAGE and "draft.text" in _PAGE
+    assert "data-feature=\"${feature}\"" in _PAGE
+
+
+def test_page_restores_focus_after_periodic_rerender():
+    assert "activeElement" in _PAGE
+    assert "setSelectionRange" in _PAGE
+
+
+def test_page_clears_draft_after_successful_comment_submit():
+    assert "delete state.commentDrafts" in _PAGE
+
+
+# Regression guards for the "Full Pipeline" section (shows the complete
+# command sequence for this scope/plan mode, current step, and a plain-
+# language next-action sentence) — source-level checks, same rationale as
+# the comment-draft guards above.
+def test_page_renders_full_pipeline_section():
+    assert "renderPipelineFlow" in _PAGE
+    assert "Full Pipeline" in _PAGE
+    assert "pipeline-flow" in _PAGE
+    assert "next-action-box" in _PAGE
+
+
+def test_page_pipeline_shows_scope_and_plan_mode():
+    assert "project.scope" in _PAGE
+    assert "project.plan_mode" in _PAGE

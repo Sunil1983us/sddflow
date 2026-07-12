@@ -833,6 +833,135 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.26"},
     },
+    {
+        "from":        "2.7.26",
+        "to":          "2.7.27",
+        "description": "Fix: token usage logging still didn't fire even after the 2.7.26 placement fix, because agents were relying on a stale in-conversation memory of token-pricing.yml being absent instead of re-checking; token-usage-log-step now says to re-read the file fresh every time; no manifest schema changes",
+        "notes": [
+            "2.7.26 moved the token-usage-log-step block to right after "
+            "the document is saved, fixing the structural/placement bug "
+            "-- but real testing showed the symptom persisted: the user "
+            "confirmed via `ls -la` that token-pricing.yml demonstrably "
+            "existed at the correct path, yet the agent still reported "
+            "'No token-pricing.yml, so skipping usage logging' on a "
+            "later command in the same conversation",
+            "Root cause was neither the opt-in gate nor placement -- it "
+            "was the model treating an earlier, in-conversation check "
+            "(made before the user created the file) as still valid, "
+            "rather than performing a fresh file read on each command",
+            "token-usage-log-step.md now explicitly instructs: check "
+            "now, with a fresh file read -- not a memory of whether the "
+            "file existed earlier in this conversation -- since the user "
+            "may have created it mid-session after an earlier command "
+            "already found it missing",
+            "Hit the same content-precedence sync gotcha documented in "
+            "the 2.7.24 notes a second time: editing only "
+            "packs/_shared/blocks/token-usage-log-step.md was not "
+            "enough, because 13 files under packs/_shared/full/.github/"
+            "prompts/ have this block's content embedded directly (full-"
+            "file sync always wins over the blocks loop within a single "
+            "sync-blocks.sh run) -- had to re-embed the new wording into "
+            "all 13 canonical files, not just the block source, for the "
+            "fix to actually propagate to any pack",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.27"},
+    },
+    {
+        "from":        "2.7.27",
+        "to":          "2.7.28",
+        "description": "Fix: sdd dashboard's comment box lost typed text on the 5s auto-poll, and the per-feature grid cramped the Pipeline card's links column; no manifest schema changes",
+        "notes": [
+            "User-reported via live testing: typing a reviewer name/comment "
+            "into the dashboard's inline comment form and pausing for even "
+            "a few seconds would wipe the field -- the text 'disappeared'",
+            "Root cause: dashboard.py's render() unconditionally replaces "
+            "#root's entire innerHTML on every refresh() call, and "
+            "setInterval(refresh, 5000) fires that every 5s regardless of "
+            "whether the user is mid-keystroke in the comment-by/comment-"
+            "text fields -- the freshly-built DOM nodes came back empty "
+            "and unfocused",
+            "Fixed with two complementary mechanisms: (1) a delegated "
+            "'input' listener now mirrors every keystroke into "
+            "state.commentDrafts, keyed by feature+doc, and renderComments"
+            "Panel() re-hydrates the input/textarea value from that draft "
+            "on every render -- this is what actually stops the text from "
+            "being lost; (2) render() also captures the focused element "
+            "and its selection range before the innerHTML swap and "
+            "restores both afterward, so typing feels uninterrupted rather "
+            "than just 'recovers after the fact'",
+            "Draft is cleared from state once a comment successfully posts",
+            "Verified live with a Playwright-driven headless Chromium "
+            "session against a real `sdd dashboard` instance: typed text "
+            "survived two full 5s poll cycles, focus/caret were restored, "
+            "and Post Comment still worked end-to-end and cleared the "
+            "draft afterward",
+            "Also addressed a layout complaint from the same report -- the "
+            "per-feature grid used a flat auto-fit minmax(220px) for all "
+            "four cards (Pipeline, Tasks, Token Usage, Jira Export), so "
+            "the Pipeline card's Links column (View/Approve/comment-count/"
+            "Jira+Confluence pills) got squeezed and visually cut off at "
+            "narrow widths. The new .feature-grid class widens the "
+            "breakpoint to minmax(320px) and makes the Pipeline card span "
+            "the full row via grid-column: 1 / -1; .links-cell now wraps "
+            "with flex-wrap instead of forcing nowrap. Verified with "
+            "screenshots at 1200px and 900px viewport widths",
+            "3 new regression tests in test_dashboard.py guard the fix at "
+            "the source level (commentDrafts wiring, focus-restore, draft-"
+            "clear-on-submit) so a future edit can't silently drop it "
+            "without a test noticing, without adding a browser-automation "
+            "dependency to CI",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.28"},
+    },
+    {
+        "from":        "2.7.28",
+        "to":          "2.7.29",
+        "description": "Feature: sdd dashboard gains a Full Pipeline section per feature -- the complete command sequence for this scope/plan mode, current step, and a plain-language next-action sentence; no manifest schema changes",
+        "notes": [
+            "User-requested: the dashboard's old Pipeline card only listed "
+            "docs that already exist on disk, giving no sense of how much "
+            "of the whole workflow remains or what command to run next -- "
+            "review gates weren't represented either (an existing-but-"
+            "unapproved doc looked the same as a fully approved one)",
+            "New status.py functions -- _standard_pipeline_steps() (the "
+            "~20-step flow shared by backend/frontend-spa/mobile/fullstack/"
+            "universal, per each pack's own CLAUDE.md header), "
+            "_micro_pipeline_steps() (sdd-micro's 3-command flow, selected "
+            "when manifest.yml has no project.scope field), and "
+            "build_pipeline() -- resolve the full step list against what's "
+            "actually on disk (doc Status: headers, tasks.md progress, "
+            "constitution/GATE-1 state) into done/current/upcoming/skipped "
+            "per step, plus a single next_action sentence",
+            "Every step this scope/plan_mode would ever skip is still "
+            "shown, struck through, with a hover tooltip explaining why "
+            "(e.g. 'skipped -- pilot scope', 'skipped -- unified plan "
+            "mode') -- mirrors CLAUDE.md's Scope Reference table exactly, "
+            "so the dashboard doesn't just omit steps and leave the user "
+            "guessing why LLD or ADR never showed up",
+            "'current' doubles as the review-gate signal: a doc that "
+            "exists but whose Status: header isn't yet Approved shows as "
+            "current (awaiting review), not done -- so approving a doc is "
+            "what visibly advances the stepper, not just generating it",
+            "dashboard.py: new .pipeline-flow stepper UI (renderPipelineFlow, "
+            "renderPipelineStep) plus a highlighted next-action box; the "
+            "old doc-list card is renamed Pipeline -> Documents to avoid "
+            "clashing with the new Full Pipeline card, which takes the "
+            "full-width card-wide slot instead",
+            "12 new status.py tests (build_pipeline across scope x "
+            "plan_mode combinations, gate1/review-gate/task-progress "
+            "transitions, sdd-micro's 3-step flow) plus 2 new dashboard.py "
+            "source guards; verified live with a Playwright-driven "
+            "headless Chromium session and screenshots across two "
+            "features at different pipeline positions",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.29"},
+    },
 ]
 
 

@@ -4,6 +4,92 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.29] — 2026-07-12 (Feature: dashboard Full Pipeline section)
+
+### Added
+
+- **`sdd dashboard` — Full Pipeline section.** Each feature now shows the
+  *complete* command sequence for the project's scope and plan mode —
+  `/specify` → `GATE-1` → `/specify-brd` → ... → `/release` (or sdd-micro's
+  3-command flow) — not just the docs generated so far. Every step is
+  shown, including ones this scope/plan mode skips (struck through, hover
+  for why — e.g. "skipped — pilot scope", "skipped — unified plan mode"),
+  mirroring CLAUDE.md's Scope Reference table exactly.
+- Each step is marked **✓ done**, **● current** (you are here — either
+  awaiting review or in progress), or **○ upcoming**. A doc that exists but
+  isn't yet `Approved` shows as current, not done, so the review gate is
+  visible directly in the stepper.
+- A highlighted **Next** box spells out exactly what to do in plain
+  language — e.g. "Run `/specify-uc` to generate the Use Case
+  Specification" or `"BRD" is generated and waiting on review — check with
+  sdd review check --doc brd`.
+- Derived purely from `manifest.yml` (`scope`, `plan_mode`) and each doc's
+  `Status:` header — no extra configuration needed.
+- The old doc-list card is renamed **Pipeline → Documents** to avoid
+  clashing with the new full-width **Full Pipeline** card.
+- 12 new `status.py` tests plus 2 new `dashboard.py` source guards;
+  verified live with a Playwright-driven headless Chromium session across
+  two features at different pipeline positions.
+
+---
+
+## [2.7.28] — 2026-07-12 (Fix: dashboard comment box lost typed text; layout cramped)
+
+### Fixed
+
+- **`sdd dashboard` comment box** — typing a reviewer name or comment into
+  the dashboard's inline comment form and pausing for even a few seconds
+  would wipe the field. Root cause: the dashboard's `render()` replaces the
+  entire `#root` panel on every 5-second auto-poll, regardless of whether
+  the user is mid-keystroke, and the freshly-built input/textarea came back
+  empty and unfocused.
+- Fixed with two mechanisms: a delegated `input` listener now mirrors every
+  keystroke into client-side state (keyed by feature+doc) and re-hydrates
+  the fields from it on every render — this is what stops the text from
+  being lost — plus a focus/selection-range restore around the periodic
+  rebuild so typing feels uninterrupted. The draft clears once a comment
+  successfully posts.
+- Verified live with a Playwright-driven headless Chromium session against
+  a real `sdd dashboard` instance: typed text survived two full poll
+  cycles, focus/caret were restored, and Post Comment still worked
+  end-to-end.
+- **Layout** — the per-feature grid used one flat breakpoint for all four
+  cards (Pipeline, Tasks, Token Usage, Jira Export), so the Pipeline card's
+  Links column (View / Approve / comment count / Jira+Confluence pills)
+  got visually cramped and cut off at narrower widths. The Pipeline card
+  now spans the full row and the links column wraps instead of forcing
+  `nowrap`. Verified with screenshots at 1200px and 900px.
+- 3 new regression tests in `test_dashboard.py` guard the fix at the
+  source level so a future edit can't silently drop it.
+
+---
+
+## [2.7.27] — 2026-07-12 (Fix: token usage logging still didn't fire — stale in-conversation context)
+
+### Fixed
+
+- **Token usage logging** — 2.7.26 fixed the structural placement bug
+  (the log step used to sit unreachable behind multi-turn approval STOP
+  points), but real testing showed the symptom persisted: the user
+  confirmed via `ls -la` that `.specify/memory/token-pricing.yml`
+  demonstrably existed, yet the agent still reported "No token-pricing.yml,
+  so skipping usage logging" on a later command in the same conversation.
+- Root cause was neither the opt-in gate (ruled out earlier) nor placement
+  (fixed in 2.7.26) — it was the model relying on an earlier,
+  in-conversation check performed *before* the user created the file,
+  instead of re-checking fresh each time.
+- `token-usage-log-step.md` now explicitly instructs agents to check with
+  a fresh file read, not a memory of whether the file existed earlier in
+  the conversation — an earlier "not found" does not carry forward.
+- This surfaced the same `sync-blocks.sh` content-precedence gotcha noted
+  in the 2.7.24 entry a second time: 13 files under
+  `packs/_shared/full/.github/prompts/` have this block's content
+  embedded directly (full-file sync wins over the blocks loop within a
+  single run), so editing only `packs/_shared/blocks/token-usage-log-step.md`
+  did not propagate to any pack until those 13 files were updated too.
+
+---
+
 ## [2.7.26] — 2026-07-10 (Fix: token usage logging was structurally unreachable in 9 commands)
 
 ### Fixed

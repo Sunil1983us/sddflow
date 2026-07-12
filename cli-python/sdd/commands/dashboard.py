@@ -60,7 +60,9 @@ _PAGE = """<!doctype html>
   h1 { font-size: 1.3rem; margin: 0 0 .25rem; }
   h2 { font-size: 1rem; margin: 0 0 .75rem; color: var(--muted); font-weight: 600; }
   .sub { color: var(--muted); font-size: .85rem; margin-bottom: 1.5rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .feature-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .feature-grid .card-wide { grid-column: 1 / -1; }
   .card {
     background: var(--card); border: 1px solid var(--border); border-radius: 10px;
     padding: 1rem 1.2rem;
@@ -98,7 +100,7 @@ _PAGE = """<!doctype html>
   .pill-cf   { color: var(--ok); border-color: var(--ok); }
   .pill-bad  { color: var(--bad); border-color: var(--bad); }
   .pill-ok   { color: var(--ok); border-color: var(--ok); }
-  .links-cell { white-space: nowrap; }
+  .links-cell { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
   .doc-detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
   .doc-detail {
     margin: 0; padding: .75rem 1rem; background: var(--bg); max-height: 360px; overflow: auto;
@@ -114,6 +116,29 @@ _PAGE = """<!doctype html>
     padding: .4rem .6rem; color: var(--fg); font: inherit; font-size: .85rem; resize: vertical;
   }
   .link-btn:disabled { opacity: .5; cursor: default; }
+  .pipeline-caption { color: var(--muted); font-size: .8rem; margin: -.4rem 0 .75rem; }
+  .pipeline-flow { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .1rem; margin-bottom: .9rem; }
+  .pstep {
+    display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .6rem;
+    border-radius: 999px; font-size: .78rem; border: 1px solid var(--border); white-space: nowrap;
+  }
+  .pstep-done    { color: var(--ok);   border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+  .pstep-current { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); font-weight: 600; }
+  .pstep-upcoming { color: var(--muted); }
+  .pstep-skipped { color: var(--dim); text-decoration: line-through; border-style: dashed; }
+  .pstep-optional { font-size: .68rem; color: var(--dim); font-weight: 400; }
+  .pipeline-arrow { color: var(--dim); font-size: .8rem; }
+  .pipeline-legend { color: var(--dim); font-size: .74rem; margin-bottom: .75rem; }
+  .next-action-box {
+    display: flex; gap: .5rem; align-items: baseline; padding: .6rem .8rem;
+    border-radius: 8px; background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px solid var(--accent); font-size: .88rem;
+  }
+  .next-action-box strong { color: var(--accent); white-space: nowrap; }
+  .next-action-box code, .pstep code {
+    background: var(--card); border-radius: 4px; padding: .05rem .35rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em;
+  }
 </style>
 </head>
 <body>
@@ -130,7 +155,7 @@ _PAGE = """<!doctype html>
 // Client-side only — never re-fetched from /api/status, so it survives
 // the 5s poll: which doc panels are expanded, their fetched content, and
 // any live Jira/Confluence review-link results the user asked for.
-const state = { expandedDocs: new Set(), expandedComments: new Set(), docContents: {}, reviewLinks: {} };
+const state = { expandedDocs: new Set(), expandedComments: new Set(), docContents: {}, reviewLinks: {}, commentDrafts: {} };
 let lastData = null;
 
 function escapeHtml(s) {
@@ -206,6 +231,8 @@ function linkPill(kind, link) {
 
 function renderCommentsPanel(d, feature) {
   const comments = d.comments || [];
+  const key = feature + '|' + d.key;
+  const draft = state.commentDrafts[key] || { by: '', text: '' };
   const list = comments.length
     ? comments.map(c => `
         <div class="comment">
@@ -218,8 +245,10 @@ function renderCommentsPanel(d, feature) {
       <div class="comments-box">
         ${list}
         <div class="comment-form">
-          <input type="text" class="comment-by" placeholder="Your name" maxlength="200">
-          <textarea class="comment-text" placeholder="Add a review comment…" rows="2" maxlength="2000"></textarea>
+          <input type="text" class="comment-by" data-feature="${feature}" data-doc="${d.key}"
+                 placeholder="Your name" maxlength="200" value="${escapeHtml(draft.by)}">
+          <textarea class="comment-text" data-feature="${feature}" data-doc="${d.key}"
+                    placeholder="Add a review comment…" rows="2" maxlength="2000">${escapeHtml(draft.text)}</textarea>
           <button class="link-btn" data-action="submit-comment" data-feature="${feature}" data-doc="${d.key}">Post comment</button>
         </div>
       </div>
@@ -305,14 +334,52 @@ function renderTokenUsage(tu) {
   `;
 }
 
-function renderFeature(f) {
+// Converts `code` spans in an already-plain-text sentence (built server-side
+// in status.py's _next_action_sentence) into <code> — escapeHtml runs first
+// so this is safe against anything the sentence happens to contain.
+function mdInlineCode(text) {
+  return escapeHtml(text).replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+const _PSTEP_CLASS = { done: 'pstep-done', current: 'pstep-current', upcoming: 'pstep-upcoming', skipped: 'pstep-skipped' };
+const _PSTEP_ICON  = { done: '✓', current: '●', upcoming: '○', skipped: '—' };
+
+function renderPipelineStep(s) {
+  const cls = _PSTEP_CLASS[s.state] || 'pstep-upcoming';
+  const icon = _PSTEP_ICON[s.state] || '○';
+  const title = s.state === 'skipped'
+    ? `Skipped — ${s.skip}`
+    : (s.command ? `Command: ${s.command}` : 'Manual step — no command');
+  const optTag = s.optional ? ' <span class="pstep-optional">(optional)</span>' : '';
+  return `<span class="pstep ${cls}" title="${escapeHtml(title)}">${icon} ${escapeHtml(s.label)}${optTag}</span>`;
+}
+
+function renderPipelineFlow(f, project) {
+  const pipeline = f.pipeline;
+  if (!pipeline || !pipeline.steps || !pipeline.steps.length) {
+    return '<div class="empty">Pipeline data unavailable.</div>';
+  }
+  const meta = project
+    ? `Scope: <strong>${escapeHtml(project.scope || '—')}</strong> · Plan mode: <strong>${escapeHtml(project.plan_mode || '—')}</strong>`
+    : '';
+  const flow = pipeline.steps.map(renderPipelineStep).join('<span class="pipeline-arrow">→</span>');
+  return `
+    ${meta ? `<div class="pipeline-caption">${meta}</div>` : ''}
+    <div class="pipeline-flow">${flow}</div>
+    <div class="pipeline-legend">✓ done · ● current — you are here · ○ upcoming · ┄ skipped for this scope/plan mode (hover a step for why)</div>
+    <div class="next-action-box"><strong>Next:</strong> <span>${mdInlineCode(pipeline.next_action)}</span></div>
+  `;
+}
+
+function renderFeature(f, project) {
   const local = f.local_links || { jira: null, confluence: {} };
   return `
   <div class="feature-block">
     <div class="feature-title">${f.name}</div>
     ${renderReviewLinksControl(f.name)}
-    <div class="grid">
-      <div class="card"><h2>Pipeline</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence)}</div>
+    <div class="grid feature-grid">
+      <div class="card card-wide"><h2>Full Pipeline</h2>${renderPipelineFlow(f, project)}</div>
+      <div class="card card-wide"><h2>Documents</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence)}</div>
       <div class="card"><h2>Tasks</h2>${renderTasks(f.tasks)}</div>
       <div class="card"><h2>Token Usage</h2>${renderTokenUsage(f.token_usage)}</div>
       <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira)}</div>
@@ -325,9 +392,40 @@ function render() {
   const data = lastData;
   document.getElementById('generated-at').textContent = 'Generated ' + data.generated_at;
   const features = data.features.length
-    ? data.features.map(renderFeature).join('')
+    ? data.features.map(f => renderFeature(f, data.project)).join('')
     : '<div class="empty">No features under .specify/features/ yet.</div>';
-  document.getElementById('root').innerHTML = renderProject(data.project, data.constitution) + features;
+
+  // Rebuilding #root wholesale (below) would otherwise steal focus and reset
+  // the caret out from under anyone actively typing in a comment field —
+  // most visibly on the 5s auto-poll. Capture focus/selection first and
+  // restore it on the freshly-built element with the same feature/doc data
+  // attributes after the swap. The typed value itself is preserved
+  // separately via state.commentDrafts (see the 'input' listener below),
+  // since draft text must survive even *without* focus being restored.
+  const root = document.getElementById('root');
+  const active = document.activeElement;
+  let focus = null;
+  if (active && root.contains(active) &&
+      (active.classList.contains('comment-by') || active.classList.contains('comment-text'))) {
+    focus = {
+      cls: active.classList.contains('comment-by') ? 'comment-by' : 'comment-text',
+      feature: active.dataset.feature,
+      doc: active.dataset.doc,
+      start: active.selectionStart,
+      end: active.selectionEnd,
+    };
+  }
+
+  root.innerHTML = renderProject(data.project, data.constitution) + features;
+
+  if (focus) {
+    const selector = `.${focus.cls}[data-feature="${CSS.escape(focus.feature)}"][data-doc="${CSS.escape(focus.doc)}"]`;
+    const el = root.querySelector(selector);
+    if (el) {
+      el.focus();
+      try { el.setSelectionRange(focus.start, focus.end); } catch (err) { /* not all inputs support this */ }
+    }
+  }
 }
 
 async function refresh() {
@@ -335,6 +433,23 @@ async function refresh() {
   lastData = await res.json();
   render();
 }
+
+// Delegated 'input' listener: fires on every keystroke in a comment field
+// and stashes the value in state.commentDrafts, keyed by feature+doc — so
+// when the 5s poll rebuilds #root (see render()'s innerHTML swap above),
+// the new input/textarea nodes are re-hydrated from state instead of
+// coming back empty. This is what actually stops typed text from being
+// lost; the focus/caret restore in render() just makes it feel seamless.
+document.getElementById('root').addEventListener('input', (e) => {
+  const el = e.target;
+  const isBy = el.classList.contains('comment-by');
+  const isText = el.classList.contains('comment-text');
+  if (!isBy && !isText) return;
+  const key = el.dataset.feature + '|' + el.dataset.doc;
+  const draft = state.commentDrafts[key] || { by: '', text: '' };
+  if (isBy) draft.by = el.value; else draft.text = el.value;
+  state.commentDrafts[key] = draft;
+});
 
 // Event delegation on #root: click handlers survive innerHTML replacement
 // on every refresh(), since the listener lives on the stable parent node.
@@ -416,7 +531,11 @@ document.getElementById('root').addEventListener('click', async (e) => {
         body: JSON.stringify({ feature, doc, by, text }),
       });
       const result = await res.json();
-      if (result.error) window.alert('Comment failed: ' + result.error);
+      if (result.error) {
+        window.alert('Comment failed: ' + result.error);
+      } else {
+        delete state.commentDrafts[feature + '|' + doc];
+      }
       state.expandedComments.add(feature + '|' + doc);
       await refresh();
     } catch (err) {

@@ -759,6 +759,98 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.26',
+    to:   '2.7.27',
+    description: 'Fix: token usage logging still didn\'t fire even after the 2.7.26 placement fix, because agents relied on stale in-conversation memory of token-pricing.yml being absent instead of re-checking; no manifest schema changes',
+    notes: [
+      '2.7.26 fixed the structural/placement bug, but real testing ' +
+      'showed the symptom persisted: the user confirmed via `ls -la` ' +
+      'that token-pricing.yml demonstrably existed, yet the agent still ' +
+      'reported "No token-pricing.yml, so skipping usage logging" on a ' +
+      'later command in the same conversation',
+      'Root cause was neither the opt-in gate nor placement — it was ' +
+      'the model treating an earlier, in-conversation check (made ' +
+      'before the user created the file) as still valid, rather than ' +
+      'performing a fresh file read on each command',
+      'token-usage-log-step.md now explicitly instructs: check now, ' +
+      'with a fresh file read — not a memory of whether the file ' +
+      'existed earlier in this conversation',
+      'Hit the same content-precedence sync gotcha documented in the ' +
+      '2.7.24 notes a second time: 13 files under packs/_shared/full/' +
+      '.github/prompts/ have this block\'s content embedded directly, ' +
+      'so editing only the block source file was not enough to ' +
+      'propagate the fix to any pack',
+      'This is a prompt-content change, not a code change — the Node ' +
+      'CLI stays scoped to init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.27';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.27',
+    to:   '2.7.28',
+    description: 'Fix: sdd dashboard (Python CLI) comment box lost typed text on the 5s auto-poll, and the per-feature grid cramped the Pipeline card\'s links column; no manifest schema changes',
+    notes: [
+      'User-reported via live testing: typing into the dashboard\'s ' +
+      'inline comment form and pausing for a few seconds would wipe the ' +
+      'field — the 5s auto-poll rebuilt the whole panel and the new DOM ' +
+      'nodes came back empty and unfocused',
+      'Fixed with a delegated input listener that mirrors keystrokes ' +
+      'into client-side state (re-hydrated on every render) plus a ' +
+      'focus/selection-range restore around the periodic DOM rebuild',
+      'Also widened the per-feature grid breakpoint and let the Pipeline ' +
+      'card span the full row so its links column (View/Approve/' +
+      'comment-count/Jira+Confluence pills) no longer gets visually cut ' +
+      'off at narrower widths',
+      'Verified live with a Playwright-driven headless Chromium session ' +
+      'against a real `sdd dashboard` instance, plus 3 new regression ' +
+      'tests in test_dashboard.py',
+      'This is a prompt/dashboard-content change, not a code change in ' +
+      'this Node CLI — it stays scoped to init/upgrade scaffolding, per ' +
+      'its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.28';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.28',
+    to:   '2.7.29',
+    description: 'Feature: sdd dashboard (Python CLI) gains a Full Pipeline section per feature -- complete command sequence, current step, and a plain-language next-action sentence; no manifest schema changes',
+    notes: [
+      'User-requested: the old Pipeline card only listed docs already on ' +
+      'disk, with no sense of how much workflow remained, what to run ' +
+      'next, or which steps were awaiting review vs. approved',
+      'New status.py pipeline builder resolves the full ~20-step command ' +
+      'sequence for this project\'s scope/plan_mode (or sdd-micro\'s ' +
+      '3-command flow) against what\'s on disk into done/current/' +
+      'upcoming/skipped per step, plus one next-action sentence',
+      'Skipped steps stay visible (struck through, hover for why) instead ' +
+      'of being silently omitted, mirroring CLAUDE.md\'s Scope Reference ' +
+      'table; a doc awaiting review (exists but not yet Approved) shows ' +
+      'as "current", not "done", so the review gate is visible in the ' +
+      'stepper',
+      'The old doc-list card is renamed Pipeline -> Documents to avoid ' +
+      'clashing with the new full-width Full Pipeline card',
+      'This is a prompt/dashboard-content change, not a code change in ' +
+      'this Node CLI — it stays scoped to init/upgrade scaffolding, per ' +
+      'its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.29';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
