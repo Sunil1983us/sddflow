@@ -833,6 +833,41 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.26"},
     },
+    {
+        "from":        "2.7.26",
+        "to":          "2.7.27",
+        "description": "Fix: token usage logging still didn't fire even after the 2.7.26 placement fix, because agents were relying on a stale in-conversation memory of token-pricing.yml being absent instead of re-checking; token-usage-log-step now says to re-read the file fresh every time; no manifest schema changes",
+        "notes": [
+            "2.7.26 moved the token-usage-log-step block to right after "
+            "the document is saved, fixing the structural/placement bug "
+            "-- but real testing showed the symptom persisted: the user "
+            "confirmed via `ls -la` that token-pricing.yml demonstrably "
+            "existed at the correct path, yet the agent still reported "
+            "'No token-pricing.yml, so skipping usage logging' on a "
+            "later command in the same conversation",
+            "Root cause was neither the opt-in gate nor placement -- it "
+            "was the model treating an earlier, in-conversation check "
+            "(made before the user created the file) as still valid, "
+            "rather than performing a fresh file read on each command",
+            "token-usage-log-step.md now explicitly instructs: check "
+            "now, with a fresh file read -- not a memory of whether the "
+            "file existed earlier in this conversation -- since the user "
+            "may have created it mid-session after an earlier command "
+            "already found it missing",
+            "Hit the same content-precedence sync gotcha documented in "
+            "the 2.7.24 notes a second time: editing only "
+            "packs/_shared/blocks/token-usage-log-step.md was not "
+            "enough, because 13 files under packs/_shared/full/.github/"
+            "prompts/ have this block's content embedded directly (full-"
+            "file sync always wins over the blocks loop within a single "
+            "sync-blocks.sh run) -- had to re-embed the new wording into "
+            "all 13 canonical files, not just the block source, for the "
+            "fix to actually propagate to any pack",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.27"},
+    },
 ]
 
 

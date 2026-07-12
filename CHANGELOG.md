@@ -4,6 +4,32 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.27] — 2026-07-12 (Fix: token usage logging still didn't fire — stale in-conversation context)
+
+### Fixed
+
+- **Token usage logging** — 2.7.26 fixed the structural placement bug
+  (the log step used to sit unreachable behind multi-turn approval STOP
+  points), but real testing showed the symptom persisted: the user
+  confirmed via `ls -la` that `.specify/memory/token-pricing.yml`
+  demonstrably existed, yet the agent still reported "No token-pricing.yml,
+  so skipping usage logging" on a later command in the same conversation.
+- Root cause was neither the opt-in gate (ruled out earlier) nor placement
+  (fixed in 2.7.26) — it was the model relying on an earlier,
+  in-conversation check performed *before* the user created the file,
+  instead of re-checking fresh each time.
+- `token-usage-log-step.md` now explicitly instructs agents to check with
+  a fresh file read, not a memory of whether the file existed earlier in
+  the conversation — an earlier "not found" does not carry forward.
+- This surfaced the same `sync-blocks.sh` content-precedence gotcha noted
+  in the 2.7.24 entry a second time: 13 files under
+  `packs/_shared/full/.github/prompts/` have this block's content
+  embedded directly (full-file sync wins over the blocks loop within a
+  single run), so editing only `packs/_shared/blocks/token-usage-log-step.md`
+  did not propagate to any pack until those 13 files were updated too.
+
+---
+
 ## [2.7.26] — 2026-07-10 (Fix: token usage logging was structurally unreachable in 9 commands)
 
 ### Fixed

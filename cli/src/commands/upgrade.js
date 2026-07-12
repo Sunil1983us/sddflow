@@ -759,6 +759,38 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.26',
+    to:   '2.7.27',
+    description: 'Fix: token usage logging still didn\'t fire even after the 2.7.26 placement fix, because agents relied on stale in-conversation memory of token-pricing.yml being absent instead of re-checking; no manifest schema changes',
+    notes: [
+      '2.7.26 fixed the structural/placement bug, but real testing ' +
+      'showed the symptom persisted: the user confirmed via `ls -la` ' +
+      'that token-pricing.yml demonstrably existed, yet the agent still ' +
+      'reported "No token-pricing.yml, so skipping usage logging" on a ' +
+      'later command in the same conversation',
+      'Root cause was neither the opt-in gate nor placement — it was ' +
+      'the model treating an earlier, in-conversation check (made ' +
+      'before the user created the file) as still valid, rather than ' +
+      'performing a fresh file read on each command',
+      'token-usage-log-step.md now explicitly instructs: check now, ' +
+      'with a fresh file read — not a memory of whether the file ' +
+      'existed earlier in this conversation',
+      'Hit the same content-precedence sync gotcha documented in the ' +
+      '2.7.24 notes a second time: 13 files under packs/_shared/full/' +
+      '.github/prompts/ have this block\'s content embedded directly, ' +
+      'so editing only the block source file was not enough to ' +
+      'propagate the fix to any pack',
+      'This is a prompt-content change, not a code change — the Node ' +
+      'CLI stays scoped to init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.27';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
