@@ -223,6 +223,19 @@ def _check_predecessor(
     return (status == "APPROVED"), (None if status == "APPROVED" else pred_key)
 
 
+def _record_confluence_draft_link(doc: str, page: dict, page_title: str) -> None:
+    """`sdd review submit` is now the only step needed to get a document in
+    front of both stakeholders (Confluence) and the formal reviewer (Jira)
+    -- there is no separate "draft first, submit later" stage. Recording
+    this page in the same drafts file `sdd confluence draft` uses means
+    `sdd confluence pull --doc {doc}` still works afterward if the user
+    wants to pull in edits/comments left on this page."""
+    from sdd.commands.confluence import _load_drafts, _save_drafts
+    drafts = _load_drafts()
+    drafts[doc] = {"page_id": page.get("id", ""), "title": page_title}
+    _save_drafts(drafts)
+
+
 def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | None:
     """Create the Feature/Epic container if it doesn't already exist yet,
     using the same content and idempotency label `sdd jira push` uses — so a
@@ -252,8 +265,8 @@ def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | 
         return None
 
 
-def _link_review_task_to_epic(jira_client: JiraClient, task_key: str,
-                               epic_key: str, jira_cfg) -> None:
+def _link_review_story_to_epic(jira_client: JiraClient, story_key: str,
+                                epic_key: str, jira_cfg) -> None:
     """Best-effort: parent the review ticket under the Feature/Epic. Never
     blocks the review submission — the ticket itself was already created
     successfully. Reuses jira.py's _warn_parent_link_failed rather than a
@@ -262,9 +275,9 @@ def _link_review_task_to_epic(jira_client: JiraClient, task_key: str,
     instead of vanishing with no trace."""
     from sdd.commands.jira import _warn_parent_link_failed
     try:
-        jira_client.set_parent(task_key, epic_key, jira_cfg.parent_field)
+        jira_client.set_parent(story_key, epic_key, jira_cfg.parent_field)
     except Exception as e:
-        _warn_parent_link_failed(task_key, epic_key, jira_cfg.project_key, e)
+        _warn_parent_link_failed(story_key, epic_key, jira_cfg.project_key, e)
 
 
 # ── Command group ──────────────────────────────────────────────────────────────
@@ -352,6 +365,8 @@ def review_submit(doc, profile, feature):
     console.print(f"  {action}  Confluence: [cyan]{page_title}[/cyan]")
     console.print(f"          {page_url}")
 
+    _record_confluence_draft_link(doc, page, page_title)
+
     # ── Ensure a Feature/Epic exists ──────────────────────────────────────────
     # So every review ticket -- and later every dev Story/Task from
     # `sdd jira push` -- nests under one place in Jira. Self-bootstrapping
@@ -361,24 +376,27 @@ def review_submit(doc, profile, feature):
     # well before this review ticket exists to need a parent.
     epic_key = _ensure_epic(jira_client, cfg.jira, feature_name)
 
-    # ── Create / update Jira review task ──────────────────────────────────────
+    # ── Create / update Jira review story ─────────────────────────────────────
+    # Issue type is "story" (not "task") so review tickets sit at the same
+    # hierarchy level as dev Stories under the Epic -- Epic -> Story -> Task
+    # throughout, review tickets included, not a separate shape.
     # Label is feature-qualified for the same reason Story/Task labels are
     # (see jira.py's _item_label): an un-qualified "sdd-doc:brd" would let
     # a second feature's BRD review submission find and silently overwrite
     # the first feature's review ticket.
     idempotency_label = f"sdd-doc:{feature_name}:{doc}"
     existing          = jira_client.find_by_label(cfg.jira.project_key, idempotency_label)
-    task_summary      = f"Review: {project_name} — {doc.upper()}"
+    story_summary     = f"Review: {project_name} — {doc.upper()}"
     desc_text = (
         f"Please review the {doc.upper()} document.\n\n"
         f"Confluence: {page_url}\n\n"
-        f"To APPROVE: set task status to Done and comment 'Approved'.\n"
-        f"To REQUEST CHANGES: add review comments and leave the task open."
+        f"To APPROVE: set status to Done and comment 'Approved'.\n"
+        f"To REQUEST CHANGES: add review comments and leave it open."
     )
     fields: dict = {
         "project":     {"key": cfg.jira.project_key},
-        "issuetype":   {"name": cfg.jira.issue_hierarchy.get("task", "Task")},
-        "summary":     task_summary,
+        "issuetype":   {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
+        "summary":     story_summary,
         "labels":      ["sdd-review", idempotency_label],
         "description": {
             "type": "doc", "version": 1,
@@ -393,15 +411,15 @@ def review_submit(doc, profile, feature):
 
     if existing:
         jira_client.update_issue(existing["key"], fields)
-        task_key = existing["key"]
-        console.print(f"  [dim]·[/dim]   Jira task updated: [cyan]{task_key}[/cyan]")
+        story_key = existing["key"]
+        console.print(f"  [dim]·[/dim]   Jira review story updated: [cyan]{story_key}[/cyan]")
     else:
-        result   = jira_client.create_issue(fields)
-        task_key = result["key"]
-        console.print(f"  [green]✓[/green]  Jira task created: [cyan]{task_key}[/cyan]")
+        result    = jira_client.create_issue(fields)
+        story_key = result["key"]
+        console.print(f"  [green]✓[/green]  Jira review story created: [cyan]{story_key}[/cyan]")
 
     if epic_key:
-        _link_review_task_to_epic(jira_client, task_key, epic_key, cfg.jira)
+        _link_review_story_to_epic(jira_client, story_key, epic_key, cfg.jira)
 
     console.print(
         f"          Assigned to: [cyan]{doc_cfg.reviewer_role}[/cyan]"

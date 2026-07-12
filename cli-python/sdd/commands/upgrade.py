@@ -1013,6 +1013,78 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.30"},
     },
+    {
+        "from":        "2.7.30",
+        "to":          "2.7.31",
+        "description": "Feature: Jira Epic/Story/Task hierarchy overhaul -- Epic now created at /specify (before any spec doc exists), review tickets are Story issues (not Task) parented to the Epic, Confluence + Jira submission happen together immediately (no more 'push a draft, wait for done, then submit' staging step), and specify-uc pushes a draft Story per use case that /task finalizes in place; no manifest schema changes",
+        "notes": [
+            "User-requested redesign, in four parts, confirmed via explicit "
+            "design choices before implementation: (1) Epic/Feature "
+            "created right after /specify generates the constitution, "
+            "not lazily on first `sdd review submit`; (2) review tickets "
+            "(BRD, Use Cases, SRD, Design/Arch/HLD/ADR, LLD, Tasks, "
+            "Runbook, Release) are now issue type Story, not Task, so "
+            "they sit at the same hierarchy level as dev Stories under "
+            "the Epic -- Epic -> Story -> Task throughout, review tickets "
+            "included; (3) `sdd review submit` (Confluence push + Jira "
+            "Story creation) now runs immediately when a document is "
+            "generated, replacing the old two-stage 'push a Confluence-"
+            "only draft, wait for the user to say done, then formally "
+            "submit to Jira' flow; (4) `sdd jira push --level uc-draft` "
+            "(new) creates one lightweight placeholder Story per UC-NNN "
+            "right after /specify-uc, which /task later finalizes in "
+            "place -- via a new '**Derived from:** UC-NNN' field on "
+            "stories that trace 1:1 to a single use case -- instead of "
+            "creating a second, separate issue for the same use case",
+            "New shared block epic-bootstrap-step.md wired into all 5 "
+            "packs' specify.prompt.md (via the blocks sync system, not "
+            "full-file sync, since specify.prompt.md differs per pack)",
+            "New shared block submit-for-review-step.md replaces the old "
+            "duplicated Step A/B Confluence-then-Jira prose in 9 command "
+            "prompts (specify-brd/uc/srd/doc, plan-design/arch/hld/adr/"
+            "lld) -- 5 of these previously had the two-stage pattern, 4 "
+            "(plan-arch/hld/adr/lld) already called `sdd review submit` "
+            "directly and were converted to the shared block for "
+            "consistency, not because they were broken",
+            "review.py: review ticket issuetype changed from "
+            "issue_hierarchy.get('task', 'Task') to "
+            "issue_hierarchy.get('story', 'Story'); "
+            "_link_review_task_to_epic renamed to "
+            "_link_review_story_to_epic; review_submit now also records "
+            "its Confluence page in the same .confluence-drafts.json "
+            "drafts file `sdd confluence draft` uses, so `sdd confluence "
+            "pull --doc {doc}` still works after this change even though "
+            "the separate draft-push step is gone",
+            "jira.py: new _push_uc_draft_stories() function and 'uc-draft' "
+            "--level choice (deliberately excluded from --level all, "
+            "since it's a one-time bootstrap tied to /specify-uc, not "
+            "part of the regular epic -> story -> task progression); "
+            "_push_stories() now reuses a UC's idempotency label "
+            "(sdd:{feature}:UC-NNN) instead of minting a new "
+            "sdd:{feature}:STORY-NNN one when a Story's new derived_uc "
+            "field is set, so the SAME Jira issue gets finalized in "
+            "place rather than duplicated",
+            "sdd_parser.py: new UseCase dataclass + parse_use_cases(); "
+            "Story dataclass gained a derived_uc: str | None field, "
+            "parsed from a '**Derived from:** UC-NNN' line -- only "
+            "present when a story traces 1:1 back to a single use case, "
+            "per task.prompt.md's own instruction; omitted otherwise, "
+            "falling back to today's STORY-NNN-keyed labeling unchanged",
+            "sdd init now writes a new 'pack' field to manifest.yml "
+            "(unrelated to this feature directly, carried over from "
+            "2.7.30's --sync-prompts work) -- not touched further here",
+            "26 new tests across test_jira_push_levels.py (UC draft "
+            "creation, re-run idempotency, derived_uc reuse, unchanged "
+            "no-derived_uc behavior), test_sdd_parser.py (new file: "
+            "derived_uc extraction, parse_use_cases), and "
+            "test_review_helpers.py (Confluence drafts-file bookkeeping "
+            "on review submit, plus the _link_review_story_to_epic "
+            "rename)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.31"},
+    },
 ]
 
 

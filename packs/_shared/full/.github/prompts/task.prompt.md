@@ -102,6 +102,15 @@ For each story:
 - Sprint assignment
 - Traceability matrix: Story → FR-NNN → Task → TC-NNN (from qa-testcases.md,
   mvp+) → EP-NNN (from use-cases.md) → R-NNN (from analyze.summary.md §2)
+- **Derived from:** if this story traces back to exactly one UC-NNN (not
+  shared with any other story), add the line `**Derived from:** UC-{NNN}`
+  right under the As/I want/So that block. This lets `sdd jira push
+  --level story` finalize the lightweight draft Jira Story `/specify-uc`
+  already created for that UC in place, instead of creating a second,
+  separate issue for the same use case. Omit the line entirely when a
+  story doesn't map 1:1 to a single UC (e.g. it covers parts of several,
+  or a UC needed to be split across multiple stories) — falling back to
+  creating a new Story issue is correct in that case, not a gap to fix.
 
 - High-complexity items from analyze.summary.md → larger story point estimates
 - R-NNN high-risk items from analyze.summary.md → flag task for SPLIT + add Risk: field

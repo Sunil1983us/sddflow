@@ -12,8 +12,8 @@ You are **Morgan**, Delivery Manager. You run `sdd jira push` and relay its outp
 ## Input
 
 `$ARGUMENTS` accepts either form:
-- Flag syntax: `--level {epic|story|task|chg|all}`, `--cr CR-{NNN}` (required when `--level chg`), `--dry-run`, `--feature {name}`
-- **Shorthand**: a bare word — `epic`, `story`, `stories`, `task`, `tasks`, `chg`, `all` — is also accepted in place of `--level {value}`. Plurals map to the singular CLI value (`stories` → `story`, `tasks` → `task`).
+- Flag syntax: `--level {epic|uc-draft|story|task|chg|all}`, `--cr CR-{NNN}` (required when `--level chg`), `--dry-run`, `--feature {name}`
+- **Shorthand**: a bare word — `epic`, `uc-draft`, `story`, `stories`, `task`, `tasks`, `chg`, `all` — is also accepted in place of `--level {value}`. Plurals map to the singular CLI value (`stories` → `story`, `tasks` → `task`).
 
 ---
 
@@ -24,10 +24,11 @@ Before building the command, check whether `$ARGUMENTS` is a bare shorthand word
 | User typed | Resolves to |
 |---|---|
 | `epic` | `--level epic` |
+| `uc-draft` | `--level uc-draft` |
 | `story` / `stories` | `--level story` |
 | `task` / `tasks` | `--level task` |
 | `chg` (with a CR number nearby, e.g. `chg CR-001`) | `--level chg --cr CR-001` |
-| `all` | `--level all` (default if `$ARGUMENTS` is empty) |
+| `all` | `--level all` (default if `$ARGUMENTS` is empty) — does **not** include `uc-draft`, which is a one-time bootstrap tied to `/specify-uc`, not part of the regular epic → story → task progression |
 
 If `$ARGUMENTS` already uses `--level`/`--cr`/`--dry-run`/`--feature` flags, pass it through unchanged. Otherwise translate the shorthand into the equivalent flags before running the command.
 
@@ -69,7 +70,10 @@ sdd jira push $ARGUMENTS
 
 Examples by stage:
 ```bash
-# After /specify-brd approval
+# Normally already run automatically by /specify, right after the
+# constitution is generated — before any spec doc exists. Re-running is
+# safe and just refreshes the Epic's description (e.g. once brd.md's
+# Business Objectives exist).
 sdd jira push --level epic
 
 # After /specify-uc or /specify-srd approval
@@ -121,7 +125,8 @@ Relay the command's output to the user verbatim. Then add context:
 1. State which Jira issues were created/updated and their keys (already printed by the CLI).
 2. Note that `docs/jira/{feature}/keys.yml` has been updated with a local, human-readable summary of the keys pushed so far — for reference only; the CLI never depends on that file's contents.
 3. Suggest the next stage:
-   - After epic push → "Run `/specify-uc`, then `/jira-push story` after approval."
+   - After epic push → "Run `/specify-brd` next (the Epic will pick up real Business Objectives automatically once it's submitted for review)."
+   - After uc-draft push → "Run `/specify-srd` next. These draft Stories will be finalized in place once /task generates stories.md."
    - After story push → "Run `/task`, then `/jira-push task` after approval."
    - After task push → "All Jira levels populated. Start implementation with `/implement`."
    - After chg push → "CHG tasks created. Update `tasks.md` with the Jira keys if you're tracking them there too."

@@ -298,7 +298,7 @@ top of it, never a prerequisite.
 |---|---|---|---|
 | **chat** (default) | nothing | Reviewer reads the doc; user replies "approved" in chat → agent flips `Status: Draft → Approved` + fills Approvals table | Doc header + Approvals table + git history |
 | **local** | `pip install sddflow` | Same as chat, plus the agent records it: `sdd review approve --doc {doc} --local --by "{approver}" --note "{comment}"` | `.specify/.local-approvals.yml` |
-| **jira** | CLI + `integrations.yml` (`jira:` + `confluence:`) | `sdd review submit / check / apply` — Confluence page + Jira review task per doc | Jira + Confluence |
+| **jira** | CLI + `integrations.yml` (`jira:` + `confluence:`) | `sdd review submit / check / apply` — Confluence page + Jira review story per doc | Jira + Confluence |
 
 **Confluence stays in sync in every mode.** When a `confluence:` section exists
 in `.specify/integrations.yml`, `sdd review approve --local` also updates the
@@ -327,7 +327,7 @@ filenames: `design` exists in unified mode; `arch`/`hld`/`adr` in separate mode.
 | release | Runbook → Release | Runbook → Release | DevOps → Release Manager |
 
 ```bash
-sdd review submit --doc brd      # push to Confluence + create Jira review task
+sdd review submit --doc brd      # push to Confluence + create Jira review story
 sdd review check  --doc brd      # poll: exit 0=approved 1=needs-revision 2=pending
 sdd review apply  --doc brd      # re-push after addressing reviewer comments
 sdd review status                # full dashboard for all documents

@@ -665,7 +665,7 @@ See "Document Review Gates — Three Modes" in `CLAUDE.md` for details.
 **jira mode** — after generating each spec document, submit it for stakeholder review:
 
 ```bash
-sdd review submit --doc brd      # push to Confluence + create Jira review task
+sdd review submit --doc brd      # push to Confluence + create Jira review story
 sdd review check  --doc brd      # poll: exit 0=APPROVED  1=NEEDS_REVISION  2=PENDING
 sdd review apply  --doc brd      # re-push after addressing reviewer comments
 sdd review status                # dashboard: all documents + their current review state

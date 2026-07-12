@@ -31,6 +31,8 @@
 **I want** {capability}
 **So that** {business value}
 
+**Derived from:** UC-{NNN} _(only if this story traces 1:1 to a single use
+case — omit the line entirely otherwise; see task.prompt.md)_
 **Linked FRs:** FR-{NNN}, FR-{NNN}
 **Story Points:** {1|2|3|5|8} | **Sprint:** 1
 

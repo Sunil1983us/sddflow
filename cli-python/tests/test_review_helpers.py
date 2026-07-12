@@ -207,17 +207,17 @@ class RaisingParentClient(FakeJiraClient):
         raise RuntimeError('HTTP 400 — cannot set field "parent"')
 
 
-class TestLinkReviewTaskToEpic:
+class TestLinkReviewStoryToEpic:
     def test_success_records_the_link(self, project):
         client = FakeJiraClient()
         cfg = JiraConfig(project_key="MYPROJ")
-        review._link_review_task_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
         assert client.parents == [("PROJ-2", "PROJ-1", "parent")]
 
     def test_failure_prints_diagnosable_warning(self, project, capsys):
         client = RaisingParentClient()
         cfg = JiraConfig(project_key="MYPROJ")
-        review._link_review_task_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
         out = capsys.readouterr().out
         assert "was not linked under" in out
         assert "PROJ-1" in out
@@ -228,7 +228,7 @@ class TestLinkReviewTaskToEpic:
         was already created successfully."""
         client = RaisingParentClient()
         cfg = JiraConfig(project_key="MYPROJ")
-        review._link_review_task_to_epic(client, "PROJ-2", "PROJ-1", cfg)  # no raise
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)  # no raise
 
 
 class TestEnsureEpic:
@@ -260,6 +260,36 @@ class TestEnsureEpic:
 
         cfg = JiraConfig(project_key="MYPROJ")
         assert review._ensure_epic(BrokenClient(), cfg, "auth") is None
+
+
+class TestRecordConfluenceDraftLink:
+    def test_writes_entry_compatible_with_confluence_load_drafts(self, project):
+        from sdd.commands.confluence import _load_drafts
+
+        page = {"id": "12345", "_links": {"webui": "/spaces/X/pages/12345"}}
+        review._record_confluence_draft_link("brd", page, "Demo — Business Requirements")
+
+        drafts = _load_drafts()
+        assert drafts["brd"] == {"page_id": "12345", "title": "Demo — Business Requirements"}
+
+    def test_preserves_other_docs_already_recorded(self, project):
+        from sdd.commands.confluence import _load_drafts, _save_drafts
+
+        _save_drafts({"srd": {"page_id": "999", "title": "Old SRD"}})
+        review._record_confluence_draft_link("brd", {"id": "1"}, "New BRD")
+
+        drafts = _load_drafts()
+        assert drafts["srd"] == {"page_id": "999", "title": "Old SRD"}
+        assert drafts["brd"] == {"page_id": "1", "title": "New BRD"}
+
+    def test_overwrites_stale_entry_for_same_doc(self, project):
+        from sdd.commands.confluence import _load_drafts, _save_drafts
+
+        _save_drafts({"brd": {"page_id": "old-id", "title": "Stale title"}})
+        review._record_confluence_draft_link("brd", {"id": "new-id"}, "Fresh title")
+
+        drafts = _load_drafts()
+        assert drafts["brd"] == {"page_id": "new-id", "title": "Fresh title"}
 
 
 class TestGetReviewStatusFeatureQualified:

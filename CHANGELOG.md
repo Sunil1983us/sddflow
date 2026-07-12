@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.31] — 2026-07-12 (Feature: Jira Epic/Story/Task hierarchy overhaul)
+
+### Added / Changed
+
+- **Epic created at `/specify`, not lazily.** The Feature/Epic issue in
+  Jira is now created right after `/specify` generates the constitution —
+  before any spec document exists — instead of being self-bootstrapped on
+  the first `sdd review submit`. Its description starts as a placeholder
+  and is automatically refreshed with real Business Objectives the next
+  time an Epic-touching command runs (e.g. `/specify-brd`'s review
+  submission) once `brd.md` exists.
+- **Review tickets are Story issues, not Task.** BRD, Use Cases, SRD,
+  Design/Arch/HLD/ADR, LLD, Tasks, Runbook, and Release review tickets now
+  use issue type Story and are parented to the Epic — the same hierarchy
+  level as dev Stories, so it's Epic → Story → Task throughout, review
+  tickets included, not a separate shape.
+- **Confluence + Jira submission happen together, immediately.** `sdd
+  review submit` now pushes the document to Confluence *and* creates the
+  Jira review Story in one call, right when the document is generated.
+  This replaces the old two-stage flow (push a Confluence-only draft, wait
+  for the user to say "done", then formally submit to Jira) in 5 command
+  prompts (`specify-brd/uc/srd/doc`, `plan-design`); 4 more
+  (`plan-arch/hld/adr/lld`) already worked this way and were converted to
+  the same shared block for consistency. `sdd confluence pull` still works
+  afterward if you want to pull in edits/comments left on the page.
+- **Draft Stories per use case, finalized in place by `/task`.** A new
+  `sdd jira push --level uc-draft` creates one lightweight placeholder
+  Story per `UC-NNN` right after `/specify-uc` (parented to the Epic).
+  When `/task` later generates `stories.md`, any story with a new
+  `**Derived from:** UC-NNN` field (added only when a story traces 1:1
+  back to a single use case) reuses that UC's idempotency label — Jira
+  finalizes the *same* issue in place instead of creating a second one.
+  Stories with no single-UC origin get a normal new Story issue, exactly
+  as before this existed.
+- 26 new tests across `test_jira_push_levels.py`, a new
+  `test_sdd_parser.py`, and `test_review_helpers.py`.
+
+---
+
 ## [2.7.30] — 2026-07-12 (Feature: `sdd upgrade --sync-prompts`)
 
 ### Added

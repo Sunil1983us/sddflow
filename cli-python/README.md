@@ -165,15 +165,18 @@ Create or update Jira issues from `brd.md`, `stories.md`, and `tasks.md`.
 Hierarchy: **Feature/Epic → Story → Task** (configurable issue type names).
 
 By default pushes everything at once. Use `--level` to push progressively at
-each SDLC gate instead — Epic right after BRD approval, Stories after Use
-Case/SRD approval, Tasks after `/task`, CHG tasks after `/change` — matching
-what the agent's `/jira-push` slash command does (it's a thin wrapper around
-this same command). Parent links for a level pushed on its own are found live
-via Jira labels, so there's no strict ordering requirement.
+each SDLC gate instead — Epic right after `/specify` (the `epic-bootstrap-step`
+in `specify.prompt.md` already runs this automatically, before any spec doc
+exists), Stories after Use Case/SRD approval, Tasks after `/task`, CHG tasks
+after `/change` — matching what the agent's `/jira-push` slash command does
+(it's a thin wrapper around this same command). Parent links for a level
+pushed on its own are found live via Jira labels, so there's no strict
+ordering requirement.
 
 ```bash
 sdd jira push                          # push Feature/Epic + Story + Task
-sdd jira push --level epic             # after /specify-brd approval
+sdd jira push --level epic             # normally already run by /specify
+sdd jira push --level uc-draft         # normally already run by /specify-uc
 sdd jira push --level story            # after /specify-uc or /specify-srd
 sdd jira push --level task             # after /task
 sdd jira push --level chg --cr CR-001  # after /change
@@ -181,6 +184,16 @@ sdd jira push --dry-run          # print plan, no API calls
 sdd jira push --feature auth     # override feature name
 sdd jira push --profile on-prem  # use a specific auth profile
 ```
+
+**`--level uc-draft`** creates one lightweight placeholder Story per
+`UC-NNN` in `use-cases.md` — issue type Story (not Task), parented to the
+Epic — right after `/specify-uc`, before `stories.md` exists. It's
+separate from `--level all`/`--level story`, not part of either: a later
+`--level story` push finalizes the *same* issue in place for any story
+whose `**Derived from:** UC-NNN` field names one of these drafts (same
+idempotency label, `sdd:{feature}:UC-NNN`), instead of creating a second,
+separate issue for the same use case. Stories with no single-UC origin
+just get a normal new Story issue, exactly as before this existed.
 
 **Dry-run output:**
 ```
@@ -266,8 +279,9 @@ it is created under the configured parent page.
 
 ### `sdd review submit`
 
-Push a document to Confluence and create a Jira review task assigned to the
-configured reviewer.
+Push a document to Confluence and create a Jira review story (issue type
+Story, parented to the feature's Epic — same hierarchy level as dev
+Stories) assigned to the configured reviewer.
 
 ```bash
 sdd review submit --doc brd
@@ -278,10 +292,13 @@ sdd review submit --doc adr --feature auth
 What it does:
 1. Reads `.specify/features/{feature}/{doc}.md`
 2. Converts Markdown → Confluence Storage Format, creates or updates the page
-3. Ensures a Feature/Epic issue exists for the project (created from the BRD's
-   Business Objectives if needed) and creates (or updates) a Jira task with
-   the label `sdd-doc:{feature}:{doc}`, parented under that Epic and assigned
-   to the configured reviewer
+3. Ensures a Feature/Epic issue exists for the project — normally already
+   created by `/specify` before any spec document exists (see `sdd jira push
+   --level epic` below); self-bootstrapped here too as a fallback, refreshed
+   with the BRD's Business Objectives if they weren't available yet — and
+   creates (or updates) a Jira **Story** with the label
+   `sdd-doc:{feature}:{doc}`, parented under that Epic and assigned to the
+   configured reviewer
 
 **Sequence enforcement:** Within each phase, a document cannot be submitted
 until its predecessor is approved (e.g. BRD must be approved before SRD can be

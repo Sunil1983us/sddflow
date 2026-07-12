@@ -8,10 +8,10 @@ import pytest
 import yaml
 
 from sdd.commands.jira import (
-    parse_changeset, _push, _push_chg, _keys_path,
+    parse_changeset, _push, _push_chg, _keys_path, _push_uc_draft_stories, _push_stories,
 )
 from sdd.utils.integrations import JiraConfig
-from sdd.utils.sdd_parser import Story, Task
+from sdd.utils.sdd_parser import Story, Task, UseCase
 
 
 class FakeJiraClient:
@@ -284,3 +284,68 @@ class TestParentLinkFailureIsVisible:
         story = _story()
         _push(client, "feat", tmp_path, [story], [], _cfg(), level="story")
         assert len(client.created) == 1
+
+
+class TestUcDraftStories:
+    def test_creates_one_draft_story_per_uc(self):
+        client = FakeJiraClient()
+        use_cases = [
+            UseCase(id="UC-001", title="Submit payment"),
+            UseCase(id="UC-002", title="Reconcile settlement"),
+        ]
+        result = _push_uc_draft_stories(client, "feat", use_cases, _cfg(), epic_key=None)
+
+        assert len(client.created) == 2
+        assert result == {"UC-001": "PROJ-1", "UC-002": "PROJ-2"}
+        assert client.created[0]["summary"] == "UC-001 — Submit payment (draft)"
+        assert client.created[0]["issuetype"] == {"name": "Story"}
+        assert "sdd:feat:UC-001" in client.created[0]["labels"]
+
+    def test_parents_draft_stories_to_epic_when_given(self):
+        client = FakeJiraClient()
+        use_cases = [UseCase(id="UC-001", title="Submit payment")]
+        _push_uc_draft_stories(client, "feat", use_cases, _cfg(), epic_key="PROJ-1")
+        assert client.parents == [("PROJ-1", "PROJ-1", "parent")]
+
+    def test_rerun_updates_existing_draft_instead_of_duplicating(self):
+        client = FakeJiraClient()
+        client.by_label["sdd:feat:UC-001"] = {"key": "PROJ-9"}
+        use_cases = [UseCase(id="UC-001", title="Submit payment")]
+        result = _push_uc_draft_stories(client, "feat", use_cases, _cfg(), epic_key=None)
+
+        assert client.created == []
+        assert len(client.updated) == 1
+        assert client.updated[0][0] == "PROJ-9"
+        assert result == {"UC-001": "PROJ-9"}
+
+    def test_story_derived_from_uc_finalizes_the_draft_in_place(self):
+        """A stories.md Story with '**Derived from:** UC-001' must reuse
+        the UC's idempotency label -- finalizing the SAME issue
+        --level uc-draft created, not creating a second one."""
+        client = FakeJiraClient()
+        client.by_label["sdd:feat:UC-001"] = {"key": "PROJ-9"}
+        story = Story(id="STORY-001", title="Submit payment", moscow="must-have",
+                      description="As a user I want to pay",
+                      acceptance_criteria=[], story_points=3, satisfies=["FR-001"],
+                      derived_uc="UC-001")
+
+        story_key_map = _push_stories(client, "feat", [story], _cfg(), epic_key=None)
+
+        assert client.created == []  # updated the draft, not a new issue
+        assert len(client.updated) == 1
+        assert client.updated[0][0] == "PROJ-9"
+        assert client.updated[0][1]["summary"] == "STORY-001 — Submit payment"
+        assert story_key_map == {"STORY-001": "PROJ-9"}
+
+    def test_story_without_derived_uc_uses_its_own_story_id_label(self):
+        """Unchanged behavior: a Story with no single-UC origin still gets
+        its own sdd:{feature}:STORY-NNN label, exactly as before this
+        feature existed."""
+        client = FakeJiraClient()
+        story = _story()  # derived_uc defaults to None
+        assert story.derived_uc is None
+
+        _push_stories(client, "feat", [story], _cfg(), epic_key=None)
+
+        assert len(client.created) == 1
+        assert "sdd:feat:STORY-001" in client.created[0]["labels"]

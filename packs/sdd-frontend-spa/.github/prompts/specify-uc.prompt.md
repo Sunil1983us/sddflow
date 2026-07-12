@@ -80,6 +80,19 @@ Write `.specify/features/{manifest.project.feature}/use-cases.summary.md` (max S
 `ACT-NNN` for that role. If a BRD stakeholder role has no corresponding actor (e.g. no UX
 Lead defined), leave that cell as `_(N/A)_`. Save `brd.md` and regenerate `brd.summary.md`.
 
+**Draft Jira Stories per use case:** if `.specify/integrations.yml` has a
+`jira:` section, run:
+```bash
+sdd jira push --level uc-draft
+```
+This creates one lightweight placeholder Story per UC-NNN (parented to the
+Epic `/specify` already created), so each use case has a Jira presence from
+this point on rather than only once `/task` eventually generates stories.md.
+`/task` will finalize the matching draft in place — not create a second
+issue — for any story that traces 1:1 back to a single UC. If the command
+fails or Jira isn't configured, mention it briefly and continue; this never
+blocks the document itself.
+
 <!-- shared:token-usage-log-step:start -->
 ## Token Usage Logging (this command)
 Check now, with a fresh file read — not a memory of whether
@@ -94,46 +107,48 @@ update its Running Totals table. If the file still doesn't exist, skip
 this silently — do not create it and do not mention it.
 <!-- shared:token-usage-log-step:end -->
 
-### Stakeholder Review and Approval
+### Submit for Review
 
-**Step A — Stakeholder commenting (Confluence only)**
+`doc_key` = `use-cases`.
 
-Check whether `.specify/integrations.yml` has a `confluence:` section.
+<!-- shared:submit-for-review-step:start -->
+Check `.specify/integrations.yml` for `confluence:` and `jira:` sections.
 
-If yes — push draft:
+**Both configured — submit immediately.** This pushes the document to
+Confluence AND creates the Jira review Story in one call, right now —
+there is no separate "push a draft, wait, then submit" staging step;
+both happen together the moment the document is generated:
 ```bash
-sdd confluence draft --doc use-cases
+sdd review submit --doc {doc_key}
 ```
 Tell the user:
-> "Use Case Specification draft pushed to Confluence — open the link above.
-> Business and QA stakeholders can comment on individual use cases or paths.
-> Say **'done'** when reviewed and I'll pull the comments, incorporate them,
-> then submit for formal approval."
+> "Pushed to Confluence and submitted for Jira review — see the links
+> above. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once it's
+> reviewed, or just check back with me any time — I'll poll Jira for you."
 
-When the user says **"done"**:
-1. Run automatically:
-   ```bash
-   sdd confluence pull --doc use-cases
-   ```
-2. If the pulled file contains a `## Confluence Comments` section:
-   - Map each comment to the UC-NNN or path (MP/AP/EP) it addresses
-   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers
-   - Update `use-cases.md`, remove the comments section, re-save `use-cases.md` and `use-cases.summary.md`
-3. Submit for formal approval (continue to Step B).
+If the command fails, say so briefly and fall back to the chat-mode
+prompt below instead.
 
-**Step B — Formal submission**
-
-Submit to Jira (with or without Confluence):
+**Only `confluence:` configured (no `jira:`)** — no formal Jira gate
+exists yet; push a draft for informal stakeholder comments instead:
 ```bash
-sdd review submit --doc use-cases
+sdd confluence draft --doc {doc_key}
 ```
-If the command succeeds, tell the user:
-> "Use Cases submitted for Jira review. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once the reviewer approves."
+> "Draft pushed to Confluence — open the link above. Stakeholders can
+> comment on any section. Say **'done'** when reviewed and I'll pull the
+> comments, incorporate them, then ask you to approve in chat."
 
-If the CLI fails or is not configured, present the document and ask:
-> "Use Cases generated. Review above and reply **'approved'** (or 'yes', 'LGTM') to continue, or provide feedback:"
+When the user says **"done"**: run `sdd confluence pull --doc {doc_key}`
+automatically. If the pulled file contains a `## Confluence Comments`
+section, resolve each `[NEEDS CLARIFICATION]`/`[ASSUMPTION-NNN]` it
+answers, update the document, remove the comments section, and re-save
+the document and its `.summary.md`. Then present it and ask for
+**'approved'**.
 
-**Step C.** `doc_key` = `use-cases`.
+**Neither configured (chat mode)** — present the document above and ask:
+> "Generated. Review it above and reply **'approved'** (or 'yes', 'LGTM')
+> to continue, or provide feedback:"
+<!-- shared:submit-for-review-step:end -->
 
 <!-- shared:review-decision-step:start -->
 **On review response** — trigger this whenever the user's message indicates

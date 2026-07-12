@@ -878,6 +878,32 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.30',
+    to:   '2.7.31',
+    description: 'Feature: Jira Epic/Story/Task hierarchy overhaul (Python CLI) -- Epic at /specify, review tickets are Story issues parented to the Epic, Confluence+Jira submit together immediately, specify-uc pushes a draft Story per use case finalized by /task; no manifest schema changes',
+    notes: [
+      'User-requested redesign: Epic/Feature now created right after ' +
+      '/specify (before any spec doc exists) instead of lazily on first ' +
+      '`sdd review submit`; review tickets are issue type Story (not ' +
+      'Task), parented to the Epic like dev Stories; sdd review submit ' +
+      'pushes Confluence and creates the Jira Story together ' +
+      'immediately, replacing the old two-stage draft-then-submit flow; ' +
+      'a new `sdd jira push --level uc-draft` creates one placeholder ' +
+      'Story per UC-NNN right after /specify-uc, which /task finalizes ' +
+      'in place for any story that traces 1:1 back to a single use case',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.31';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
