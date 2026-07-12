@@ -917,6 +917,51 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.28"},
     },
+    {
+        "from":        "2.7.28",
+        "to":          "2.7.29",
+        "description": "Feature: sdd dashboard gains a Full Pipeline section per feature -- the complete command sequence for this scope/plan mode, current step, and a plain-language next-action sentence; no manifest schema changes",
+        "notes": [
+            "User-requested: the dashboard's old Pipeline card only listed "
+            "docs that already exist on disk, giving no sense of how much "
+            "of the whole workflow remains or what command to run next -- "
+            "review gates weren't represented either (an existing-but-"
+            "unapproved doc looked the same as a fully approved one)",
+            "New status.py functions -- _standard_pipeline_steps() (the "
+            "~20-step flow shared by backend/frontend-spa/mobile/fullstack/"
+            "universal, per each pack's own CLAUDE.md header), "
+            "_micro_pipeline_steps() (sdd-micro's 3-command flow, selected "
+            "when manifest.yml has no project.scope field), and "
+            "build_pipeline() -- resolve the full step list against what's "
+            "actually on disk (doc Status: headers, tasks.md progress, "
+            "constitution/GATE-1 state) into done/current/upcoming/skipped "
+            "per step, plus a single next_action sentence",
+            "Every step this scope/plan_mode would ever skip is still "
+            "shown, struck through, with a hover tooltip explaining why "
+            "(e.g. 'skipped -- pilot scope', 'skipped -- unified plan "
+            "mode') -- mirrors CLAUDE.md's Scope Reference table exactly, "
+            "so the dashboard doesn't just omit steps and leave the user "
+            "guessing why LLD or ADR never showed up",
+            "'current' doubles as the review-gate signal: a doc that "
+            "exists but whose Status: header isn't yet Approved shows as "
+            "current (awaiting review), not done -- so approving a doc is "
+            "what visibly advances the stepper, not just generating it",
+            "dashboard.py: new .pipeline-flow stepper UI (renderPipelineFlow, "
+            "renderPipelineStep) plus a highlighted next-action box; the "
+            "old doc-list card is renamed Pipeline -> Documents to avoid "
+            "clashing with the new Full Pipeline card, which takes the "
+            "full-width card-wide slot instead",
+            "12 new status.py tests (build_pipeline across scope x "
+            "plan_mode combinations, gate1/review-gate/task-progress "
+            "transitions, sdd-micro's 3-step flow) plus 2 new dashboard.py "
+            "source guards; verified live with a Playwright-driven "
+            "headless Chromium session and screenshots across two "
+            "features at different pipeline positions",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.29"},
+    },
 ]
 
 

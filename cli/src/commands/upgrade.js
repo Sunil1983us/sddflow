@@ -821,6 +821,36 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.28',
+    to:   '2.7.29',
+    description: 'Feature: sdd dashboard (Python CLI) gains a Full Pipeline section per feature -- complete command sequence, current step, and a plain-language next-action sentence; no manifest schema changes',
+    notes: [
+      'User-requested: the old Pipeline card only listed docs already on ' +
+      'disk, with no sense of how much workflow remained, what to run ' +
+      'next, or which steps were awaiting review vs. approved',
+      'New status.py pipeline builder resolves the full ~20-step command ' +
+      'sequence for this project\'s scope/plan_mode (or sdd-micro\'s ' +
+      '3-command flow) against what\'s on disk into done/current/' +
+      'upcoming/skipped per step, plus one next-action sentence',
+      'Skipped steps stay visible (struck through, hover for why) instead ' +
+      'of being silently omitted, mirroring CLAUDE.md\'s Scope Reference ' +
+      'table; a doc awaiting review (exists but not yet Approved) shows ' +
+      'as "current", not "done", so the review gate is visible in the ' +
+      'stepper',
+      'The old doc-list card is renamed Pipeline -> Documents to avoid ' +
+      'clashing with the new full-width Full Pipeline card',
+      'This is a prompt/dashboard-content change, not a code change in ' +
+      'this Node CLI — it stays scoped to init/upgrade scaffolding, per ' +
+      'its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.29';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

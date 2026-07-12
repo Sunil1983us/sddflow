@@ -4,7 +4,7 @@
 from pathlib import Path
 
 import sdd.utils.status as status_mod
-from sdd.utils.status import build_project_status, build_feature_status
+from sdd.utils.status import build_project_status, build_feature_status, build_pipeline
 
 
 def _write_manifest(root: Path, scope_line: str = "") -> None:
@@ -414,3 +414,126 @@ def test_malformed_comments_file_does_not_crash(tmp_path, monkeypatch):
     (tmp_path / ".specify" / ".dashboard-comments.json").write_text("not valid json {")
     feat = build_feature_status(tmp_path, "payments")
     assert feat["docs"][0]["comments"] == []
+
+
+# ── Full Pipeline (build_pipeline) ──────────────────────────────────────
+
+_NO_TASKS = {"total": 0, "done": 0}
+_NOT_STARTED = {"exists": False, "gate1_inferred": "unknown"}
+_GATE1_PASSED = {"exists": True, "gate1_inferred": "passed"}
+
+
+def _step(pipeline, step_id):
+    return next(s for s in pipeline["steps"] if s["id"] == step_id)
+
+
+def test_pipeline_fresh_project_starts_at_specify():
+    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot")
+    assert _step(p, "specify")["state"] == "upcoming"
+    assert p["next_step_id"] == "specify"
+    assert "/specify" in p["next_action"]
+
+
+def test_pipeline_awaiting_gate1_after_constitution_exists():
+    p = build_pipeline([], _NO_TASKS, {"exists": True, "gate1_inferred": "pending_or_unknown"},
+                        service_docs_exist=False, plan_mode="unified", scope="pilot")
+    assert _step(p, "specify")["state"] == "done"
+    assert _step(p, "gate1")["state"] == "current"
+    assert p["next_step_id"] == "gate1"
+    assert "finalized" in p["next_action"]
+
+
+def test_pipeline_doc_awaiting_review_is_current_not_done():
+    docs = [{"key": "brd", "status": "Draft"}]
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot")
+    assert _step(p, "brd")["state"] == "current"
+    assert p["next_step_id"] == "brd"
+    assert "sdd review check --doc brd" in p["next_action"]
+
+
+def test_pipeline_approved_doc_counts_as_done():
+    docs = [{"key": "brd", "status": "Approved"}]
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot")
+    assert _step(p, "brd")["state"] == "done"
+    assert p["next_step_id"] == "use-cases"
+
+
+def test_pipeline_pilot_scope_skips_lld_adr_extended_specs_runbook_qa():
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot")
+    for step_id in ("extended-specs", "lld", "runbook", "qa-testcases"):
+        step = _step(p, step_id)
+        assert step["state"] == "skipped", step_id
+        assert step["skip"]
+    # pilot uses smoke-tests instead of qa-testcases
+    assert _step(p, "smoke-tests")["skip"] is None
+
+
+def test_pipeline_mvp_scope_includes_lld_adr_runbook_qa_skips_smoke_tests():
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="separate", scope="mvp")
+    for step_id in ("extended-specs", "lld", "runbook", "qa-testcases", "adr"):
+        assert _step(p, step_id)["skip"] is None, step_id
+    assert _step(p, "smoke-tests")["skip"]
+
+
+def test_pipeline_unified_plan_mode_skips_arch_hld_adr_uses_design():
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="mvp")
+    assert _step(p, "design")["skip"] is None
+    for step_id in ("arch", "hld", "adr"):
+        assert _step(p, step_id)["skip"], step_id
+
+
+def test_pipeline_separate_plan_mode_skips_design_uses_arch_hld_adr():
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="separate", scope="mvp")
+    assert _step(p, "design")["skip"]
+    for step_id in ("arch", "hld", "adr"):
+        assert _step(p, step_id)["skip"] is None, step_id
+
+
+def test_pipeline_implement_reflects_task_progress():
+    approved = {"status": "Approved"}
+    docs = [{"key": k, **approved} for k in
+            ("brd", "use-cases", "srd", "checklist", "validate", "analyze", "clarify",
+             "design", "stories", "tasks", "smoke-tests")]
+    p = build_pipeline(docs, {"total": 4, "done": 2}, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot")
+    assert _step(p, "implement")["state"] == "current"
+    assert "2/4" in p["next_action"]
+
+
+def test_pipeline_all_done_reports_complete():
+    approved = {"status": "Approved"}
+    docs = [{"key": k, **approved} for k in
+            ("brd", "use-cases", "srd", "checklist", "validate", "analyze", "clarify",
+             "design", "stories", "tasks", "smoke-tests", "release")]
+    tasks = {"total": 2, "done": 2}
+    p = build_pipeline(docs, tasks, _GATE1_PASSED, service_docs_exist=True,
+                        plan_mode="unified", scope="pilot")
+    assert p["next_step_id"] is None
+    assert "complete" in p["next_action"]
+
+
+def test_pipeline_micro_scope_none_uses_3_command_flow():
+    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs_exist=False,
+                        plan_mode="unified", scope=None)
+    assert [s["id"] for s in p["steps"]] == ["specify", "gate1", "task", "implement"]
+
+
+def test_build_feature_status_includes_pipeline(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
+    _write_manifest(tmp_path, '  scope: "pilot"\n')
+    (tmp_path / ".specify" / "memory").mkdir(parents=True)
+    (tmp_path / ".specify" / "memory" / "constitution.md").write_text("# Constitution\n")
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text("> Status: Draft\n")
+    feat = build_feature_status(tmp_path, "payments", scope="pilot")
+    assert "pipeline" in feat
+    assert feat["pipeline"]["next_step_id"] == "brd"

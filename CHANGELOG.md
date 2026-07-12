@@ -4,6 +4,35 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.29] — 2026-07-12 (Feature: dashboard Full Pipeline section)
+
+### Added
+
+- **`sdd dashboard` — Full Pipeline section.** Each feature now shows the
+  *complete* command sequence for the project's scope and plan mode —
+  `/specify` → `GATE-1` → `/specify-brd` → ... → `/release` (or sdd-micro's
+  3-command flow) — not just the docs generated so far. Every step is
+  shown, including ones this scope/plan mode skips (struck through, hover
+  for why — e.g. "skipped — pilot scope", "skipped — unified plan mode"),
+  mirroring CLAUDE.md's Scope Reference table exactly.
+- Each step is marked **✓ done**, **● current** (you are here — either
+  awaiting review or in progress), or **○ upcoming**. A doc that exists but
+  isn't yet `Approved` shows as current, not done, so the review gate is
+  visible directly in the stepper.
+- A highlighted **Next** box spells out exactly what to do in plain
+  language — e.g. "Run `/specify-uc` to generate the Use Case
+  Specification" or `"BRD" is generated and waiting on review — check with
+  sdd review check --doc brd`.
+- Derived purely from `manifest.yml` (`scope`, `plan_mode`) and each doc's
+  `Status:` header — no extra configuration needed.
+- The old doc-list card is renamed **Pipeline → Documents** to avoid
+  clashing with the new full-width **Full Pipeline** card.
+- 12 new `status.py` tests plus 2 new `dashboard.py` source guards;
+  verified live with a Playwright-driven headless Chromium session across
+  two features at different pipeline positions.
+
+---
+
 ## [2.7.28] — 2026-07-12 (Fix: dashboard comment box lost typed text; layout cramped)
 
 ### Fixed

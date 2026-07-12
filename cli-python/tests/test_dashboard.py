@@ -135,3 +135,19 @@ def test_page_restores_focus_after_periodic_rerender():
 
 def test_page_clears_draft_after_successful_comment_submit():
     assert "delete state.commentDrafts" in _PAGE
+
+
+# Regression guards for the "Full Pipeline" section (shows the complete
+# command sequence for this scope/plan mode, current step, and a plain-
+# language next-action sentence) — source-level checks, same rationale as
+# the comment-draft guards above.
+def test_page_renders_full_pipeline_section():
+    assert "renderPipelineFlow" in _PAGE
+    assert "Full Pipeline" in _PAGE
+    assert "pipeline-flow" in _PAGE
+    assert "next-action-box" in _PAGE
+
+
+def test_page_pipeline_shows_scope_and_plan_mode():
+    assert "project.scope" in _PAGE
+    assert "project.plan_mode" in _PAGE
