@@ -726,6 +726,39 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.25',
+    to:   '2.7.26',
+    description: 'Fix: token usage logging was placed after multi-turn approval-wait STOP points in 9 command prompts, so it almost never actually fired — moved to right after the document is saved; no manifest schema changes',
+    notes: [
+      '2.7.18 wired the token-usage-log-step reminder into every ' +
+      'document-generating command, but in 9 of them (specify-brd, ' +
+      'specify-uc, specify-srd, specify-doc, plan-design, plan-arch, ' +
+      'plan-hld, plan-adr, plan-lld) it was placed after the ' +
+      'Stakeholder Review and Approval section, which contains STOP ' +
+      'points that defer continuation to a much later turn — the ' +
+      'document was already fully saved well before that point, but ' +
+      'the logging instruction sat unreachable behind those turns',
+      'Found via real testing: token-pricing.yml existed and the ' +
+      'feature was correctly enabled, but token-usage.md was still ' +
+      'never being updated',
+      'The block now sits immediately after the document is saved in ' +
+      'all 9 affected prompts, guaranteeing it executes in the same ' +
+      'turn as the actual generation work',
+      'create-context.prompt.md and change.prompt.md were left as-is — ' +
+      'they log at their genuine completion point after the user\'s ' +
+      'iteration loop finishes, by design, since those commands aren\'t ' +
+      'finished until then',
+      'This is a prompt-content change, not a code change — the Node ' +
+      'CLI stays scoped to init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.26';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

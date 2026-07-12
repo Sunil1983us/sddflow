@@ -76,6 +76,16 @@ For every UC-NNN in `use-cases.md`, collect all FR-NNN derived from that UC's pa
 3. Save `use-cases.md`.
 4. Regenerate `use-cases.summary.md` (max SUMMARY_MAX_LINES lines).
 
+<!-- shared:token-usage-log-step:start -->
+## Token Usage Logging (this command)
+If `.specify/memory/token-pricing.yml` exists: log this command now — see
+CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
+them. Append one row to `.specify/features/{feature}/token-usage.md`
+(create it from `token-usage-template.md` if this is the first row for
+this feature) and update its Running Totals table. If that file doesn't
+exist, skip this silently — do not create it and do not mention it.
+<!-- shared:token-usage-log-step:end -->
+
 ### Stakeholder Review and Approval
 
 **Step A — Stakeholder commenting (Confluence only)**
@@ -189,16 +199,6 @@ After approval (Step C complete), refine Story definitions with FR-NNN links and
    - `jira:` section not present: state "Story refinements saved to `docs/jira/{feature}/stories-refined.md`. Run `sdd config init` to configure Jira and run `/jira-push --level story` when ready."
 
 Determine the next document for this scope and project_type from the doc-set table in `specify.prompt.md`.
-
-<!-- shared:token-usage-log-step:start -->
-## Token Usage Logging (this command)
-If `.specify/memory/token-pricing.yml` exists: log this command now — see
-CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
-them. Append one row to `.specify/features/{feature}/token-usage.md`
-(create it from `token-usage-template.md` if this is the first row for
-this feature) and update its Running Totals table. If that file doesn't
-exist, skip this silently — do not create it and do not mention it.
-<!-- shared:token-usage-log-step:end -->
 
 State: "**SRD generated.** Review in Confluence/Jira (or above), then run **/specify-doc {next-doc}** to continue. Remaining for this scope: {list remaining docs}."
 
