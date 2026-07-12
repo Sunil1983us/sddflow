@@ -39,6 +39,16 @@ Generate `brd.md` for the current feature:
 - Save to: `.specify/features/{manifest.project.feature}/brd.md`
 - Write `.specify/features/{manifest.project.feature}/brd.summary.md` (max SUMMARY_MAX_LINES lines)
 
+<!-- shared:token-usage-log-step:start -->
+## Token Usage Logging (this command)
+If `.specify/memory/token-pricing.yml` exists: log this command now — see
+CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
+them. Append one row to `.specify/features/{feature}/token-usage.md`
+(create it from `token-usage-template.md` if this is the first row for
+this feature) and update its Running Totals table. If that file doesn't
+exist, skip this silently — do not create it and do not mention it.
+<!-- shared:token-usage-log-step:end -->
+
 ### Stakeholder Review and Approval
 
 **Step A — Stakeholder commenting (Confluence only)**
@@ -151,16 +161,6 @@ After approval (Step C complete), generate the Epic definition:
 3. Check whether `.specify/integrations.yml` exists and has a `jira:` section.
    - If yes: state "Epic definition ready. Run `/jira-push --level epic` to create it in Jira now, or after stakeholder sign-off."
    - If no: state "Epic definition saved to `docs/jira/{feature}/epic.md`. Run `sdd config init` to configure Jira (or add a `jira:` section to `.specify/integrations.yml` — see `.specify/integrations.yml.example`) and run `/jira-push --level epic` to create it in Jira."
-
-<!-- shared:token-usage-log-step:start -->
-## Token Usage Logging (this command)
-If `.specify/memory/token-pricing.yml` exists: log this command now — see
-CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
-them. Append one row to `.specify/features/{feature}/token-usage.md`
-(create it from `token-usage-template.md` if this is the first row for
-this feature) and update its Running Totals table. If that file doesn't
-exist, skip this silently — do not create it and do not mention it.
-<!-- shared:token-usage-log-step:end -->
 
 State: "**BRD generated.** Review in Confluence/Jira (or above), then run **/specify-uc** to generate the Use Case Specification."
 

@@ -795,6 +795,44 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.25"},
     },
+    {
+        "from":        "2.7.25",
+        "to":          "2.7.26",
+        "description": "Fix: token usage logging was placed after multi-turn approval-wait STOP points in 9 command prompts, so it almost never actually fired -- moved to right after the document is saved; no manifest schema changes",
+        "notes": [
+            "2.7.18 wired the token-usage-log-step reminder into every "
+            "document-generating command, but in 9 of them (specify-brd, "
+            "specify-uc, specify-srd, specify-doc, plan-design, plan-arch, "
+            "plan-hld, plan-adr, plan-lld) it was placed at the very end "
+            "of the file, AFTER the Stakeholder Review and Approval "
+            "section -- which contains STOP points that end the current "
+            "turn and defer continuation to a much later turn (after the "
+            "user says 'done' or 'approved', sometimes several exchanges "
+            "later). The document itself was already fully saved and "
+            "complete well before that point, but the logging instruction "
+            "sat unreachable behind those unrelated approval-wait turns",
+            "Found via real testing: token-pricing.yml existed and the "
+            "feature was correctly enabled, but token-usage.md was still "
+            "never being updated",
+            "The token-usage-log-step block now sits immediately after "
+            "the document is saved (right before the Stakeholder Review "
+            "section begins) in all 9 affected prompts, guaranteeing it "
+            "executes in the same turn as the actual generation work -- "
+            "regardless of how many turns the subsequent approval flow "
+            "takes",
+            "task.prompt.md, checklist.prompt.md, implement/release/"
+            "validate/analyze/clarify.prompt.md were already correctly "
+            "placed (no approval-wait STOP between generation and the "
+            "log step) and needed no change. create-context.prompt.md "
+            "and change.prompt.md log at their genuine completion point "
+            "(after the user's iteration loop finishes) by design -- "
+            "those commands aren't finished, and their output isn't "
+            "final, until that point, so no change was needed there either",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.26"},
+    },
 ]
 
 

@@ -114,6 +114,16 @@ Fix any error found. State: "Diagram self-check passed — {N} diagrams verified
 - Save to: `.specify/features/{manifest.project.feature}/hld.md`
 - Write `.specify/features/{manifest.project.feature}/hld.summary.md` (max SUMMARY_MAX_LINES lines)
 
+<!-- shared:token-usage-log-step:start -->
+## Token Usage Logging (this command)
+If `.specify/memory/token-pricing.yml` exists: log this command now — see
+CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
+them. Append one row to `.specify/features/{feature}/token-usage.md`
+(create it from `token-usage-template.md` if this is the first row for
+this feature) and update its Running Totals table. If that file doesn't
+exist, skip this silently — do not create it and do not mention it.
+<!-- shared:token-usage-log-step:end -->
+
 ### Review and Approval
 
 Submit for review (if Confluence/Jira configured):
@@ -174,16 +184,6 @@ these should trigger this step.
    is not installed, skip — the `Status: Approved` header is the
    authoritative gate; tell the user any Confluence copy was NOT updated.
 <!-- shared:review-decision-step:end -->
-
-<!-- shared:token-usage-log-step:start -->
-## Token Usage Logging (this command)
-If `.specify/memory/token-pricing.yml` exists: log this command now — see
-CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
-them. Append one row to `.specify/features/{feature}/token-usage.md`
-(create it from `token-usage-template.md` if this is the first row for
-this feature) and update its Running Totals table. If that file doesn't
-exist, skip this silently — do not create it and do not mention it.
-<!-- shared:token-usage-log-step:end -->
 
 **mvp+ scope:** State: "**hld.md approved. ✓** Run **/plan-adr** next — Architecture Decision Records."
 **pilot scope:** State: "**hld.md approved. ✓** Run **/task** next — story and task breakdown."

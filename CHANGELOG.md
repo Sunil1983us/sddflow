@@ -4,6 +4,37 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.26] — 2026-07-10 (Fix: token usage logging was structurally unreachable in 9 commands)
+
+### Fixed
+
+- **Token usage logging** (`.specify/memory/token-pricing.yml`, opt-in)
+  was correctly wired into every document-generating command in 2.7.18,
+  but in 9 of them — `specify-brd`, `specify-uc`, `specify-srd`,
+  `specify-doc`, `plan-design`, `plan-arch`, `plan-hld`, `plan-adr`,
+  `plan-lld` — the logging instruction sat at the very end of the file,
+  **after** the Stakeholder Review and Approval section. That section
+  contains STOP points that end the current turn and defer continuation
+  until the user says "done" or "approved" — sometimes several exchanges
+  later. The document itself was already fully saved and complete well
+  before that point, but the logging instruction was unreachable behind
+  those unrelated, later turns.
+- Found via real testing: `token-pricing.yml` existed and the feature was
+  correctly enabled, yet `token-usage.md` was still never being updated.
+- The `token-usage-log-step` block now sits immediately after the
+  document is saved (right before the review section begins) in all 9
+  affected prompts, so it executes in the same turn as the actual
+  generation work — no longer dependent on how many turns the subsequent
+  approval flow takes.
+- `task`, `checklist`, `implement`, `release`, `validate`, `analyze`, and
+  `clarify` prompts were already placed correctly and needed no change.
+  `create-context` and `change` intentionally log at their genuine
+  completion point (after the user's iteration loop finishes) — those
+  commands' output isn't final until then, so that placement is correct
+  by design, not a bug.
+
+---
+
 ## [2.7.25] — 2026-07-10 (Fix: failed Jira parent-links vanished silently)
 
 ### Fixed

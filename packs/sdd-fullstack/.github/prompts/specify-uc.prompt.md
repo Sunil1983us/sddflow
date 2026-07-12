@@ -80,6 +80,16 @@ Write `.specify/features/{manifest.project.feature}/use-cases.summary.md` (max S
 `ACT-NNN` for that role. If a BRD stakeholder role has no corresponding actor (e.g. no UX
 Lead defined), leave that cell as `_(N/A)_`. Save `brd.md` and regenerate `brd.summary.md`.
 
+<!-- shared:token-usage-log-step:start -->
+## Token Usage Logging (this command)
+If `.specify/memory/token-pricing.yml` exists: log this command now — see
+CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
+them. Append one row to `.specify/features/{feature}/token-usage.md`
+(create it from `token-usage-template.md` if this is the first row for
+this feature) and update its Running Totals table. If that file doesn't
+exist, skip this silently — do not create it and do not mention it.
+<!-- shared:token-usage-log-step:end -->
+
 ### Stakeholder Review and Approval
 
 **Step A — Stakeholder commenting (Confluence only)**
@@ -194,16 +204,6 @@ After approval (Step C complete), generate draft Story definitions:
 2. Check whether `.specify/integrations.yml` exists and has a `jira:` section.
    - If yes: state "Draft story definitions ready. Run `/jira-push --level story` to create them in Jira now. Story points and FR-NNN links will be added after /specify-srd — run `/jira-push --level story` again then to update the existing issues."
    - If no: state "Draft story definitions saved to `docs/jira/{feature}/stories-draft.md`. FR-NNN links and MoSCoW priority will be added after /specify-srd. Run `sdd config init` to configure Jira and run `/jira-push --level story` when ready."
-
-<!-- shared:token-usage-log-step:start -->
-## Token Usage Logging (this command)
-If `.specify/memory/token-pricing.yml` exists: log this command now — see
-CLAUDE.md → "Token Usage Logging" for the exact fields and how to compute
-them. Append one row to `.specify/features/{feature}/token-usage.md`
-(create it from `token-usage-template.md` if this is the first row for
-this feature) and update its Running Totals table. If that file doesn't
-exist, skip this silently — do not create it and do not mention it.
-<!-- shared:token-usage-log-step:end -->
 
 State: "**Use Cases generated.** Review and approve, then run **/specify-srd** to continue."
 
