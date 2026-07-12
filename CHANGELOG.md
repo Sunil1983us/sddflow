@@ -4,6 +4,29 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.23] — 2026-07-10 (Fix: Jira search calls broken by Atlassian's endpoint deprecation)
+
+### Fixed
+
+- **`JiraClient.search()`** was calling `GET /rest/api/3/search`, which
+  Atlassian deprecated and has now removed (returns `410 Gone`) in favor
+  of `POST /rest/api/3/search/jql`. This broke every Jira issue lookup by
+  label — `find_by_label()`, used by `sdd review submit`'s Feature/Epic
+  self-bootstrap, `sdd jira push`'s create-or-update idempotency check,
+  and `sdd review check/status/apply` — on any Jira Cloud instance
+  Atlassian's rollout had already reached.
+- Found via a real `sdd review submit --doc brd` failure during
+  pre-publish testing: the Confluence half succeeded, the Jira half
+  failed with `410 Gone`, and the review silently fell back to chat
+  approval with no Jira ticket created at all.
+- `search()` now POSTs to `/rest/api/3/search/jql` with `jql`/`fields`/
+  `maxResults` in the JSON body, matching Atlassian's documented
+  migration path. Only the first page of results is fetched — every
+  caller here is an idempotency lookup expecting 0–1 matches, so
+  `nextPageToken` pagination was never needed.
+
+---
+
 ## [2.7.22] — 2026-07-10 (Fix: Markdown tables were destroyed on every Confluence push)
 
 ### Fixed

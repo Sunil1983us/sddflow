@@ -24,10 +24,16 @@ class JiraClient:
 
     def search(self, jql: str, fields: list[str] | None = None,
                max_results: int = 50) -> list[dict]:
-        params: dict = {"jql": jql, "maxResults": max_results}
+        """Run a JQL search. Uses POST /rest/api/3/search/jql -- Atlassian
+        deprecated the old GET /rest/api/3/search endpoint (removed,
+        returns 410 Gone) in favor of this one. Only the first page is
+        fetched (no nextPageToken follow-up): every caller in this
+        codebase is an idempotency lookup expecting 0-1 matches, well
+        under max_results, so pagination has never been needed here."""
+        payload: dict = {"jql": jql, "maxResults": max_results}
         if fields:
-            params["fields"] = ",".join(fields)
-        r = self._s.get(self._api("/search"), params=params)
+            payload["fields"] = fields
+        r = self._s.post(self._api("/search/jql"), json=payload)
         r.raise_for_status()
         return r.json().get("issues", [])
 

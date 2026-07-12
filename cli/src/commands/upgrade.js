@@ -637,6 +637,35 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.22',
+    to:   '2.7.23',
+    description: 'Fix: JiraClient.search() (Python CLI) called the Jira Cloud search endpoint Atlassian removed (410 Gone), breaking every sdd review submit / sdd jira push idempotency lookup — no manifest schema changes',
+    notes: [
+      'Atlassian deprecated and removed GET /rest/api/3/search ' +
+      '(announced Aug 2024) in favor of POST /rest/api/3/search/jql. ' +
+      'Every CLI call that looks up an existing Jira issue by label — ' +
+      'used by `sdd review submit`\'s Epic self-bootstrap, `sdd jira ' +
+      'push`\'s upsert logic, and `sdd review check/status/apply` — went ' +
+      'through the old endpoint and started failing with 410 Gone once ' +
+      'Atlassian\'s rollout reached a given Jira Cloud instance',
+      'Found via a real `sdd review submit` failure during pre-publish ' +
+      'testing — the Confluence half succeeded but the Jira half ' +
+      'failed, so the review fell back to chat approval with no Jira ' +
+      'ticket created',
+      '`JiraClient.search()` now POSTs to /rest/api/3/search/jql with ' +
+      'jql/fields/maxResults in the JSON body, matching Atlassian\'s ' +
+      'documented migration path',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.23';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
