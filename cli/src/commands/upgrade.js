@@ -791,6 +791,36 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.27',
+    to:   '2.7.28',
+    description: 'Fix: sdd dashboard (Python CLI) comment box lost typed text on the 5s auto-poll, and the per-feature grid cramped the Pipeline card\'s links column; no manifest schema changes',
+    notes: [
+      'User-reported via live testing: typing into the dashboard\'s ' +
+      'inline comment form and pausing for a few seconds would wipe the ' +
+      'field — the 5s auto-poll rebuilt the whole panel and the new DOM ' +
+      'nodes came back empty and unfocused',
+      'Fixed with a delegated input listener that mirrors keystrokes ' +
+      'into client-side state (re-hydrated on every render) plus a ' +
+      'focus/selection-range restore around the periodic DOM rebuild',
+      'Also widened the per-feature grid breakpoint and let the Pipeline ' +
+      'card span the full row so its links column (View/Approve/' +
+      'comment-count/Jira+Confluence pills) no longer gets visually cut ' +
+      'off at narrower widths',
+      'Verified live with a Playwright-driven headless Chromium session ' +
+      'against a real `sdd dashboard` instance, plus 3 new regression ' +
+      'tests in test_dashboard.py',
+      'This is a prompt/dashboard-content change, not a code change in ' +
+      'this Node CLI — it stays scoped to init/upgrade scaffolding, per ' +
+      'its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.28';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

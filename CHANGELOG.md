@@ -4,6 +4,37 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.28] — 2026-07-12 (Fix: dashboard comment box lost typed text; layout cramped)
+
+### Fixed
+
+- **`sdd dashboard` comment box** — typing a reviewer name or comment into
+  the dashboard's inline comment form and pausing for even a few seconds
+  would wipe the field. Root cause: the dashboard's `render()` replaces the
+  entire `#root` panel on every 5-second auto-poll, regardless of whether
+  the user is mid-keystroke, and the freshly-built input/textarea came back
+  empty and unfocused.
+- Fixed with two mechanisms: a delegated `input` listener now mirrors every
+  keystroke into client-side state (keyed by feature+doc) and re-hydrates
+  the fields from it on every render — this is what stops the text from
+  being lost — plus a focus/selection-range restore around the periodic
+  rebuild so typing feels uninterrupted. The draft clears once a comment
+  successfully posts.
+- Verified live with a Playwright-driven headless Chromium session against
+  a real `sdd dashboard` instance: typed text survived two full poll
+  cycles, focus/caret were restored, and Post Comment still worked
+  end-to-end.
+- **Layout** — the per-feature grid used one flat breakpoint for all four
+  cards (Pipeline, Tasks, Token Usage, Jira Export), so the Pipeline card's
+  Links column (View / Approve / comment count / Jira+Confluence pills)
+  got visually cramped and cut off at narrower widths. The Pipeline card
+  now spans the full row and the links column wraps instead of forcing
+  `nowrap`. Verified with screenshots at 1200px and 900px.
+- 3 new regression tests in `test_dashboard.py` guard the fix at the
+  source level so a future edit can't silently drop it.
+
+---
+
 ## [2.7.27] — 2026-07-12 (Fix: token usage logging still didn't fire — stale in-conversation context)
 
 ### Fixed

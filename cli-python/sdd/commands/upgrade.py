@@ -868,6 +868,55 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.27"},
     },
+    {
+        "from":        "2.7.27",
+        "to":          "2.7.28",
+        "description": "Fix: sdd dashboard's comment box lost typed text on the 5s auto-poll, and the per-feature grid cramped the Pipeline card's links column; no manifest schema changes",
+        "notes": [
+            "User-reported via live testing: typing a reviewer name/comment "
+            "into the dashboard's inline comment form and pausing for even "
+            "a few seconds would wipe the field -- the text 'disappeared'",
+            "Root cause: dashboard.py's render() unconditionally replaces "
+            "#root's entire innerHTML on every refresh() call, and "
+            "setInterval(refresh, 5000) fires that every 5s regardless of "
+            "whether the user is mid-keystroke in the comment-by/comment-"
+            "text fields -- the freshly-built DOM nodes came back empty "
+            "and unfocused",
+            "Fixed with two complementary mechanisms: (1) a delegated "
+            "'input' listener now mirrors every keystroke into "
+            "state.commentDrafts, keyed by feature+doc, and renderComments"
+            "Panel() re-hydrates the input/textarea value from that draft "
+            "on every render -- this is what actually stops the text from "
+            "being lost; (2) render() also captures the focused element "
+            "and its selection range before the innerHTML swap and "
+            "restores both afterward, so typing feels uninterrupted rather "
+            "than just 'recovers after the fact'",
+            "Draft is cleared from state once a comment successfully posts",
+            "Verified live with a Playwright-driven headless Chromium "
+            "session against a real `sdd dashboard` instance: typed text "
+            "survived two full 5s poll cycles, focus/caret were restored, "
+            "and Post Comment still worked end-to-end and cleared the "
+            "draft afterward",
+            "Also addressed a layout complaint from the same report -- the "
+            "per-feature grid used a flat auto-fit minmax(220px) for all "
+            "four cards (Pipeline, Tasks, Token Usage, Jira Export), so "
+            "the Pipeline card's Links column (View/Approve/comment-count/"
+            "Jira+Confluence pills) got squeezed and visually cut off at "
+            "narrow widths. The new .feature-grid class widens the "
+            "breakpoint to minmax(320px) and makes the Pipeline card span "
+            "the full row via grid-column: 1 / -1; .links-cell now wraps "
+            "with flex-wrap instead of forcing nowrap. Verified with "
+            "screenshots at 1200px and 900px viewport widths",
+            "3 new regression tests in test_dashboard.py guard the fix at "
+            "the source level (commentDrafts wiring, focus-restore, draft-"
+            "clear-on-submit) so a future edit can't silently drop it "
+            "without a test noticing, without adding a browser-automation "
+            "dependency to CI",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.28"},
+    },
 ]
 
 

@@ -60,7 +60,9 @@ _PAGE = """<!doctype html>
   h1 { font-size: 1.3rem; margin: 0 0 .25rem; }
   h2 { font-size: 1rem; margin: 0 0 .75rem; color: var(--muted); font-weight: 600; }
   .sub { color: var(--muted); font-size: .85rem; margin-bottom: 1.5rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .feature-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .feature-grid .card:first-child { grid-column: 1 / -1; }
   .card {
     background: var(--card); border: 1px solid var(--border); border-radius: 10px;
     padding: 1rem 1.2rem;
@@ -98,7 +100,7 @@ _PAGE = """<!doctype html>
   .pill-cf   { color: var(--ok); border-color: var(--ok); }
   .pill-bad  { color: var(--bad); border-color: var(--bad); }
   .pill-ok   { color: var(--ok); border-color: var(--ok); }
-  .links-cell { white-space: nowrap; }
+  .links-cell { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
   .doc-detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
   .doc-detail {
     margin: 0; padding: .75rem 1rem; background: var(--bg); max-height: 360px; overflow: auto;
@@ -130,7 +132,7 @@ _PAGE = """<!doctype html>
 // Client-side only — never re-fetched from /api/status, so it survives
 // the 5s poll: which doc panels are expanded, their fetched content, and
 // any live Jira/Confluence review-link results the user asked for.
-const state = { expandedDocs: new Set(), expandedComments: new Set(), docContents: {}, reviewLinks: {} };
+const state = { expandedDocs: new Set(), expandedComments: new Set(), docContents: {}, reviewLinks: {}, commentDrafts: {} };
 let lastData = null;
 
 function escapeHtml(s) {
@@ -206,6 +208,8 @@ function linkPill(kind, link) {
 
 function renderCommentsPanel(d, feature) {
   const comments = d.comments || [];
+  const key = feature + '|' + d.key;
+  const draft = state.commentDrafts[key] || { by: '', text: '' };
   const list = comments.length
     ? comments.map(c => `
         <div class="comment">
@@ -218,8 +222,10 @@ function renderCommentsPanel(d, feature) {
       <div class="comments-box">
         ${list}
         <div class="comment-form">
-          <input type="text" class="comment-by" placeholder="Your name" maxlength="200">
-          <textarea class="comment-text" placeholder="Add a review comment…" rows="2" maxlength="2000"></textarea>
+          <input type="text" class="comment-by" data-feature="${feature}" data-doc="${d.key}"
+                 placeholder="Your name" maxlength="200" value="${escapeHtml(draft.by)}">
+          <textarea class="comment-text" data-feature="${feature}" data-doc="${d.key}"
+                    placeholder="Add a review comment…" rows="2" maxlength="2000">${escapeHtml(draft.text)}</textarea>
           <button class="link-btn" data-action="submit-comment" data-feature="${feature}" data-doc="${d.key}">Post comment</button>
         </div>
       </div>
@@ -311,7 +317,7 @@ function renderFeature(f) {
   <div class="feature-block">
     <div class="feature-title">${f.name}</div>
     ${renderReviewLinksControl(f.name)}
-    <div class="grid">
+    <div class="grid feature-grid">
       <div class="card"><h2>Pipeline</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence)}</div>
       <div class="card"><h2>Tasks</h2>${renderTasks(f.tasks)}</div>
       <div class="card"><h2>Token Usage</h2>${renderTokenUsage(f.token_usage)}</div>
@@ -327,7 +333,38 @@ function render() {
   const features = data.features.length
     ? data.features.map(renderFeature).join('')
     : '<div class="empty">No features under .specify/features/ yet.</div>';
-  document.getElementById('root').innerHTML = renderProject(data.project, data.constitution) + features;
+
+  // Rebuilding #root wholesale (below) would otherwise steal focus and reset
+  // the caret out from under anyone actively typing in a comment field —
+  // most visibly on the 5s auto-poll. Capture focus/selection first and
+  // restore it on the freshly-built element with the same feature/doc data
+  // attributes after the swap. The typed value itself is preserved
+  // separately via state.commentDrafts (see the 'input' listener below),
+  // since draft text must survive even *without* focus being restored.
+  const root = document.getElementById('root');
+  const active = document.activeElement;
+  let focus = null;
+  if (active && root.contains(active) &&
+      (active.classList.contains('comment-by') || active.classList.contains('comment-text'))) {
+    focus = {
+      cls: active.classList.contains('comment-by') ? 'comment-by' : 'comment-text',
+      feature: active.dataset.feature,
+      doc: active.dataset.doc,
+      start: active.selectionStart,
+      end: active.selectionEnd,
+    };
+  }
+
+  root.innerHTML = renderProject(data.project, data.constitution) + features;
+
+  if (focus) {
+    const selector = `.${focus.cls}[data-feature="${CSS.escape(focus.feature)}"][data-doc="${CSS.escape(focus.doc)}"]`;
+    const el = root.querySelector(selector);
+    if (el) {
+      el.focus();
+      try { el.setSelectionRange(focus.start, focus.end); } catch (err) { /* not all inputs support this */ }
+    }
+  }
 }
 
 async function refresh() {
@@ -335,6 +372,23 @@ async function refresh() {
   lastData = await res.json();
   render();
 }
+
+// Delegated 'input' listener: fires on every keystroke in a comment field
+// and stashes the value in state.commentDrafts, keyed by feature+doc — so
+// when the 5s poll rebuilds #root (see render()'s innerHTML swap above),
+// the new input/textarea nodes are re-hydrated from state instead of
+// coming back empty. This is what actually stops typed text from being
+// lost; the focus/caret restore in render() just makes it feel seamless.
+document.getElementById('root').addEventListener('input', (e) => {
+  const el = e.target;
+  const isBy = el.classList.contains('comment-by');
+  const isText = el.classList.contains('comment-text');
+  if (!isBy && !isText) return;
+  const key = el.dataset.feature + '|' + el.dataset.doc;
+  const draft = state.commentDrafts[key] || { by: '', text: '' };
+  if (isBy) draft.by = el.value; else draft.text = el.value;
+  state.commentDrafts[key] = draft;
+});
 
 // Event delegation on #root: click handlers survive innerHTML replacement
 // on every refresh(), since the listener lives on the stable parent node.
@@ -416,7 +470,11 @@ document.getElementById('root').addEventListener('click', async (e) => {
         body: JSON.stringify({ feature, doc, by, text }),
       });
       const result = await res.json();
-      if (result.error) window.alert('Comment failed: ' + result.error);
+      if (result.error) {
+        window.alert('Comment failed: ' + result.error);
+      } else {
+        delete state.commentDrafts[feature + '|' + doc];
+      }
       state.expandedComments.add(feature + '|' + doc);
       await refresh();
     } catch (err) {
