@@ -203,6 +203,15 @@ def jira_push(profile, feature, level, cr, dry_run):
         f"  Jira     : [cyan]{jira_cfg.project_key}[/cyan]  "
         f"[dim]{h['feature']} → {h['story']} → {h['task']}[/dim]"
     )
+    if jira_cfg.project_keys:
+        overrides = ", ".join(f"{lvl}→{key}" for lvl, key in jira_cfg.project_keys.items())
+        console.print(f"  [yellow]project_keys override: {overrides}[/yellow]")
+        console.print(
+            "  [yellow]!  Jira's parent/Epic-Link field generally can't link issues "
+            "across projects — parent links between these levels may fail. Any failure "
+            "prints a warning rather than vanishing silently, but check your Jira "
+            "before relying on this.[/yellow]"
+        )
     console.print()
 
     if dry_run:
@@ -226,7 +235,7 @@ def jira_push(profile, feature, level, cr, dry_run):
     client = JiraClient(session, prof.base_url)
 
     if level == "uc-draft":
-        epic_key = _find_feature_key(client, jira_cfg.project_key, feature_name)
+        epic_key = _find_feature_key(client, jira_cfg.key_for("feature"), feature_name)
         if not epic_key:
             console.print(
                 "  [yellow]!  Feature/Epic not found — draft Stories will be created "
@@ -340,15 +349,27 @@ def _find_feature_key(client: JiraClient, project_key: str, feature_name: str) -
     return issue["key"] if issue else None
 
 
-def _find_story_key(client: JiraClient, project_key: str, feature_name: str, story_id: str) -> str | None:
-    issue = client.find_by_label(project_key, _item_label(feature_name, story_id))
+def _find_story_key(client: JiraClient, project_key: str, feature_name: str, story: Story) -> str | None:
+    """Looks up a previously-pushed Story's Jira key by idempotency label.
+    Checks the UC-derived label first (sdd:{feature}:UC-NNN) when the
+    story traces 1:1 to a use case, since that's the label _push_stories()
+    actually used to create/finalize it -- falling back to the story's
+    own STORY-NNN label (the shape every story used before UC drafts
+    existed). Without this, running `--level task` in a separate
+    invocation from `--level story` would silently fail to find a
+    UC-derived story's real key and push its tasks with no parent link."""
+    if story.derived_uc:
+        issue = client.find_by_label(project_key, _item_label(feature_name, story.derived_uc))
+        if issue:
+            return issue["key"]
+    issue = client.find_by_label(project_key, _item_label(feature_name, story.id))
     return issue["key"] if issue else None
 
 
 def _push_epic(client: JiraClient, feature_name: str, features_dir: Path, cfg: JiraConfig) -> str:
     feature_extra = feature_extra_fields(features_dir, cfg, feature_name)
     key, created = _upsert_issue(
-        client, cfg.project_key, cfg.issue_hierarchy["feature"], feature_name,
+        client, cfg.key_for("feature"), cfg.issue_hierarchy["feature"], feature_name,
         feature_extra, f"sdd-feature:{feature_name}", cfg.labels,
     )
     _log(cfg.issue_hierarchy["feature"], key, feature_name, created)
@@ -389,7 +410,7 @@ def _push_stories(client: JiraClient, feature_name: str, stories: list[Story],
             else _item_label(feature_name, story.id)
         )
         key, created = _upsert_issue(
-            client, cfg.project_key, cfg.issue_hierarchy["story"],
+            client, cfg.key_for("story"), cfg.issue_hierarchy["story"],
             f"{story.id} — {story.title}",
             extra,
             id_label,
@@ -401,7 +422,7 @@ def _push_stories(client: JiraClient, feature_name: str, stories: list[Story],
             try:
                 client.set_parent(key, epic_key, cfg.parent_field)
             except Exception as e:
-                _warn_parent_link_failed(key, epic_key, cfg.project_key, e)
+                _warn_parent_link_failed(key, epic_key, cfg.key_for("story"), e)
 
         pts = f"  {story.story_points}sp" if story.story_points else ""
         _log(cfg.issue_hierarchy["story"], key, f"{story.id}: {story.title} ({story.moscow}{pts})", created)
@@ -430,7 +451,7 @@ def _push_uc_draft_stories(client: JiraClient, feature_name: str, use_cases: lis
             ),
         }
         key, created = _upsert_issue(
-            client, cfg.project_key, cfg.issue_hierarchy["story"],
+            client, cfg.key_for("story"), cfg.issue_hierarchy["story"],
             f"{uc.id} — {uc.title} (draft)",
             extra,
             _item_label(feature_name, uc.id),
@@ -442,7 +463,7 @@ def _push_uc_draft_stories(client: JiraClient, feature_name: str, use_cases: lis
             try:
                 client.set_parent(key, epic_key, cfg.parent_field)
             except Exception as e:
-                _warn_parent_link_failed(key, epic_key, cfg.project_key, e)
+                _warn_parent_link_failed(key, epic_key, cfg.key_for("story"), e)
 
         _log(cfg.issue_hierarchy["story"], key, f"{uc.id}: {uc.title} (draft)", created)
 
@@ -466,7 +487,7 @@ def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
             extra[cfg.custom_fields["fr_reference"]] = ", ".join(task.satisfies)
 
         key, created = _upsert_issue(
-            client, cfg.project_key, cfg.issue_hierarchy["task"],
+            client, cfg.key_for("task"), cfg.issue_hierarchy["task"],
             f"{task.id} — {task.title}",
             extra,
             _item_label(feature_name, task.id),
@@ -479,7 +500,7 @@ def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
             try:
                 client.set_parent(key, parent_key, cfg.parent_field)
             except Exception as e:
-                _warn_parent_link_failed(key, parent_key, cfg.project_key, e)
+                _warn_parent_link_failed(key, parent_key, cfg.key_for("task"), e)
 
         story_ref = f"  [dim]→ {parent_key or '?'}[/dim]" if task.story_id else ""
         _log(cfg.issue_hierarchy["task"], key, f"{task.id}: {task.title}{story_ref}", created)
@@ -520,7 +541,7 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
             extra[cfg.custom_fields["fr_reference"]] = satisfies
 
         key, created = _upsert_issue(
-            client, cfg.project_key, chg_issue_type, chg["description"],
+            client, cfg.key_for("chg"), chg_issue_type, chg["description"],
             extra, _item_label(feature_name, chg["sdd_id"]), cfg.labels,
         )
         chg_key_map[chg["sdd_id"]] = key
@@ -529,7 +550,7 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
             try:
                 client.set_parent(key, parent_key, cfg.parent_field)
             except Exception as e:
-                _warn_parent_link_failed(key, parent_key, cfg.project_key, e)
+                _warn_parent_link_failed(key, parent_key, cfg.key_for("chg"), e)
 
         _log(chg_issue_type, key, f"{chg['sdd_id']}: {chg['description']}", created)
 
@@ -554,7 +575,7 @@ def _push(client: JiraClient, feature_name: str, features_dir: Path,
     if do_epic:
         epic_key = _push_epic(client, feature_name, features_dir, cfg)
     elif do_story or do_chg:
-        epic_key = _find_feature_key(client, cfg.project_key, feature_name)
+        epic_key = _find_feature_key(client, cfg.key_for("feature"), feature_name)
         if not epic_key and do_story:
             console.print(
                 "  [yellow]!  Feature/Epic not found — Stories will be created "
@@ -566,7 +587,7 @@ def _push(client: JiraClient, feature_name: str, features_dir: Path,
         story_key_map = _push_stories(client, feature_name, stories, cfg, epic_key)
     elif do_task or do_chg:
         for story in stories:
-            key = _find_story_key(client, cfg.project_key, feature_name, story.id)
+            key = _find_story_key(client, cfg.key_for("story"), feature_name, story)
             if key:
                 story_key_map[story.id] = key
 
@@ -679,7 +700,7 @@ def jira_sync(profile, feature):
 
     tasks   = parse_tasks(features_dir)
     client  = JiraClient(session, prof.base_url)
-    project_key = cfg.jira.project_key
+    project_key = cfg.jira.key_for("task")
 
     console.print(f"  {'TASK ID':<12} {'Jira Key':<14} Status")
     console.print(f"  {'─'*12} {'─'*14} {'─'*20}")

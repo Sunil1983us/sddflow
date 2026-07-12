@@ -1085,6 +1085,63 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.31"},
     },
+    {
+        "from":        "2.7.31",
+        "to":          "2.7.32",
+        "description": "Feature: per-issue-type Jira project key overrides -- new integrations.yml jira.project_keys: {level: KEY} block lets an org keep its Epic/Feature in one Jira project and Stories/Tasks (or review tickets, CRs, CHGs) in another; every project-key call site now resolves through JiraConfig.key_for(level) instead of the single project_key field; no manifest schema changes",
+        "notes": [
+            "User-requested: 'cfg.jira.project_key is only KEY, there are "
+            "possible that org can have different project key for type of "
+            "ticket ... I have to have configuration as much as possible'",
+            "integrations.py: JiraConfig gained project_keys: dict "
+            "(default {}) and a key_for(level) method -- returns "
+            "project_keys.get(level, project_key); every level not listed "
+            "in project_keys silently falls back to the single "
+            "project_key, so existing integrations.yml files with no "
+            "project_keys: block are unaffected",
+            "Valid levels: feature (the Epic/Feature created at "
+            "/specify), story (dev Stories + UC-draft placeholder "
+            "Stories), task (dev Tasks), review (the review-gate Story "
+            "each `sdd review submit` creates), chg (CHG-NNN "
+            "change-request tasks), cr (CR-NNN change-request review "
+            "tasks from `sdd cr submit`)",
+            "jira.py, review.py, cr.py, pr.py, dashboard.py: every "
+            "cfg.jira.project_key / jira_cfg.project_key call site that "
+            "picks a project for a create/find-by-label call converted "
+            "to cfg.jira.key_for(<level>); _find_story_key's signature "
+            "changed from (client, project_key, feature_name, story_id) "
+            "to (client, project_key, feature_name, story) -- it now "
+            "checks the UC-derived label before falling back to the "
+            "STORY-NNN label, fixing a latent bug where a UC-derived "
+            "story's real key could be missed entirely when --level task "
+            "ran in a separate invocation from --level story",
+            "sdd jira push's status header now prints any configured "
+            "project_keys overrides plus a standing warning when any are "
+            "set",
+            "IMPORTANT CAVEAT (documented in integrations.yml.example "
+            "and README.md, not a bug): Jira's parent/Epic-Link field "
+            "generally does not support linking issues across different "
+            "Jira projects on the standard REST API this CLI uses -- "
+            "true cross-project hierarchy needs Advanced Roadmaps (Jira "
+            "Premium). If project_keys puts a child level in a different "
+            "project than its parent level, the child issue is still "
+            "created but the parent link may silently fail to appear in "
+            "Jira. This was already covered by the existing "
+            "_warn_parent_link_failed() safety net (prints 'was not "
+            "linked under ...' rather than swallowing the error), which "
+            "this feature relies on rather than duplicating",
+            "7 new tests: 2 in test_config_and_integrations.py (key_for "
+            "default-empty-dict and override-specific-levels), 5 across "
+            "test_jira_push_levels.py (TestProjectKeysOverride -- epic/"
+            "story/task/uc-draft create + parent-lookup calls all use "
+            "their level's override) and test_review_helpers.py "
+            "(_ensure_epic under a feature override; failed-link warning "
+            "names the review-level override, not the base project_key)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.32"},
+    },
 ]
 
 

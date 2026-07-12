@@ -219,7 +219,7 @@ def _check_predecessor(
     if not preds:
         return True, None
     pred_key = preds[0]
-    status, _ = _get_review_status(pred_key, client, cfg.jira.project_key, cfg, feature_name)
+    status, _ = _get_review_status(pred_key, client, cfg.jira.key_for("review"), cfg, feature_name)
     return (status == "APPROVED"), (None if status == "APPROVED" else pred_key)
 
 
@@ -253,7 +253,7 @@ def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | 
         extra = feature_extra_fields(features_dir, jira_cfg, feature_name)
         h = jira_cfg.issue_hierarchy
         key, _ = _upsert_issue(
-            jira_client, jira_cfg.project_key, h["feature"], feature_name,
+            jira_client, jira_cfg.key_for("feature"), h["feature"], feature_name,
             extra, f"sdd-feature:{feature_name}", jira_cfg.labels,
         )
         return key
@@ -277,7 +277,7 @@ def _link_review_story_to_epic(jira_client: JiraClient, story_key: str,
     try:
         jira_client.set_parent(story_key, epic_key, jira_cfg.parent_field)
     except Exception as e:
-        _warn_parent_link_failed(story_key, epic_key, jira_cfg.project_key, e)
+        _warn_parent_link_failed(story_key, epic_key, jira_cfg.key_for("review"), e)
 
 
 # ── Command group ──────────────────────────────────────────────────────────────
@@ -295,7 +295,7 @@ def review_command():
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_submit(doc, profile, feature):
-    """Push a document to Confluence and create a Jira review task for it."""
+    """Push a document to Confluence and create a Jira review story for it."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print(f"  [bold cyan]Review Submit[/bold cyan] — {doc.upper()}")
@@ -385,7 +385,8 @@ def review_submit(doc, profile, feature):
     # a second feature's BRD review submission find and silently overwrite
     # the first feature's review ticket.
     idempotency_label = f"sdd-doc:{feature_name}:{doc}"
-    existing          = jira_client.find_by_label(cfg.jira.project_key, idempotency_label)
+    review_project_key = cfg.jira.key_for("review")
+    existing          = jira_client.find_by_label(review_project_key, idempotency_label)
     story_summary     = f"Review: {project_name} — {doc.upper()}"
     desc_text = (
         f"Please review the {doc.upper()} document.\n\n"
@@ -394,7 +395,7 @@ def review_submit(doc, profile, feature):
         f"To REQUEST CHANGES: add review comments and leave it open."
     )
     fields: dict = {
-        "project":     {"key": cfg.jira.project_key},
+        "project":     {"key": review_project_key},
         "issuetype":   {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
         "summary":     story_summary,
         "labels":      ["sdd-review", idempotency_label],
@@ -478,7 +479,7 @@ def review_check(doc, profile, feature):
     feature_name = feature or proj.get("feature", "")
 
     client  = JiraClient(session, prof.base_url)
-    status, comments = _get_review_status(doc, client, cfg.jira.project_key, cfg, feature_name)
+    status, comments = _get_review_status(doc, client, cfg.jira.key_for("review"), cfg, feature_name)
     doc_cfg = cfg.document_reviews.get(doc)
     role    = doc_cfg.reviewer_role if doc_cfg else "reviewer"
 
@@ -642,13 +643,13 @@ def review_apply(doc, profile, feature):
         console.print(f"  [dim]·[/dim]  {md_path} not found — skipping Confluence update")
 
     # Notify reviewer on Jira
-    issue = jira_client.find_by_label(cfg.jira.project_key, f"sdd-doc:{feature_name}:{doc}")
+    issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature_name}:{doc}")
     if issue:
         msg = f"Document updated per review comments. Please re-review: {page_url}"
         jira_client.add_comment(issue["key"], msg)
         console.print(f"  [green]✓[/green]  Reviewer notified on [cyan]{issue['key']}[/cyan]")
     else:
-        console.print(f"  [yellow]·[/yellow]  No Jira review task found for {doc.upper()}")
+        console.print(f"  [yellow]·[/yellow]  No Jira review story found for {doc.upper()}")
 
     console.print()
     console.print(
@@ -715,7 +716,7 @@ def review_status(profile, feature):
                 icon, label, style = "🔒", "Blocked", "dim"
                 all_statuses[key] = "BLOCKED"
             else:
-                st, _ = _get_review_status(key, client, cfg.jira.project_key, cfg, feature_name)
+                st, _ = _get_review_status(key, client, cfg.jira.key_for("review"), cfg, feature_name)
                 all_statuses[key] = st
                 if st == "APPROVED":
                     icon, label, style = "✓ ", "Approved",       "green"

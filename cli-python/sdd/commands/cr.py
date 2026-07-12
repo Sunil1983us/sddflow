@@ -128,7 +128,8 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
     if cfg.jira:
         jira_client      = JiraClient(session, prof.base_url)
         idempotency_label = f"sdd-cr:{cr_id.lower()}"
-        existing          = jira_client.find_by_label(cfg.jira.project_key, idempotency_label)
+        cr_project_key    = cfg.jira.key_for("cr")
+        existing          = jira_client.find_by_label(cr_project_key, idempotency_label)
 
         reviewer_id = (
             reviewer
@@ -143,7 +144,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
             f"To REQUEST CHANGES: add comments and leave the task open."
         )
         fields: dict = {
-            "project":   {"key": cfg.jira.project_key},
+            "project":   {"key": cr_project_key},
             "issuetype": {"name": cfg.jira.issue_hierarchy.get("task", "Task")},
             "summary":   f"Review: {project_name} — {cr_id}",
             "labels":    ["sdd-cr", idempotency_label],
@@ -204,7 +205,7 @@ def cr_check(cr, profile):
         raise SystemExit(1)
 
     client = JiraClient(session, prof.base_url)
-    issue  = client.find_by_label(cfg.jira.project_key, f"sdd-cr:{cr_id.lower()}")
+    issue  = client.find_by_label(cfg.jira.key_for("cr"), f"sdd-cr:{cr_id.lower()}")
 
     if not issue:
         console.print(f"  [dim]·  {cr_id} — NOT SUBMITTED[/dim]")

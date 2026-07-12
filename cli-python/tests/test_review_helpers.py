@@ -230,6 +230,16 @@ class TestLinkReviewStoryToEpic:
         cfg = JiraConfig(project_key="MYPROJ")
         review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)  # no raise
 
+    def test_failure_warning_names_the_review_override_project_key(self, project, capsys):
+        """The 'sdd config fields --project X' hint in a failed-link warning
+        must name the project the review Story actually lives in, not the
+        base project_key, when project_keys overrides "review"."""
+        client = RaisingParentClient()
+        cfg = JiraConfig(project_key="SUN", project_keys={"review": "SUNR"})
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        out = capsys.readouterr().out
+        assert "--project SUNR" in out
+
 
 class TestEnsureEpic:
     def test_creates_epic_from_brd_objectives(self, project):
@@ -242,6 +252,14 @@ class TestEnsureEpic:
 
         assert key == "PROJ-1"
         assert "sdd-feature:auth" in client.created[0]["labels"]
+
+    def test_creates_epic_under_feature_project_keys_override(self, project):
+        """project_keys: {feature: ...} must steer the Epic's own project,
+        not just the review Stories parented under it."""
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="SUN", project_keys={"feature": "SUNF"})
+        review._ensure_epic(client, cfg, "auth")
+        assert client.created[0]["project"]["key"] == "SUNF"
 
     def test_idempotent_second_call_updates_not_creates(self, project):
         client = FakeJiraClient()

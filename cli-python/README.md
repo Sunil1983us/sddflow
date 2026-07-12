@@ -780,6 +780,12 @@ profile: work-cloud     # references a profile in ~/.sdd/config.yml
 
 jira:
   project_key: MYPROJ
+  # Optional: per-level overrides when Features live in one Jira project
+  # and Stories/Tasks live in another. Any level not listed falls back
+  # to project_key. Valid levels: feature, story, task, review, chg, cr.
+  # project_keys:
+  #   story: SUNT
+  #   task: SUNT
   issue_hierarchy:
     feature: Feature    # or "Epic" if your project has no Feature type
     story: Story
@@ -805,6 +811,16 @@ confluence:
 ```
 
 Full reference: see `.specify/integrations.yml.example`.
+
+**`project_keys` cross-project caveat:** Jira's parent/Epic-Link field
+generally does not support linking issues across different Jira
+projects — true cross-project hierarchy needs Advanced Roadmaps (Jira
+Premium), not the standard REST API this CLI uses. If you override a
+level to a different project than its parent level, the child issue is
+still created, but the parent link may silently fail to appear in Jira.
+`sdd jira push` never fails silently on this — it always prints a
+warning (`was not linked under ...`) when a parent link doesn't take, so
+check the CLI output after pushing if you use `project_keys`.
 
 ---
 

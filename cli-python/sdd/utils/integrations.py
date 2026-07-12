@@ -28,6 +28,16 @@ _DEFAULT_PRIORITY_MAP = {
 @dataclass
 class JiraConfig:
     project_key: str
+    # Optional per-level overrides -- e.g. {"story": "SUNT"} when an org
+    # keeps Stories/Tasks in a different Jira project than the Epic. Falls
+    # back to project_key for any level not listed here. Levels match
+    # issue_hierarchy's keys plus "review" (the review-gate Story each
+    # `sdd review submit` creates) and "chg" (CHG-NNN change-request
+    # tasks). See JiraConfig.key_for() and its docstring for the important
+    # caveat: Jira's parent/Epic-Link field generally does not support
+    # linking issues across projects, so overriding this can produce
+    # issues that exist but aren't actually linked to their parent.
+    project_keys: dict = field(default_factory=dict)
     issue_hierarchy: dict = field(default_factory=lambda: {
         "feature": "Feature",
         "story":   "Story",
@@ -38,6 +48,14 @@ class JiraConfig:
     labels: list = field(default_factory=lambda: ["sdd-generated"])
     fix_version: str | None = None
     custom_fields: dict = field(default_factory=dict)
+
+    def key_for(self, level: str) -> str:
+        """The Jira project key to use for a given hierarchy level
+        (feature/story/task/chg/review), honoring project_keys overrides
+        and falling back to the single project_key otherwise -- the
+        common case, and the only case for every project until this
+        field is explicitly set."""
+        return self.project_keys.get(level, self.project_key)
 
 
 @dataclass
@@ -101,6 +119,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
         bf = jira_raw.get("base_fields", {})
         jira = JiraConfig(
             project_key=jira_raw["project_key"],
+            project_keys=jira_raw.get("project_keys", {}),
             issue_hierarchy={
                 "feature": hierarchy.get("feature", "Feature"),
                 "story":   hierarchy.get("story",   "Story"),

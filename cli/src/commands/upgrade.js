@@ -904,6 +904,36 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.31',
+    to:   '2.7.32',
+    description: 'Feature: per-issue-type Jira project key overrides (Python CLI) -- new integrations.yml jira.project_keys: {level: KEY} block lets an org keep its Epic/Feature in one Jira project and Stories/Tasks/reviews/CRs/CHGs in another; no manifest schema changes',
+    notes: [
+      'User-requested: an org can have a different Jira project key per ' +
+      'issue type (e.g. Epic under "SUN", Story/Task under "SUNT"); ' +
+      'JiraConfig gained project_keys: dict + a key_for(level) method ' +
+      'that falls back to the single project_key for any level not ' +
+      'listed, so existing integrations.yml files are unaffected',
+      'Cross-project caveat (documented, not a bug): Jira\'s parent/' +
+      'Epic-Link field generally does not support linking issues across ' +
+      'different Jira projects on the standard REST API -- if ' +
+      'project_keys puts a child level in a different project than its ' +
+      'parent, the child issue is still created but the parent link may ' +
+      'silently fail to appear in Jira; the CLI\'s existing ' +
+      '_warn_parent_link_failed() safety net surfaces this as a warning ' +
+      'rather than swallowing it',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.32';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

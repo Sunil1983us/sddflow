@@ -610,7 +610,7 @@ def _fetch_review_links(feature: str) -> dict:
 
         if jira_client:
             try:
-                issue = jira_client.find_by_label(cfg.jira.project_key, f"sdd-doc:{feature}:{doc_key}")
+                issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc_key}")
                 if issue:
                     entry["jira"] = {
                         "key": issue["key"],
@@ -677,7 +677,7 @@ def _post_jira_comment(feature: str, doc: str, text: str) -> dict:
         return {"posted": False, "reason": "Jira not configured"}
     client, cfg = built
     try:
-        issue = client.find_by_label(cfg.jira.project_key, f"sdd-doc:{feature}:{doc}")
+        issue = client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc}")
         if not issue:
             return {"posted": False, "reason": "no review ticket found for this document"}
         client.add_comment(issue["key"], text)

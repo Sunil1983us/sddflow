@@ -72,6 +72,36 @@ def test_load_integrations_confluence_only(tmp_path, monkeypatch):
     assert cfg.confluence.page_map == _DEFAULT_PAGE_MAP
 
 
+def test_jira_project_keys_default_to_empty_dict(tmp_path, monkeypatch):
+    """No project_keys: block -- every level falls back to project_key."""
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "jira:\n  project_key: MYPROJ\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira.project_keys == {}
+    for level in ("feature", "story", "task", "chg", "review"):
+        assert cfg.jira.key_for(level) == "MYPROJ"
+
+
+def test_jira_project_keys_override_specific_levels(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "jira:\n"
+        "  project_key: SUN\n"
+        "  project_keys:\n"
+        "    story: SUNT\n"
+        "    task: SUNT\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira.key_for("feature") == "SUN"   # not overridden -- falls back
+    assert cfg.jira.key_for("review") == "SUN"    # not overridden -- falls back
+    assert cfg.jira.key_for("story") == "SUNT"
+    assert cfg.jira.key_for("task") == "SUNT"
+
+
 class _Answer:
     """Stand-in for questionary's Question object -- .ask() returns a
     canned value instead of driving a real prompt_toolkit UI, which

@@ -16,7 +16,33 @@ profile: default
 
 jira:
   # Your Jira project key (the prefix on issue keys, e.g. MYPROJ-123)
+  # This is the default used at every hierarchy level unless overridden
+  # below in project_keys.
   project_key: MYPROJ
+
+  # Optional: per-level project key overrides, for orgs that keep
+  # Features/Epics in one Jira project and Stories/Tasks in another
+  # (e.g. Epic under "SUN", Story/Task under "SUNT"). Any level not
+  # listed here falls back to project_key above. Valid keys:
+  #   feature — the Epic/Feature created at /specify
+  #   story   — dev Stories (and UC-draft placeholder Stories)
+  #   task    — dev Tasks
+  #   review  — the review-gate Story each `sdd review submit` creates
+  #   chg     — CHG-NNN change-request tasks (see change_requests below)
+  #   cr      — CR-NNN change-request review tasks (sdd cr submit)
+  #
+  # ⚠  IMPORTANT: Jira's parent/Epic-Link field generally does NOT
+  # support linking issues across different Jira projects (this is a
+  # Jira Cloud/Server platform limitation, not an SDD bug — true
+  # cross-project hierarchy needs Advanced Roadmaps / Jira Premium).
+  # If you override a level to a different project than its parent
+  # level, the child issue will still be created, but the parent link
+  # may silently fail to appear in Jira — sdd jira push always prints a
+  # warning (never fails silently) when a parent link doesn't take, so
+  # watch for "was not linked under" in the output after pushing.
+  # project_keys:
+  #   story: SUNT
+  #   task: SUNT
 
   # Issue type names for the Feature → Story → Task hierarchy.
   #

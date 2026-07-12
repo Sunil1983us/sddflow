@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.32] — 2026-07-12 (Feature: per-issue-type Jira project key overrides)
+
+### Added / Changed
+
+- **`integrations.yml` `jira.project_keys:` override block.** Some orgs keep
+  their Epic/Feature in one Jira project and Stories/Tasks (or review
+  tickets, CRs, CHGs) in another. `project_keys: {level: KEY}` lets each
+  hierarchy level resolve to its own project key; any level left out falls
+  back to the existing single `project_key` field, so projects with no
+  `project_keys:` block are completely unaffected. Valid levels: `feature`,
+  `story`, `task`, `review`, `chg`, `cr`.
+- Every Jira-project-key call site across `jira.py`, `review.py`, `cr.py`,
+  `pr.py`, and `dashboard.py` now resolves through the new
+  `JiraConfig.key_for(level)` method instead of reading `project_key`
+  directly. `sdd jira push`'s status header prints any configured
+  `project_keys` overrides.
+- Fixed a latent bug found while wiring this through: `_find_story_key`
+  only ever searched by a story's `STORY-NNN` label, so a UC-derived
+  story's real key could be missed entirely when `--level task` ran in a
+  separate invocation from `--level story` — its tasks would get pushed
+  with no parent link and no warning. It now checks the UC-derived label
+  first, matching how `_push_stories()` already labels these issues.
+- **Cross-project caveat (documented, not a bug):** Jira's parent/Epic-Link
+  field generally does not support linking issues across different Jira
+  projects on the standard REST API this CLI uses — true cross-project
+  hierarchy needs Advanced Roadmaps (Jira Premium). If `project_keys` puts
+  a child level in a different project than its parent, the child issue is
+  still created, but the parent link may silently fail to appear in Jira.
+  `sdd jira push` never fails silently on this — it always prints a `was
+  not linked under ...` warning when a parent link doesn't take.
+- 7 new tests: 2 in `test_config_and_integrations.py` (`key_for` defaults
+  and overrides), 5 across `test_jira_push_levels.py` and
+  `test_review_helpers.py` covering the call-site wiring itself.
+
+---
+
 ## [2.7.31] — 2026-07-12 (Feature: Jira Epic/Story/Task hierarchy overhaul)
 
 ### Added / Changed
