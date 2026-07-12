@@ -4,6 +4,29 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.22] — 2026-07-10 (Fix: Markdown tables were destroyed on every Confluence push)
+
+### Fixed
+
+- **`md_to_cf.py`** (the Markdown → Confluence Storage Format converter
+  used by `sdd confluence push`, `sdd review submit`, `sdd review approve
+  --local`'s auto-mirror, and `sdd cr submit`) had **no table support at
+  all**. Every `| cell | cell |` row fell through to the generic
+  paragraph handler and was joined with spaces onto a single line,
+  destroying all row/column structure. This affected nearly every
+  document template in every pack, since most use Markdown tables (BRD
+  Business Objectives, API endpoint tables, FR/NFR tables, integrations
+  tables, etc.) — found while testing a real Confluence push.
+- GFM pipe tables (`| ... |` header row + `|---|---|` separator row) now
+  render as real Confluence `<table>` markup, including alignment
+  markers (`:---`, `:---:`, `---:` → `text-align` styles) and inline
+  formatting (`**bold**`, `` `code` ``, `[links]`) inside cells.
+- **Action needed for any already-published Confluence page:** re-push it
+  to pick up correctly-rendered tables — `sdd confluence push --doc
+  {name}` (or `--all`).
+
+---
+
 ## [2.7.21] — 2026-07-10 (Add: sdd jira push --level/--cr; retire the standalone jira-push.py script)
 
 ### Added

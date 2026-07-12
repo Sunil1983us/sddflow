@@ -674,6 +674,34 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.21"},
     },
+    {
+        "from":        "2.7.21",
+        "to":          "2.7.22",
+        "description": "Fix: Markdown tables were flattened into unreadable one-line paragraphs on every Confluence push -- md_to_cf.py now renders GFM pipe tables as real Confluence tables; no manifest schema changes",
+        "notes": [
+            "md_to_cf.py (the Markdown -> Confluence Storage Format "
+            "converter used by every sdd confluence push / sdd review "
+            "submit / sdd review approve --local / sdd cr submit call) "
+            "had no table support at all -- every '| cell | cell |' row "
+            "fell through to the generic paragraph handler and was "
+            "joined with spaces onto one line, destroying row/column "
+            "structure. This affected every document template in every "
+            "pack, since nearly all of them use Markdown tables (BRD "
+            "objectives, API endpoint tables, FR/NFR tables, etc.)",
+            "GFM pipe tables ('| ... |' header row + '|---|---|' "
+            "separator row) are now parsed and rendered as real "
+            "<table><tbody><tr><th>/<td></tr></tbody></table> markup, "
+            "which Confluence renders natively -- including alignment "
+            "markers (:---, :---:, ---:) as text-align styles, and "
+            "**bold**/`code`/[links] inside cells",
+            "Re-push any already-published Confluence page to pick up "
+            "correctly-rendered tables: sdd confluence push --doc {name} "
+            "(or --all)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.22"},
+    },
 ]
 
 
