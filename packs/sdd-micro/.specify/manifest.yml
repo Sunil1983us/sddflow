@@ -15,5 +15,5 @@ pr_rules:
 #   github: branch + PR flow, same PR Contract as the full packs
 workflow_mode: "local"
 
-sdd_version: "2.7.23"   # set by sdd init; used by sdd upgrade
+sdd_version: "2.7.25"   # set by sdd init; used by sdd upgrade
 ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other

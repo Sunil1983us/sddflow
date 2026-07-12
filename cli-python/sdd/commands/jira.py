@@ -257,6 +257,16 @@ def _print_dry_run(feature_name: str, stories: list[Story], tasks: list[Task],
     console.print()
 
 
+def _warn_parent_link_failed(child_key: str, parent_key: str, project_key: str, error: Exception) -> None:
+    console.print(
+        f"  [yellow]!  {child_key} was not linked under {parent_key} — {error}[/yellow]\n"
+        f"     If this is a company-managed (classic) Jira project, parent_field "
+        f"in integrations.yml likely needs to be the Epic Link custom field ID, "
+        f"not \"parent\" — run [cyan]sdd config fields --project {project_key}[/cyan] "
+        f"to find it."
+    )
+
+
 def _item_label(feature_name: str, item_id: str) -> str:
     """Idempotency label for a Story/Task/CHG issue, qualified by feature.
 
@@ -348,8 +358,8 @@ def _push_stories(client: JiraClient, feature_name: str, stories: list[Story],
         if epic_key:
             try:
                 client.set_parent(key, epic_key, cfg.parent_field)
-            except Exception:
-                pass  # not all Jira project types support parent on Story
+            except Exception as e:
+                _warn_parent_link_failed(key, epic_key, cfg.project_key, e)
 
         pts = f"  {story.story_points}sp" if story.story_points else ""
         _log(cfg.issue_hierarchy["story"], key, f"{story.id}: {story.title} ({story.moscow}{pts})", created)
@@ -386,8 +396,8 @@ def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
         if parent_key:
             try:
                 client.set_parent(key, parent_key, cfg.parent_field)
-            except Exception:
-                pass
+            except Exception as e:
+                _warn_parent_link_failed(key, parent_key, cfg.project_key, e)
 
         story_ref = f"  [dim]→ {parent_key or '?'}[/dim]" if task.story_id else ""
         _log(cfg.issue_hierarchy["task"], key, f"{task.id}: {task.title}{story_ref}", created)
@@ -436,8 +446,8 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
         if parent_key:
             try:
                 client.set_parent(key, parent_key, cfg.parent_field)
-            except Exception:
-                pass  # not all Jira project types support parent on this issue type
+            except Exception as e:
+                _warn_parent_link_failed(key, parent_key, cfg.project_key, e)
 
         _log(chg_issue_type, key, f"{chg['sdd_id']}: {chg['description']}", created)
 

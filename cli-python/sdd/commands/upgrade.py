@@ -733,6 +733,68 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.23"},
     },
+    {
+        "from":        "2.7.23",
+        "to":          "2.7.24",
+        "description": "Fix: document review commands never automatically read reviewer comments back and incorporated them -- 9 command prompts across all 5 packs now delegate to the check/apply loop that already existed but was never wired in; no manifest schema changes",
+        "notes": [
+            "Every document-generating command (specify-brd, specify-uc, "
+            "specify-srd, specify-doc, plan-design, plan-arch, plan-hld, "
+            "plan-adr, plan-lld) had its own hand-duplicated 'on approval' "
+            "step that only triggered on the user literally saying "
+            "'approved', and treated any other outcome (NEEDS REVISION, "
+            "PENDING) as a plain yes/no confirmation prompt -- it never "
+            "read the reviewer's Jira comments back or updated the "
+            "document, even though check-review.prompt.md/submit-review."
+            "prompt.md already implemented that exact loop correctly as "
+            "a separate, manually-invoked command",
+            "Found via real end-to-end testing: after leaving comments "
+            "on a submitted BRD review ticket, nothing in the /specify-brd "
+            "flow ever fetched or acted on them automatically",
+            "All 9 prompts now share one 'review-decision-step' block: "
+            "trigger on any check-in (not just the word 'approved'), run "
+            "sdd review check, and on NEEDS REVISION actually read the "
+            "printed comments, edit the document, and run sdd review "
+            "apply -- matching what CLAUDE.md's review-gates block "
+            "already documented as the intended behavior but no command "
+            "actually implemented",
+            "Also fixes a real bug in packs/_shared/sync-blocks.sh: a "
+            "brand-new shared block with zero existing matches made grep "
+            "exit 1, which under `set -e -o pipefail` silently aborted "
+            "the whole sync script before the full-file-copy loop ever "
+            "ran. Now uses process substitution so a first-time block "
+            "with no matches yet doesn't abort the script",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.24"},
+    },
+    {
+        "from":        "2.7.24",
+        "to":          "2.7.25",
+        "description": "Fix: failed Jira parent-link calls (Story/Task/CHG under Epic, review ticket under Epic) were silently swallowed with no trace -- now print a diagnosable warning; no manifest schema changes",
+        "notes": [
+            "Every set_parent() call site (Story/Task/CHG under Epic in "
+            "`sdd jira push`, and the review ticket under the Epic in "
+            "`sdd review submit`) was wrapped in a bare `except Exception: "
+            "pass` -- a failed parent link vanished with zero indication, "
+            "even though the issue itself was created successfully",
+            "Found via real testing: a review ticket and its Epic both "
+            "appeared in Jira but were not linked, with no error message "
+            "anywhere to explain why -- root cause turned out to be a "
+            "company-managed (classic) Jira project, where Story/Task-to-"
+            "Epic linking uses the Epic Link custom field, not the "
+            "\"parent\" field team-managed projects use",
+            "All five call sites now print a warning naming the child/"
+            "parent keys, the underlying error, and a pointer to `sdd "
+            "config fields --project {key}` to find the right Epic Link "
+            "field ID for parent_field in integrations.yml -- still never "
+            "blocks the push/submit itself, just makes the failure visible",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.25"},
+    },
 ]
 
 
