@@ -9,6 +9,7 @@ import yaml
 
 from sdd.commands.jira import (
     parse_changeset, _push, _push_chg, _keys_path, _push_uc_draft_stories, _push_stories,
+    _push_epic, _push_tasks,
 )
 from sdd.utils.integrations import JiraConfig
 from sdd.utils.sdd_parser import Story, Task, UseCase
@@ -211,6 +212,94 @@ class TestProjectKeysOverride:
         uc = UseCase(id="UC-001", title="Login")
         _push_uc_draft_stories(client, "feat", [uc], cfg, epic_key=None)
         assert client.created[0]["project"]["key"] == "SUNT"
+
+
+class TestCustomFieldsAndTeam:
+    """fields_for(level) wiring -- a story_points/etc. custom field ID
+    override for one level must not leak into another level's issues,
+    and the fixed cfg.team value (when configured) must be stamped on
+    every issue type this CLI creates, via whichever field "team" maps
+    to for that level."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+    def test_story_uses_story_level_custom_field_override(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(
+            project_key="MYPROJ",
+            custom_fields={"story_points": "customfield_10016"},
+            custom_fields_by_level={"story": {"story_points": "customfield_99001"}},
+        )
+        story = Story(id="STORY-001", title="Login", moscow="must-have",
+                       description="", acceptance_criteria=[], story_points=5,
+                       satisfies=[])
+        _push_stories(client, "feat", [story], cfg, epic_key=None)
+        assert client.created[0]["customfield_99001"] == 5
+        assert "customfield_10016" not in client.created[0]
+
+    def test_task_falls_back_to_common_mapping_when_not_overridden(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(
+            project_key="MYPROJ",
+            custom_fields={"acceptance_criteria": "customfield_10017"},
+            custom_fields_by_level={"story": {"acceptance_criteria": "customfield_99002"}},
+        )
+        task = Task(id="TASK-001", title="Endpoint", story_id=None,
+                    satisfies=[], estimate=None, description="",
+                    acceptance_criteria=["Returns 200"])
+        _push_tasks(client, "feat", [task], cfg, story_key_map={})
+        # task level has no override -- uses the common mapping, not story's
+        assert client.created[0]["customfield_10017"] == "Returns 200"
+
+    def test_team_stamped_on_epic_story_task_uc_draft_and_chg(self, tmp_path):
+        cfg = JiraConfig(
+            project_key="MYPROJ",
+            custom_fields={"team": "customfield_20000"},
+            team="Team Phoenix",
+        )
+        story = Story(id="STORY-001", title="Login", moscow="must-have",
+                       description="", acceptance_criteria=[], story_points=None,
+                       satisfies=["FR-003"])
+        task = Task(id="TASK-001", title="Endpoint", story_id=None,
+                    satisfies=[], estimate=None, description="",
+                    acceptance_criteria=[])
+        uc = UseCase(id="UC-001", title="Login")
+
+        epic_client = FakeJiraClient()
+        _push_epic(epic_client, "feat", tmp_path, cfg)
+        assert epic_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+        story_client = FakeJiraClient()
+        _push_stories(story_client, "feat", [story], cfg, epic_key=None)
+        assert story_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+        task_client = FakeJiraClient()
+        _push_tasks(task_client, "feat", [task], cfg, story_key_map={})
+        assert task_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+        uc_draft_client = FakeJiraClient()
+        _push_uc_draft_stories(uc_draft_client, "feat", [uc], cfg, epic_key=None)
+        assert uc_draft_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)])
+        chg_client = FakeJiraClient()
+        _push_chg(chg_client, "feat", cfg, "CR-001", tmp_path,
+                  [story], {"STORY-001": "PROJ-5"}, epic_key="PROJ-1")
+        assert chg_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+    def test_team_not_stamped_when_unset(self, tmp_path):
+        """cfg.team defaulting to None must never send a team field, even
+        if custom_fields.team happens to be configured (e.g. left over
+        from a shared config template)."""
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ", custom_fields={"team": "customfield_20000"})
+        story = Story(id="STORY-001", title="Login", moscow="must-have",
+                       description="", acceptance_criteria=[], story_points=None,
+                       satisfies=[])
+        _push_stories(client, "feat", [story], cfg, epic_key=None)
+        assert "customfield_20000" not in client.created[0]
 
 
 class TestChgPush:

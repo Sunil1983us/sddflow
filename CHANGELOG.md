@@ -4,6 +4,33 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.33] — 2026-07-12 (Feature: per-level custom field ID overrides + team field)
+
+### Added / Changed
+
+- **`integrations.yml` `jira.custom_fields_by_level:` override block.** Follow-on to
+  2.7.32's `project_keys`: if a hierarchy level's issues live in a
+  different Jira project, that project almost always has different
+  custom field IDs too — not just a different project key. `custom_fields_by_level:
+  {level: {field: id}}` overrides the common `custom_fields` mapping per
+  level; any `(level, field)` pair not listed falls back to the shared
+  mapping, so existing configs are unaffected. `JiraConfig.fields_for(level)`
+  resolves it, mirroring `key_for()`'s fallback semantics.
+- **Fixed team field.** New `base_fields.team` (paired with a
+  `custom_fields.team` field ID) stamps one fixed team name/ID on every
+  issue this CLI creates — Epic, Story, Task, CHG, and UC-draft Story —
+  via the new `_apply_team_field()` helper. It's the same value on every
+  issue, not something that varies per story/task; leaving it unset
+  never sends a team field, even if `custom_fields.team` happens to be
+  configured.
+- 8 new tests: 4 in `test_config_and_integrations.py` (`fields_for`
+  default/override, `team` default/parsed) and 4 in
+  `test_jira_push_levels.py` (`TestCustomFieldsAndTeam` — per-level
+  override doesn't leak into other levels, team stamped across all five
+  issue-creation call sites, team never sent when unset).
+
+---
+
 ## [2.7.32] — 2026-07-12 (Feature: per-issue-type Jira project key overrides)
 
 ### Added / Changed

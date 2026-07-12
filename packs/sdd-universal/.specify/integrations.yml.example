@@ -84,6 +84,13 @@ jira:
     # Must match an existing version name in your Jira project.
     # fix_version: v1.0
 
+    # Optional: a fixed team name/ID stamped on every issue this CLI
+    # creates (Epic, Story, Task, CHG, UC-draft Story) — same value on
+    # every one, not something that varies per story/task. Requires the
+    # matching custom_fields.team entry below (the field ID this value
+    # gets written into); if that's not set, this is silently ignored.
+    # team: Team Phoenix
+
   # Custom field IDs — these vary by Jira instance.
   # Run "sdd config fields" to list all custom fields for your instance.
   #
@@ -99,7 +106,7 @@ jira:
   custom_fields:
     story_points: customfield_10016
     # acceptance_criteria: customfield_10021
-    # team:                customfield_10100
+    # team:                customfield_10100   # pairs with base_fields.team above
     # sprint:              customfield_10020
     #
     # Optional traceability fields — store SDD references as separate Jira
@@ -108,6 +115,17 @@ jira:
     # by SDD reference. Only set on Story/Task/CHG when configured here.
     # fr_reference:    customfield_10101   # e.g. "FR-001, FR-002"
     # moscow_priority: customfield_10105   # e.g. "must-have"
+
+  # Optional: per-level overrides for the custom field IDs above, for
+  # orgs where a level's issues live in a different Jira project (see
+  # project_keys above) with its own, different custom field scheme.
+  # Any (level, field) pair not listed here falls back to custom_fields.
+  # Valid levels: feature, story, task, review, chg, cr.
+  # custom_fields_by_level:
+  #   story:
+  #     story_points: customfield_99001
+  #   task:
+  #     acceptance_criteria: customfield_99002
 
 
 # ── Confluence ────────────────────────────────────────────────────────────────

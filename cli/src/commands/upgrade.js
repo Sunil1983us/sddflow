@@ -934,6 +934,34 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.32',
+    to:   '2.7.33',
+    description: 'Feature: per-level custom field ID overrides + fixed team field (Python CLI) -- new integrations.yml jira.custom_fields_by_level: {level: {field: id}} block overrides the common custom_fields mapping per level, and base_fields.team stamps a fixed team name/ID on every issue created; no manifest schema changes',
+    notes: [
+      'User-requested follow-on to 2.7.32\'s project_keys: a level\'s ' +
+      'issues living in a different Jira project (via project_keys) ' +
+      'almost always means different custom field IDs too, not just a ' +
+      'different project key; JiraConfig gained custom_fields_by_level: ' +
+      'dict + a fields_for(level) method that merges it over the common ' +
+      'custom_fields mapping, falling back per-key -- existing ' +
+      'integrations.yml files are unaffected',
+      'JiraConfig also gained team: str | None (from base_fields.team) ' +
+      '-- one fixed value stamped on every issue this CLI creates via ' +
+      'whichever custom field "team" maps to, not something that varies ' +
+      'per story/task',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.33';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

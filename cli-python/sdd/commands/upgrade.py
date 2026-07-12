@@ -1142,6 +1142,52 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.32"},
     },
+    {
+        "from":        "2.7.32",
+        "to":          "2.7.33",
+        "description": "Feature: per-level custom field ID overrides + fixed team field -- new integrations.yml jira.custom_fields_by_level: {level: {field: id}} block overrides the common custom_fields mapping per level, and base_fields.team + custom_fields.team stamps a fixed team name/ID on every issue created; no manifest schema changes",
+        "notes": [
+            "User-requested follow-on to 2.7.32's project_keys: 'They "
+            "need to have team name, story point, acceptance criteria, "
+            "and they can have some customer field also .. can it send "
+            "the field as per the configuration .. they have have "
+            "project specific or common'",
+            "Motivation: if project_keys (2.7.32) puts a level's issues "
+            "in a different Jira project than another level's, that "
+            "project almost always has different custom field IDs too "
+            "-- not just a different project key -- so a single common "
+            "custom_fields mapping would silently write to the wrong "
+            "(or a nonexistent) field ID on that project",
+            "integrations.py: JiraConfig gained custom_fields_by_level: "
+            "dict (default {}) and a fields_for(level) method -- merges "
+            "custom_fields_by_level.get(level, {}) over the common "
+            "custom_fields dict, override wins per-key, mirroring "
+            "key_for()'s fallback semantics; every project with no "
+            "custom_fields_by_level entries behaves exactly as before",
+            "JiraConfig also gained team: str | None (parsed from "
+            "base_fields.team) -- a single fixed value (e.g. 'Team "
+            "Phoenix'), the same on every issue, not something that "
+            "varies per story/task; confirmed explicitly by the user as "
+            "the intended semantics before implementation",
+            "jira.py: every custom-field call site (feature_extra_fields, "
+            "_push_stories, _push_tasks, _push_chg, "
+            "_push_uc_draft_stories) now reads cfg.fields_for(level) "
+            "instead of cfg.custom_fields directly; new "
+            "_apply_team_field() helper stamps cfg.team via "
+            "fields_for(level)['team'] on every issue type when both are "
+            "configured, no-ops otherwise",
+            "8 new tests: 4 in test_config_and_integrations.py "
+            "(fields_for default/override, team default/parsed), 4 in "
+            "test_jira_push_levels.py (TestCustomFieldsAndTeam -- "
+            "per-level custom field override doesn't leak to other "
+            "levels, team stamped on Epic/Story/Task/UC-draft/CHG, team "
+            "never sent when cfg.team is unset even if the field ID is "
+            "configured)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.33"},
+    },
 ]
 
 

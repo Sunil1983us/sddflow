@@ -54,12 +54,23 @@ def parse_brd_objectives(features_dir: Path) -> list[str]:
     return objectives[:10]
 
 
+def _apply_team_field(extra: dict, cfg: JiraConfig, level: str, fields: dict | None = None) -> None:
+    """Stamps cfg.team onto `extra` via whichever custom field "team"
+    maps to for this level, if both are configured. No-op otherwise."""
+    if not cfg.team:
+        return
+    team_field = (fields if fields is not None else cfg.fields_for(level)).get("team")
+    if team_field:
+        extra[team_field] = cfg.team
+
+
 def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str) -> dict:
     """Extra fields for the top-level Feature/Epic issue: a real
     description built from brd.md's Business Objectives (falls back to a
-    pointer at brd.md if none are parsed yet), High priority, and the
-    Epic Name custom field for classic/company-managed Jira projects
-    (only if custom_fields.epic_name is configured)."""
+    pointer at brd.md if none are parsed yet), High priority, the Epic
+    Name custom field for classic/company-managed Jira projects (only if
+    custom_fields.epic_name is configured), and the team field (if
+    cfg.team is set)."""
     objectives = parse_brd_objectives(features_dir)
     extra: dict = {
         "description": adf_doc(
@@ -68,9 +79,11 @@ def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str)
         ),
         "priority": {"name": "High"},
     }
-    epic_name_field = cfg.custom_fields.get("epic_name")
+    fields = cfg.fields_for("feature")
+    epic_name_field = fields.get("epic_name")
     if epic_name_field:
         extra[epic_name_field] = feature_name
+    _apply_team_field(extra, cfg, "feature", fields)
     return extra
 
 
@@ -390,14 +403,16 @@ def _push_stories(client: JiraClient, feature_name: str, stories: list[Story],
             "priority": {"name": cfg.priority_map.get(story.moscow, "Medium")},
             "description": description,
         }
-        if story.story_points and "story_points" in cfg.custom_fields:
-            extra[cfg.custom_fields["story_points"]] = story.story_points
-        if ac_text and "acceptance_criteria" in cfg.custom_fields:
-            extra[cfg.custom_fields["acceptance_criteria"]] = ac_text
-        if story.satisfies and "fr_reference" in cfg.custom_fields:
-            extra[cfg.custom_fields["fr_reference"]] = ", ".join(story.satisfies)
-        if "moscow_priority" in cfg.custom_fields:
-            extra[cfg.custom_fields["moscow_priority"]] = story.moscow
+        fields = cfg.fields_for("story")
+        if story.story_points and "story_points" in fields:
+            extra[fields["story_points"]] = story.story_points
+        if ac_text and "acceptance_criteria" in fields:
+            extra[fields["acceptance_criteria"]] = ac_text
+        if story.satisfies and "fr_reference" in fields:
+            extra[fields["fr_reference"]] = ", ".join(story.satisfies)
+        if "moscow_priority" in fields:
+            extra[fields["moscow_priority"]] = story.moscow
+        _apply_team_field(extra, cfg, "story", fields)
 
         # A story derived 1:1 from a single use case reuses that UC's
         # idempotency label instead of minting a new one keyed by the
@@ -450,6 +465,7 @@ def _push_uc_draft_stories(client: JiraClient, feature_name: str, use_cases: lis
                 "are generated — it is not yet ready for sprint planning.",
             ),
         }
+        _apply_team_field(extra, cfg, "story")
         key, created = _upsert_issue(
             client, cfg.key_for("story"), cfg.issue_hierarchy["story"],
             f"{uc.id} — {uc.title} (draft)",
@@ -481,10 +497,12 @@ def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
             f"Acceptance Criteria: {ac_text}" if ac_text else "",
         )
         extra: dict = {"description": description}
-        if ac_text and "acceptance_criteria" in cfg.custom_fields:
-            extra[cfg.custom_fields["acceptance_criteria"]] = ac_text
-        if task.satisfies and "fr_reference" in cfg.custom_fields:
-            extra[cfg.custom_fields["fr_reference"]] = ", ".join(task.satisfies)
+        fields = cfg.fields_for("task")
+        if ac_text and "acceptance_criteria" in fields:
+            extra[fields["acceptance_criteria"]] = ac_text
+        if task.satisfies and "fr_reference" in fields:
+            extra[fields["fr_reference"]] = ", ".join(task.satisfies)
+        _apply_team_field(extra, cfg, "task", fields)
 
         key, created = _upsert_issue(
             client, cfg.key_for("task"), cfg.issue_hierarchy["task"],
@@ -537,8 +555,10 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
             f"Description: {chg['description']}",
         )
         extra: dict = {"description": description, "priority": {"name": "Medium"}}
-        if "fr_reference" in cfg.custom_fields:
-            extra[cfg.custom_fields["fr_reference"]] = satisfies
+        chg_fields = cfg.fields_for("chg")
+        if "fr_reference" in chg_fields:
+            extra[chg_fields["fr_reference"]] = satisfies
+        _apply_team_field(extra, cfg, "chg", chg_fields)
 
         key, created = _upsert_issue(
             client, cfg.key_for("chg"), chg_issue_type, chg["description"],

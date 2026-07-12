@@ -102,6 +102,75 @@ def test_jira_project_keys_override_specific_levels(tmp_path, monkeypatch):
     assert cfg.jira.key_for("task") == "SUNT"
 
 
+def test_jira_custom_fields_by_level_default_to_common_mapping(tmp_path, monkeypatch):
+    """No custom_fields_by_level: block -- every level uses the common
+    custom_fields mapping unchanged."""
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "jira:\n"
+        "  project_key: MYPROJ\n"
+        "  custom_fields:\n"
+        "    story_points: customfield_10016\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira.custom_fields_by_level == {}
+    assert cfg.jira.fields_for("story") == {"story_points": "customfield_10016"}
+    assert cfg.jira.fields_for("task") == {"story_points": "customfield_10016"}
+
+
+def test_jira_custom_fields_by_level_override_wins_per_key(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "jira:\n"
+        "  project_key: SUN\n"
+        "  project_keys:\n"
+        "    story: SUNT\n"
+        "  custom_fields:\n"
+        "    story_points: customfield_10016\n"
+        "    fr_reference: customfield_10020\n"
+        "  custom_fields_by_level:\n"
+        "    story:\n"
+        "      story_points: customfield_99001\n"
+    )
+    cfg = load_integrations()
+    story_fields = cfg.jira.fields_for("story")
+    # story_points overridden for the story level ...
+    assert story_fields["story_points"] == "customfield_99001"
+    # ... but fr_reference isn't listed in the override, so it still
+    # falls back to the common mapping
+    assert story_fields["fr_reference"] == "customfield_10020"
+    # feature level has no override at all -- untouched common mapping
+    assert cfg.jira.fields_for("feature") == {
+        "story_points": "customfield_10016",
+        "fr_reference": "customfield_10020",
+    }
+
+
+def test_jira_team_defaults_to_none(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "jira:\n  project_key: MYPROJ\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira.team is None
+
+
+def test_jira_team_parsed_from_base_fields(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "jira:\n"
+        "  project_key: MYPROJ\n"
+        "  base_fields:\n"
+        "    team: Team Phoenix\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira.team == "Team Phoenix"
+
+
 class _Answer:
     """Stand-in for questionary's Question object -- .ask() returns a
     canned value instead of driving a real prompt_toolkit UI, which

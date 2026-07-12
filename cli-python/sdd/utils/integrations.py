@@ -48,6 +48,18 @@ class JiraConfig:
     labels: list = field(default_factory=lambda: ["sdd-generated"])
     fix_version: str | None = None
     custom_fields: dict = field(default_factory=dict)
+    # Optional per-level overrides for custom field IDs -- e.g.
+    # {"story": {"story_points": "customfield_10099"}} when the Jira
+    # project a level lives in (see project_keys above) has a different
+    # custom field scheme than the common one. Falls back to
+    # custom_fields for any (level, field) pair not listed here. See
+    # fields_for() below.
+    custom_fields_by_level: dict = field(default_factory=dict)
+    # Fixed team name/ID stamped on every issue this CLI creates, via
+    # whichever custom field "team" maps to in custom_fields (or a
+    # per-level override in custom_fields_by_level). None -- the
+    # default -- means no team field is ever sent.
+    team: str | None = None
 
     def key_for(self, level: str) -> str:
         """The Jira project key to use for a given hierarchy level
@@ -56,6 +68,15 @@ class JiraConfig:
         common case, and the only case for every project until this
         field is explicitly set."""
         return self.project_keys.get(level, self.project_key)
+
+    def fields_for(self, level: str) -> dict:
+        """Custom field ID mapping (logical name -> Jira field ID) to use
+        for a given hierarchy level, merging any custom_fields_by_level
+        override over the common custom_fields mapping (override wins
+        per-key). Mirrors key_for()'s fallback semantics -- every project
+        with no custom_fields_by_level entries behaves exactly as before
+        this field existed."""
+        return {**self.custom_fields, **self.custom_fields_by_level.get(level, {})}
 
 
 @dataclass
@@ -130,6 +151,8 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             labels=bf.get("labels", ["sdd-generated"]),
             fix_version=bf.get("fix_version"),
             custom_fields=jira_raw.get("custom_fields", {}),
+            custom_fields_by_level=jira_raw.get("custom_fields_by_level", {}),
+            team=bf.get("team"),
         )
 
     confluence: ConfluenceConfig | None = None

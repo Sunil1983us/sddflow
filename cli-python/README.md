@@ -798,8 +798,18 @@ jira:
       could-have:  Low
       wont-have:   Lowest
     labels: [sdd-generated]
+    # Optional: a fixed team name/ID stamped on every issue this CLI
+    # creates. Requires the matching custom_fields.team entry below.
+    # team: Team Phoenix
   custom_fields:
     story_points: customfield_10016   # run "sdd config fields" to find yours
+    # team: customfield_10100         # pairs with base_fields.team above
+  # Optional: per-level overrides for custom_fields, for the same reason
+  # project_keys exists -- a level in a different Jira project usually
+  # has a different custom field scheme too.
+  # custom_fields_by_level:
+  #   story:
+  #     story_points: customfield_99001
 
 confluence:
   space_key: ENG
