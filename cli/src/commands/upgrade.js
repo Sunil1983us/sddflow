@@ -609,6 +609,34 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.21',
+    to:   '2.7.22',
+    description: 'Fix: Markdown tables (Python CLI\'s md_to_cf.py) were flattened into unreadable one-line paragraphs on every Confluence push; now render as real Confluence tables — no manifest schema changes',
+    notes: [
+      'md_to_cf.py (the Markdown → Confluence Storage Format converter ' +
+      'used by every `sdd confluence push` / `sdd review submit` / ' +
+      '`sdd review approve --local` / `sdd cr submit` call) had no table ' +
+      'support at all — every "| cell | cell |" row fell through to the ' +
+      'generic paragraph handler and was joined with spaces onto one ' +
+      'line, destroying row/column structure. This affected nearly ' +
+      'every document template, since most use Markdown tables',
+      'GFM pipe tables are now parsed and rendered as real Confluence ' +
+      '<table> markup, including alignment markers and inline ' +
+      'formatting inside cells',
+      'Re-push any already-published Confluence page to pick up ' +
+      'correctly-rendered tables: `sdd confluence push --doc {name}` ' +
+      '(or `--all`)',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.22';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

@@ -96,6 +96,21 @@ def md_to_storage(md: str) -> str:
             i += 1
             continue
 
+        # GFM pipe table: a "| cell | cell |" row followed by a
+        # "|---|---|" separator row
+        if line.strip().startswith("|") and i + 1 < len(lines) and _is_table_separator(lines[i + 1]):
+            flush_para()
+            flush_list()
+            header = _split_table_row(line)
+            align = _table_alignment(lines[i + 1])
+            i += 2
+            rows: list[list[str]] = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                rows.append(_split_table_row(lines[i]))
+                i += 1
+            out.append(_render_table(header, rows, align))
+            continue
+
         # Blank line
         if not line.strip():
             flush_para()
@@ -111,6 +126,76 @@ def md_to_storage(md: str) -> str:
     flush_para()
     flush_list()
     return "\n".join(out)
+
+
+def _split_table_row(line: str) -> list[str]:
+    """Split a GFM pipe-table row into cells, trimming the optional
+    leading/trailing pipe and each cell's surrounding whitespace.
+    A backslash-escaped pipe (\\|) stays inside its cell rather than
+    splitting it, so a cell can itself contain a literal '|'."""
+    line = line.strip()
+    if line.startswith("|"):
+        line = line[1:]
+    if line.endswith("|") and not line.endswith(r"\|"):
+        line = line[:-1]
+    cells = re.split(r'(?<!\\)\|', line)
+    return [c.strip().replace(r'\|', '|') for c in cells]
+
+
+def _is_table_separator(line: str) -> bool:
+    """True for a GFM table's header/body divider row, e.g. '|---|---|'
+    or '|:---|:---:|---:|' (alignment markers)."""
+    cells = _split_table_row(line)
+    return bool(cells) and all(re.match(r'^:?-{1,}:?$', c) for c in cells)
+
+
+_ALIGN_STYLE = {
+    "left":   "text-align:left",
+    "center": "text-align:center",
+    "right":  "text-align:right",
+}
+
+
+def _table_alignment(sep_line: str) -> list[str]:
+    aligns = []
+    for c in _split_table_row(sep_line):
+        left, right = c.startswith(":"), c.endswith(":")
+        if left and right:
+            aligns.append("center")
+        elif right:
+            aligns.append("right")
+        elif left:
+            aligns.append("left")
+        else:
+            aligns.append("")
+    return aligns
+
+
+def _render_table(header: list[str], rows: list[list[str]], align: list[str]) -> str:
+    """Render a parsed GFM table as Confluence storage format's plain
+    XHTML <table> markup -- Confluence renders this natively, no
+    ac:structured-macro needed (unlike code blocks)."""
+    def cell(tag: str, text: str, a: str) -> str:
+        style = f' style="{_ALIGN_STYLE[a]}"' if a in _ALIGN_STYLE else ""
+        return f"<{tag}{style}>{_inline(text)}</{tag}>"
+
+    def pad(row: list[str]) -> list[str]:
+        # Tolerate a body row with fewer/more cells than the header --
+        # markdown tables in hand-written docs aren't always perfectly
+        # rectangular.
+        row = row + [""] * max(0, len(header) - len(row))
+        return row[:len(header)] if header else row
+
+    parts = ["<table><tbody><tr>"]
+    parts += [cell("th", h, align[idx] if idx < len(align) else "") for idx, h in enumerate(header)]
+    parts.append("</tr>")
+    for row in rows:
+        row = pad(row)
+        parts.append("<tr>")
+        parts += [cell("td", c, align[idx] if idx < len(align) else "") for idx, c in enumerate(row)]
+        parts.append("</tr>")
+    parts.append("</tbody></table>")
+    return "".join(parts)
 
 
 def _inline(text: str) -> str:
