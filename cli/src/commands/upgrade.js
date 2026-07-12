@@ -697,6 +697,35 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.24',
+    to:   '2.7.25',
+    description: 'Fix: failed Jira parent-link calls (Python CLI) were silently swallowed with no trace — now print a diagnosable warning; no manifest schema changes',
+    notes: [
+      'Every set_parent() call site (Story/Task/CHG under Epic in `sdd ' +
+      'jira push`, and the review ticket under the Epic in `sdd review ' +
+      'submit`) was wrapped in a bare `except Exception: pass` — a ' +
+      'failed parent link vanished with zero indication, even though ' +
+      'the issue itself was created successfully',
+      'Found via real testing: a review ticket and its Epic both ' +
+      'appeared in Jira but were not linked, with no error message ' +
+      'anywhere — root cause was a company-managed (classic) Jira ' +
+      'project, where Story/Task-to-Epic linking uses the Epic Link ' +
+      'custom field, not the "parent" field team-managed projects use',
+      'All five call sites now print a warning naming the child/parent ' +
+      'keys, the underlying error, and a pointer to `sdd config fields ' +
+      '--project {key}` to find the right field — still never blocks ' +
+      'the push/submit itself, just makes the failure visible',
+      'This is a Python-CLI-only change — the Node CLI stays scoped to ' +
+      'init/upgrade scaffolding, per its own README',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.25';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

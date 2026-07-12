@@ -4,6 +4,29 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.25] — 2026-07-10 (Fix: failed Jira parent-links vanished silently)
+
+### Fixed
+
+- **Every Jira parent-link call site** — Story/Task/CHG under the
+  Feature/Epic in `sdd jira push`, and the review ticket under the Epic
+  in `sdd review submit` — was wrapped in a bare `except Exception:
+  pass`. A failed link vanished with zero indication, even though the
+  issue itself had already been created successfully.
+- Found via real testing: a review ticket and its Epic both appeared in
+  Jira but weren't linked, with no error anywhere to explain why. Root
+  cause: a **company-managed (classic)** Jira project, where linking a
+  Story/Task/review-Task to an Epic uses the **Epic Link custom field**,
+  not the `"parent"` field team-managed (next-gen) projects use.
+- All five call sites now print a warning naming the child/parent keys,
+  the underlying error, and a pointer to `sdd config fields --project
+  {key}` to find the right field ID for `parent_field` in
+  `integrations.yml`. Still never blocks the push/submit itself — the
+  issue is created either way — it just makes a failed link diagnosable
+  instead of silently invisible.
+
+---
+
 ## [2.7.24] — 2026-07-10 (Fix: review comments were never automatically read back and incorporated)
 
 ### Fixed

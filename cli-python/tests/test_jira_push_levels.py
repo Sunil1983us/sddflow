@@ -240,3 +240,47 @@ class TestKeysYmlSummary:
         client = FakeJiraClient()
         _push(client, "feat", tmp_path, [], [], _cfg(), level="story")
         assert not _keys_path("feat").exists()
+
+
+class RaisingParentClient(FakeJiraClient):
+    """set_parent always fails, like a company-managed Jira project
+    rejecting the "parent" field on a Story/Task -- used to confirm a
+    failed link now prints a diagnosable warning instead of silently
+    vanishing (regression test for the bug found during manual QA)."""
+    def set_parent(self, child_key, parent_key, parent_field="parent"):
+        raise RuntimeError('HTTP 400 — cannot set field "parent"')
+
+
+class TestParentLinkFailureIsVisible:
+    def test_story_parent_link_failure_prints_warning(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        client = RaisingParentClient()
+        client.by_label["sdd-feature:feat"] = {"key": "PROJ-1"}
+        story = _story()
+        _push(client, "feat", tmp_path, [story], [], _cfg(), level="story")
+        out = capsys.readouterr().out
+        assert "was not linked under" in out
+        assert "PROJ-1" in out
+        assert "cannot set field" in out
+
+    def test_task_parent_link_failure_prints_warning(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        client = RaisingParentClient()
+        client.by_label["sdd:feat:STORY-001"] = {"key": "PROJ-9"}
+        story = _story()
+        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
+                    satisfies=[], estimate=None, description="", acceptance_criteria=[])
+        _push(client, "feat", tmp_path, [story], [task], _cfg(), level="task")
+        out = capsys.readouterr().out
+        assert "was not linked under" in out
+        assert "PROJ-9" in out
+
+    def test_push_does_not_crash_when_link_fails(self, tmp_path, monkeypatch):
+        """A failed parent link must never abort the whole push -- the
+        issue itself was still created successfully."""
+        monkeypatch.chdir(tmp_path)
+        client = RaisingParentClient()
+        client.by_label["sdd-feature:feat"] = {"key": "PROJ-1"}
+        story = _story()
+        _push(client, "feat", tmp_path, [story], [], _cfg(), level="story")
+        assert len(client.created) == 1

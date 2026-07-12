@@ -198,6 +198,39 @@ class FakeJiraClient:
         return self.comments_by_key.get(key, [])
 
 
+class RaisingParentClient(FakeJiraClient):
+    """set_parent always fails, like a company-managed Jira project
+    rejecting the "parent" field — used to confirm a failed review-ticket
+    link now prints a diagnosable warning instead of vanishing silently
+    (regression test for the bug found during manual QA)."""
+    def set_parent(self, child_key, parent_key, parent_field="parent"):
+        raise RuntimeError('HTTP 400 — cannot set field "parent"')
+
+
+class TestLinkReviewTaskToEpic:
+    def test_success_records_the_link(self, project):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ")
+        review._link_review_task_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        assert client.parents == [("PROJ-2", "PROJ-1", "parent")]
+
+    def test_failure_prints_diagnosable_warning(self, project, capsys):
+        client = RaisingParentClient()
+        cfg = JiraConfig(project_key="MYPROJ")
+        review._link_review_task_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        out = capsys.readouterr().out
+        assert "was not linked under" in out
+        assert "PROJ-1" in out
+        assert "cannot set field" in out
+
+    def test_failure_does_not_raise(self, project):
+        """A failed link must never propagate -- the review ticket itself
+        was already created successfully."""
+        client = RaisingParentClient()
+        cfg = JiraConfig(project_key="MYPROJ")
+        review._link_review_task_to_epic(client, "PROJ-2", "PROJ-1", cfg)  # no raise
+
+
 class TestEnsureEpic:
     def test_creates_epic_from_brd_objectives(self, project):
         (project / ".specify" / "features" / "auth" / "brd.md").write_text(

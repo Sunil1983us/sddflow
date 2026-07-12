@@ -252,6 +252,21 @@ def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | 
         return None
 
 
+def _link_review_task_to_epic(jira_client: JiraClient, task_key: str,
+                               epic_key: str, jira_cfg) -> None:
+    """Best-effort: parent the review ticket under the Feature/Epic. Never
+    blocks the review submission — the ticket itself was already created
+    successfully. Reuses jira.py's _warn_parent_link_failed rather than a
+    silent except/pass, so a failure (e.g. a company-managed Jira project
+    needing the Epic Link custom field instead of "parent") is diagnosable
+    instead of vanishing with no trace."""
+    from sdd.commands.jira import _warn_parent_link_failed
+    try:
+        jira_client.set_parent(task_key, epic_key, jira_cfg.parent_field)
+    except Exception as e:
+        _warn_parent_link_failed(task_key, epic_key, jira_cfg.project_key, e)
+
+
 # ── Command group ──────────────────────────────────────────────────────────────
 
 @click.group()
@@ -386,10 +401,7 @@ def review_submit(doc, profile, feature):
         console.print(f"  [green]✓[/green]  Jira task created: [cyan]{task_key}[/cyan]")
 
     if epic_key:
-        try:
-            jira_client.set_parent(task_key, epic_key, cfg.jira.parent_field)
-        except Exception:
-            pass  # not all Jira project types support parent on this issue type
+        _link_review_task_to_epic(jira_client, task_key, epic_key, cfg.jira)
 
     console.print(
         f"          Assigned to: [cyan]{doc_cfg.reviewer_role}[/cyan]"
