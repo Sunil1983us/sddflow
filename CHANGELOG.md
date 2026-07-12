@@ -4,6 +4,39 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.24] — 2026-07-10 (Fix: review comments were never automatically read back and incorporated)
+
+### Fixed
+
+- **Every document-generating command** (`/specify-brd`, `/specify-uc`,
+  `/specify-srd`, `/specify-doc`, `/plan-design`, `/plan-arch`,
+  `/plan-hld`, `/plan-adr`, `/plan-lld`) had its own hand-duplicated "on
+  approval" step that only triggered when the user literally said
+  "approved", and treated any other outcome — NEEDS REVISION, PENDING —
+  as a bare yes/no "proceed anyway?" prompt. It never read the reviewer's
+  Jira comments back or updated the document, even though
+  `check-review.prompt.md`/`submit-review.prompt.md` already implemented
+  that exact read-comments-and-apply loop correctly, just as a separate,
+  manually-invoked command nothing else called.
+- Found via real end-to-end testing: after leaving comments on a
+  submitted BRD review ticket, nothing in the `/specify-brd` flow ever
+  fetched or acted on them automatically — despite CLAUDE.md's own
+  `review-gates` block already documenting this as the intended
+  behavior ("When `sdd review check` exits 1: read reviewer comments,
+  update the document, then run `sdd review apply`").
+- All 9 prompts now share one `review-decision-step` block: trigger on
+  any check-in signal (not just the word "approved"), run `sdd review
+  check`, and on NEEDS REVISION actually read the printed comments, edit
+  the document, and run `sdd review apply` — closing the loop end to end.
+- **Also fixed a real bug in `packs/_shared/sync-blocks.sh`** discovered
+  while shipping this: the first time a brand-new shared block has zero
+  existing matches, `grep` exits 1, and under `set -e -o pipefail` that
+  silently aborted the entire sync script before the full-file-copy loop
+  ever ran. Switched to process substitution so introducing a new shared
+  block no longer breaks the sync tooling.
+
+---
+
 ## [2.7.23] — 2026-07-10 (Fix: Jira search calls broken by Atlassian's endpoint deprecation)
 
 ### Fixed

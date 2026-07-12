@@ -733,6 +733,42 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.23"},
     },
+    {
+        "from":        "2.7.23",
+        "to":          "2.7.24",
+        "description": "Fix: document review commands never automatically read reviewer comments back and incorporated them -- 9 command prompts across all 5 packs now delegate to the check/apply loop that already existed but was never wired in; no manifest schema changes",
+        "notes": [
+            "Every document-generating command (specify-brd, specify-uc, "
+            "specify-srd, specify-doc, plan-design, plan-arch, plan-hld, "
+            "plan-adr, plan-lld) had its own hand-duplicated 'on approval' "
+            "step that only triggered on the user literally saying "
+            "'approved', and treated any other outcome (NEEDS REVISION, "
+            "PENDING) as a plain yes/no confirmation prompt -- it never "
+            "read the reviewer's Jira comments back or updated the "
+            "document, even though check-review.prompt.md/submit-review."
+            "prompt.md already implemented that exact loop correctly as "
+            "a separate, manually-invoked command",
+            "Found via real end-to-end testing: after leaving comments "
+            "on a submitted BRD review ticket, nothing in the /specify-brd "
+            "flow ever fetched or acted on them automatically",
+            "All 9 prompts now share one 'review-decision-step' block: "
+            "trigger on any check-in (not just the word 'approved'), run "
+            "sdd review check, and on NEEDS REVISION actually read the "
+            "printed comments, edit the document, and run sdd review "
+            "apply -- matching what CLAUDE.md's review-gates block "
+            "already documented as the intended behavior but no command "
+            "actually implemented",
+            "Also fixes a real bug in packs/_shared/sync-blocks.sh: a "
+            "brand-new shared block with zero existing matches made grep "
+            "exit 1, which under `set -e -o pipefail` silently aborted "
+            "the whole sync script before the full-file-copy loop ever "
+            "ran. Now uses process substitution so a first-time block "
+            "with no matches yet doesn't abort the script",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.24"},
+    },
 ]
 
 

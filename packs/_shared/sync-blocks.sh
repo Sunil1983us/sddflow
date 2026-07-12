@@ -11,7 +11,13 @@ for block in blocks/*.md; do
   start="<!-- shared:${id}:start -->"
   end="<!-- shared:${id}:end -->"
 
-  grep -rl --include="*.md" -F "$start" ../sdd-*/ 2>/dev/null | while read -r file; do
+  # Process substitution (not a pipe) so a brand-new block with zero
+  # current matches -- grep exits 1, no lines matched -- doesn't abort the
+  # whole script under `set -e -o pipefail`. A pipe's exit status is the
+  # rightmost non-zero stage under pipefail, so `grep | while read` would
+  # fail the pipeline (and the script) even though the while loop itself
+  # ran zero iterations successfully.
+  while read -r file; do
     awk -v start="$start" -v end="$end" -v blockfile="$block" '
       $0 == start { print; while ((getline line < blockfile) > 0) print line; close(blockfile); skip=1; next }
       $0 == end { print; skip=0; next }
@@ -19,7 +25,7 @@ for block in blocks/*.md; do
       { print }
     ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
     echo "synced $id -> $file"
-  done
+  done < <(grep -rl --include="*.md" -F "$start" ../sdd-*/ 2>/dev/null || true)
 done
 
 find full -type f | while read -r src; do
