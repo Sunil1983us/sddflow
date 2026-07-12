@@ -4,6 +4,37 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.34] — 2026-07-12 (Fix: review/CR tickets missing labels+team; per-level parent_field override)
+
+### Fixed
+
+- **`sdd review submit` and `sdd cr submit` were silently skipping your configured
+  labels and team field.** A field-by-field audit of every Jira API call in the
+  codebase found that `review_submit()` and `cr_submit()` hand-build their `fields`
+  dict directly instead of routing through the same `_upsert_issue()` function
+  every Epic/Story/Task/CHG issue uses — and had hardcoded their `labels` list to
+  just `["sdd-review", ...]` / `["sdd-cr", ...]`, dropping `base_fields.labels`
+  (e.g. the default `sdd-generated` label) entirely, and never applied
+  `base_fields.team` at all. Both are fixed: review-gate Stories and CR review
+  tasks now get the same labels and team stamp as every other issue type.
+
+### Added
+
+- **`jira.parent_field_by_level:` override**, the same pattern as `project_keys`
+  and `custom_fields_by_level`: lets an org whose Story/Task Jira project needs a
+  different parenting mechanism than the Epic's project (e.g. one project is
+  next-gen and uses the `parent` system field, the other is classic
+  company-managed and needs the Epic Link custom field) express that per level,
+  instead of one `parent_field` value serving every level. `JiraConfig.parent_field_for(level)`
+  resolves it; all 5 `set_parent()` call sites now use it.
+- 10 new tests: `parent_field_for` default/override (2), per-level wiring at
+  every `set_parent()` call site (5), a `parent_field_for` override on the
+  review→Epic link (1), a full `review_submit()` end-to-end test confirming
+  labels/team reach the created Story (1), and a new `test_cr.py` with the same
+  assertion for `cr_submit()` (1).
+
+---
+
 ## [2.7.33] — 2026-07-12 (Feature: per-level custom field ID overrides + team field)
 
 ### Added / Changed

@@ -1188,6 +1188,58 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.33"},
     },
+    {
+        "from":        "2.7.33",
+        "to":          "2.7.34",
+        "description": "Fix: sdd review submit / sdd cr submit were silently skipping base_fields.labels and the team stamp that every other issue type gets; add jira.parent_field_by_level per-level override, same pattern as project_keys/custom_fields_by_level; no manifest schema changes",
+        "notes": [
+            "User-requested field audit ('Can you check all fields while "
+            "sending to api for jira?') surfaced two real gaps, not just "
+            "documentation drift: review.py's review_submit() and cr.py's "
+            "cr_submit() hand-build their Jira `fields` dict directly "
+            "rather than routing through jira.py's _upsert_issue() (the "
+            "function every Epic/Story/Task/CHG issue goes through) -- "
+            "both had silently dropped cfg.jira.labels (base_fields.labels, "
+            "e.g. the default 'sdd-generated' label) and never applied "
+            "base_fields.team, even when configured",
+            "Fix: review_submit's fields['labels'] is now "
+            "cfg.jira.labels + ['sdd-review', idempotency_label] (was: "
+            "hardcoded to just the latter two); cr_submit's is now "
+            "cfg.jira.labels + ['sdd-cr', idempotency_label]; both now "
+            "call jira.py's _apply_team_field() helper so a configured "
+            "team is stamped on review/CR tickets exactly like it already "
+            "was on Epic/Story/Task/CHG issues. No other custom_fields "
+            "entries (story_points/acceptance_criteria/etc.) are applied "
+            "to review/CR tickets -- those have no meaning on a review "
+            "ticket, this was a deliberate scope decision, not an "
+            "oversight",
+            "New JiraConfig.parent_field_by_level: dict + "
+            "parent_field_for(level) method, exact same fallback pattern "
+            "as key_for()/fields_for() from 2.7.32/2.7.33 -- lets an org "
+            "whose Story/Task Jira project (via project_keys) needs a "
+            "different parenting mechanism than the Epic's project (e.g. "
+            "one is next-gen and uses the 'parent' system field, the "
+            "other is classic company-managed and needs the Epic Link "
+            "custom field) express that per level. All 5 set_parent() "
+            "call sites (Story/UC-draft-Story/Task/CHG under their "
+            "parent in jira.py, review Story under Epic in review.py) "
+            "now resolve through parent_field_for(level) instead of the "
+            "single parent_field",
+            "10 new tests: 2 in test_config_and_integrations.py "
+            "(parent_field_for default/override), 5 in "
+            "test_jira_push_levels.py (TestParentFieldOverride -- each "
+            "set_parent() call site honors its own level's override), "
+            "2 in test_review_helpers.py (parent_field_for override on "
+            "the review-Epic link, plus a full review_submit() "
+            "end-to-end test confirming labels/team now reach the "
+            "created Story -- not just the extracted helper functions), "
+            "and a new test_cr.py (cr_submit() end-to-end, same "
+            "assertion for CR review tasks)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.34"},
+    },
 ]
 
 

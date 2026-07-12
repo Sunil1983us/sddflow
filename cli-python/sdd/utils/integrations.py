@@ -44,6 +44,14 @@ class JiraConfig:
         "task":    "Task",
     })
     parent_field: str = "parent"
+    # Optional per-level overrides for parent_field -- e.g.
+    # {"feature": "customfield_10014"} when the Epic's project (see
+    # project_keys above) is a classic company-managed project needing
+    # the Epic Link custom field, while Stories/Tasks live in a
+    # next-gen project using the plain "parent" system field. Falls
+    # back to parent_field for any level not listed here. See
+    # parent_field_for() below.
+    parent_field_by_level: dict = field(default_factory=dict)
     priority_map: dict = field(default_factory=lambda: dict(_DEFAULT_PRIORITY_MAP))
     labels: list = field(default_factory=lambda: ["sdd-generated"])
     fix_version: str | None = None
@@ -77,6 +85,14 @@ class JiraConfig:
         with no custom_fields_by_level entries behaves exactly as before
         this field existed."""
         return {**self.custom_fields, **self.custom_fields_by_level.get(level, {})}
+
+    def parent_field_for(self, level: str) -> str:
+        """The parent-link field to use when linking a *child issue at
+        this level* to its parent (e.g. level="story" when linking a
+        Story under its Epic) -- honors parent_field_by_level overrides
+        and falls back to the single parent_field otherwise. Mirrors
+        key_for()/fields_for()'s fallback semantics."""
+        return self.parent_field_by_level.get(level, self.parent_field)
 
 
 @dataclass
@@ -147,6 +163,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
                 "task":    hierarchy.get("task",     "Task"),
             },
             parent_field=jira_raw.get("parent_field", "parent"),
+            parent_field_by_level=jira_raw.get("parent_field_by_level", {}),
             priority_map=bf.get("priority_map", dict(_DEFAULT_PRIORITY_MAP)),
             labels=bf.get("labels", ["sdd-generated"]),
             fix_version=bf.get("fix_version"),

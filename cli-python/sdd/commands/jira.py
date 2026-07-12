@@ -435,7 +435,7 @@ def _push_stories(client: JiraClient, feature_name: str, stories: list[Story],
 
         if epic_key:
             try:
-                client.set_parent(key, epic_key, cfg.parent_field)
+                client.set_parent(key, epic_key, cfg.parent_field_for("story"))
             except Exception as e:
                 _warn_parent_link_failed(key, epic_key, cfg.key_for("story"), e)
 
@@ -477,7 +477,7 @@ def _push_uc_draft_stories(client: JiraClient, feature_name: str, use_cases: lis
 
         if epic_key:
             try:
-                client.set_parent(key, epic_key, cfg.parent_field)
+                client.set_parent(key, epic_key, cfg.parent_field_for("story"))
             except Exception as e:
                 _warn_parent_link_failed(key, epic_key, cfg.key_for("story"), e)
 
@@ -516,7 +516,7 @@ def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
         parent_key = story_key_map.get(task.story_id) if task.story_id else None
         if parent_key:
             try:
-                client.set_parent(key, parent_key, cfg.parent_field)
+                client.set_parent(key, parent_key, cfg.parent_field_for("task"))
             except Exception as e:
                 _warn_parent_link_failed(key, parent_key, cfg.key_for("task"), e)
 
@@ -568,7 +568,7 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
 
         if parent_key:
             try:
-                client.set_parent(key, parent_key, cfg.parent_field)
+                client.set_parent(key, parent_key, cfg.parent_field_for("chg"))
             except Exception as e:
                 _warn_parent_link_failed(key, parent_key, cfg.key_for("chg"), e)
 

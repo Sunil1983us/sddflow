@@ -1,6 +1,7 @@
 # Unit tests for the review-approval helpers — the no-Jira/chat approval path.
 # Run from repo root:  pytest cli-python/tests -q
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -214,6 +215,15 @@ class TestLinkReviewStoryToEpic:
         review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
         assert client.parents == [("PROJ-2", "PROJ-1", "parent")]
 
+    def test_uses_review_level_parent_field_override(self, project):
+        """parent_field_by_level: {review: ...} must steer how the review
+        Story links to its Epic, independently of the base parent_field."""
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"review": "customfield_10014"})
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        assert client.parents == [("PROJ-2", "PROJ-1", "customfield_10014")]
+
     def test_failure_prints_diagnosable_warning(self, project, capsys):
         client = RaisingParentClient()
         cfg = JiraConfig(project_key="MYPROJ")
@@ -344,3 +354,73 @@ class TestGetReviewStatusFeatureQualified:
         }
         status, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "billing")
         assert status == "NOT_SUBMITTED"
+
+
+# ── review_submit end-to-end: labels/team field wiring ──────────────────────
+# review_submit() hand-builds its Jira `fields` dict rather than routing
+# through jira.py's _upsert_issue() -- a field audit found it had silently
+# skipped cfg.jira.labels (base_fields.labels) and the team stamp that every
+# other issue type (Epic/Story/Task/CHG) gets. These tests exercise the full
+# command (mocking only the HTTP-touching client classes) to catch a
+# regression at the one place the bug actually manifested, not just at the
+# level of the helper functions already covered above.
+
+class FakeConfluenceClient:
+    def __init__(self, session=None, base_url=None):
+        pass
+
+    def upsert_page(self, space_key, title, body_html, parent_id=None):
+        return {"id": "999", "_links": {"webui": "/pages/999"}}, True
+
+
+class TestReviewSubmitFieldWiring:
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    @pytest.fixture()
+    def review_project(self, project):
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nBO-001 Reduce login friction.\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n"
+            "  project_key: MYPROJ\n"
+            "  base_fields:\n"
+            "    labels: [sdd-generated, org-required-label]\n"
+            "    team: Team Phoenix\n"
+            "  custom_fields:\n"
+            "    team: customfield_20000\n"
+            "confluence:\n"
+            "  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{project} — BRD'\n"
+        )
+        return project
+
+    def test_labels_and_team_are_sent_on_the_review_story(self, review_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        # First created issue is the Epic (via _ensure_epic), second is the
+        # review Story itself -- find it by its distinguishing label.
+        review_issue = next(
+            f for f in fake_jira.created if "sdd-review" in f.get("labels", [])
+        )
+        assert "sdd-generated" in review_issue["labels"]
+        assert "org-required-label" in review_issue["labels"]
+        assert review_issue["customfield_20000"] == "Team Phoenix"

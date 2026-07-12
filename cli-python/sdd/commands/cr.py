@@ -147,7 +147,11 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
             "project":   {"key": cr_project_key},
             "issuetype": {"name": cfg.jira.issue_hierarchy.get("task", "Task")},
             "summary":   f"Review: {project_name} — {cr_id}",
-            "labels":    ["sdd-cr", idempotency_label],
+            # cfg.jira.labels (base_fields.labels, e.g. "sdd-generated") is
+            # applied here the same way _upsert_issue() applies it to every
+            # Epic/Story/Task/CHG issue -- CR review tasks aren't a
+            # separate shape, they just don't route through _upsert_issue().
+            "labels":    cfg.jira.labels + ["sdd-cr", idempotency_label],
             "description": {
                 "type": "doc", "version": 1,
                 "content": [{"type": "paragraph", "content": [
@@ -157,6 +161,10 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
         }
         if reviewer_id:
             fields["assignee"] = {"accountId": reviewer_id}
+        # Fixed team stamp (base_fields.team), same as every other issue
+        # type -- no other custom_fields entries apply here.
+        from sdd.commands.jira import _apply_team_field
+        _apply_team_field(fields, cfg.jira, "cr")
 
         try:
             if existing:

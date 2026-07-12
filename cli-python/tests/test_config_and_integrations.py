@@ -171,6 +171,45 @@ def test_jira_team_parsed_from_base_fields(tmp_path, monkeypatch):
     assert cfg.jira.team == "Team Phoenix"
 
 
+def test_jira_parent_field_by_level_defaults_to_common_value(tmp_path, monkeypatch):
+    """No parent_field_by_level: block -- every level uses the common
+    parent_field unchanged."""
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "jira:\n  project_key: MYPROJ\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira.parent_field_by_level == {}
+    for level in ("feature", "story", "task", "chg", "review"):
+        assert cfg.jira.parent_field_for(level) == "parent"
+
+
+def test_jira_parent_field_by_level_override_wins_per_level(tmp_path, monkeypatch):
+    """parent_field_for(level) describes the field on the CHILD issue at
+    that level (e.g. level="story" when linking a Story under its Epic)
+    -- an org whose Story/Task project (via project_keys) is a classic
+    company-managed project needing the Epic Link custom field, while the
+    Epic's own project is next-gen, would set this only for "story"."""
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "jira:\n"
+        "  project_key: SUN\n"
+        "  project_keys:\n"
+        "    story: SUNT\n"
+        "  parent_field: parent\n"
+        "  parent_field_by_level:\n"
+        "    story: customfield_10014\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira.parent_field_for("story") == "customfield_10014"
+    # task/chg/review are not listed -- fall back to the common value
+    assert cfg.jira.parent_field_for("task") == "parent"
+    assert cfg.jira.parent_field_for("chg") == "parent"
+    assert cfg.jira.parent_field_for("review") == "parent"
+
+
 class _Answer:
     """Stand-in for questionary's Question object -- .ask() returns a
     canned value instead of driving a real prompt_toolkit UI, which

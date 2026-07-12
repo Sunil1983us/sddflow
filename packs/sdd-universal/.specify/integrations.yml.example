@@ -66,6 +66,18 @@ jira:
   # after a push, switch to "customfield_10014".
   parent_field: parent
 
+  # Optional: per-level overrides for parent_field, for the same reason
+  # project_keys/custom_fields_by_level exist -- if a level's issues (via
+  # project_keys above) live in a different Jira project than the level
+  # they link under, that project may need a different parenting
+  # mechanism (e.g. the Epic's project is next-gen and uses "parent",
+  # but the Story/Task project is classic and needs the Epic Link custom
+  # field). The level here is the CHILD being linked -- e.g. "story" for
+  # linking a Story under its Epic, "task" for a Task under its Story.
+  # Any level not listed here falls back to parent_field above.
+  # parent_field_by_level:
+  #   story: customfield_10014
+
   base_fields:
     # Maps SDD MoSCoW priority labels to Jira priority names.
     # Jira priority names are case-sensitive and must match exactly.
@@ -75,9 +87,10 @@ jira:
       could-have:  Low
       wont-have:   Lowest
 
-    # Labels added to every issue created by sdd jira push.
-    # The idempotency labels (sdd:STORY-001 etc.) are added automatically
-    # and do not need to be listed here.
+    # Labels added to every issue this CLI creates -- Epic/Story/Task/CHG
+    # via sdd jira push, review-gate Stories via sdd review submit, and CR
+    # review tasks via sdd cr submit. The idempotency labels (sdd:STORY-001
+    # etc.) are added automatically and do not need to be listed here.
     labels: [sdd-generated]
 
     # Optional: pin all issues to a Jira fix version / release.

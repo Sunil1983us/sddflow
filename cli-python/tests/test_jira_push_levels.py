@@ -302,6 +302,69 @@ class TestCustomFieldsAndTeam:
         assert "customfield_20000" not in client.created[0]
 
 
+class TestParentFieldOverride:
+    """parent_field_for(level) wiring -- the field used to link a CHILD
+    issue at a given level to its parent must honor a
+    parent_field_by_level override for that level, independently of
+    every other level's linking, while un-overridden levels keep using
+    the common parent_field."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+    def test_story_link_uses_story_level_override(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"story": "customfield_10014"})
+        story = Story(id="STORY-001", title="Login", moscow="must-have",
+                       description="", acceptance_criteria=[], story_points=None,
+                       satisfies=[])
+        _push_stories(client, "feat", [story], cfg, epic_key="EPIC-1")
+        assert client.parents == [("PROJ-1", "EPIC-1", "customfield_10014")]
+
+    def test_task_link_falls_back_when_story_override_does_not_apply(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"story": "customfield_10014"})
+        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
+                    satisfies=[], estimate=None, description="",
+                    acceptance_criteria=[])
+        _push_tasks(client, "feat", [task], cfg, story_key_map={"STORY-001": "STORY-1"})
+        # task level has no override -- default "parent" system field
+        assert client.parents == [("PROJ-1", "STORY-1", "parent")]
+
+    def test_task_link_uses_task_level_override(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"task": "customfield_10099"})
+        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
+                    satisfies=[], estimate=None, description="",
+                    acceptance_criteria=[])
+        _push_tasks(client, "feat", [task], cfg, story_key_map={"STORY-001": "STORY-1"})
+        assert client.parents == [("PROJ-1", "STORY-1", "customfield_10099")]
+
+    def test_uc_draft_story_link_uses_story_level_override(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"story": "customfield_10014"})
+        uc = UseCase(id="UC-001", title="Login")
+        _push_uc_draft_stories(client, "feat", [uc], cfg, epic_key="EPIC-1")
+        assert client.parents == [("PROJ-1", "EPIC-1", "customfield_10014")]
+
+    def test_chg_link_uses_chg_level_override(self, tmp_path):
+        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)])
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"chg": "customfield_10020"})
+        story = _story(satisfies=["FR-003"])
+        story_key_map = {"STORY-001": "PROJ-5"}
+        chg_map = _push_chg(client, "feat", cfg, "CR-001", tmp_path,
+                             [story], story_key_map, epic_key="PROJ-1")
+        chg_key = chg_map["CHG-001"]
+        assert client.parents == [(chg_key, "PROJ-5", "customfield_10020")]
+
+
 class TestChgPush:
     @pytest.fixture(autouse=True)
     def _isolate_cwd(self, tmp_path, monkeypatch):

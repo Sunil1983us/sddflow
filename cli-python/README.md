@@ -791,6 +791,11 @@ jira:
     story: Story
     task: Task
   parent_field: parent  # "parent" for next-gen; "customfield_10014" for classic
+  # Optional: per-level overrides for parent_field, for the same reason
+  # project_keys exists -- the level here is the CHILD being linked (e.g.
+  # "story" for a Story linking under its Epic).
+  # parent_field_by_level:
+  #   story: customfield_10014
   base_fields:
     priority_map:
       must-have:   High

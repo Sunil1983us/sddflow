@@ -275,7 +275,7 @@ def _link_review_story_to_epic(jira_client: JiraClient, story_key: str,
     instead of vanishing with no trace."""
     from sdd.commands.jira import _warn_parent_link_failed
     try:
-        jira_client.set_parent(story_key, epic_key, jira_cfg.parent_field)
+        jira_client.set_parent(story_key, epic_key, jira_cfg.parent_field_for("review"))
     except Exception as e:
         _warn_parent_link_failed(story_key, epic_key, jira_cfg.key_for("review"), e)
 
@@ -398,7 +398,11 @@ def review_submit(doc, profile, feature):
         "project":     {"key": review_project_key},
         "issuetype":   {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
         "summary":     story_summary,
-        "labels":      ["sdd-review", idempotency_label],
+        # cfg.jira.labels (base_fields.labels, e.g. "sdd-generated") is
+        # applied here the same way _upsert_issue() applies it to every
+        # Epic/Story/Task/CHG issue -- review tickets aren't a separate
+        # shape, they just don't route through _upsert_issue().
+        "labels":      cfg.jira.labels + ["sdd-review", idempotency_label],
         "description": {
             "type": "doc", "version": 1,
             "content": [{"type": "paragraph", "content": [
@@ -409,6 +413,11 @@ def review_submit(doc, profile, feature):
     if doc_cfg.reviewer_jira_user:
         # accountId for Cloud; use {"name": ...} for Server/DC if needed
         fields["assignee"] = {"accountId": doc_cfg.reviewer_jira_user}
+    # Fixed team stamp (base_fields.team), same as every other issue type
+    # -- no other custom_fields entries apply here (story_points/
+    # acceptance_criteria/etc. have no meaning on a review ticket).
+    from sdd.commands.jira import _apply_team_field
+    _apply_team_field(fields, cfg.jira, "review")
 
     if existing:
         jira_client.update_issue(existing["key"], fields)

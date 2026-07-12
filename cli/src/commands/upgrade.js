@@ -962,6 +962,34 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.33',
+    to:   '2.7.34',
+    description: 'Fix: sdd review submit / sdd cr submit were silently skipping base_fields.labels and the team stamp (Python CLI) + new jira.parent_field_by_level per-level override, same pattern as project_keys/custom_fields_by_level; no manifest schema changes',
+    notes: [
+      'A user-requested field audit across every Jira API call site ' +
+      'found that review_submit() and cr_submit() hand-build their ' +
+      '`fields` dict directly instead of routing through jira.py\'s ' +
+      '_upsert_issue(), and had silently dropped base_fields.labels and ' +
+      'never applied base_fields.team, unlike every Epic/Story/Task/CHG ' +
+      'issue -- both are now fixed to apply the same labels/team logic',
+      'New JiraConfig.parent_field_by_level: dict + parent_field_for(level) ' +
+      'method mirrors key_for()/fields_for() from 2.7.32/2.7.33 -- lets an ' +
+      'org whose Story/Task Jira project needs a different parenting ' +
+      'mechanism than the Epic\'s project (e.g. next-gen "parent" field vs. ' +
+      'a classic project\'s Epic Link custom field) express that per level',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.34';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
