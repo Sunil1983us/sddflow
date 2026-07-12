@@ -3,6 +3,7 @@ import click
 from rich.console import Console
 
 from sdd.utils.manifest import read_manifest, patch_manifest, MANIFEST_PATH, SDD_VERSION
+from sdd.utils.scaffold import ALL_PACKS, TYPE_TO_PACK, UNIVERSAL_PACK, sync_pack_prompts
 
 console = Console()
 
@@ -962,11 +963,145 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.29"},
     },
+    {
+        "from":        "2.7.29",
+        "to":          "2.7.30",
+        "description": "Feature: sdd upgrade --sync-prompts -- re-copies .github/prompts/ and .claude/commands/ from the current pack into an already-scaffolded project, since plain `sdd upgrade` only ever patches manifest.yml's sdd_version and never touches prompt file content; sdd init now also records a new `pack` manifest field",
+        "notes": [
+            "Root cause of a real user-reported confusion: after several "
+            "prompt-content fixes shipped in 2.7.24/2.7.26/2.7.27 (review-"
+            "decision-step wiring, token-usage-log-step placement and "
+            "stale-context wording), the user upgraded the sddflow package "
+            "and still saw the old, unfixed behavior in their existing "
+            "test project -- because sdd init copies .github/prompts/ and "
+            ".claude/commands/ into a project exactly once, at scaffold "
+            "time, and sdd upgrade has never re-synced them",
+            "New sdd/utils/scaffold.py:sync_pack_prompts() diffs each file "
+            "in those two directories against the installed pack's "
+            "current version; unchanged files are left alone, changed "
+            "files are backed up to .specify/.prompt-sync-backups/"
+            "{timestamp}/ before being overwritten (so a project with "
+            "hand-edited prompts never silently loses those edits), and "
+            "missing files are added",
+            "sdd upgrade --sync-prompts shows a preview (updated/added/"
+            "unchanged counts and filenames) and asks for confirmation "
+            "before writing anything, unless --yes is passed; runs even "
+            "when the project is already at the current sdd_version, "
+            "since that check and this one are orthogonal",
+            "Which pack to sync from is resolved via --pack flag > "
+            "manifest.yml's new 'pack' field (written by sdd init on "
+            "every new project going forward) > inferred from "
+            "project_type > sdd-universal as a last resort -- an inferred "
+            "guess is always labeled as such in the output, since "
+            "projects scaffolded before this release have no 'pack' field "
+            "recorded and the guess could be wrong (e.g. someone who used "
+            "sdd-universal for a backend-service-typed project)",
+            "26 new tests (7 in test_scaffold.py for sync_pack_prompts "
+            "itself -- add/update/unchanged/backup/dry-run/out-of-scope-"
+            "dirs-untouched/unknown-pack; 19 in test_upgrade.py for pack "
+            "resolution and the CLI flag's preview/confirm/cancel/--yes/"
+            "already-current-version paths); also verified live end-to-"
+            "end against the real bundled packs (sdd init, hand-stale a "
+            "prompt file, sdd upgrade --sync-prompts, confirm/cancel both "
+            "paths, re-run to confirm idempotency)",
+            "New manifest.yml field: 'pack' (string, e.g. "
+            "'sdd-backend-service') -- written by sdd init only on a "
+            "fresh scaffold; this migration does not backfill it onto "
+            "existing projects, since sdd upgrade has no reliable way to "
+            "know which pack an existing project was scaffolded from "
+            "(that's exactly the gap --pack/inference exists to cover)",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.30"},
+    },
 ]
 
 
+def _resolve_pack(manifest: dict, pack_override: str | None) -> tuple[str, str]:
+    """Returns (pack_name, how-we-know) -- "how" is shown to the user so an
+    inferred (rather than certain) answer is never presented as fact.
+    Raises ValueError if --pack names something that doesn't exist."""
+    if pack_override:
+        if pack_override not in ALL_PACKS:
+            raise ValueError(f"Unknown pack '{pack_override}'. Available: {', '.join(ALL_PACKS)}")
+        return pack_override, "--pack flag"
+
+    stored = manifest.get("pack")
+    if stored:
+        return stored, "manifest.yml 'pack' field"
+
+    project = manifest.get("project") or {}
+    is_micro = "project_type" not in manifest and "scope" not in project
+    if is_micro:
+        return "sdd-micro", "no scope/project_type in manifest.yml (sdd-micro shape)"
+
+    project_type = manifest.get("project_type")
+    if project_type in TYPE_TO_PACK:
+        return TYPE_TO_PACK[project_type], f"inferred from project_type '{project_type}'"
+
+    return UNIVERSAL_PACK, "no pack recorded and project_type unrecognized — defaulting to sdd-universal"
+
+
+def _do_sync_prompts(pack_override: str | None, yes: bool) -> None:
+    manifest = read_manifest() or {}
+    try:
+        pack_name, source = _resolve_pack(manifest, pack_override)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        console.print()
+        return
+
+    console.print(f"  [bold]Syncing prompts from pack:[/bold] [cyan]{pack_name}[/cyan]  [dim]({source})[/dim]")
+    if "inferred" in source or "defaulting" in source:
+        console.print(
+            "  [dim]Not certain which pack this project uses — pass --pack "
+            "explicitly if this guess is wrong.[/dim]"
+        )
+    console.print()
+
+    preview = sync_pack_prompts(pack_name, dry_run=True)
+    changed = preview["updated"] + preview["added"]
+    if not changed:
+        console.print("  [green]✓  .github/prompts/ and .claude/commands/ are already up to date.[/green]")
+        console.print()
+        return
+
+    if preview["updated"]:
+        console.print(f"  [yellow]{len(preview['updated'])} file(s) will be updated[/yellow] (backed up first):")
+        for f in preview["updated"]:
+            console.print(f"    [dim]•[/dim] {f}")
+    if preview["added"]:
+        console.print(f"  [green]{len(preview['added'])} file(s) will be added[/green] (new in this pack version):")
+        for f in preview["added"]:
+            console.print(f"    [dim]•[/dim] {f}")
+    console.print(f"  [dim]{len(preview['unchanged'])} file(s) already up to date, left alone.[/dim]")
+    console.print()
+
+    if not yes and not click.confirm("  Proceed?", default=True):
+        console.print("  [yellow]Cancelled — no files changed.[/yellow]")
+        console.print()
+        return
+
+    result = sync_pack_prompts(pack_name)
+    console.print(
+        f"  [green]✓[/green]  {len(result['updated'])} updated, {len(result['added'])} added, "
+        f"{len(result['unchanged'])} unchanged."
+    )
+    if result["backup_dir"]:
+        console.print(f"  [dim]Backups of overwritten files: {result['backup_dir']}[/dim]")
+    console.print()
+
+
 @click.command()
-def upgrade_command():
+@click.option("--sync-prompts", is_flag=True,
+              help="Re-copy this project's .github/prompts/ and .claude/commands/ "
+                   "from the current pack, overwriting stale copies. sdd upgrade "
+                   "alone only ever patches manifest.yml's sdd_version -- it never "
+                   "touches these files, so fixes made to prompt content after this "
+                   "project was scaffolded need this flag to actually reach it.")
+@click.option("--pack", "pack_override", default=None,
+              help=f"Pack to sync prompts from, overriding manifest.yml/inference. One of: {', '.join(ALL_PACKS)}")
+@click.option("-y", "--yes", is_flag=True, help="Skip the confirmation prompt for --sync-prompts.")
+def upgrade_command(sync_prompts, pack_override, yes):
     """Migrate manifest.yml to the current pack version."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
@@ -984,43 +1119,48 @@ def upgrade_command():
     if current_version == SDD_VERSION:
         console.print(f"  [green]✓  Already at v{SDD_VERSION} — nothing to do.[/green]")
         console.print()
-        return
-
-    console.print(f"  Current version : [yellow]{current_version or 'pre-versioning (v1.x)'}[/yellow]")
-    console.print(f"  Target version  : [green]{SDD_VERSION}[/green]")
-    console.print()
-
-    pending = [
-        m for m in MIGRATIONS
-        if (current_version is None and m["from"] is None)
-        or m["from"] == current_version
-    ]
-
-    if not pending:
-        console.print("[yellow]  No migration path found. See CHANGELOG.md for manual steps.[/yellow]")
-        console.print()
-        return
-
-    for migration in pending:
-        console.print(f"  [bold]Migrating → v{migration['to']}: {migration['description']}[/bold]")
-        for note in migration["notes"]:
-            console.print(f"    [dim]•[/dim] {note}")
+        if not sync_prompts:
+            return
+    else:
+        console.print(f"  Current version : [yellow]{current_version or 'pre-versioning (v1.x)'}[/yellow]")
+        console.print(f"  Target version  : [green]{SDD_VERSION}[/green]")
         console.print()
 
-        updated = migration["migrate"](read_manifest())
-        patch_manifest({"sdd_version": updated["sdd_version"]})
-        console.print(f"  [green]✓[/green]  {MANIFEST_PATH} updated to v{migration['to']}")
-        console.print()
+        pending = [
+            m for m in MIGRATIONS
+            if (current_version is None and m["from"] is None)
+            or m["from"] == current_version
+        ]
 
-    final_version = (read_manifest() or {}).get("sdd_version")
-    if final_version != SDD_VERSION:
-        console.print(
-            f"  [yellow]Now at v{final_version} — run [cyan]sdd upgrade[/cyan] again "
-            f"to continue to v{SDD_VERSION}.[/yellow]"
-        )
-        console.print()
+        if not pending:
+            console.print("[yellow]  No migration path found. See CHANGELOG.md for manual steps.[/yellow]")
+            console.print()
+            if not sync_prompts:
+                return
+        else:
+            for migration in pending:
+                console.print(f"  [bold]Migrating → v{migration['to']}: {migration['description']}[/bold]")
+                for note in migration["notes"]:
+                    console.print(f"    [dim]•[/dim] {note}")
+                console.print()
 
-    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print("  [bold green]Upgrade complete![/bold green]")
-    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print()
+                updated = migration["migrate"](read_manifest())
+                patch_manifest({"sdd_version": updated["sdd_version"]})
+                console.print(f"  [green]✓[/green]  {MANIFEST_PATH} updated to v{migration['to']}")
+                console.print()
+
+            final_version = (read_manifest() or {}).get("sdd_version")
+            if final_version != SDD_VERSION:
+                console.print(
+                    f"  [yellow]Now at v{final_version} — run [cyan]sdd upgrade[/cyan] again "
+                    f"to continue to v{SDD_VERSION}.[/yellow]"
+                )
+                console.print()
+
+            console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+            console.print("  [bold green]Upgrade complete![/bold green]")
+            console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+            console.print()
+
+    if sync_prompts:
+        _do_sync_prompts(pack_override, yes)

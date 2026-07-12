@@ -141,6 +141,14 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     if not is_micro:
         project_patch["scope"] = scope
         manifest_patch["project_type"] = project_type
+    # Records which pack this project was scaffolded from — nothing else
+    # persists this (project_type is ambiguous: sdd-universal can produce
+    # any project_type too), and `sdd upgrade --sync-prompts` needs it to
+    # know which pack's .github/prompts/ to copy from. chosen_pack is only
+    # set on a fresh scaffold; in fill mode (manifest.yml already existed)
+    # leave whatever "pack" the manifest already has, if any.
+    if chosen_pack:
+        manifest_patch["pack"] = chosen_pack
     patch_manifest(manifest_patch)
     console.print(f"  [green]✓[/green]  {MANIFEST_PATH} filled")
 

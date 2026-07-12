@@ -56,6 +56,34 @@ Migrate an existing project's `manifest.yml` to the current pack version.
 sdd upgrade
 ```
 
+**This only ever touches `manifest.yml`'s `sdd_version` field.** Fixes made
+to prompt file *content* (`.github/prompts/*.md`, `.claude/commands/*.md`)
+after your project was scaffolded do **not** reach an existing project just
+by running `sdd upgrade` or upgrading the `sddflow` package — those files
+were copied into your project once, at `sdd init` time, and nothing
+re-syncs them automatically. For that, use `--sync-prompts`:
+
+```bash
+sdd upgrade --sync-prompts              # preview + confirm, then re-copy
+sdd upgrade --sync-prompts --yes        # skip the confirmation prompt
+sdd upgrade --sync-prompts --pack sdd-backend-service   # override pack detection
+```
+
+Which pack to sync from is resolved, in order: `--pack` flag →
+`manifest.yml`'s `pack` field (written automatically by `sdd init` on
+every new project) → inferred from `project_type` → `sdd-universal` as a
+last resort. If it had to guess, it says so and tells you to pass `--pack`
+if the guess is wrong — projects scaffolded before this field existed
+won't have `pack` recorded, so double-check the inference on those.
+
+Every file about to be overwritten is shown first (and left alone if you
+say no); anything actually overwritten is backed up to
+`.specify/.prompt-sync-backups/{timestamp}/` first, so a project with
+hand-edited prompt files never just loses those edits silently. Only
+`.github/prompts/` and `.claude/commands/` are touched — nothing under
+`.specify/` (templates, constitution, your generated docs) is ever synced
+by this command.
+
 ---
 
 ### `sdd config init`

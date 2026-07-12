@@ -851,6 +851,33 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.29',
+    to:   '2.7.30',
+    description: 'Feature: sdd upgrade --sync-prompts (Python CLI) -- re-copies .github/prompts/ and .claude/commands/ from the current pack into an already-scaffolded project; sdd init now also records a `pack` manifest field',
+    notes: [
+      'Root cause of a real user report: prompt-content fixes shipped in ' +
+      '2.7.24/2.7.26/2.7.27 never reached an already-scaffolded project, ' +
+      'because sdd init copies .github/prompts/ and .claude/commands/ ' +
+      'exactly once, at scaffold time, and sdd upgrade only ever patches ' +
+      'manifest.yml\'s sdd_version -- it never re-syncs those files',
+      'The Python CLI\'s new --sync-prompts flag diffs each file against ' +
+      'the installed pack\'s current version, backs up anything it\'s ' +
+      'about to overwrite to .specify/.prompt-sync-backups/{timestamp}/, ' +
+      'and shows a preview + confirmation before writing',
+      'This Node CLI does not yet implement --sync-prompts -- it stays ' +
+      'scoped to the init/upgrade scaffolding it already covers, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'New manifest.yml field: pack (string) -- written by sdd init on a ' +
+      'fresh scaffold; this migration does not backfill it onto existing ' +
+      'projects',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.30';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

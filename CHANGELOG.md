@@ -4,6 +4,37 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.30] — 2026-07-12 (Feature: `sdd upgrade --sync-prompts`)
+
+### Added
+
+- **`sdd upgrade --sync-prompts`** — re-copies `.github/prompts/` and
+  `.claude/commands/` from the current pack into an already-scaffolded
+  project, overwriting stale copies. Plain `sdd upgrade` only ever patches
+  `manifest.yml`'s `sdd_version` field — it never touches these files, so
+  fixes to prompt file *content* (like the 2.7.24/2.7.26/2.7.27 review-gate
+  and token-usage-logging fixes) never reached a project that was
+  scaffolded before those fixes shipped, even after upgrading the
+  `sddflow` package. This closes that gap.
+- Shows a preview (files to be updated/added, counts of what's already
+  current) and asks for confirmation before writing anything — pass `--yes`
+  to skip it. Every file about to be overwritten is backed up first to
+  `.specify/.prompt-sync-backups/{timestamp}/`, so hand-edited prompt files
+  are never silently lost.
+- Which pack to sync from: `--pack` flag → `manifest.yml`'s new `pack`
+  field (now written automatically by `sdd init` on every fresh project) →
+  inferred from `project_type` → `sdd-universal` as a last resort. An
+  inferred guess is always labeled as such, since projects scaffolded
+  before this release have no `pack` field recorded.
+- Only `.github/prompts/` and `.claude/commands/` are touched — nothing
+  under `.specify/` (templates, constitution, your generated docs) is ever
+  affected.
+- 26 new tests (7 for the underlying `sync_pack_prompts()` helper, 19 for
+  pack resolution and the CLI flag's preview/confirm/cancel/`--yes` paths);
+  also verified live end-to-end against the real bundled packs.
+
+---
+
 ## [2.7.29] — 2026-07-12 (Feature: dashboard Full Pipeline section)
 
 ### Added
