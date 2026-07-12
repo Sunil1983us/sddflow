@@ -112,7 +112,7 @@ def _mark_md_approved(md_path: Path) -> bool:
     return True
 
 
-def _push_doc_page(doc: str, md_path: Path) -> str | None:
+def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> str | None:
     """Upsert the document's Confluence page so it reflects the approved .md.
 
     Returns the page title on success, or None when Confluence is not
@@ -134,15 +134,21 @@ def _push_doc_page(doc: str, md_path: Path) -> str | None:
         title = cfg.document_reviews[doc].confluence_page
     else:
         title = cfg.confluence.page_map.get(doc, f"{{project}} — {doc.upper()}")
-    title = title.replace("{project}", project_name)
+    # {feature} must always be substituted, not just {project} -- Confluence
+    # enforces title uniqueness per SPACE, so two features pushing the same
+    # doc type without {feature} in the title would silently overwrite each
+    # other's page (this was the exact bug fixed for confluence.py's
+    # page_map templates; document_reviews.confluence_page had the same gap).
+    title = title.replace("{project}", project_name).replace("{feature}", feature_name)
 
     prof      = load_profile(cfg.profile)
     session   = build_session(prof)
     cf_client = ConfluenceClient(session, prof.base_url)
     body_html = md_to_storage(md_path.read_text())
+    from sdd.commands.confluence import resolve_doc_parent_id
+    parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
     cf_client.upsert_page(
-        cfg.confluence.space_key, title, body_html,
-        cfg.confluence.parent_page_id,
+        cfg.confluence.space_key, title, body_html, parent_id,
     )
     return title
 
@@ -354,11 +360,12 @@ def review_submit(doc, profile, feature):
         console.print(f"  [red]✗  {md_path} not found — run the SDD command that generates it first[/red]")
         raise SystemExit(1)
 
-    page_title = doc_cfg.confluence_page.replace("{project}", project_name)
+    page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
     body_html  = md_to_storage(md_path.read_text())
+    from sdd.commands.confluence import resolve_doc_parent_id
+    parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
     page, created = cf_client.upsert_page(
-        cfg.confluence.space_key, page_title, body_html,
-        cfg.confluence.parent_page_id,
+        cfg.confluence.space_key, page_title, body_html, parent_id,
     )
     page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
     action   = "[green]created[/green]" if created else "[dim]updated[/dim]"
@@ -576,7 +583,9 @@ def review_approve(doc, local, by, note, feature, no_confluence):
             console.print("  [dim]·  Confluence update skipped (--no-confluence)[/dim]")
         else:
             try:
-                title = _push_doc_page(doc, md_path)
+                manifest     = read_manifest() or {}
+                feature_name = feature or (manifest.get("project") or {}).get("feature", "")
+                title = _push_doc_page(doc, md_path, feature_name)
                 if title:
                     console.print(f"  [green]✓[/green]  Confluence page updated: [cyan]{title}[/cyan]")
                 else:
@@ -640,11 +649,12 @@ def review_apply(doc, profile, feature):
         raise SystemExit(1)
     page_url     = ""
     if md_path.exists():
-        page_title = doc_cfg.confluence_page.replace("{project}", project_name)
+        page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
         body_html  = md_to_storage(md_path.read_text())
+        from sdd.commands.confluence import resolve_doc_parent_id
+        parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
         page, _    = cf_client.upsert_page(
-            cfg.confluence.space_key, page_title, body_html,
-            cfg.confluence.parent_page_id,
+            cfg.confluence.space_key, page_title, body_html, parent_id,
         )
         page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
         console.print(f"  [green]✓[/green]  Confluence updated: [cyan]{page_title}[/cyan]")

@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.35] — 2026-07-12 (Feature: Confluence page hierarchy; fix: review-doc titles missing {feature})
+
+### Added
+
+- **Confluence pages now nest under Project → Feature container pages**,
+  created automatically and idempotently the first time any doc is pushed —
+  `parent_page_id` → a page named after the project → a page named after the
+  feature → the doc pages themselves. Living/service-level docs (`data-model`,
+  `security-design`, `api-spec`, `component-library`, `runbook`) nest directly
+  under the Project page since they're shared across every feature, not
+  per-feature.
+- **Important caveat, verified before implementing:** Confluence enforces
+  page-title uniqueness *per space*, not per parent page. Nesting is a
+  navigation convenience only — it does not relax the need for `{feature}` in
+  the page title text. Two features' same-titled pages would still collide
+  even nested under different Feature pages, so `page_map` /
+  `document_reviews.confluence_page` templates keep `{feature}` in every
+  per-feature title.
+
+### Fixed
+
+- **`document_reviews.confluence_page` titles never substituted `{feature}`,
+  only `{project}`.** This is a separate code path from `page_map` (used by
+  `sdd confluence push/draft`, already fixed for this in an earlier release);
+  `sdd review submit` and its two related call sites (`_push_doc_page`,
+  `review_apply`) never applied the fix. Two features submitting the same doc
+  type for review (e.g. both push a BRD) would silently overwrite each
+  other's Confluence page. All three call sites now substitute both
+  `{project}` and `{feature}`.
+- 9 new tests (`test_confluence_hierarchy.py` plus a regression test proving
+  two features no longer collide on the same review Confluence page), full
+  regression clean.
+
+---
+
 ## [2.7.34] — 2026-07-12 (Fix: review/CR tickets missing labels+team; per-level parent_field override)
 
 ### Fixed

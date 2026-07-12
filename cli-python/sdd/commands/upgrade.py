@@ -1240,6 +1240,76 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.34"},
     },
+    {
+        "from":        "2.7.34",
+        "to":          "2.7.35",
+        "description": "Feature: Confluence page hierarchy (Project -> Feature -> doc pages), created automatically and idempotently -- fix: document_reviews.confluence_page titles never had {feature} substituted, only {project}, so two features submitting the same doc type silently overwrote each other's Confluence page; no manifest schema changes",
+        "notes": [
+            "User-requested: 'can we have created under sub pages .. create "
+            "a project page, under feature page and different steps pages "
+            "under feature?' -- every page now nests under parent_page_id "
+            "-> a Project container page -> a Feature container page, both "
+            "created idempotently the first time any doc is pushed for "
+            "that project/feature. Living/service-level docs (data-model, "
+            "security-design, api-spec, component-library, runbook) nest "
+            "directly under the Project page instead, since they're "
+            "shared across every feature",
+            "IMPORTANT CAVEAT verified before implementing (Confluence "
+            "enforces page-title uniqueness per SPACE, not per parent "
+            "page -- confirmed via Atlassian community docs): nesting is "
+            "purely a navigation convenience, it does NOT relax the need "
+            "for {feature} in the page title text. Two features' "
+            "same-titled pages would still collide even nested under "
+            "different Feature pages. This is why page_map/"
+            "document_reviews.confluence_page templates keep {feature} in "
+            "the title -- confirmed with the user before implementing, "
+            "since an earlier 'simplify titles now that nesting exists' "
+            "framing would have silently reintroduced the exact collision "
+            "bug fixed in 2.7.x's earlier 'Fix Confluence page-title "
+            "collision across features' work",
+            "REAL BUG FOUND AND FIXED: document_reviews.confluence_page "
+            "(used by sdd review submit/_push_doc_page, separate from "
+            "page_map used by sdd confluence push/draft) only ever had "
+            "{project} substituted in its title -- {feature} was never "
+            "substituted at all, in any of the 3 call sites (review_submit, "
+            "_push_doc_page, review_apply). Two features submitting the "
+            "same doc type (e.g. both push a BRD for review) would upsert "
+            "the SAME Confluence page, silently overwriting each other's "
+            "content -- the exact collision class already fixed for "
+            "page_map, just never applied to document_reviews.confluence_page. "
+            "All 3 call sites now do .replace('{feature}', feature_name) "
+            "in addition to .replace('{project}', project_name)",
+            "confluence.py: new _ensure_container_page() (idempotent "
+            "find-by-title-in-space, else create), resolve_feature_parent_id() "
+            "(Project -> Feature chain), resolve_doc_parent_id() (routes "
+            "living/service-level docs to the Project page instead of a "
+            "Feature page); wired into confluence_push, confluence_draft, "
+            "review.py's review_submit/_push_doc_page/review_apply, and "
+            "cr.py's cr_submit (which also dropped {project} from its CR "
+            "page title in favor of {feature}, matching the new "
+            "'feature-first' title convention)",
+            "_push_doc_page() signature changed: now takes feature_name "
+            "as a required third argument (previously computed nothing "
+            "about feature at all) -- callers in review.py's review_approve "
+            "and dashboard.py's approve endpoint updated to resolve and "
+            "pass it",
+            "_CONTEXT_PAGE_TITLE changed from '{project} — Context: "
+            "{feature}' to '{feature} — Context', matching the new "
+            "feature-first convention applied to page_map/"
+            "document_reviews.confluence_page in the shipped example",
+            "9 new tests: 8 in new test_confluence_hierarchy.py "
+            "(_ensure_container_page idempotency, resolve_feature_parent_id "
+            "Project->Feature chain and sharing across features, "
+            "resolve_doc_parent_id living-doc vs per-feature routing), 1 "
+            "regression test in test_review_helpers.py proving two "
+            "features no longer collide on the same review Confluence "
+            "page, plus fixes to 2 pre-existing tests whose expectations "
+            "matched the old title format",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.35"},
+    },
 ]
 
 

@@ -990,6 +990,35 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.34',
+    to:   '2.7.35',
+    description: 'Feature: Confluence page hierarchy Project -> Feature -> doc pages (Python CLI) + fix: document_reviews.confluence_page titles never had {feature} substituted, only {project}, so two features submitting the same doc type silently overwrote each other\'s Confluence page; no manifest schema changes',
+    notes: [
+      'User-requested nested Confluence page structure: every page now ' +
+      'nests under parent_page_id -> a Project container page -> a ' +
+      'Feature container page, created idempotently. Confluence enforces ' +
+      'page-title uniqueness per SPACE, not per parent page, so nesting ' +
+      'is a navigation convenience only -- {feature} must stay in every ' +
+      'per-feature page title regardless of where it sits in the tree',
+      'Real bug fixed: document_reviews.confluence_page (used by sdd ' +
+      'review submit) only ever substituted {project} in its title, ' +
+      'never {feature} -- two features submitting the same doc type for ' +
+      'review would silently overwrite each other\'s Confluence page. ' +
+      'This is the same collision class already fixed for page_map ' +
+      '(used by sdd confluence push/draft), just never applied here',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.35';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

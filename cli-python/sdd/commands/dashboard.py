@@ -713,7 +713,9 @@ def _do_approve(feature: str, doc: str, by: str, note: str) -> dict:
     if md_path and md_path.exists():
         result["md_updated"] = _mark_md_approved(md_path)
         try:
-            title = _push_doc_page(doc, md_path)
+            manifest     = read_manifest() or {}
+            feature_name = feature or (manifest.get("project") or {}).get("feature", "")
+            title = _push_doc_page(doc, md_path, feature_name)
             result["confluence"] = {"updated": bool(title), "title": title}
         except Exception as e:
             result["confluence"] = {"error": str(e)}

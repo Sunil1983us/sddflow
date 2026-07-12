@@ -275,6 +275,20 @@ message.
 with that title already exists, it is updated (version incremented). If not,
 it is created under the configured parent page.
 
+**Page hierarchy:** every page nests under `parent_page_id` → a Project page
+(named after `manifest.yml`'s project name) → a Feature page (named after
+the active feature) — both created automatically and idempotently the first
+time any doc is pushed. Living/service-level docs (`data-model`,
+`security-design`, `api-spec`, `component-library`, `runbook`) nest directly
+under the Project page instead, since they're shared across every feature.
+
+This nesting is purely a navigation convenience, not a namespace — Confluence
+enforces page-title uniqueness **per space**, not per parent page, so two
+features' same-titled pages would still collide even nested under different
+Feature pages. That's why `page_map`/`document_reviews.confluence_page`
+templates keep `{feature}` in the title text; don't remove it just because
+nesting exists.
+
 ---
 
 ### `sdd review submit`
@@ -820,9 +834,9 @@ confluence:
   space_key: ENG
   parent_page_id: "123456"
   page_map:
-    brd:     "My Project — Business Requirements"
-    hld:     "My Project — High-Level Design"
-    runbook: "My Project — Runbook"
+    brd:     "{feature} — Business Requirements"
+    hld:     "{feature} — High-Level Design"
+    runbook: "Runbook"   # living doc -- no {feature}, nests under the Project page
 ```
 
 Full reference: see `.specify/integrations.yml.example`.

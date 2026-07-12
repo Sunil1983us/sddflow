@@ -82,7 +82,10 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
 
     cr_text    = cr_file.read_text()
     cr_summary = _extract_cr_summary(cr_text)
-    page_title = f"{project_name} — {cr_id}: {cr_summary}"[:200]
+    # Feature name (not project name) keeps this collision-safe: Confluence
+    # enforces title uniqueness per SPACE, so two features could otherwise
+    # push the same CR id (e.g. both have a "CR-001") to the same title.
+    page_title = f"{feature_name} — {cr_id}: {cr_summary}"[:200]
 
     console.print(f"  CR file  : [cyan]{cr_file}[/cyan]")
     console.print(f"  Title    : [cyan]{page_title}[/cyan]")
@@ -107,11 +110,13 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
         cf_client = ConfluenceClient(session, prof.base_url)
         body_html = md_to_storage(cr_text)
         try:
+            from sdd.commands.confluence import resolve_feature_parent_id
+            parent_id = resolve_feature_parent_id(cf_client, cfg.confluence, project_name, feature_name)
             page, created = cf_client.upsert_page(
                 cfg.confluence.space_key,
                 page_title,
                 body_html,
-                cfg.confluence.parent_page_id,
+                parent_id,
             )
             action   = "[green]created[/green]" if created else "[dim]updated[/dim]"
             web_ui   = page.get("_links", {}).get("webui", "")

@@ -156,12 +156,12 @@ class TestDocMdPath:
 class TestPushDocPage:
     def test_no_integrations_file_returns_none(self, project):
         p = _write_doc(project, "brd", "Status: Approved")
-        assert review._push_doc_page("brd", p) is None
+        assert review._push_doc_page("brd", p, "auth") is None
 
     def test_no_confluence_section_returns_none(self, project):
         (project / ".specify" / "integrations.yml").write_text("profile: default\n")
         p = _write_doc(project, "brd", "Status: Approved")
-        assert review._push_doc_page("brd", p) is None
+        assert review._push_doc_page("brd", p, "auth") is None
 
 
 # ── _ensure_epic / feature-qualified review labels ──────────────────────────
@@ -367,10 +367,23 @@ class TestGetReviewStatusFeatureQualified:
 
 class FakeConfluenceClient:
     def __init__(self, session=None, base_url=None):
-        pass
+        self.pages_by_title: dict[str, dict] = {}
+        self._next_id = 1
+
+    def get_page_by_title(self, space_key, title):
+        return self.pages_by_title.get(title)
+
+    def create_page(self, space_key, title, body_html, parent_id=None):
+        page = {"id": str(self._next_id), "_links": {"webui": f"/pages/{self._next_id}"}}
+        self._next_id += 1
+        self.pages_by_title[title] = page
+        return page
 
     def upsert_page(self, space_key, title, body_html, parent_id=None):
-        return {"id": "999", "_links": {"webui": "/pages/999"}}, True
+        existing = self.get_page_by_title(space_key, title)
+        if existing:
+            return existing, False
+        return self.create_page(space_key, title, body_html, parent_id), True
 
 
 class TestReviewSubmitFieldWiring:
@@ -424,3 +437,46 @@ class TestReviewSubmitFieldWiring:
         assert "sdd-generated" in review_issue["labels"]
         assert "org-required-label" in review_issue["labels"]
         assert review_issue["customfield_20000"] == "Team Phoenix"
+
+    def test_two_features_do_not_collide_on_the_same_confluence_page(self, project, runner):
+        """Regression test: document_reviews.confluence_page templates
+        never had {feature} substituted (only {project} was), so two
+        features submitting the same doc type used to silently upsert the
+        SAME Confluence page -- the exact collision class {feature} was
+        already added to page_map for (bug #82), just never fixed here."""
+        from sdd.utils.atlassian_auth import Profile
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nBO-001 Reduce login friction.\n"
+        )
+        (project / ".specify" / "features" / "billing").mkdir(parents=True)
+        (project / ".specify" / "features" / "billing" / "brd.md").write_text(
+            "# BRD\n\nBO-001 Reduce billing friction.\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{feature} — BRD'\n"
+        )
+        shared_cf_client = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=shared_cf_client):
+            r1 = runner.invoke(review.review_command, ["submit", "--doc", "brd", "--feature", "auth"])
+            r2 = runner.invoke(review.review_command, ["submit", "--doc", "brd", "--feature", "billing"])
+
+        assert r1.exit_code == 0, r1.output
+        assert r2.exit_code == 0, r2.output
+        # Two distinct pages, not one page silently overwritten by the second call
+        assert "auth — BRD" in shared_cf_client.pages_by_title
+        assert "billing — BRD" in shared_cf_client.pages_by_title
+        assert shared_cf_client.pages_by_title["auth — BRD"]["id"] != \
+               shared_cf_client.pages_by_title["billing — BRD"]["id"]

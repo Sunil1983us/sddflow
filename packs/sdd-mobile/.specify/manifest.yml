@@ -32,5 +32,5 @@ testing_style: "paired"
 # If using sdd-universal instead, set project_type: "mobile" in its manifest.yml
 # project_type: "mobile"
 
-sdd_version: "2.7.34"   # set by sdd init; used by sdd upgrade
+sdd_version: "2.7.35"   # set by sdd init; used by sdd upgrade
 ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other
