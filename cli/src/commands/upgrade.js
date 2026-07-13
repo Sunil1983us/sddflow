@@ -1399,6 +1399,30 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.51',
+    to:   '2.7.52',
+    description: "Fix: dashboard's Full Pipeline 'Next:' text could contradict the pipeline diagram when an optional step (e.g. checklist at pilot scope) was consciously skipped (Python CLI) -- no manifest schema changes",
+    notes: [
+      "The dashboard's pipeline diagram could mark 'validate' as the " +
+      "current step while the 'Next:' text still said 'Run /checklist' " +
+      "-- checklist is optional at pilot scope and was never run, but a " +
+      "later doc (validate.md) already existed. build_pipeline() now " +
+      "treats an optional+not-yet-generated step as bypassed once a " +
+      "later step exists on disk, instead of always picking the first " +
+      "non-done step in list order",
+      'This Node CLI does not implement sdd dashboard -- it stays scoped ' +
+      'to init/upgrade scaffolding, per its own README; this migration ' +
+      'entry exists so both CLIs report the same sdd_version chain for a ' +
+      'given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.52';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

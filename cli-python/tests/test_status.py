@@ -655,6 +655,46 @@ def test_pipeline_approved_doc_counts_as_done():
     assert p["next_step_id"] == "use-cases"
 
 
+def test_pipeline_bypassed_optional_step_does_not_win_next_action():
+    """Regression: user-reported. At pilot scope, checklist is optional
+    (step.optional=True) and this project never ran /checklist -- but BRD/
+    Use Cases/SRD are approved and validate.md already exists (awaiting
+    review). Since checklist's doc never exists, _step_state alone always
+    returns "upcoming" for it, and the old code picked the first non-done
+    step in list order -- surfacing "Run /checklist" as the dashboard's
+    Next: text while the pipeline diagram itself showed validate as the
+    current step. The bypass check must let build_pipeline skip past an
+    optional step once a later step already exists on disk."""
+    docs = [
+        {"key": "brd", "status": "Approved"},
+        {"key": "use-cases", "status": "Approved"},
+        {"key": "srd", "status": "Approved"},
+        {"key": "validate", "status": "Draft"},
+    ]
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot")
+    assert _step(p, "checklist")["state"] == "upcoming"
+    assert _step(p, "validate")["state"] == "current"
+    assert p["next_step_id"] == "validate"
+    assert "checklist" not in p["next_action"].lower()
+    assert "sdd review check --doc validate" in p["next_action"]
+
+
+def test_pipeline_optional_step_not_yet_reached_is_still_picked_as_next():
+    """Sanity check the fix doesn't over-trigger: when checklist genuinely
+    hasn't been reached yet (nothing later exists either), it must still
+    be picked as next_action like any other upcoming step."""
+    docs = [
+        {"key": "brd", "status": "Approved"},
+        {"key": "use-cases", "status": "Approved"},
+        {"key": "srd", "status": "Approved"},
+    ]
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot")
+    assert p["next_step_id"] == "checklist"
+    assert "/checklist" in p["next_action"]
+
+
 def test_pipeline_pilot_scope_skips_lld_adr_extended_specs_runbook_qa():
     p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
                         plan_mode="unified", scope="pilot")

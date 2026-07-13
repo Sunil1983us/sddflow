@@ -341,6 +341,19 @@ def _next_action_sentence(step: dict, state: str, tasks: dict) -> str:
     return f"Run `{step['command']}` to generate the {step['label']}."
 
 
+def _later_doc_step_exists(remaining_steps: list[dict], docs_by_key: dict) -> bool:
+    """True if any later non-skipped doc-kind step already exists on disk --
+    signals that an earlier *optional* step was consciously bypassed rather
+    than simply not reached yet, so it shouldn't be picked as the
+    pipeline's 'next' action."""
+    for s in remaining_steps:
+        if s.get("skip"):
+            continue
+        if s["kind"] == "doc" and s["doc_key"] in docs_by_key:
+            return True
+    return False
+
+
 def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_docs_exist: bool,
                     plan_mode: str = "unified", scope: str | None = "pilot",
                     feature: str = "this feature") -> dict:
@@ -357,7 +370,7 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
     next_action: str | None = None
     next_step_id: str | None = None
     next_persona: dict | None = None
-    for step in steps:
+    for i, step in enumerate(steps):
         persona = _persona_hint(step["id"], feature, scope)
         if step.get("skip"):
             resolved.append({**step, "state": "skipped", "persona": persona})
@@ -365,6 +378,16 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
         state = _step_state(step, docs_by_key, tasks, constitution, service_docs_exist)
         resolved.append({**step, "state": state, "persona": persona})
         if state != "done" and next_action is None:
+            # An *optional* step (e.g. checklist at pilot scope) whose doc
+            # was never generated is still "upcoming", not "done" -- but if
+            # a later mandatory doc already exists, the user consciously
+            # moved past it rather than forgot it. Picking it here would
+            # tell the dashboard to say "run /checklist" while the pipeline
+            # diagram itself already shows a later step as current --
+            # exactly the contradiction a user reported seeing.
+            if (step.get("optional") and state == "upcoming"
+                    and _later_doc_step_exists(steps[i + 1:], docs_by_key)):
+                continue
             next_action = _next_action_sentence(step, state, tasks)
             next_step_id = step["id"]
             # A doc "current"/awaiting-review isn't waiting to be *created* --

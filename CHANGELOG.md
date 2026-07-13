@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.52] — 2026-07-13 (Fix: dashboard "Next:" text could contradict the pipeline diagram)
+
+### Fixed
+
+- **User-reported: the dashboard's Full Pipeline diagram marked
+  `validate` as the current step (● current), but the "Next:" text still
+  said "Run `/checklist` to generate the Spec Quality Checklist".**
+  `checklist` is optional at `pilot` scope, and the project genuinely
+  skipped it while `validate.md` already existed and was awaiting
+  review.
+  - Root cause: `_step_state()` never consults a step's `optional` flag
+    — an optional step whose doc file doesn't exist on disk always
+    reports state `"upcoming"`, indistinguishable from "not reached
+    yet." `build_pipeline()`'s main loop picked the first non-`"done"`
+    step in list order as `next_action`, and `checklist` sits before
+    `validate` in `PIPELINE_DOCS`, so it always won — even though each
+    step's own rendered state (○ upcoming / ● current) was already
+    correct in isolation.
+  - Fix: new `_later_doc_step_exists()` helper in `status.py` —  when a
+    later non-skipped doc-kind step already exists on disk, an earlier
+    `optional` step still sitting at `"upcoming"` is treated as
+    consciously bypassed and is skipped when choosing
+    `next_action`/`next_step_id`/`next_persona`. The per-step `resolved`
+    states that render the flow diagram itself are untouched.
+  - 2 new regression tests in `test_status.py`: the bypassed-optional-
+    step case from this report, and a sanity check that a genuinely
+    not-yet-reached optional step is still picked as `next_action`
+    normally.
+  - No manifest schema changes.
+
+---
+
 ## [2.7.51] — 2026-07-13 (Feature: dashboard Jira review pill gets a local, instant fallback)
 
 ### Added

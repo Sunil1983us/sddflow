@@ -2030,6 +2030,40 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.51"},
     },
+    {
+        "from":        "2.7.51",
+        "to":          "2.7.52",
+        "description": "Fix: dashboard's Full Pipeline 'Next:' text could contradict the pipeline diagram itself when an optional step (e.g. checklist at pilot scope) was consciously skipped -- no manifest schema changes",
+        "notes": [
+            "User-reported: the dashboard showed the pipeline diagram's "
+            "current-step marker on 'validate' (already exists, awaiting "
+            "review) while the 'Next:' text still said 'Run /checklist to "
+            "generate the Spec Quality Checklist' -- checklist is optional "
+            "at pilot scope and this project never ran it, but validate.md "
+            "already existed",
+            "Root cause: _step_state() never consults a step's 'optional' "
+            "flag, so an optional step whose doc file doesn't exist always "
+            "reports state 'upcoming' -- indistinguishable from 'not "
+            "reached yet'. build_pipeline()'s main loop picked the first "
+            "non-done step in list order as next_action, and checklist "
+            "sits before validate in PIPELINE_DOCS, so it always won even "
+            "though the step's own rendered state (o upcoming) was correct",
+            "Fix: new _later_doc_step_exists() helper in status.py -- if a "
+            "later non-skipped doc-kind step already exists on disk, an "
+            "earlier optional+upcoming step is treated as consciously "
+            "bypassed and is skipped when picking next_action/next_step_id. "
+            "The per-step 'resolved' states (what renders the flow diagram "
+            "itself) are untouched -- only the next_action selection "
+            "heuristic changed",
+            "2 new tests in test_status.py: the bypassed-optional-step "
+            "regression case, and a sanity check that a genuinely "
+            "not-yet-reached optional step is still picked as next_action "
+            "normally",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.52"},
+    },
 ]
 
 
