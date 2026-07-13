@@ -108,7 +108,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
     # ── Push CR record to Confluence ─────────────────────────────────────────
     if cfg.confluence:
         cf_client = ConfluenceClient(session, prof.base_url)
-        body_html = md_to_storage(cr_text)
+        body_html = md_to_storage(cr_text, cfg.confluence.diagrams)
         try:
             from sdd.commands.confluence import resolve_feature_parent_id
             parent_id = resolve_feature_parent_id(cf_client, cfg.confluence, project_name, feature_name)

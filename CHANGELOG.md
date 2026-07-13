@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.36] — 2026-07-12 (Feature: Confluence diagram-macro rendering — mermaid-app, plantuml-macro)
+
+### Added
+
+- **`confluence.diagrams:` config block** — Confluence has no native Mermaid or
+  PlantUML renderer, so a ` ```mermaid `/` ```plantuml ` fenced block pushed to
+  Confluence used to always show as plain syntax-highlighted text, the
+  diagram source rather than a rendered diagram. Two new modes route these
+  fences through an installed Confluence app's macro instead:
+  - `mode: mermaid-app` + `mermaid_app.macro_name` — routes ` ```mermaid `
+    fences through the named macro of whichever Mermaid-rendering app
+    (there are 10+ on the Atlassian Marketplace) the org has installed.
+  - `mode: plantuml-macro` + `plantuml_macro.macro_name` — same idea for
+    fences already written as ` ```plantuml ` (does **not** convert Mermaid
+    syntax to PlantUML — different diagram languages). Most PlantUML apps
+    render via the public `plantuml.com` server by default; orgs that can't
+    reach external services need a self-hosted PlantUML render server
+    instead.
+  - Default (`mode: none`, or the block omitted) is exactly today's
+    behavior — a diagram fence with no matching mode/macro configured
+    always falls back to the plain code block, never a broken macro
+    reference.
+- Researched and explicitly **deferred** two more modes pending further
+  work: `local-svg` (render Mermaid to SVG fully locally — no Confluence
+  app, no external network call at render time — then attach as an image;
+  needs a rendering-tool evaluation across the diagram types SDD templates
+  generate before it ships) and `markdown-macro` (delegate the whole page
+  to a whole-document Markdown-rendering Forge app; needs verified testing
+  against a real installed app first — Forge macros use a different, less
+  guessable reference shape than the two modes shipped here).
+- 7 new tests (`test_md_to_cf.py::TestDiagramMacros`), full regression
+  clean.
+
+---
+
 ## [2.7.35] — 2026-07-12 (Feature: Confluence page hierarchy; fix: review-doc titles missing {feature})
 
 ### Added

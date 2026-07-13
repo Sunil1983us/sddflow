@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from sdd.utils.md_to_cf import md_to_storage
+from sdd.utils.integrations import DiagramsConfig
 
 
 class TestTables:
@@ -107,3 +108,76 @@ class TestTables:
         assert html.count("<th>") == 6
         assert "202 — JSON {paymentId, correlationId, status, timestamp}" in html
         assert "<p>" not in html
+
+
+class TestDiagramMacros:
+    """mermaid-app / plantuml-macro modes -- routing a diagram fence
+    through the configured Confluence app's macro instead of the plain
+    "code" macro, which only shows syntax-highlighted text, never a
+    rendered diagram (Confluence has no native diagram renderer)."""
+
+    def test_default_mode_renders_mermaid_as_plain_code_block(self):
+        """No diagrams config at all -- exact pre-existing behavior,
+        unchanged. This is the regression the user originally reported:
+        a mermaid fence just shows as text."""
+        md = "```mermaid\ngraph TD;\nA-->B;\n```"
+        html = md_to_storage(md)
+        assert '<ac:structured-macro ac:name="code">' in html
+        assert '<ac:parameter ac:name="language">mermaid</ac:parameter>' in html
+        assert "graph TD;" in html
+
+    def test_mermaid_app_mode_emits_configured_macro(self):
+        md = "```mermaid\ngraph TD;\nA-->B;\n```"
+        diagrams = DiagramsConfig(mode="mermaid-app", mermaid_app_macro="mermaid-cloud")
+        html = md_to_storage(md, diagrams)
+        assert '<ac:structured-macro ac:name="mermaid-cloud">' in html
+        assert "graph TD;" in html
+        # no language parameter or generic code-macro wrapper leaks through
+        assert '<ac:name="code">' not in html
+
+    def test_mermaid_app_mode_without_macro_name_falls_back_to_code_block(self):
+        """Misconfiguration (mode set but no macro_name) must never
+        crash or emit a broken macro reference -- falls back to the
+        same safe default as no config at all."""
+        md = "```mermaid\ngraph TD;\n```"
+        diagrams = DiagramsConfig(mode="mermaid-app")  # macro name left unset
+        html = md_to_storage(md, diagrams)
+        assert '<ac:structured-macro ac:name="code">' in html
+
+    def test_mermaid_app_mode_does_not_affect_other_fence_languages(self):
+        md = "```python\nprint(1)\n```"
+        diagrams = DiagramsConfig(mode="mermaid-app", mermaid_app_macro="mermaid-cloud")
+        html = md_to_storage(md, diagrams)
+        assert '<ac:structured-macro ac:name="code">' in html
+        assert "mermaid-cloud" not in html
+
+    def test_plantuml_macro_mode_emits_configured_macro(self):
+        md = "```plantuml\n@startuml\nAlice -> Bob\n@enduml\n```"
+        diagrams = DiagramsConfig(mode="plantuml-macro", plantuml_macro="plantuml")
+        html = md_to_storage(md, diagrams)
+        assert '<ac:structured-macro ac:name="plantuml">' in html
+        # ">" is HTML-escaped inside the CDATA body, same convention as
+        # the code macro -- the arrow becomes "-&gt;"
+        assert "Alice -&gt; Bob" in html
+
+    def test_plantuml_macro_mode_does_not_convert_mermaid_fences(self):
+        """plantuml-macro mode only intercepts ```plantuml fences --
+        Mermaid and PlantUML are different diagram languages, not
+        mechanically convertible, so a ```mermaid fence must still fall
+        back to the plain code block rather than being silently routed
+        through a macro that expects PlantUML syntax."""
+        md = "```mermaid\ngraph TD;\n```"
+        diagrams = DiagramsConfig(mode="plantuml-macro", plantuml_macro="plantuml")
+        html = md_to_storage(md, diagrams)
+        assert '<ac:structured-macro ac:name="code">' in html
+        assert '<ac:name="plantuml">' not in html
+
+    def test_diagram_source_is_html_escaped_in_cdata(self):
+        """Diagram source containing characters like < > & must be
+        HTML-escaped inside the CDATA body, same convention as the
+        existing code-macro path."""
+        md = "```mermaid\nA-->B & C<D>\n```"
+        diagrams = DiagramsConfig(mode="mermaid-app", mermaid_app_macro="mermaid-cloud")
+        html = md_to_storage(md, diagrams)
+        assert "&amp;" in html
+        assert "&lt;D&gt;" in html

@@ -1310,6 +1310,68 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.35"},
     },
+    {
+        "from":        "2.7.35",
+        "to":          "2.7.36",
+        "description": "Feature: Confluence diagram-macro rendering modes (mermaid-app, plantuml-macro) -- new confluence.diagrams: config block routes ```mermaid/```plantuml fences through an installed Confluence app's macro instead of the plain code-block rendering; no manifest schema changes",
+        "notes": [
+            "User-reported: Mermaid diagrams pushed to Confluence only "
+            "ever showed as plain code text, never as a rendered "
+            "diagram -- root cause is that md_to_cf.py routed every "
+            "fenced code block, regardless of language, through "
+            "Confluence's built-in 'code' macro (a syntax-highlighted "
+            "text block), and Confluence has no native diagram renderer "
+            "at all",
+            "Researched (with web search) and ruled out several "
+            "approaches before implementing: Confluence's native "
+            "paste-markdown editor feature does not render Mermaid; "
+            "whole-document 'Markdown macro' apps and Mermaid-specific "
+            "apps both exist on the Atlassian Marketplace but are "
+            "org-installation-dependent; PlantUML apps require a "
+            "different diagram language (not mechanically convertible "
+            "from Mermaid) and by default call out to the public "
+            "plantuml.com server unless self-hosted",
+            "Shipped this round: new integrations.py DiagramsConfig "
+            "dataclass (ConfluenceConfig.diagrams field) supporting "
+            "mode: none (default, unchanged behavior) | mermaid-app | "
+            "plantuml-macro, each with a configurable macro_name (the "
+            "ac:name of whatever Confluence app the org has installed)",
+            "md_to_cf.py: new _render_fence()/_diagram_macro() helpers -- "
+            "a ```mermaid fence routes through mermaid_app.macro_name "
+            "when mode == mermaid-app; a ```plantuml fence routes "
+            "through plantuml_macro.macro_name when mode == "
+            "plantuml-macro; every other fence (and a diagram fence "
+            "with no matching mode/macro configured) falls back to the "
+            "existing code-macro rendering, never crashes or emits a "
+            "broken macro reference for a misconfiguration",
+            "md_to_storage()'s signature gained an optional second "
+            "parameter (diagrams: DiagramsConfig | None = None, "
+            "defaulting to mode 'none') -- all 6 call sites across "
+            "confluence.py, review.py, and cr.py updated to pass "
+            "cfg.confluence.diagrams through",
+            "Two more modes -- local-svg (render Mermaid to SVG "
+            "locally, no external network call, then attach as an "
+            "image) and markdown-macro (delegate the whole page to a "
+            "whole-document Markdown-rendering Forge app) -- were "
+            "explicitly deferred, not implemented: local-svg needs a "
+            "rendering-tool evaluation spike first (which Python-native "
+            "renderer actually covers the diagram types SDD templates "
+            "generate), and markdown-macro's Forge-based macro "
+            "reference shape (ac:adf-node type=\"extension\" with a "
+            "dynamically-obtained local-id, confirmed via research, not "
+            "the same simple ac:structured-macro ac:name=\"...\" shape "
+            "the other two modes use) needs verified testing against a "
+            "real installed app before shipping, to avoid producing a "
+            "broken macro island in Confluence",
+            "7 new tests in test_md_to_cf.py (TestDiagramMacros) -- "
+            "default behavior unchanged, correct macro emitted per "
+            "mode, safe fallback when misconfigured, diagram fences of "
+            "the wrong mode/language left alone, CDATA escaping",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.36"},
+    },
 ]
 
 

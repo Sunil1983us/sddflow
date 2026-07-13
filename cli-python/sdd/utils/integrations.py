@@ -95,11 +95,36 @@ class JiraConfig:
         return self.parent_field_by_level.get(level, self.parent_field)
 
 
+_DIAGRAM_MODES = ("none", "mermaid-app", "plantuml-macro")
+
+
+@dataclass
+class DiagramsConfig:
+    """How ```mermaid / ```plantuml fenced code blocks are rendered when
+    pushed to Confluence. "none" (default) leaves them as plain
+    syntax-highlighted code -- Confluence has no native diagram
+    renderer, so a fence's content shows as text, not a diagram, unless
+    one of the other modes routes it through an installed Confluence
+    app. "local-svg" and "markdown-macro" are planned but not yet
+    implemented -- see README.md."""
+    mode: str = "none"
+    # ac:name of the installed Mermaid-rendering app's macro. Only used
+    # when mode == "mermaid-app"; a ```mermaid fence with no macro_name
+    # configured silently falls back to the plain code-block rendering.
+    mermaid_app_macro: str | None = None
+    # ac:name of the installed PlantUML-rendering app's macro. Only
+    # applies to fences already written as ```plantuml -- this does NOT
+    # convert ```mermaid content to PlantUML syntax (they're different
+    # diagram languages, not mechanically translatable).
+    plantuml_macro: str | None = None
+
+
 @dataclass
 class ConfluenceConfig:
     space_key: str
     parent_page_id: str | None = None
     page_map: dict = field(default_factory=lambda: dict(_DEFAULT_PAGE_MAP))
+    diagrams: DiagramsConfig = field(default_factory=DiagramsConfig)
 
 
 @dataclass
@@ -175,12 +200,18 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
     confluence: ConfluenceConfig | None = None
     cf_raw = raw.get("confluence")
     if cf_raw:
+        diagrams_raw = cf_raw.get("diagrams") or {}
         confluence = ConfluenceConfig(
             space_key=cf_raw["space_key"],
             parent_page_id=(
                 str(cf_raw["parent_page_id"]) if cf_raw.get("parent_page_id") else None
             ),
             page_map=cf_raw.get("page_map", dict(_DEFAULT_PAGE_MAP)),
+            diagrams=DiagramsConfig(
+                mode=diagrams_raw.get("mode", "none"),
+                mermaid_app_macro=(diagrams_raw.get("mermaid_app") or {}).get("macro_name"),
+                plantuml_macro=(diagrams_raw.get("plantuml_macro") or {}).get("macro_name"),
+            ),
         )
 
     document_reviews: dict[str, DocumentReview] = {}

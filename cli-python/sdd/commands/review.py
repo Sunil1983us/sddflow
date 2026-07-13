@@ -144,7 +144,7 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> str | None:
     prof      = load_profile(cfg.profile)
     session   = build_session(prof)
     cf_client = ConfluenceClient(session, prof.base_url)
-    body_html = md_to_storage(md_path.read_text())
+    body_html = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
     from sdd.commands.confluence import resolve_doc_parent_id
     parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
     cf_client.upsert_page(
@@ -361,7 +361,7 @@ def review_submit(doc, profile, feature):
         raise SystemExit(1)
 
     page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
-    body_html  = md_to_storage(md_path.read_text())
+    body_html  = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
     from sdd.commands.confluence import resolve_doc_parent_id
     parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
     page, created = cf_client.upsert_page(
@@ -650,7 +650,7 @@ def review_apply(doc, profile, feature):
     page_url     = ""
     if md_path.exists():
         page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
-        body_html  = md_to_storage(md_path.read_text())
+        body_html  = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
         from sdd.commands.confluence import resolve_doc_parent_id
         parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
         page, _    = cf_client.upsert_page(

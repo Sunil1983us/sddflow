@@ -183,7 +183,7 @@ def confluence_push(profile, feature, doc, dry_run):
     client = ConfluenceClient(session, prof.base_url)
 
     for key, md_path, title in available:
-        body = md_to_storage(md_path.read_text())
+        body = md_to_storage(md_path.read_text(), cf_cfg.diagrams)
         try:
             parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, key)
             page, created = client.upsert_page(
@@ -273,7 +273,7 @@ def confluence_draft(doc, profile, feature, dry_run):
         raise SystemExit(1)
 
     client = ConfluenceClient(session, prof.base_url)
-    body = md_to_storage(doc_path.read_text())
+    body = md_to_storage(doc_path.read_text(), cf_cfg.diagrams)
 
     try:
         parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, doc)

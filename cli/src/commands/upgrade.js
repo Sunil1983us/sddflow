@@ -1019,6 +1019,35 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.35',
+    to:   '2.7.36',
+    description: 'Feature: Confluence diagram-macro rendering modes mermaid-app/plantuml-macro (Python CLI) -- new confluence.diagrams: config block routes ```mermaid/```plantuml fences through an installed Confluence app\'s macro instead of the plain code-block rendering; no manifest schema changes',
+    notes: [
+      'User-reported: Mermaid diagrams pushed to Confluence only ever ' +
+      'showed as plain code text -- Confluence has no native diagram ' +
+      'renderer at all, and every fenced code block (regardless of ' +
+      'language) was routed through Confluence\'s built-in "code" macro',
+      'New DiagramsConfig (mode: none | mermaid-app | plantuml-macro, ' +
+      'each with a configurable macro_name matching whatever Confluence ' +
+      'app the org has installed) -- a diagram fence with no matching ' +
+      'mode/macro configured always falls back to the plain code-block ' +
+      'rendering, never crashes or emits a broken macro reference',
+      'Two more modes (local-svg, markdown-macro) were researched and ' +
+      'explicitly deferred pending further evaluation/testing, not ' +
+      'shipped in this release',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.36';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

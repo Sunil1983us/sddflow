@@ -851,6 +851,38 @@ still created, but the parent link may silently fail to appear in Jira.
 warning (`was not linked under ...`) when a parent link doesn't take, so
 check the CLI output after pushing if you use `project_keys`.
 
+### Rendering diagrams in Confluence
+
+Confluence has **no native Mermaid or PlantUML renderer**. By default, a
+` ```mermaid ` or ` ```plantuml ` fenced block in your `.md` files pushes to
+Confluence as plain syntax-highlighted text — the diagram source, not a
+rendered diagram. To get an actual rendered diagram, install a Confluence
+app that provides one, then configure `confluence.diagrams` to route
+through it:
+
+```yaml
+confluence:
+  diagrams:
+    mode: mermaid-app   # none (default) | mermaid-app | plantuml-macro
+    mermaid_app:
+      macro_name: mermaid-cloud   # the ac:name of your installed app's macro
+```
+
+| Mode | What it needs | Notes |
+|---|---|---|
+| `none` (default) | Nothing | Diagrams show as text, exactly as today |
+| `mermaid_app` | A Mermaid-rendering Confluence app installed (10+ compete on the Atlassian Marketplace) + its macro name | Only affects ` ```mermaid ` fences; a fence with no `macro_name` configured falls back to plain text rather than a broken macro |
+| `plantuml_macro` | A PlantUML-rendering app (e.g. "PlantUML for Confluence") + its macro name | Only affects fences already written as ` ```plantuml ` — this does **not** convert Mermaid syntax to PlantUML, they're different diagram languages. Most of these apps render via the public `plantuml.com` server by default (an external network call); if your org can't reach external services, a Confluence admin needs to point the app at a self-hosted PlantUML server instead |
+
+Two more modes are planned but not yet implemented: **`local-svg`** (render
+Mermaid to SVG locally, no Confluence app or external network call needed at
+render time, then attach it as an image) and **`markdown-macro`** (delegate
+the whole page to a whole-document Markdown-rendering app that bundles
+Mermaid support). Both need further work before shipping — `local-svg` needs
+a rendering-tool evaluation across the diagram types SDD templates actually
+generate, and `markdown-macro` targets Forge-based apps, which use a
+different, less-guessable macro reference shape than the two modes above.
+
 ---
 
 ## Supported Project Types
