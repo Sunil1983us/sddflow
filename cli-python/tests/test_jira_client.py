@@ -78,3 +78,39 @@ class TestFindByLabel:
 
         client2, _ = _client_with_mock_session({"issues": []})
         assert client2.find_by_label("MYPROJ", "sdd-feature:auth") is None
+
+
+class TestLinkIssues:
+    """link_issues() -- the cross-project fallback used when a true
+    parent-child link (set_parent) fails, most commonly because the two
+    issues live in different Jira projects (a Jira platform limitation
+    that parent/Epic-Link cannot work around; plain issue links can)."""
+
+    def test_posts_to_issue_link_endpoint(self):
+        client, session = _client_with_mock_session({})
+        client.link_issues("TEMPT-2", "TEMP-1")
+        url = session.post.call_args.args[0]
+        assert url == "https://example.atlassian.net/rest/api/3/issueLink"
+
+    def test_default_link_type_is_relates(self):
+        client, session = _client_with_mock_session({})
+        client.link_issues("TEMPT-2", "TEMP-1")
+        body = session.post.call_args.kwargs["json"]
+        assert body["type"] == {"name": "Relates"}
+        assert body["inwardIssue"] == {"key": "TEMPT-2"}
+        assert body["outwardIssue"] == {"key": "TEMP-1"}
+
+    def test_custom_link_type_honored(self):
+        client, session = _client_with_mock_session({})
+        client.link_issues("TEMPT-2", "TEMP-1", link_type="Blocks")
+        body = session.post.call_args.kwargs["json"]
+        assert body["type"] == {"name": "Blocks"}
+
+    def test_raises_on_http_error(self):
+        client, session = _client_with_mock_session({})
+        session.post.return_value.raise_for_status.side_effect = Exception("400 Bad Request")
+        try:
+            client.link_issues("TEMPT-2", "TEMP-1")
+            assert False, "expected an exception"
+        except Exception as e:
+            assert "400" in str(e)

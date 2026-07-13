@@ -4,6 +4,36 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.47] — 2026-07-13 (Feature: cross-project Jira parent-link fallback)
+
+### Added
+
+- **User-reported (via follow-up diagnosis): when `project_keys` routes a
+  level to a different Jira project than its parent** (e.g. `story`/`task`
+  under `TEMPT`, the Epic under `TEMP`) — a genuine Jira platform
+  limitation, not an SDD bug — the child issue was still created, but the
+  parent-child link silently never appeared in Jira; the CLI only printed
+  a warning with no actual fallback.
+  - New `JiraClient.link_issues()` creates a plain **"Relates" issue
+    link** (Jira's default cross-issue link type, present on every
+    instance) between child and parent — unlike the `parent`/Epic-Link
+    field, issue links are **not** scoped to a single project.
+  - `_warn_parent_link_failed()` (used by all 4 `sdd jira push` call
+    sites — story, uc-draft, task, chg — and by `sdd review submit`'s
+    review-ticket linking) now automatically attempts this fallback the
+    moment a true parent-child link fails, and reports which kind of link
+    actually landed: `"Linked with a 'Relates' issue link instead"` when
+    the fallback worked, or the original troubleshooting message (now
+    also noting the fallback was attempted) if even that failed.
+  - Documented in `README.md` and `integrations.yml.example`'s
+    `project_keys` cross-project caveat.
+  - 8 new tests: `TestLinkIssues` in `test_jira_client.py` (endpoint,
+    payload shape, default/custom link type, HTTP-error propagation) and
+    a new `test_jira_parent_link_fallback.py` covering
+    `_warn_parent_link_failed`'s fallback-attempted / fallback-succeeded /
+    fallback-also-failed paths and that the original error is always
+    surfaced.
+
 ## [2.7.46] — 2026-07-13 (Fix: review-submit failure silently skipped Confluence + Jira Epic refresh)
 
 ### Fixed

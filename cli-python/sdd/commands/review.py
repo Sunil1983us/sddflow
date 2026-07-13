@@ -308,7 +308,7 @@ def _link_review_story_to_epic(jira_client: JiraClient, story_key: str,
     try:
         jira_client.set_parent(story_key, epic_key, jira_cfg.parent_field_for("review"))
     except Exception as e:
-        _warn_parent_link_failed(story_key, epic_key, jira_cfg.key_for("review"), e)
+        _warn_parent_link_failed(jira_client, story_key, epic_key, jira_cfg.key_for("review"), e)
 
 
 # ── Command group ──────────────────────────────────────────────────────────────

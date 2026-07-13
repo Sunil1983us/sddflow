@@ -36,10 +36,12 @@ jira:
   # Jira Cloud/Server platform limitation, not an SDD bug — true
   # cross-project hierarchy needs Advanced Roadmaps / Jira Premium).
   # If you override a level to a different project than its parent
-  # level, the child issue will still be created, but the parent link
-  # may silently fail to appear in Jira — sdd jira push always prints a
-  # warning (never fails silently) when a parent link doesn't take, so
-  # watch for "was not linked under" in the output after pushing.
+  # level, the child issue will still be created, and sdd jira push
+  # automatically falls back to a plain "Relates" issue link instead —
+  # those work across projects, unlike parent/Epic-Link. It never fails
+  # silently on this: check the CLI output for "Linked with a Relates
+  # issue link instead" (fallback worked) vs "was not linked under"
+  # (fallback also failed) after pushing.
   # project_keys:
   #   story: SUNT
   #   task: SUNT

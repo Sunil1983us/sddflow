@@ -1841,6 +1841,39 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.46"},
     },
+    {
+        "from":        "2.7.46",
+        "to":          "2.7.47",
+        "description": "Feature: cross-project Jira parent-link fallback via a 'Relates' issue link when project_keys routes a level to a different project than its parent -- no manifest schema changes",
+        "notes": [
+            "User-reported (via follow-up diagnosis of the project_keys "
+            "config): when a level (story/task) is routed to a different "
+            "Jira project than its parent (Epic), Jira's parent/Epic-Link "
+            "field rejects the cross-project link outright -- a Jira "
+            "platform limitation. The child issue was still created, but "
+            "the parent link silently never appeared, with only a "
+            "warning printed and no actual fallback attempted",
+            "New JiraClient.link_issues() creates a plain 'Relates' issue "
+            "link (POST /rest/api/3/issueLink, default link type present "
+            "on every Jira instance) -- unlike parent/Epic-Link, issue "
+            "links are not scoped to a single project",
+            "_warn_parent_link_failed() (used by all 4 sdd jira push "
+            "call sites -- story, uc-draft, task, chg -- and by sdd "
+            "review submit's review-ticket linking) now automatically "
+            "attempts this fallback the moment set_parent() fails, and "
+            "reports which kind of link actually landed",
+            "Documented in README.md and integrations.yml.example's "
+            "project_keys cross-project caveat",
+            "8 new tests: TestLinkIssues in test_jira_client.py (endpoint, "
+            "payload, link-type default/override, HTTP-error "
+            "propagation) and a new test_jira_parent_link_fallback.py "
+            "covering the fallback-attempted / fallback-succeeded / "
+            "fallback-also-failed paths",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.47"},
+    },
 ]
 
 
