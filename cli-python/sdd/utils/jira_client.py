@@ -65,6 +65,21 @@ class JiraClient:
         else:
             self.update_issue(child_key, {parent_field: parent_key})
 
+    def link_issues(self, from_key: str, to_key: str, link_type: str = "Relates") -> None:
+        """Create a Jira issue link (default type "Relates", present on
+        every Jira instance out of the box) between two issues. Unlike
+        the parent/Epic-Link relationship set_parent() establishes, issue
+        links are NOT scoped to a single project -- this is the fallback
+        used when a true parent-child link can't be created (most
+        commonly: child and parent live in different Jira projects,
+        which the parent/Epic-Link field rejects outright)."""
+        r = self._s.post(self._api("/issueLink"), json={
+            "type": {"name": link_type},
+            "inwardIssue": {"key": from_key},
+            "outwardIssue": {"key": to_key},
+        })
+        r.raise_for_status()
+
     def get_issue_types(self, project_key: str) -> list[dict]:
         r = self._s.get(self._api(f"/project/{project_key}/statuses"))
         r.raise_for_status()

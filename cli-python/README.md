@@ -890,10 +890,13 @@ generally does not support linking issues across different Jira
 projects — true cross-project hierarchy needs Advanced Roadmaps (Jira
 Premium), not the standard REST API this CLI uses. If you override a
 level to a different project than its parent level, the child issue is
-still created, but the parent link may silently fail to appear in Jira.
-`sdd jira push` never fails silently on this — it always prints a
-warning (`was not linked under ...`) when a parent link doesn't take, so
-check the CLI output after pushing if you use `project_keys`.
+still created, and the CLI automatically falls back to a plain
+**"Relates" issue link** instead — those work across projects, unlike
+parent/Epic-Link. `sdd jira push` never fails silently on this: it
+always prints which kind of link ended up being used (`Linked with a
+"Relates" issue link instead` vs `was not linked under ...` if even that
+fallback fails), so check the CLI output after pushing if you use
+`project_keys`.
 
 ### Rendering diagrams in Confluence
 

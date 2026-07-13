@@ -1287,6 +1287,27 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.46',
+    to:   '2.7.47',
+    description: "Feature: cross-project Jira parent-link fallback via a 'Relates' issue link (Python CLI) -- no manifest schema changes",
+    notes: [
+      'When project_keys routes a level to a different Jira project than ' +
+      "its parent, the CLI now falls back to a plain 'Relates' issue link " +
+      '(works across projects, unlike parent/Epic-Link) instead of just ' +
+      'printing a dead-end warning',
+      'This Node CLI does not implement sdd jira push or sdd review ' +
+      'submit -- it stays scoped to init/upgrade scaffolding, per its own ' +
+      'README; this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.47';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
