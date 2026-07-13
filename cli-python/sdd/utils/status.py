@@ -341,6 +341,19 @@ def _next_action_sentence(step: dict, state: str, tasks: dict) -> str:
     return f"Run `{step['command']}` to generate the {step['label']}."
 
 
+def _later_doc_step_exists(remaining_steps: list[dict], docs_by_key: dict) -> bool:
+    """True if any later non-skipped doc-kind step already exists on disk --
+    signals that an earlier *optional* step was consciously bypassed rather
+    than simply not reached yet, so it shouldn't be picked as the
+    pipeline's 'next' action."""
+    for s in remaining_steps:
+        if s.get("skip"):
+            continue
+        if s["kind"] == "doc" and s["doc_key"] in docs_by_key:
+            return True
+    return False
+
+
 def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_docs_exist: bool,
                     plan_mode: str = "unified", scope: str | None = "pilot",
                     feature: str = "this feature") -> dict:
@@ -357,7 +370,7 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
     next_action: str | None = None
     next_step_id: str | None = None
     next_persona: dict | None = None
-    for step in steps:
+    for i, step in enumerate(steps):
         persona = _persona_hint(step["id"], feature, scope)
         if step.get("skip"):
             resolved.append({**step, "state": "skipped", "persona": persona})
@@ -365,6 +378,16 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
         state = _step_state(step, docs_by_key, tasks, constitution, service_docs_exist)
         resolved.append({**step, "state": state, "persona": persona})
         if state != "done" and next_action is None:
+            # An *optional* step (e.g. checklist at pilot scope) whose doc
+            # was never generated is still "upcoming", not "done" -- but if
+            # a later mandatory doc already exists, the user consciously
+            # moved past it rather than forgot it. Picking it here would
+            # tell the dashboard to say "run /checklist" while the pipeline
+            # diagram itself already shows a later step as current --
+            # exactly the contradiction a user reported seeing.
+            if (step.get("optional") and state == "upcoming"
+                    and _later_doc_step_exists(steps[i + 1:], docs_by_key)):
+                continue
             next_action = _next_action_sentence(step, state, tasks)
             next_step_id = step["id"]
             # A doc "current"/awaiting-review isn't waiting to be *created* --
@@ -544,8 +567,8 @@ def _jira_key_from(value) -> str | None:
 def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
     """Jira Epic/Story/Task links already persisted by the progressive
     export (docs/jira/{feature}/keys.yml, written by `sdd jira push`). No
-    network call — review-gate ticket links (from `sdd review submit`)
-    are never cached locally, see the live /api/review-links endpoint."""
+    network call — review-gate ticket links (from `sdd review submit`/
+    `apply`) live in a separate file, see _local_review_links() below."""
     result: dict = {"epic": None, "stories": [], "tasks": []}
     keys_path = root / "docs" / "jira" / feature / "keys.yml"
     if not keys_path.exists():
@@ -572,10 +595,9 @@ def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
 
 def _local_confluence_links(root: Path, base_url: str | None) -> dict:
     """Confluence page links already persisted by `sdd confluence push`/
-    `draft` (.specify/.confluence-drafts.json). No network call — pages
-    pushed via `sdd review submit` are never cached locally the same way,
-    see the live /api/review-links endpoint. Project-wide, not per-feature
-    (the drafts file isn't feature-scoped)."""
+    `draft`/`sdd review submit`/`apply` (all write to the same
+    .specify/.confluence-drafts.json). No network call. Project-wide, not
+    per-feature (the drafts file isn't feature-scoped)."""
     drafts_path = root / ".specify" / ".confluence-drafts.json"
     if not drafts_path.exists():
         return {}
@@ -595,6 +617,32 @@ def _local_confluence_links(root: Path, base_url: str | None) -> dict:
     return links
 
 
+def _local_review_links(root: Path, base_url: str | None) -> dict:
+    """Review-gate Jira ticket links persisted by `sdd review submit`/
+    `apply` (.specify/.jira-review-links.json). No network call -- mirrors
+    _local_confluence_links' pattern (and its same not-feature-scoped
+    limitation: the file has no feature keying) so the dashboard's Jira
+    pill can show instantly the same way the Confluence one already does,
+    instead of staying blank until the live /api/review-links check runs."""
+    links_path = root / ".specify" / ".jira-review-links.json"
+    if not links_path.exists():
+        return {}
+    try:
+        raw = json.loads(links_path.read_text())
+    except Exception:
+        return {}
+    links = {}
+    for doc_key, entry in raw.items():
+        key = entry.get("key") if isinstance(entry, dict) else None
+        if not key:
+            continue
+        links[doc_key] = {
+            "key": key,
+            "url": f"{base_url}/browse/{key}" if base_url else None,
+        }
+    return links
+
+
 def build_feature_status(root: Path, feature: str, constitution: dict | None = None,
                           plan_mode: str = "unified", scope: str | None = "pilot") -> dict:
     feature_dir = root / ".specify" / "features" / feature
@@ -610,6 +658,7 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
         "local_links": {
             "jira": _local_jira_links(root, feature, base_url),
             "confluence": _local_confluence_links(root, base_url),
+            "jira_review": _local_review_links(root, base_url),
         },
         "pipeline": build_pipeline(
             docs, tasks, constitution or _constitution_status(root),

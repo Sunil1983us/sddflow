@@ -4,6 +4,73 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.52] — 2026-07-13 (Fix: dashboard "Next:" text could contradict the pipeline diagram)
+
+### Fixed
+
+- **User-reported: the dashboard's Full Pipeline diagram marked
+  `validate` as the current step (● current), but the "Next:" text still
+  said "Run `/checklist` to generate the Spec Quality Checklist".**
+  `checklist` is optional at `pilot` scope, and the project genuinely
+  skipped it while `validate.md` already existed and was awaiting
+  review.
+  - Root cause: `_step_state()` never consults a step's `optional` flag
+    — an optional step whose doc file doesn't exist on disk always
+    reports state `"upcoming"`, indistinguishable from "not reached
+    yet." `build_pipeline()`'s main loop picked the first non-`"done"`
+    step in list order as `next_action`, and `checklist` sits before
+    `validate` in `PIPELINE_DOCS`, so it always won — even though each
+    step's own rendered state (○ upcoming / ● current) was already
+    correct in isolation.
+  - Fix: new `_later_doc_step_exists()` helper in `status.py` —  when a
+    later non-skipped doc-kind step already exists on disk, an earlier
+    `optional` step still sitting at `"upcoming"` is treated as
+    consciously bypassed and is skipped when choosing
+    `next_action`/`next_step_id`/`next_persona`. The per-step `resolved`
+    states that render the flow diagram itself are untouched.
+  - 2 new regression tests in `test_status.py`: the bypassed-optional-
+    step case from this report, and a sanity check that a genuinely
+    not-yet-reached optional step is still picked as `next_action`
+    normally.
+  - No manifest schema changes.
+
+---
+
+## [2.7.51] — 2026-07-13 (Feature: dashboard Jira review pill gets a local, instant fallback)
+
+### Added
+
+- **User-reported: the dashboard's Confluence pill next to a document
+  always showed up, but the Jira review-gate pill only appeared after
+  clicking the live "Check Jira/Confluence review links" button.** This
+  turned out to be a real asymmetry, not a config issue: `sdd review
+  submit` creates the review-gate Jira ticket but never wrote its key
+  anywhere locally — unlike Confluence, whose page ID is recorded on
+  every push.
+  - New `.specify/.jira-review-links.json`, written by `review.py`'s
+    `_record_review_link()` — called from both `review_submit` (after
+    the review Story is created/updated) and `review_apply` (when it
+    finds the existing ticket to notify). Same not-feature-scoped
+    limitation as `.confluence-drafts.json` by design, to keep the two
+    files symmetric.
+  - `status.py`'s new `_local_review_links()` reads it the same way
+    `_local_confluence_links()` reads the Confluence file — no network
+    call, wired into `build_feature_status()`'s `local_links.jira_review`.
+  - `dashboard.py` threads `local.jira_review` through `renderFeature` →
+    `renderDocs` → `renderDocRow`, used as a fallback (`reviewJira ||
+    localJira`) the same way the Confluence pill already falls back to
+    its local cache — the live check remains what refreshes
+    status/comments and re-verifies a possibly-stale local pill.
+  - 13 new/updated tests: `_record_review_link` round-trip
+    (`test_review_helpers.py`), `review_submit`/`review_apply` writing
+    the link end-to-end, 6 `status.py` reader tests plus a real-writer
+    round-trip lock, and a `dashboard.py` source-level guard for the new
+    frontend wiring.
+  - Also corrected two now-stale docstrings that predated this fix:
+    `_local_confluence_links()` claimed `sdd review submit` pages were
+    "never cached locally the same way" — they already were, via
+    `_record_confluence_draft_link()`, well before this session.
+
 ## [2.7.50] — 2026-07-13 (Fix: Confluence diagram attachment uploads rejected with HTTP 415)
 
 ### Fixed

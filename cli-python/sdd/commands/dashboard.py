@@ -157,8 +157,9 @@ _PAGE = """<!doctype html>
   <div id="root"></div>
   <div class="refresh-note">Snapshot of <code>.specify/</code> — refreshes every 5s. Task/PR status reflects tasks.md, not live PR state.
     "View" reads the raw .md file from disk. Jira/Confluence pills next to a document are from local cache (progressive export /
-    <code>sdd confluence push</code>) — "Check Jira/Confluence review links" additionally queries live for <code>sdd review submit</code> tickets,
-    the same APPROVED/NEEDS REVISION/PENDING classification as <code>sdd review check --doc</code>, plus reviewer comments (shown under 💬).
+    <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code>) — "Check Jira/Confluence review links" additionally
+    queries live, refreshing both pills and adding the same APPROVED/NEEDS REVISION/PENDING classification as <code>sdd review check --doc</code>,
+    plus reviewer comments (shown under 💬).
     "Approve" and comments update the local Status header (same as <code>sdd review approve --local</code>), mirror to Confluence if configured,
     and post a best-effort Jira comment.</div>
 
@@ -283,16 +284,17 @@ function renderCommentsPanel(d, feature, reviewJira) {
     </td></tr>`;
 }
 
-function renderDocRow(d, feature, localConfluence, reviewEntry) {
+function renderDocRow(d, feature, localConfluence, localJiraReview, reviewEntry) {
   const key = feature + '|' + d.key;
   const expanded = state.expandedDocs.has(key);
   const commentsOpen = state.expandedComments.has(key);
   const localCf = (localConfluence || {})[d.key];
+  const localJira = (localJiraReview || {})[d.key];
   const reviewJira = reviewEntry && reviewEntry.docs ? reviewEntry.docs[d.key]?.jira : null;
   const reviewCf   = reviewEntry && reviewEntry.docs ? reviewEntry.docs[d.key]?.confluence : null;
   const reviewStatusBadge = reviewJira && reviewJira.review_status ? badge(reviewJira.review_status, 'review') : '';
   const links = [
-    linkPill('Jira', reviewJira),
+    linkPill('Jira', reviewJira || localJira),
     linkPill('Confluence', localCf || reviewCf),
   ].join('');
   const approveControl = d.local_approval
@@ -317,10 +319,10 @@ function renderDocRow(d, feature, localConfluence, reviewEntry) {
   return row + detail + commentsPanel;
 }
 
-function renderDocs(docs, stage, feature, localConfluence) {
+function renderDocs(docs, stage, feature, localConfluence, localJiraReview) {
   if (!docs || docs.length === 0) return '<div class="empty">No spec documents yet.</div>';
   const reviewEntry = state.reviewLinks[feature];
-  const rows = docs.map(d => renderDocRow(d, feature, localConfluence, typeof reviewEntry === 'object' ? reviewEntry : null)).join('');
+  const rows = docs.map(d => renderDocRow(d, feature, localConfluence, localJiraReview, typeof reviewEntry === 'object' ? reviewEntry : null)).join('');
   const p = stage.persona;
   const ask = p
     ? ` <span class="doc-next-ask">— or say: <em>"${escapeHtml(p.name)}, ${escapeHtml(p.ask)}"</em></span>`
@@ -416,14 +418,14 @@ function renderPipelineFlow(f, project) {
 }
 
 function renderFeature(f, project) {
-  const local = f.local_links || { jira: null, confluence: {} };
+  const local = f.local_links || { jira: null, confluence: {}, jira_review: {} };
   return `
   <div class="feature-block">
     <div class="feature-title">${f.name}</div>
     ${renderReviewLinksControl(f.name)}
     <div class="grid feature-grid">
       <div class="card card-wide"><h2>Full Pipeline</h2>${renderPipelineFlow(f, project)}</div>
-      <div class="card card-wide"><h2>Documents</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence)}</div>
+      <div class="card card-wide"><h2>Documents</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence, local.jira_review)}</div>
       <div class="card"><h2>Tasks</h2>${renderTasks(f.tasks)}</div>
       <div class="card"><h2>Token Usage</h2>${renderTokenUsage(f.token_usage)}</div>
       <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira)}</div>
@@ -631,10 +633,13 @@ def _fetch_doc_content(feature: str, doc: str) -> dict | None:
 
 def _fetch_review_links(feature: str) -> dict:
     """Live Jira/Confluence lookup for review-gate tickets (the ones
-    created by `sdd review submit`) — these are never cached locally
-    (see status.py's local_links, which covers only the progressive Jira
-    export and sdd confluence push/draft). Network call, on-demand only —
-    never invoked by /api/status. Jira lookup is feature-qualified to match
+    created by `sdd review submit`). status.py's local_links.jira_review
+    gives the passive 5s poll an instant-but-possibly-stale fallback pill
+    (populated the moment `sdd review submit`/`apply` touches the
+    ticket) — this function is what actually re-verifies against Jira/
+    Confluence and adds status/comments the local cache never has.
+    Network call, on-demand only — never invoked by /api/status. Jira
+    lookup is feature-qualified to match
     the label `sdd review submit` writes; Confluence page titles only
     support {project} today, matching `sdd review status`'s own behavior,
     so the Confluence half is still shared across features on one project.

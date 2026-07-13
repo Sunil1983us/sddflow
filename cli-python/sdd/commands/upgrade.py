@@ -1985,6 +1985,85 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.50"},
     },
+    {
+        "from":        "2.7.50",
+        "to":          "2.7.51",
+        "description": "Feature: the dashboard's per-document Jira review-gate pill now has a local, instant fallback (mirroring Confluence's), instead of staying blank until the live 'Check Jira/Confluence review links' button is clicked -- no manifest schema changes",
+        "notes": [
+            "User-reported: the dashboard's Confluence pill next to a "
+            "document always showed up, but the Jira pill only appeared "
+            "after clicking the live check button -- the asymmetry "
+            "turned out to be real, not a config issue: sdd review "
+            "submit created the review-gate Jira ticket but never wrote "
+            "its key anywhere locally, unlike Confluence (which has "
+            "written to .confluence-drafts.json on every push since the "
+            "dashboard shipped)",
+            "New .specify/.jira-review-links.json, written by "
+            "review.py's _record_review_link() -- called from both "
+            "review_submit (after the review Story is created/updated) "
+            "and review_apply (when it finds the existing ticket to "
+            "notify). Same not-feature-scoped limitation as "
+            ".confluence-drafts.json by design, to keep the two files "
+            "symmetric",
+            "status.py's new _local_review_links() reads it the same "
+            "way _local_confluence_links() reads the Confluence file -- "
+            "no network call, wired into build_feature_status()'s "
+            "local_links.jira_review",
+            "dashboard.py threads local.jira_review through renderFeature "
+            "-> renderDocs -> renderDocRow, used as a fallback (reviewJira "
+            "|| localJira) the same way Confluence's pill already falls "
+            "back to its local cache -- the live check remains what "
+            "refreshes status/comments and re-verifies a possibly-stale "
+            "local pill",
+            "13 new/updated tests: _record_review_link round-trip "
+            "(test_review_helpers.py), review_submit/review_apply "
+            "writing the link end-to-end, 6 status.py reader tests plus "
+            "a real-writer round-trip lock, and a dashboard.py source-"
+            "level guard for the new frontend wiring",
+            "Also corrected two now-stale docstrings that predated this "
+            "fix and had already drifted from reality: "
+            "_local_confluence_links() claimed sdd review submit pages "
+            "were 'never cached locally the same way' -- they were, via "
+            "_record_confluence_draft_link(), since before this session",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.51"},
+    },
+    {
+        "from":        "2.7.51",
+        "to":          "2.7.52",
+        "description": "Fix: dashboard's Full Pipeline 'Next:' text could contradict the pipeline diagram itself when an optional step (e.g. checklist at pilot scope) was consciously skipped -- no manifest schema changes",
+        "notes": [
+            "User-reported: the dashboard showed the pipeline diagram's "
+            "current-step marker on 'validate' (already exists, awaiting "
+            "review) while the 'Next:' text still said 'Run /checklist to "
+            "generate the Spec Quality Checklist' -- checklist is optional "
+            "at pilot scope and this project never ran it, but validate.md "
+            "already existed",
+            "Root cause: _step_state() never consults a step's 'optional' "
+            "flag, so an optional step whose doc file doesn't exist always "
+            "reports state 'upcoming' -- indistinguishable from 'not "
+            "reached yet'. build_pipeline()'s main loop picked the first "
+            "non-done step in list order as next_action, and checklist "
+            "sits before validate in PIPELINE_DOCS, so it always won even "
+            "though the step's own rendered state (o upcoming) was correct",
+            "Fix: new _later_doc_step_exists() helper in status.py -- if a "
+            "later non-skipped doc-kind step already exists on disk, an "
+            "earlier optional+upcoming step is treated as consciously "
+            "bypassed and is skipped when picking next_action/next_step_id. "
+            "The per-step 'resolved' states (what renders the flow diagram "
+            "itself) are untouched -- only the next_action selection "
+            "heuristic changed",
+            "2 new tests in test_status.py: the bypassed-optional-step "
+            "regression case, and a sanity check that a genuinely "
+            "not-yet-reached optional step is still picked as next_action "
+            "normally",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.52"},
+    },
 ]
 
 

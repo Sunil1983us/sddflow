@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import date
 from pathlib import Path
+import json
 import re
 import yaml
 import click
@@ -269,6 +270,34 @@ def _record_confluence_draft_link(doc: str, page: dict, page_title: str) -> None
     _save_drafts(drafts)
 
 
+_REVIEW_LINKS_FILE = Path(".specify") / ".jira-review-links.json"
+
+
+def _load_review_links() -> dict:
+    if _REVIEW_LINKS_FILE.exists():
+        return json.loads(_REVIEW_LINKS_FILE.read_text())
+    return {}
+
+
+def _save_review_links(links: dict) -> None:
+    _REVIEW_LINKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _REVIEW_LINKS_FILE.write_text(json.dumps(links, indent=2))
+
+
+def _record_review_link(doc: str, issue_key: str) -> None:
+    """Persist the review-gate Jira ticket's key locally, mirroring
+    _record_confluence_draft_link's pattern -- the dashboard's per-document
+    Jira pill previously had no local fallback at all (unlike Confluence's,
+    which reads .confluence-drafts.json), so it stayed blank until the
+    user manually clicked "Check Jira/Confluence review links". Same
+    not-feature-scoped limitation as that file: one entry per doc key,
+    last feature to submit/apply wins on a multi-feature project -- the
+    live /api/review-links check is still what's authoritative."""
+    links = _load_review_links()
+    links[doc] = {"key": issue_key}
+    _save_review_links(links)
+
+
 def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | None:
     """Create the Feature/Epic container if it doesn't already exist yet,
     using the same content and idempotency label `sdd jira push` uses — so a
@@ -464,6 +493,8 @@ def review_submit(doc, profile, feature):
         result    = jira_client.create_issue(fields)
         story_key = result["key"]
         console.print(f"  [green]✓[/green]  Jira review story created: [cyan]{story_key}[/cyan]")
+
+    _record_review_link(doc, story_key)
 
     if epic_key:
         _link_review_story_to_epic(jira_client, story_key, epic_key, cfg.jira)
@@ -767,6 +798,7 @@ def review_apply(doc, profile, feature):
         msg = f"Document updated per review comments. Please re-review: {page_url}"
         jira_client.add_comment(issue["key"], msg)
         console.print(f"  [green]✓[/green]  Reviewer notified on [cyan]{issue['key']}[/cyan]")
+        _record_review_link(doc, issue["key"])
     else:
         console.print(f"  [yellow]·[/yellow]  No Jira review story found for {doc.upper()}")
 
