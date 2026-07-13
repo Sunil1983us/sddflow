@@ -303,11 +303,11 @@ def _step_state(step: dict, docs_by_key: dict, tasks: dict, constitution: dict, 
     in progress (tasks partially done); 'upcoming' means not started."""
     kind = step["kind"]
     if kind == "constitution":
-        return "done" if constitution.get("exists") else "upcoming"
+        return "done" if constitution.get("part2_generated") else "upcoming"
     if kind == "manual_gate":
         if constitution.get("gate1_inferred") == "passed":
             return "done"
-        return "current" if constitution.get("exists") else "upcoming"
+        return "current" if constitution.get("part2_generated") else "upcoming"
     if kind == "service_docs":
         return "done" if service_docs_exist else "upcoming"
     if kind == "tasks_progress":
@@ -468,10 +468,24 @@ def _parse_token_usage(path: Path) -> dict | None:
     }
 
 
+_TEMPLATE_PLACEHOLDER_RE = re.compile(r'\{[a-z][a-zA-Z0-9 _/]*\}')
+
+
 def _constitution_status(root: Path) -> dict:
     path = root / ".specify" / "memory" / "constitution.md"
     if not path.exists():
         return {"exists": False, "gate1_inferred": "unknown"}
+    # constitution.md is scaffolded by `sdd init` for every project (Part 1
+    # boilerplate + a Part 2 template full of {extracted from context} /
+    # {derived} / {date} placeholders) — the file existing on disk does NOT
+    # mean /specify has run yet. Only treat Part 2 as generated once those
+    # literal placeholders are gone (the agent replaces every one of them
+    # when it fills Part 2, even in DRAFT form pre-GATE-1).
+    text = path.read_text(errors="replace")
+    part2_marker = text.find("PART 2")
+    part2_text = text[part2_marker:] if part2_marker != -1 else text
+    if _TEMPLATE_PLACEHOLDER_RE.search(part2_text):
+        return {"exists": True, "part2_generated": False, "gate1_inferred": "unknown"}
     # No machine-readable Draft/Finalized flag is written into constitution.md
     # by design (GATE-1 confirmation happens in chat) — infer from whether any
     # downstream feature doc exists, since the workflow can't produce those
@@ -491,6 +505,7 @@ def _constitution_status(root: Path) -> dict:
                 break
     return {
         "exists": True,
+        "part2_generated": True,
         "gate1_inferred": "passed" if any_downstream else "pending_or_unknown",
     }
 

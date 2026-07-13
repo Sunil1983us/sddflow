@@ -4,6 +4,27 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.44] — 2026-07-13 (Fix: dashboard showed Constitution done before /specify ran)
+
+### Fixed
+
+- **User-reported: the dashboard's Full Pipeline flow showed "✓ Constitution
+  (Part 2)" as done on a brand-new project, before `/specify` had ever been
+  run.** `constitution.md` is scaffolded by `sdd init` for *every* project —
+  Part 1 boilerplate plus a Part 2 template full of `{extracted from
+  context}` / `{derived}` / `{date}` placeholders — so `status.py`'s old
+  check (does the file exist on disk?) was true immediately after
+  scaffolding, well before Part 2 had actually been filled in.
+  `_constitution_status()` now also checks whether Part 2 still contains
+  unresolved `{...}` template placeholders; only once they're gone (i.e.
+  `/specify` has actually run) is Part 2 reported as generated. The
+  "Constitution (Part 2)" and "GATE-1" pipeline steps, and the dashboard's
+  "Constitution — GATE-1" detail card (new "Part 2 generated" row), now
+  correctly show upcoming/○ until `/specify` runs.
+  Verified against all 5 packs' real shipped `constitution.md` templates
+  (including sdd-micro) plus a live `build_project_status()` run against a
+  freshly-scaffolded project directory.
+
 ## [2.7.43] — 2026-07-13 (Fix: redundant project-type prompt on scaffold)
 
 ### Fixed

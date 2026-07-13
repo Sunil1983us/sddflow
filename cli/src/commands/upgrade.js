@@ -1222,6 +1222,27 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.43',
+    to:   '2.7.44',
+    description: "Fix: sdd dashboard's Full Pipeline flow no longer shows 'Constitution (Part 2)' as done before /specify has actually run (Python CLI) -- no manifest schema changes",
+    notes: [
+      'constitution.md is scaffolded for every project by sdd init, Part 2 ' +
+      'full of {extracted from context}/{derived}/{date} placeholders -- ' +
+      'the dashboard used to treat the file existing on disk as Part 2 ' +
+      'being generated, showing a checkmark before /specify ever ran',
+      'This Node CLI does not implement sdd dashboard -- it stays scoped ' +
+      'to init/upgrade scaffolding, per its own README; this migration ' +
+      'entry exists so both CLIs report the same sdd_version chain for a ' +
+      'given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.44';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

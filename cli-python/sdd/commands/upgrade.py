@@ -1717,6 +1717,47 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.43"},
     },
+    {
+        "from":        "2.7.43",
+        "to":          "2.7.44",
+        "description": "Fix: sdd dashboard's Full Pipeline flow no longer shows 'Constitution (Part 2)' as done before /specify has actually run -- no manifest schema changes",
+        "notes": [
+            "User-reported: on a brand-new project (sdd init only, /specify "
+            "never run), the dashboard's Full Pipeline showed a checkmark "
+            "next to 'Constitution (Part 2)' -- constitution.md is "
+            "scaffolded for every project by sdd init (Part 1 boilerplate + "
+            "a Part 2 template full of {extracted from context} / "
+            "{derived} / {date} placeholders), so the old 'does the file "
+            "exist' check was always true, immediately after scaffolding",
+            "_constitution_status() in status.py now also parses the Part "
+            "2 section (from the 'PART 2' marker onward) for unresolved "
+            "{...}-style template placeholders via a new "
+            "_TEMPLATE_PLACEHOLDER_RE regex -- only when none remain (i.e. "
+            "/specify has actually filled Part 2 in, even pre-GATE-1 as a "
+            "DRAFT) is the new 'part2_generated' field True",
+            "_step_state() for both the 'constitution' and 'manual_gate' "
+            "(GATE-1) pipeline-step kinds now branches on "
+            "constitution.part2_generated instead of the old bare "
+            "constitution.exists",
+            "dashboard.py's 'Constitution — GATE-1' detail card gained a "
+            "new 'Part 2 generated' row alongside the existing 'Exists' "
+            "row, for the same clarity in the raw-status view",
+            "Verified against all 5 packs' real shipped constitution.md "
+            "templates (sdd-universal, sdd-backend-service, "
+            "sdd-frontend-spa, sdd-mobile, sdd-fullstack) plus sdd-micro's, "
+            "and via a live build_project_status() run against a "
+            "freshly-scaffolded project directory -- all correctly report "
+            "part2_generated: False pre-/specify",
+            "5 new/updated tests in test_status.py: 2 new end-to-end tests "
+            "against build_project_status() (freshly-scaffolded template "
+            "vs. filled-in Part 2), 1 new build_pipeline() regression test, "
+            "plus 2 existing fixtures (_GATE1_PASSED and the GATE-1 "
+            "awaiting-confirmation test) updated to include the new field",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.44"},
+    },
 ]
 
 

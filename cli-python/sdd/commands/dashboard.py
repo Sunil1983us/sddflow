@@ -204,6 +204,7 @@ function renderProject(p, constitution) {
     <div class="card">
       <h2>Constitution — GATE-1</h2>
       <div class="kv"><span>Exists</span><span>${constitution.exists ? 'yes' : 'no'}</span></div>
+      <div class="kv"><span>Part 2 generated</span><span>${constitution.part2_generated ? 'yes' : 'no (still template placeholders)'}</span></div>
       <div class="kv"><span>Status (inferred)</span><span>${badge(constitution.gate1_inferred, 'gate1')}</span></div>
       <div class="sub" style="margin:.5rem 0 0">No machine-readable Draft/Confirmed flag is written to
         constitution.md — this is inferred from whether any downstream doc exists.</div>
