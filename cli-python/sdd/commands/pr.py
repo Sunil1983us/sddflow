@@ -79,7 +79,7 @@ def pr_create(task, base, profile, feature):
             session    = build_session(prof)
             jira_client = JiraClient(session, prof.base_url)
             issue      = jira_client.find_by_label(
-                cfg.jira.project_key, f"sdd:{task.upper()}"
+                cfg.jira.key_for("task"), f"sdd:{task.upper()}"
             )
             if issue:
                 jira_key = issue["key"]

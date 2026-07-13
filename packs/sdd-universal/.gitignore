@@ -1,6 +1,10 @@
 # Personal agent preferences — never commit
 CLAUDE.local.md
 
+# Local backups from `sdd upgrade --sync-prompts` — timestamped copies of
+# prompt files it overwrote, kept only as a personal recovery path
+.specify/.prompt-sync-backups/
+
 # Jira/Confluence credentials — never commit
 # integrations.yml is safe to commit (no secret fields, only a `profile:`
 # pointer to ~/.sdd/config.yml). jira-config.yml (legacy path) embeds

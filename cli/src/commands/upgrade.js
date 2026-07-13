@@ -851,6 +851,356 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.29',
+    to:   '2.7.30',
+    description: 'Feature: sdd upgrade --sync-prompts (Python CLI) -- re-copies .github/prompts/ and .claude/commands/ from the current pack into an already-scaffolded project; sdd init now also records a `pack` manifest field',
+    notes: [
+      'Root cause of a real user report: prompt-content fixes shipped in ' +
+      '2.7.24/2.7.26/2.7.27 never reached an already-scaffolded project, ' +
+      'because sdd init copies .github/prompts/ and .claude/commands/ ' +
+      'exactly once, at scaffold time, and sdd upgrade only ever patches ' +
+      'manifest.yml\'s sdd_version -- it never re-syncs those files',
+      'The Python CLI\'s new --sync-prompts flag diffs each file against ' +
+      'the installed pack\'s current version, backs up anything it\'s ' +
+      'about to overwrite to .specify/.prompt-sync-backups/{timestamp}/, ' +
+      'and shows a preview + confirmation before writing',
+      'This Node CLI does not yet implement --sync-prompts -- it stays ' +
+      'scoped to the init/upgrade scaffolding it already covers, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'New manifest.yml field: pack (string) -- written by sdd init on a ' +
+      'fresh scaffold; this migration does not backfill it onto existing ' +
+      'projects',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.30';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.30',
+    to:   '2.7.31',
+    description: 'Feature: Jira Epic/Story/Task hierarchy overhaul (Python CLI) -- Epic at /specify, review tickets are Story issues parented to the Epic, Confluence+Jira submit together immediately, specify-uc pushes a draft Story per use case finalized by /task; no manifest schema changes',
+    notes: [
+      'User-requested redesign: Epic/Feature now created right after ' +
+      '/specify (before any spec doc exists) instead of lazily on first ' +
+      '`sdd review submit`; review tickets are issue type Story (not ' +
+      'Task), parented to the Epic like dev Stories; sdd review submit ' +
+      'pushes Confluence and creates the Jira Story together ' +
+      'immediately, replacing the old two-stage draft-then-submit flow; ' +
+      'a new `sdd jira push --level uc-draft` creates one placeholder ' +
+      'Story per UC-NNN right after /specify-uc, which /task finalizes ' +
+      'in place for any story that traces 1:1 back to a single use case',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.31';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.31',
+    to:   '2.7.32',
+    description: 'Feature: per-issue-type Jira project key overrides (Python CLI) -- new integrations.yml jira.project_keys: {level: KEY} block lets an org keep its Epic/Feature in one Jira project and Stories/Tasks/reviews/CRs/CHGs in another; no manifest schema changes',
+    notes: [
+      'User-requested: an org can have a different Jira project key per ' +
+      'issue type (e.g. Epic under "SUN", Story/Task under "SUNT"); ' +
+      'JiraConfig gained project_keys: dict + a key_for(level) method ' +
+      'that falls back to the single project_key for any level not ' +
+      'listed, so existing integrations.yml files are unaffected',
+      'Cross-project caveat (documented, not a bug): Jira\'s parent/' +
+      'Epic-Link field generally does not support linking issues across ' +
+      'different Jira projects on the standard REST API -- if ' +
+      'project_keys puts a child level in a different project than its ' +
+      'parent, the child issue is still created but the parent link may ' +
+      'silently fail to appear in Jira; the CLI\'s existing ' +
+      '_warn_parent_link_failed() safety net surfaces this as a warning ' +
+      'rather than swallowing it',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.32';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.32',
+    to:   '2.7.33',
+    description: 'Feature: per-level custom field ID overrides + fixed team field (Python CLI) -- new integrations.yml jira.custom_fields_by_level: {level: {field: id}} block overrides the common custom_fields mapping per level, and base_fields.team stamps a fixed team name/ID on every issue created; no manifest schema changes',
+    notes: [
+      'User-requested follow-on to 2.7.32\'s project_keys: a level\'s ' +
+      'issues living in a different Jira project (via project_keys) ' +
+      'almost always means different custom field IDs too, not just a ' +
+      'different project key; JiraConfig gained custom_fields_by_level: ' +
+      'dict + a fields_for(level) method that merges it over the common ' +
+      'custom_fields mapping, falling back per-key -- existing ' +
+      'integrations.yml files are unaffected',
+      'JiraConfig also gained team: str | None (from base_fields.team) ' +
+      '-- one fixed value stamped on every issue this CLI creates via ' +
+      'whichever custom field "team" maps to, not something that varies ' +
+      'per story/task',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.33';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.33',
+    to:   '2.7.34',
+    description: 'Fix: sdd review submit / sdd cr submit were silently skipping base_fields.labels and the team stamp (Python CLI) + new jira.parent_field_by_level per-level override, same pattern as project_keys/custom_fields_by_level; no manifest schema changes',
+    notes: [
+      'A user-requested field audit across every Jira API call site ' +
+      'found that review_submit() and cr_submit() hand-build their ' +
+      '`fields` dict directly instead of routing through jira.py\'s ' +
+      '_upsert_issue(), and had silently dropped base_fields.labels and ' +
+      'never applied base_fields.team, unlike every Epic/Story/Task/CHG ' +
+      'issue -- both are now fixed to apply the same labels/team logic',
+      'New JiraConfig.parent_field_by_level: dict + parent_field_for(level) ' +
+      'method mirrors key_for()/fields_for() from 2.7.32/2.7.33 -- lets an ' +
+      'org whose Story/Task Jira project needs a different parenting ' +
+      'mechanism than the Epic\'s project (e.g. next-gen "parent" field vs. ' +
+      'a classic project\'s Epic Link custom field) express that per level',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.34';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.34',
+    to:   '2.7.35',
+    description: 'Feature: Confluence page hierarchy Project -> Feature -> doc pages (Python CLI) + fix: document_reviews.confluence_page titles never had {feature} substituted, only {project}, so two features submitting the same doc type silently overwrote each other\'s Confluence page; no manifest schema changes',
+    notes: [
+      'User-requested nested Confluence page structure: every page now ' +
+      'nests under parent_page_id -> a Project container page -> a ' +
+      'Feature container page, created idempotently. Confluence enforces ' +
+      'page-title uniqueness per SPACE, not per parent page, so nesting ' +
+      'is a navigation convenience only -- {feature} must stay in every ' +
+      'per-feature page title regardless of where it sits in the tree',
+      'Real bug fixed: document_reviews.confluence_page (used by sdd ' +
+      'review submit) only ever substituted {project} in its title, ' +
+      'never {feature} -- two features submitting the same doc type for ' +
+      'review would silently overwrite each other\'s Confluence page. ' +
+      'This is the same collision class already fixed for page_map ' +
+      '(used by sdd confluence push/draft), just never applied here',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.35';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.35',
+    to:   '2.7.36',
+    description: 'Feature: Confluence diagram-macro rendering modes mermaid-app/plantuml-macro (Python CLI) -- new confluence.diagrams: config block routes ```mermaid/```plantuml fences through an installed Confluence app\'s macro instead of the plain code-block rendering; no manifest schema changes',
+    notes: [
+      'User-reported: Mermaid diagrams pushed to Confluence only ever ' +
+      'showed as plain code text -- Confluence has no native diagram ' +
+      'renderer at all, and every fenced code block (regardless of ' +
+      'language) was routed through Confluence\'s built-in "code" macro',
+      'New DiagramsConfig (mode: none | mermaid-app | plantuml-macro, ' +
+      'each with a configurable macro_name matching whatever Confluence ' +
+      'app the org has installed) -- a diagram fence with no matching ' +
+      'mode/macro configured always falls back to the plain code-block ' +
+      'rendering, never crashes or emits a broken macro reference',
+      'Two more modes (local-svg, markdown-macro) were researched and ' +
+      'explicitly deferred pending further evaluation/testing, not ' +
+      'shipped in this release',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.36';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.36',
+    to:   '2.7.37',
+    description: 'Feature: Confluence local-svg diagram mode (Python CLI) -- ```mermaid fences can now be rendered to SVG entirely offline (no browser, no Node.js, no network call, no Confluence app) and attached to the page as an image; no manifest schema changes',
+    notes: [
+      'Completes the local-svg mode deferred in 2.7.36 -- that release ' +
+      'shipped mermaid-app/plantuml-macro, both of which require an ' +
+      'installed Confluence app; this release adds the offline option ' +
+      'for orgs that don\'t have or can\'t install one',
+      'Backed by the optional mmdr package (Rust-based, ~18MB, zero ' +
+      'further Python dependencies), verified against the real Mermaid ' +
+      'diagram types SDD templates generate (flowchart, sequenceDiagram, ' +
+      'classDiagram, erDiagram) before being chosen over a JS-engine ' +
+      'candidate that failed on flowchart stadium-shape nodes and on ' +
+      'classDiagram entirely',
+      'Every failure mode (missing optional dependency, invalid diagram ' +
+      'source, failed attachment upload) falls back to something safe ' +
+      'rather than crashing the whole document push',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.37';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.37',
+    to:   '2.7.38',
+    description: 'Feature: Virtual Team persona hints on the sdd dashboard Full Pipeline stepper (Python CLI) -- each step owned by a named team member (Maya, Rex, Ava, Leo, Kai, Quinn, Riley) shows a name badge and a ready-to-type natural-language ask; no manifest schema changes',
+    notes: [
+      'The dashboard Full Pipeline stepper showed only raw slash ' +
+      'commands -- this adds a link back to the CLAUDE.md "Virtual Team ' +
+      '— Address by Name" convention, where addressing a team member by ' +
+      'name (e.g. "Ava, design checkout") works identically to running ' +
+      'the underlying slash command',
+      'sdd-micro has no Virtual Team at all, so it never gets a persona ' +
+      'hint',
+      'This Node CLI does not implement the dashboard -- it stays scoped ' +
+      'to init/upgrade scaffolding, per its own README; this migration ' +
+      'entry exists so both CLIs report the same sdd_version chain for ' +
+      'a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.38';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.38',
+    to:   '2.7.39',
+    description: 'Feature: extend Virtual Team persona hints to the dashboard Documents card and sdd review status (Python CLI); fix: awaiting-review docs no longer show a misleading creation-phrased persona ask; no manifest schema changes',
+    notes: [
+      'Extends 2.7.38\'s dashboard Full Pipeline persona hints to the ' +
+      'Documents card\'s "what\'s next" line and to the terminal-only ' +
+      '`sdd review status` (each non-Approved, non-Blocked row gains a ' +
+      '"· ask {name}" hint)',
+      'Fixed a bug found while extending: a doc awaiting review isn\'t ' +
+      'waiting to be *created*, but the ask templates are all ' +
+      'creation-phrased -- suppressed the ask specifically for that ' +
+      'state rather than showing a misleading "create the BRD" for a ' +
+      'BRD that already exists',
+      'This Node CLI does not implement the dashboard or review status ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.39';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.39',
+    to:   '2.7.40',
+    description: 'Fix: review-driven document edits now bump the Version header and log Version History (prompt/template content only) -- no manifest schema changes',
+    notes: [
+      'Reviewer feedback (Jira comment, dashboard comment, or chat ' +
+      'feedback) that causes a document edit now bumps its Version ' +
+      'header and appends a Version History row, matching the discipline ' +
+      '/change already used for post-approval changes -- previously the ' +
+      'pre-approval review cycle never did this',
+      'Also fixed a hardcoded "1.0" in the approval-logging Version ' +
+      'History template that should have referenced the document\'s ' +
+      'actual current version',
+      'This Node CLI does not implement any document-review commands -- ' +
+      'it stays scoped to init/upgrade scaffolding, per its own README; ' +
+      'this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.40';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.40',
+    to:   '2.7.41',
+    description: 'Feature: sdd review check/apply now discover and acknowledge dashboard-left review comments in pure local mode (Python CLI); new sdd review comments command -- no manifest schema changes',
+    notes: [
+      'In pure local mode (no jira: configured), a dashboard comment used ' +
+      'to land only in .dashboard-comments.json with no way for the agent ' +
+      'to discover it except the user manually relaying it in chat -- ' +
+      'sdd review check now falls back to reading that file directly, and ' +
+      'sdd review apply acknowledges it instead of hard-requiring Jira/' +
+      'Confluence to even run',
+      'New sdd review comments --doc {doc} [--ack] command for explicit ' +
+      'use outside the check/apply cycle',
+      'This Node CLI does not implement any document-review commands -- ' +
+      'it stays scoped to init/upgrade scaffolding, per its own README; ' +
+      'this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.41';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.41',
+    to:   '2.7.42',
+    description: 'Docs consistency (Virtual Team + /taskstoissues in HOW-TO-USE.md, dangling CHANGELOG.md reference removed, workflow_mode wording propagated to frontend-spa/mobile/fullstack) + new Python-CLI test coverage -- no manifest schema changes',
+    notes: [
+      'Doc-only fixes across all 5 packs: removed a dangling CHANGELOG.md ' +
+      'reference from README.md, documented the existing Virtual Team ' +
+      '(address-by-name) feature and /taskstoissues command in ' +
+      'HOW-TO-USE.md, and propagated workflow_mode (github/local) wording ' +
+      'to the 3 packs whose CLAUDE.md/prompt files had not caught up with ' +
+      'the docs already promising local-mode support',
+      'This Node CLI does not implement sdd dashboard, sdd init, or sdd ' +
+      'pr -- it stays scoped to init/upgrade scaffolding, per its own ' +
+      'README; this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.42';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

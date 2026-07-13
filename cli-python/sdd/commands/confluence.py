@@ -16,7 +16,7 @@ console = Console()
 
 _DRAFTS_FILE = Path(".specify") / ".confluence-drafts.json"
 
-_CONTEXT_PAGE_TITLE = "{project} — Context: {feature}"
+_CONTEXT_PAGE_TITLE = "{feature} — Context"
 
 
 def _load_drafts() -> dict:
@@ -33,6 +33,58 @@ def _save_drafts(drafts: dict) -> None:
 def _resolve_doc_path(doc: str, feature: str) -> Path:
     """Return local file path for a doc key."""
     return resolve_doc_path(doc, feature)
+
+
+def _ensure_container_page(client: ConfluenceClient, space_key: str, title: str,
+                            parent_id: str | None) -> str:
+    """Idempotent: find-by-title-in-space, else create an empty container
+    page. Used for the Project and Feature pages every doc page nests
+    under -- same idempotent-upsert contract as jira.py's Epic bootstrap,
+    just keyed by title (Confluence has no label search)."""
+    existing = client.get_page_by_title(space_key, title)
+    if existing:
+        return existing["id"]
+    page = client.create_page(space_key, title, "", parent_id)
+    return page["id"]
+
+
+def resolve_feature_parent_id(client: ConfluenceClient, cf_cfg, project_name: str,
+                               feature_name: str) -> str:
+    """The Confluence page ID a per-feature doc page should nest under:
+    {parent_page_id} -> Project page -> Feature page. Purely a navigation
+    convenience -- Confluence enforces page-title uniqueness per SPACE,
+    not per parent, so this does NOT relax the need for {feature} in the
+    page title itself; two features' same-titled pages would still
+    collide even nested under different Feature pages."""
+    project_page_id = _ensure_container_page(client, cf_cfg.space_key, project_name, cf_cfg.parent_page_id)
+    return _ensure_container_page(client, cf_cfg.space_key, feature_name, project_page_id)
+
+
+def resolve_doc_parent_id(client: ConfluenceClient, cf_cfg, project_name: str,
+                           feature_name: str, doc: str) -> str:
+    """Like resolve_feature_parent_id(), except living/service-level docs
+    (LIVING_SERVICE_DOCS) nest directly under the Project page instead of
+    a Feature page, since they're shared across every feature, not
+    per-feature."""
+    if doc in LIVING_SERVICE_DOCS:
+        return _ensure_container_page(client, cf_cfg.space_key, project_name, cf_cfg.parent_page_id)
+    return resolve_feature_parent_id(client, cf_cfg, project_name, feature_name)
+
+
+def upload_diagram_attachments(client: ConfluenceClient, page_id: str,
+                                attachments: list[tuple[str, bytes, str]]) -> None:
+    """Upload each locally-rendered diagram (diagrams.mode: local-svg) as
+    a page attachment, after the page itself has already been created/
+    updated with a body that references these filenames via
+    <ac:image><ri:attachment>. Never raises -- a failed upload leaves
+    that one diagram's image reference unresolved (a broken-image
+    placeholder in Confluence) rather than failing the whole document
+    push, since the document content itself already saved successfully."""
+    for filename, content, media_type in attachments:
+        try:
+            client.upload_attachment(page_id, filename, content, media_type)
+        except Exception as e:
+            console.print(f"  [yellow]!  {filename} — diagram attachment upload failed: {e}[/yellow]")
 
 
 def _resolve_page_title(doc: str, project_name: str, feature: str,
@@ -147,11 +199,13 @@ def confluence_push(profile, feature, doc, dry_run):
     client = ConfluenceClient(session, prof.base_url)
 
     for key, md_path, title in available:
-        body = md_to_storage(md_path.read_text())
+        body, attachments = md_to_storage(md_path.read_text(), cf_cfg.diagrams)
         try:
+            parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, key)
             page, created = client.upsert_page(
-                cf_cfg.space_key, title, body, cf_cfg.parent_page_id
+                cf_cfg.space_key, title, body, parent_id
             )
+            upload_diagram_attachments(client, page["id"], attachments)
             action = "[green]created[/green]" if created else "[dim]updated[/dim]"
             console.print(f"  {action}  [cyan]{title}[/cyan]")
             if created:
@@ -236,12 +290,14 @@ def confluence_draft(doc, profile, feature, dry_run):
         raise SystemExit(1)
 
     client = ConfluenceClient(session, prof.base_url)
-    body = md_to_storage(doc_path.read_text())
+    body, attachments = md_to_storage(doc_path.read_text(), cf_cfg.diagrams)
 
     try:
+        parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, doc)
         page, created = client.upsert_page(
-            cf_cfg.space_key, title, body, cf_cfg.parent_page_id
+            cf_cfg.space_key, title, body, parent_id
         )
+        upload_diagram_attachments(client, page["id"], attachments)
     except Exception as e:
         console.print(f"  [red]✗  Confluence error: {e}[/red]")
         raise SystemExit(1)

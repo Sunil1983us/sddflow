@@ -1,6 +1,7 @@
 # Unit tests for the review-approval helpers — the no-Jira/chat approval path.
 # Run from repo root:  pytest cli-python/tests -q
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -155,12 +156,12 @@ class TestDocMdPath:
 class TestPushDocPage:
     def test_no_integrations_file_returns_none(self, project):
         p = _write_doc(project, "brd", "Status: Approved")
-        assert review._push_doc_page("brd", p) is None
+        assert review._push_doc_page("brd", p, "auth") is None
 
     def test_no_confluence_section_returns_none(self, project):
         (project / ".specify" / "integrations.yml").write_text("profile: default\n")
         p = _write_doc(project, "brd", "Status: Approved")
-        assert review._push_doc_page("brd", p) is None
+        assert review._push_doc_page("brd", p, "auth") is None
 
 
 # ── _ensure_epic / feature-qualified review labels ──────────────────────────
@@ -207,17 +208,26 @@ class RaisingParentClient(FakeJiraClient):
         raise RuntimeError('HTTP 400 — cannot set field "parent"')
 
 
-class TestLinkReviewTaskToEpic:
+class TestLinkReviewStoryToEpic:
     def test_success_records_the_link(self, project):
         client = FakeJiraClient()
         cfg = JiraConfig(project_key="MYPROJ")
-        review._link_review_task_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
         assert client.parents == [("PROJ-2", "PROJ-1", "parent")]
+
+    def test_uses_review_level_parent_field_override(self, project):
+        """parent_field_by_level: {review: ...} must steer how the review
+        Story links to its Epic, independently of the base parent_field."""
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"review": "customfield_10014"})
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        assert client.parents == [("PROJ-2", "PROJ-1", "customfield_10014")]
 
     def test_failure_prints_diagnosable_warning(self, project, capsys):
         client = RaisingParentClient()
         cfg = JiraConfig(project_key="MYPROJ")
-        review._link_review_task_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
         out = capsys.readouterr().out
         assert "was not linked under" in out
         assert "PROJ-1" in out
@@ -228,7 +238,17 @@ class TestLinkReviewTaskToEpic:
         was already created successfully."""
         client = RaisingParentClient()
         cfg = JiraConfig(project_key="MYPROJ")
-        review._link_review_task_to_epic(client, "PROJ-2", "PROJ-1", cfg)  # no raise
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)  # no raise
+
+    def test_failure_warning_names_the_review_override_project_key(self, project, capsys):
+        """The 'sdd config fields --project X' hint in a failed-link warning
+        must name the project the review Story actually lives in, not the
+        base project_key, when project_keys overrides "review"."""
+        client = RaisingParentClient()
+        cfg = JiraConfig(project_key="SUN", project_keys={"review": "SUNR"})
+        review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
+        out = capsys.readouterr().out
+        assert "--project SUNR" in out
 
 
 class TestEnsureEpic:
@@ -242,6 +262,14 @@ class TestEnsureEpic:
 
         assert key == "PROJ-1"
         assert "sdd-feature:auth" in client.created[0]["labels"]
+
+    def test_creates_epic_under_feature_project_keys_override(self, project):
+        """project_keys: {feature: ...} must steer the Epic's own project,
+        not just the review Stories parented under it."""
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="SUN", project_keys={"feature": "SUNF"})
+        review._ensure_epic(client, cfg, "auth")
+        assert client.created[0]["project"]["key"] == "SUNF"
 
     def test_idempotent_second_call_updates_not_creates(self, project):
         client = FakeJiraClient()
@@ -260,6 +288,36 @@ class TestEnsureEpic:
 
         cfg = JiraConfig(project_key="MYPROJ")
         assert review._ensure_epic(BrokenClient(), cfg, "auth") is None
+
+
+class TestRecordConfluenceDraftLink:
+    def test_writes_entry_compatible_with_confluence_load_drafts(self, project):
+        from sdd.commands.confluence import _load_drafts
+
+        page = {"id": "12345", "_links": {"webui": "/spaces/X/pages/12345"}}
+        review._record_confluence_draft_link("brd", page, "Demo — Business Requirements")
+
+        drafts = _load_drafts()
+        assert drafts["brd"] == {"page_id": "12345", "title": "Demo — Business Requirements"}
+
+    def test_preserves_other_docs_already_recorded(self, project):
+        from sdd.commands.confluence import _load_drafts, _save_drafts
+
+        _save_drafts({"srd": {"page_id": "999", "title": "Old SRD"}})
+        review._record_confluence_draft_link("brd", {"id": "1"}, "New BRD")
+
+        drafts = _load_drafts()
+        assert drafts["srd"] == {"page_id": "999", "title": "Old SRD"}
+        assert drafts["brd"] == {"page_id": "1", "title": "New BRD"}
+
+    def test_overwrites_stale_entry_for_same_doc(self, project):
+        from sdd.commands.confluence import _load_drafts, _save_drafts
+
+        _save_drafts({"brd": {"page_id": "old-id", "title": "Stale title"}})
+        review._record_confluence_draft_link("brd", {"id": "new-id"}, "Fresh title")
+
+        drafts = _load_drafts()
+        assert drafts["brd"] == {"page_id": "new-id", "title": "Fresh title"}
 
 
 class TestGetReviewStatusFeatureQualified:
@@ -296,3 +354,254 @@ class TestGetReviewStatusFeatureQualified:
         }
         status, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "billing")
         assert status == "NOT_SUBMITTED"
+
+
+# ── review_submit end-to-end: labels/team field wiring ──────────────────────
+# review_submit() hand-builds its Jira `fields` dict rather than routing
+# through jira.py's _upsert_issue() -- a field audit found it had silently
+# skipped cfg.jira.labels (base_fields.labels) and the team stamp that every
+# other issue type (Epic/Story/Task/CHG) gets. These tests exercise the full
+# command (mocking only the HTTP-touching client classes) to catch a
+# regression at the one place the bug actually manifested, not just at the
+# level of the helper functions already covered above.
+
+class FakeConfluenceClient:
+    def __init__(self, session=None, base_url=None):
+        self.pages_by_title: dict[str, dict] = {}
+        self._next_id = 1
+
+    def get_page_by_title(self, space_key, title):
+        return self.pages_by_title.get(title)
+
+    def create_page(self, space_key, title, body_html, parent_id=None):
+        page = {"id": str(self._next_id), "_links": {"webui": f"/pages/{self._next_id}"}}
+        self._next_id += 1
+        self.pages_by_title[title] = page
+        return page
+
+    def upsert_page(self, space_key, title, body_html, parent_id=None):
+        existing = self.get_page_by_title(space_key, title)
+        if existing:
+            return existing, False
+        return self.create_page(space_key, title, body_html, parent_id), True
+
+
+class TestReviewSubmitFieldWiring:
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    @pytest.fixture()
+    def review_project(self, project):
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nBO-001 Reduce login friction.\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n"
+            "  project_key: MYPROJ\n"
+            "  base_fields:\n"
+            "    labels: [sdd-generated, org-required-label]\n"
+            "    team: Team Phoenix\n"
+            "  custom_fields:\n"
+            "    team: customfield_20000\n"
+            "confluence:\n"
+            "  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{project} — BRD'\n"
+        )
+        return project
+
+    def test_labels_and_team_are_sent_on_the_review_story(self, review_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        # First created issue is the Epic (via _ensure_epic), second is the
+        # review Story itself -- find it by its distinguishing label.
+        review_issue = next(
+            f for f in fake_jira.created if "sdd-review" in f.get("labels", [])
+        )
+        assert "sdd-generated" in review_issue["labels"]
+        assert "org-required-label" in review_issue["labels"]
+        assert review_issue["customfield_20000"] == "Team Phoenix"
+
+    def test_two_features_do_not_collide_on_the_same_confluence_page(self, project, runner):
+        """Regression test: document_reviews.confluence_page templates
+        never had {feature} substituted (only {project} was), so two
+        features submitting the same doc type used to silently upsert the
+        SAME Confluence page -- the exact collision class {feature} was
+        already added to page_map for (bug #82), just never fixed here."""
+        from sdd.utils.atlassian_auth import Profile
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nBO-001 Reduce login friction.\n"
+        )
+        (project / ".specify" / "features" / "billing").mkdir(parents=True)
+        (project / ".specify" / "features" / "billing" / "brd.md").write_text(
+            "# BRD\n\nBO-001 Reduce billing friction.\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{feature} — BRD'\n"
+        )
+        shared_cf_client = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=shared_cf_client):
+            r1 = runner.invoke(review.review_command, ["submit", "--doc", "brd", "--feature", "auth"])
+            r2 = runner.invoke(review.review_command, ["submit", "--doc", "brd", "--feature", "billing"])
+
+        assert r1.exit_code == 0, r1.output
+        assert r2.exit_code == 0, r2.output
+        # Two distinct pages, not one page silently overwritten by the second call
+        assert "auth — BRD" in shared_cf_client.pages_by_title
+        assert "billing — BRD" in shared_cf_client.pages_by_title
+        assert shared_cf_client.pages_by_title["auth — BRD"]["id"] != \
+               shared_cf_client.pages_by_title["billing — BRD"]["id"]
+
+
+class TestReviewStatusPersonaHint:
+    """`sdd review status` -- same Virtual Team persona hint the dashboard
+    shows, added next to each non-approved/non-blocked row so the terminal
+    output tells you who to ask, not just what state a doc is in."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    @pytest.fixture()
+    def review_project(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".specify" / "features" / "auth").mkdir(parents=True)
+        (tmp_path / ".specify" / "manifest.yml").write_text(
+            yaml.dump({"project": {"name": "Demo", "feature": "auth", "scope": "pilot"}})
+        )
+        (tmp_path / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+        )
+        return tmp_path
+
+    def _run(self, runner, fake_jira):
+        from sdd.utils.atlassian_auth import Profile
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira):
+            return runner.invoke(review.review_command, ["status"])
+
+    def test_not_submitted_doc_shows_who_to_ask(self, review_project, runner):
+        result = self._run(runner, FakeJiraClient())  # by_label empty -> NOT_SUBMITTED
+        assert result.exit_code == 0, result.output
+        assert "ask Maya" in result.output
+
+    def test_approved_doc_shows_no_ask_hint(self, review_project, runner):
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-1", "fields": {"status": {"name": "Done"}},
+        }
+        fake_jira.comments_by_key["PROJ-1"] = []
+        result = self._run(runner, fake_jira)
+        assert result.exit_code == 0, result.output
+        assert "ask" not in result.output
+
+    def test_needs_revision_doc_shows_who_to_ask(self, review_project, runner):
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-1", "fields": {"status": {"name": "In Review"}},
+        }
+        fake_jira.comments_by_key["PROJ-1"] = [{"body": "please clarify this section"}]
+        result = self._run(runner, fake_jira)
+        assert result.exit_code == 0, result.output
+        assert "ask Maya" in result.output
+
+
+class TestLocalDashboardCommentsFallback:
+    """`sdd review check` / `sdd review apply` / `sdd review comments` --
+    the pure-local-mode path for reviewer feedback with no Jira ticket to
+    poll (a dashboard comment, with no integrations.yml at all)."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    def _write_comment(self, project, feature, doc, by, text, at):
+        import json
+        path = project / ".specify" / ".dashboard-comments.json"
+        data = json.loads(path.read_text()) if path.exists() else {}
+        data.setdefault(f"{feature}/{doc}", []).append({"by": by, "text": text, "at": at})
+        path.write_text(json.dumps(data))
+
+    def test_check_falls_back_to_local_comments_when_no_integrations_yml(self, project, runner):
+        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+        result = runner.invoke(review.review_command, ["check", "--doc", "brd"])
+        assert result.exit_code == 1
+        assert "please clarify" in result.output
+        assert "NEEDS REVISION" in result.output
+
+    def test_check_reports_not_submitted_when_no_comments_and_no_config(self, project, runner):
+        result = runner.invoke(review.review_command, ["check", "--doc", "brd"])
+        assert result.exit_code == 3
+        assert "NOT SUBMITTED" in result.output
+
+    def test_apply_acknowledges_local_comments_with_no_config(self, project, runner):
+        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+        assert runner.invoke(review.review_command, ["check", "--doc", "brd"]).exit_code == 1
+
+        apply_result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+        assert apply_result.exit_code == 0
+        assert "acknowledged" in apply_result.output
+
+        # Re-checking must not repeat the same already-addressed comment
+        assert runner.invoke(review.review_command, ["check", "--doc", "brd"]).exit_code == 3
+
+    def test_comments_command_lists_unacknowledged(self, project, runner):
+        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+        result = runner.invoke(review.review_command, ["comments", "--doc", "brd"])
+        assert result.exit_code == 1
+        assert "please clarify" in result.output
+
+    def test_comments_command_no_comments_exits_zero(self, project, runner):
+        result = runner.invoke(review.review_command, ["comments", "--doc", "brd"])
+        assert result.exit_code == 0
+        assert "no unacknowledged" in result.output
+
+    def test_comments_command_ack_flag_clears_them(self, project, runner):
+        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+        ack_result = runner.invoke(review.review_command, ["comments", "--doc", "brd", "--ack"])
+        assert ack_result.exit_code == 0
+
+        result = runner.invoke(review.review_command, ["comments", "--doc", "brd"])
+        assert result.exit_code == 0
+        assert "no unacknowledged" in result.output

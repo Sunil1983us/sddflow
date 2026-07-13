@@ -59,7 +59,7 @@ def test_per_feature_doc_title_backward_compatible_without_feature_placeholder()
 def test_context_page_title_always_includes_feature():
     page_map: dict = {}
     title = _resolve_page_title("context", "MyProj", "instant-payment", page_map)
-    assert title == "MyProj — Context: instant-payment"
+    assert title == "instant-payment — Context"
 
 
 def test_jira_item_label_is_qualified_by_feature():

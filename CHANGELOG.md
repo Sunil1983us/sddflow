@@ -4,6 +4,451 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.42] — 2026-07-13 (Docs consistency + test coverage)
+
+### Fixed
+
+- Removed the dangling `CHANGELOG.md` reference from the "Read Next" table
+  in all 5 packs' `README.md` — no such file is ever scaffolded into a
+  user's project, so the row pointed nowhere.
+- Propagated the `workflow_mode` (github/local) wording fix to the 3 packs
+  that had lagged behind `sdd-universal`/`sdd-backend-service`
+  (`sdd-frontend-spa`, `sdd-mobile`, `sdd-fullstack`): `release-template.md`,
+  `CLAUDE.md` (PR Contract + VALIDATE/RELEASE gate wording),
+  `implement.prompt.md` ("After Writing" branch), `release.prompt.md`
+  (Verify Gate), `PROMPT-GUIDE.md`, `quality-gate.yml` (starter-workflow
+  comment), and `constitution.md` (PR Rules table) — these 3 packs already
+  documented `workflow_mode: local` as supported in `HOW-TO-USE.md`, but
+  the actual command prompts never branched on it, so local mode silently
+  behaved like github mode. It now works end-to-end in all 5 packs.
+
+### Added
+
+- **Virtual Team — Address by Name** section added to `HOW-TO-USE.md` in
+  all 5 packs (previously only documented in each pack's `CLAUDE.md`, not
+  in the primary end-user-facing guide).
+- **`/taskstoissues`** documented under "Optional and Utility Commands" in
+  `HOW-TO-USE.md` in all 5 packs (command existed and worked; it just
+  wasn't listed anywhere a user would find it).
+- Real-socket HTTP tests for `sdd dashboard`'s request handler
+  (`tests/test_dashboard_http.py`, 12 tests) — spins up the actual
+  `ThreadingHTTPServer` on an ephemeral port and drives it with real
+  requests, covering routes, status codes, and input validation that the
+  existing helper-level tests didn't reach.
+- Unit tests for `sdd init` (`tests/test_init.py`, 6 tests) — fill mode,
+  scaffold mode, sdd-micro detection, name validation, context-file
+  no-clobber behavior.
+- Unit tests for `sdd pr` (`tests/test_pr.py`, 14 tests) — `create`,
+  `comments`, `reply`, `resolve`, `request-review`, covering task lookup,
+  branch/PR-body construction, and graceful degradation when a git host
+  doesn't support an action.
+
+## [2.7.41] — 2026-07-13 (Feature: local-mode dashboard comment discovery)
+
+### Added
+
+- **`sdd review check`/`sdd review apply` now work in pure local mode** (no
+  `jira:` section configured at all). Previously a dashboard-left comment in
+  that setup landed only in `.specify/.dashboard-comments.json`, with no way
+  for the agent to discover it except the user manually relaying it in
+  chat — `sdd review check` always reported "not submitted," and
+  `sdd review apply` hard-required both `jira:` and `confluence:` just to
+  run.
+- `sdd review check` now falls back to reading unacknowledged dashboard
+  comments when Jira isn't configured, printing them and exiting `1` —
+  same shape as the Jira NEEDS REVISION path, so the agent's existing
+  "run `sdd review check`, follow the exit code" workflow needs no changes
+  to pick this up.
+- `sdd review apply` now acknowledges those comments (instead of erroring)
+  when neither `jira:` nor `confluence:` is configured, so
+  `sdd review check` stops repeating them on the next poll.
+- New **`sdd review comments --doc {doc} [--ack]`** command for
+  explicit/manual use outside the check/apply cycle — lists unacknowledged
+  comments, or marks them all addressed with `--ack`.
+- New `.specify/.dashboard-comments-ack.json` tracks, per feature/doc, the
+  timestamp cutoff below which comments are considered handled — the
+  comments file itself is an append-only log with no per-entry "handled"
+  flag.
+- When Jira *is* configured, dashboard comments already mirror to the doc's
+  Jira review ticket (unchanged) — this fallback only ever triggers when
+  there's no Jira to mirror to.
+- 14 new tests; verified end-to-end against a live `sdd dashboard` instance
+  and the real `sdd` CLI (not just pytest mocks) — posted a comment through
+  the dashboard's actual API, confirmed `sdd review check` picked it up,
+  and confirmed `sdd review apply` correctly silenced it afterward.
+
+---
+
+## [2.7.40] — 2026-07-13 (Fix: review-driven document edits now bump Version + log Version History)
+
+### Fixed
+
+- **After addressing reviewer comments, the document's `Version:` header
+  now actually updates.** Reported: whether feedback came via Jira, local
+  mode, or the dashboard, updating a document to address it left the
+  `Version:` header frozen at 1.0 forever with no record of what changed
+  or when — `/change` (post-approval Change Requests) already had this
+  discipline, but the earlier pre-approval review cycle never did.
+- The shared `review-decision-step.md` instruction block (embedded in
+  every review-gated command — BRD, Use Cases, SRD, extended docs, Design/
+  Arch/HLD/ADR, LLD) now has an explicit **Revision Logging** rule: any
+  content edit made in response to reviewer feedback — a Jira comment via
+  `sdd review check`, a dashboard comment (which mirrors to the Jira
+  ticket when Jira is configured), or feedback relayed in chat —
+  increments the document's version and appends a row to its
+  `## Version History` table. A pure approval with no content change does
+  not bump the version.
+- Also fixed a smaller, related bug: the approval-logging step's Version
+  History row template hardcoded `| 1.0 | ... |` literally instead of
+  referencing the document's actual current version — wrong for any doc
+  past its first revision. Fixed in both `review-decision-step.md` and
+  `validate.prompt.md`'s own inline copy of the same approval step.
+- `review-gates.md` (CLAUDE.md's Document Review Gates summary) gained a
+  one-line pointer to this rule for discoverability at session-startup
+  read time.
+- Prompt/template content only — no CLI code changed. Verified by reading
+  the synced output across all 5 packs and re-running `sync-blocks.sh`
+  twice to confirm convergence, plus the existing pytest/assert-output.sh/
+  test-setup.sh regression suites.
+
+---
+
+## [2.7.39] — 2026-07-13 (Feature: persona hints on Documents card + review status; fix: awaiting-review ask)
+
+### Added
+
+- **Virtual Team persona hints extended to two more surfaces**: the
+  dashboard's **Documents** card now shows the same ready-to-type ask next
+  to its "what's next" line (`Next: Use Cases — or say: "Maya, write the
+  use cases for checkout"`), and the terminal-only `sdd review status` adds
+  a `· ask {name}` hint to every row that isn't Approved or Blocked.
+- New public `status.persona_for(step_id, feature, scope)` lets callers
+  outside the dashboard pipeline (like `sdd review status`, which reads
+  Jira `document_reviews` keys directly) reuse the same Virtual Team
+  lookup.
+
+### Fixed
+
+- **Awaiting-review docs no longer show a misleading persona ask.** 2.7.38
+  attached a persona ask to every non-done pipeline step, but the ask
+  templates are all creation-phrased ("create the BRD for X") — for a doc
+  that already exists and is just waiting on a human reviewer, that
+  wording wrongly implied it hadn't been created yet. The ask is now
+  suppressed specifically for that state, on both the dashboard's Full
+  Pipeline Next box and the Documents card; the per-step badge/tooltip is
+  unaffected since it's a general "who owns this kind of work" reference,
+  not a claim about one document's current state.
+- 9 new tests; verified end-to-end against a live dashboard instance via
+  headless-browser screenshot, confirming both the new Documents-card ask
+  line and the awaiting-approval no-ask case render correctly.
+
+---
+
+## [2.7.38] — 2026-07-13 (Feature: Virtual Team persona hints on the dashboard)
+
+### Added
+
+- **`sdd dashboard`'s Full Pipeline stepper now shows who owns each step** —
+  every step already documented as belonging to a named Virtual Team member
+  (Maya, Rex, Ava, Leo, Kai, Quinn, Riley — see each pack's CLAUDE.md
+  "Virtual Team — Address by Name" table) shows that name as a small badge
+  next to its label, and the full name/role/example ask in its hover
+  tooltip.
+- The highlighted **Next** box gained a second line with a ready-to-type
+  natural-language request instead of only the raw slash command — e.g.
+  `💬 Or just say: "Maya, write the use cases for checkout" (Maya —
+  Business Analyst)` — so you don't need to look up which command a step
+  maps to; addressing a persona by name already works identically to
+  running the command, this just surfaces it where you're looking.
+- Steps that run before any persona takes over (`/specify`, `GATE-1`) or
+  that are a byproduct of another command (the runbook, generated by
+  `/implement`) intentionally show no persona badge. sdd-micro has no
+  Virtual Team at all, so this never appears there.
+- 4 new tests in `test_status.py`; verified end-to-end against a running
+  `sdd dashboard` instance via headless-browser screenshot in both light
+  and dark mode, not just unit tests.
+
+---
+
+## [2.7.37] — 2026-07-13 (Feature: Confluence local-svg diagram rendering)
+
+### Added
+
+- **`mode: local-svg`** — the third `confluence.diagrams:` mode, completing
+  the work deferred in 2.7.36. Renders ` ```mermaid ` fences to SVG entirely
+  offline — no browser, no Node.js, no network call at render time, no
+  installed Confluence app required — and attaches the result to the page as
+  an image via `<ac:image>`/`<ri:attachment>`.
+- **Renderer choice was verified, not assumed.** Built an isolated venv,
+  confirmed both PyPI candidates actually exist, extracted the real Mermaid
+  diagram types SDD templates generate (flowchart, sequenceDiagram,
+  classDiagram, erDiagram), and rendered each type through each candidate.
+  `mermaidx`/`mmdc` (JS-engine backend) failed on flowchart stadium-shape
+  nodes (`Actor(["User"])`, used in every design/hld/arch template's Actor
+  node) and on `classDiagram` entirely. `mmdr` (Rust-based, ~18MB, zero
+  further Python dependencies) rendered all four correctly — confirmed both
+  textually and via visual PNG inspection.
+- `mmdr` is an **optional dependency**, not a hard one — new
+  `[project.optional-dependencies].diagrams` extra in `pyproject.toml`,
+  installed with `pip install "sddflow[diagrams]"`, imported lazily only
+  when `diagrams.mode: local-svg` is actually configured. A clear
+  `MermaidRendererNotInstalled` error names the exact install command if
+  configured but missing — never a bare `ImportError` traceback.
+- New `ConfluenceClient.upload_attachment()` posts to
+  `/content/{id}/child/attachment` with the `X-Atlassian-Token: nocheck`
+  header multipart uploads require. Confluence auto-versions an existing
+  attachment with the same filename, so no separate update path is needed.
+- `md_to_storage()`'s return type changed from `str` to
+  `tuple[str, list[Attachment]]` — all 6 call sites across `confluence.py`,
+  `review.py`, and `cr.py` updated to unpack the tuple and upload queued
+  attachments via a new shared `upload_diagram_attachments()` helper, after
+  `upsert_page()`.
+- **Every failure mode falls back to something safe** rather than crashing
+  the whole document push: a missing dependency or invalid diagram source
+  falls back to a plain code block for that one diagram; a failed
+  attachment upload prints a warning but leaves the already-saved page
+  content and remaining attachments unaffected.
+- 17 new tests across `test_mermaid_render.py` (3),
+  `test_md_to_cf.py::TestLocalSvgMode` (5), `test_confluence_client.py` (5),
+  and `test_confluence_hierarchy.py::TestUploadDiagramAttachments` (4), full
+  regression clean (356 tests).
+
+---
+
+## [2.7.36] — 2026-07-12 (Feature: Confluence diagram-macro rendering — mermaid-app, plantuml-macro)
+
+### Added
+
+- **`confluence.diagrams:` config block** — Confluence has no native Mermaid or
+  PlantUML renderer, so a ` ```mermaid `/` ```plantuml ` fenced block pushed to
+  Confluence used to always show as plain syntax-highlighted text, the
+  diagram source rather than a rendered diagram. Two new modes route these
+  fences through an installed Confluence app's macro instead:
+  - `mode: mermaid-app` + `mermaid_app.macro_name` — routes ` ```mermaid `
+    fences through the named macro of whichever Mermaid-rendering app
+    (there are 10+ on the Atlassian Marketplace) the org has installed.
+  - `mode: plantuml-macro` + `plantuml_macro.macro_name` — same idea for
+    fences already written as ` ```plantuml ` (does **not** convert Mermaid
+    syntax to PlantUML — different diagram languages). Most PlantUML apps
+    render via the public `plantuml.com` server by default; orgs that can't
+    reach external services need a self-hosted PlantUML render server
+    instead.
+  - Default (`mode: none`, or the block omitted) is exactly today's
+    behavior — a diagram fence with no matching mode/macro configured
+    always falls back to the plain code block, never a broken macro
+    reference.
+- Researched and explicitly **deferred** two more modes pending further
+  work: `local-svg` (render Mermaid to SVG fully locally — no Confluence
+  app, no external network call at render time — then attach as an image;
+  needs a rendering-tool evaluation across the diagram types SDD templates
+  generate before it ships) and `markdown-macro` (delegate the whole page
+  to a whole-document Markdown-rendering Forge app; needs verified testing
+  against a real installed app first — Forge macros use a different, less
+  guessable reference shape than the two modes shipped here).
+- 7 new tests (`test_md_to_cf.py::TestDiagramMacros`), full regression
+  clean.
+
+---
+
+## [2.7.35] — 2026-07-12 (Feature: Confluence page hierarchy; fix: review-doc titles missing {feature})
+
+### Added
+
+- **Confluence pages now nest under Project → Feature container pages**,
+  created automatically and idempotently the first time any doc is pushed —
+  `parent_page_id` → a page named after the project → a page named after the
+  feature → the doc pages themselves. Living/service-level docs (`data-model`,
+  `security-design`, `api-spec`, `component-library`, `runbook`) nest directly
+  under the Project page since they're shared across every feature, not
+  per-feature.
+- **Important caveat, verified before implementing:** Confluence enforces
+  page-title uniqueness *per space*, not per parent page. Nesting is a
+  navigation convenience only — it does not relax the need for `{feature}` in
+  the page title text. Two features' same-titled pages would still collide
+  even nested under different Feature pages, so `page_map` /
+  `document_reviews.confluence_page` templates keep `{feature}` in every
+  per-feature title.
+
+### Fixed
+
+- **`document_reviews.confluence_page` titles never substituted `{feature}`,
+  only `{project}`.** This is a separate code path from `page_map` (used by
+  `sdd confluence push/draft`, already fixed for this in an earlier release);
+  `sdd review submit` and its two related call sites (`_push_doc_page`,
+  `review_apply`) never applied the fix. Two features submitting the same doc
+  type for review (e.g. both push a BRD) would silently overwrite each
+  other's Confluence page. All three call sites now substitute both
+  `{project}` and `{feature}`.
+- 9 new tests (`test_confluence_hierarchy.py` plus a regression test proving
+  two features no longer collide on the same review Confluence page), full
+  regression clean.
+
+---
+
+## [2.7.34] — 2026-07-12 (Fix: review/CR tickets missing labels+team; per-level parent_field override)
+
+### Fixed
+
+- **`sdd review submit` and `sdd cr submit` were silently skipping your configured
+  labels and team field.** A field-by-field audit of every Jira API call in the
+  codebase found that `review_submit()` and `cr_submit()` hand-build their `fields`
+  dict directly instead of routing through the same `_upsert_issue()` function
+  every Epic/Story/Task/CHG issue uses — and had hardcoded their `labels` list to
+  just `["sdd-review", ...]` / `["sdd-cr", ...]`, dropping `base_fields.labels`
+  (e.g. the default `sdd-generated` label) entirely, and never applied
+  `base_fields.team` at all. Both are fixed: review-gate Stories and CR review
+  tasks now get the same labels and team stamp as every other issue type.
+
+### Added
+
+- **`jira.parent_field_by_level:` override**, the same pattern as `project_keys`
+  and `custom_fields_by_level`: lets an org whose Story/Task Jira project needs a
+  different parenting mechanism than the Epic's project (e.g. one project is
+  next-gen and uses the `parent` system field, the other is classic
+  company-managed and needs the Epic Link custom field) express that per level,
+  instead of one `parent_field` value serving every level. `JiraConfig.parent_field_for(level)`
+  resolves it; all 5 `set_parent()` call sites now use it.
+- 10 new tests: `parent_field_for` default/override (2), per-level wiring at
+  every `set_parent()` call site (5), a `parent_field_for` override on the
+  review→Epic link (1), a full `review_submit()` end-to-end test confirming
+  labels/team reach the created Story (1), and a new `test_cr.py` with the same
+  assertion for `cr_submit()` (1).
+
+---
+
+## [2.7.33] — 2026-07-12 (Feature: per-level custom field ID overrides + team field)
+
+### Added / Changed
+
+- **`integrations.yml` `jira.custom_fields_by_level:` override block.** Follow-on to
+  2.7.32's `project_keys`: if a hierarchy level's issues live in a
+  different Jira project, that project almost always has different
+  custom field IDs too — not just a different project key. `custom_fields_by_level:
+  {level: {field: id}}` overrides the common `custom_fields` mapping per
+  level; any `(level, field)` pair not listed falls back to the shared
+  mapping, so existing configs are unaffected. `JiraConfig.fields_for(level)`
+  resolves it, mirroring `key_for()`'s fallback semantics.
+- **Fixed team field.** New `base_fields.team` (paired with a
+  `custom_fields.team` field ID) stamps one fixed team name/ID on every
+  issue this CLI creates — Epic, Story, Task, CHG, and UC-draft Story —
+  via the new `_apply_team_field()` helper. It's the same value on every
+  issue, not something that varies per story/task; leaving it unset
+  never sends a team field, even if `custom_fields.team` happens to be
+  configured.
+- 8 new tests: 4 in `test_config_and_integrations.py` (`fields_for`
+  default/override, `team` default/parsed) and 4 in
+  `test_jira_push_levels.py` (`TestCustomFieldsAndTeam` — per-level
+  override doesn't leak into other levels, team stamped across all five
+  issue-creation call sites, team never sent when unset).
+
+---
+
+## [2.7.32] — 2026-07-12 (Feature: per-issue-type Jira project key overrides)
+
+### Added / Changed
+
+- **`integrations.yml` `jira.project_keys:` override block.** Some orgs keep
+  their Epic/Feature in one Jira project and Stories/Tasks (or review
+  tickets, CRs, CHGs) in another. `project_keys: {level: KEY}` lets each
+  hierarchy level resolve to its own project key; any level left out falls
+  back to the existing single `project_key` field, so projects with no
+  `project_keys:` block are completely unaffected. Valid levels: `feature`,
+  `story`, `task`, `review`, `chg`, `cr`.
+- Every Jira-project-key call site across `jira.py`, `review.py`, `cr.py`,
+  `pr.py`, and `dashboard.py` now resolves through the new
+  `JiraConfig.key_for(level)` method instead of reading `project_key`
+  directly. `sdd jira push`'s status header prints any configured
+  `project_keys` overrides.
+- Fixed a latent bug found while wiring this through: `_find_story_key`
+  only ever searched by a story's `STORY-NNN` label, so a UC-derived
+  story's real key could be missed entirely when `--level task` ran in a
+  separate invocation from `--level story` — its tasks would get pushed
+  with no parent link and no warning. It now checks the UC-derived label
+  first, matching how `_push_stories()` already labels these issues.
+- **Cross-project caveat (documented, not a bug):** Jira's parent/Epic-Link
+  field generally does not support linking issues across different Jira
+  projects on the standard REST API this CLI uses — true cross-project
+  hierarchy needs Advanced Roadmaps (Jira Premium). If `project_keys` puts
+  a child level in a different project than its parent, the child issue is
+  still created, but the parent link may silently fail to appear in Jira.
+  `sdd jira push` never fails silently on this — it always prints a `was
+  not linked under ...` warning when a parent link doesn't take.
+- 7 new tests: 2 in `test_config_and_integrations.py` (`key_for` defaults
+  and overrides), 5 across `test_jira_push_levels.py` and
+  `test_review_helpers.py` covering the call-site wiring itself.
+
+---
+
+## [2.7.31] — 2026-07-12 (Feature: Jira Epic/Story/Task hierarchy overhaul)
+
+### Added / Changed
+
+- **Epic created at `/specify`, not lazily.** The Feature/Epic issue in
+  Jira is now created right after `/specify` generates the constitution —
+  before any spec document exists — instead of being self-bootstrapped on
+  the first `sdd review submit`. Its description starts as a placeholder
+  and is automatically refreshed with real Business Objectives the next
+  time an Epic-touching command runs (e.g. `/specify-brd`'s review
+  submission) once `brd.md` exists.
+- **Review tickets are Story issues, not Task.** BRD, Use Cases, SRD,
+  Design/Arch/HLD/ADR, LLD, Tasks, Runbook, and Release review tickets now
+  use issue type Story and are parented to the Epic — the same hierarchy
+  level as dev Stories, so it's Epic → Story → Task throughout, review
+  tickets included, not a separate shape.
+- **Confluence + Jira submission happen together, immediately.** `sdd
+  review submit` now pushes the document to Confluence *and* creates the
+  Jira review Story in one call, right when the document is generated.
+  This replaces the old two-stage flow (push a Confluence-only draft, wait
+  for the user to say "done", then formally submit to Jira) in 5 command
+  prompts (`specify-brd/uc/srd/doc`, `plan-design`); 4 more
+  (`plan-arch/hld/adr/lld`) already worked this way and were converted to
+  the same shared block for consistency. `sdd confluence pull` still works
+  afterward if you want to pull in edits/comments left on the page.
+- **Draft Stories per use case, finalized in place by `/task`.** A new
+  `sdd jira push --level uc-draft` creates one lightweight placeholder
+  Story per `UC-NNN` right after `/specify-uc` (parented to the Epic).
+  When `/task` later generates `stories.md`, any story with a new
+  `**Derived from:** UC-NNN` field (added only when a story traces 1:1
+  back to a single use case) reuses that UC's idempotency label — Jira
+  finalizes the *same* issue in place instead of creating a second one.
+  Stories with no single-UC origin get a normal new Story issue, exactly
+  as before this existed.
+- 26 new tests across `test_jira_push_levels.py`, a new
+  `test_sdd_parser.py`, and `test_review_helpers.py`.
+
+---
+
+## [2.7.30] — 2026-07-12 (Feature: `sdd upgrade --sync-prompts`)
+
+### Added
+
+- **`sdd upgrade --sync-prompts`** — re-copies `.github/prompts/` and
+  `.claude/commands/` from the current pack into an already-scaffolded
+  project, overwriting stale copies. Plain `sdd upgrade` only ever patches
+  `manifest.yml`'s `sdd_version` field — it never touches these files, so
+  fixes to prompt file *content* (like the 2.7.24/2.7.26/2.7.27 review-gate
+  and token-usage-logging fixes) never reached a project that was
+  scaffolded before those fixes shipped, even after upgrading the
+  `sddflow` package. This closes that gap.
+- Shows a preview (files to be updated/added, counts of what's already
+  current) and asks for confirmation before writing anything — pass `--yes`
+  to skip it. Every file about to be overwritten is backed up first to
+  `.specify/.prompt-sync-backups/{timestamp}/`, so hand-edited prompt files
+  are never silently lost.
+- Which pack to sync from: `--pack` flag → `manifest.yml`'s new `pack`
+  field (now written automatically by `sdd init` on every fresh project) →
+  inferred from `project_type` → `sdd-universal` as a last resort. An
+  inferred guess is always labeled as such, since projects scaffolded
+  before this release have no `pack` field recorded.
+- Only `.github/prompts/` and `.claude/commands/` are touched — nothing
+  under `.specify/` (templates, constitution, your generated docs) is ever
+  affected.
+- 26 new tests (7 for the underlying `sync_pack_prompts()` helper, 19 for
+  pack resolution and the CLI flag's preview/confirm/cancel/`--yes` paths);
+  also verified live end-to-end against the real bundled packs.
+
+---
+
 ## [2.7.29] — 2026-07-12 (Feature: dashboard Full Pipeline section)
 
 ### Added

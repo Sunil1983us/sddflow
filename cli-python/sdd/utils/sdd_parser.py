@@ -14,6 +14,17 @@ class Story:
     acceptance_criteria: list[str]
     story_points: int | None
     satisfies: list[str]           # [FR-001, FR-002]
+    derived_uc: str | None = None  # UC-001 -- set only when this story traces
+                                    # 1:1 back to a single use case that already
+                                    # got a draft Jira Story at /specify-uc time;
+                                    # lets sdd jira push finalize that same
+                                    # issue in place instead of creating a new one
+
+
+@dataclass
+class UseCase:
+    id: str                        # UC-001
+    title: str
 
 
 @dataclass
@@ -93,6 +104,7 @@ def _parse_stories_text(text: str) -> list[Story]:
                 acceptance_criteria=_extract_ac(body),
                 story_points=_extract_story_points(body),
                 satisfies=_extract_satisfies(body),
+                derived_uc=_extract_derived_uc(body),
             ))
             continue
 
@@ -136,6 +148,34 @@ def _extract_satisfies(text: str) -> list[str]:
     if not m:
         return []
     return [x.strip() for x in m.group(1).split(",") if x.strip()]
+
+
+def _extract_derived_uc(text: str) -> str | None:
+    """`**Derived from:** UC-001` -- the agent writes this only when a
+    story traces 1:1 back to a single use case (see task.prompt.md);
+    stories with no single-UC origin simply omit the field."""
+    m = re.search(r'\*\*Derived from:\*\*\s*(UC-\d+)', text)
+    return m.group(1) if m else None
+
+
+# ── use-cases.md ─────────────────────────────────────────────────────────────
+
+def parse_use_cases(path: str | Path = ".specify/features") -> list[UseCase]:
+    """Read use-cases.md from path (file) or search recursively (directory).
+    Only extracts §3 UC-NNN headings and titles -- MP/AP/EP detail isn't
+    needed for the draft-story bootstrap this feeds (see jira.py)."""
+    p = Path(path)
+    if p.is_file():
+        return _parse_use_cases_text(p.read_text())
+    matches = list(p.rglob("use-cases.md"))
+    return _parse_use_cases_text(matches[0].read_text()) if matches else []
+
+
+def _parse_use_cases_text(text: str) -> list[UseCase]:
+    use_cases: list[UseCase] = []
+    for m in re.finditer(r'^###\s+(UC-\d+)\s+[—–-]+\s+(.+)$', text, re.MULTILINE):
+        use_cases.append(UseCase(id=m.group(1), title=m.group(2).strip()))
+    return use_cases
 
 
 # ── tasks.md ──────────────────────────────────────────────────────────────────

@@ -25,6 +25,7 @@
 ## PR Rules
 | Rule | Value |
 |---|---|
+| Workflow mode | {from manifest.workflow_mode} — github: PR + CI checks; local: agent runs checks, human says "go" |
 | Max lines | {from manifest.pr_rules.max_lines_per_pr} |
 | Max files | {from manifest.pr_rules.max_files_per_pr} |
 | Tests | Same PR always |

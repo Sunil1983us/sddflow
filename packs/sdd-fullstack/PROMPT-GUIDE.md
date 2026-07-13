@@ -946,8 +946,11 @@ Read tasks.md + qa-testcases.summary.md (mvp+) + brd.summary.md
 + srd.summary.md + docs/runbook/local-setup.md (mvp+)
 Read release-template.md
 
-VERIFY GATE: every task in tasks.md is "PR ready" and merged.
-  If not — STOP. State: "RELEASE blocked — {N} tasks not yet merged."
+VERIFY GATE (per manifest.workflow_mode):
+  github: every task in tasks.md is "PR ready" and merged.
+  local:  every task in tasks.md is "Task accepted".
+  If not — STOP. State: "RELEASE blocked — {N} tasks not yet
+  {merged|accepted}."
 
 Produce:
   1. PRE-RELEASE CHECKLIST — all tasks complete + merged, PRs reference

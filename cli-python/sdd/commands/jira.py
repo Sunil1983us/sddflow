@@ -8,13 +8,13 @@ from rich.console import Console
 from sdd.utils.atlassian_auth import load_profile, build_session
 from sdd.utils.integrations import load_integrations, JiraConfig
 from sdd.utils.jira_client import JiraClient
-from sdd.utils.sdd_parser import parse_stories, parse_tasks, Story, Task
+from sdd.utils.sdd_parser import parse_stories, parse_tasks, parse_use_cases, Story, Task, UseCase
 from sdd.utils.manifest import read_manifest
 from sdd.utils.validate import safe_feature_path
 
 console = Console()
 
-_LEVELS = ["epic", "story", "task", "chg", "all"]
+_LEVELS = ["epic", "uc-draft", "story", "task", "chg", "all"]
 
 
 # ── ADF (Atlassian Document Format) helpers ────────────────────────────────────
@@ -54,12 +54,23 @@ def parse_brd_objectives(features_dir: Path) -> list[str]:
     return objectives[:10]
 
 
+def _apply_team_field(extra: dict, cfg: JiraConfig, level: str, fields: dict | None = None) -> None:
+    """Stamps cfg.team onto `extra` via whichever custom field "team"
+    maps to for this level, if both are configured. No-op otherwise."""
+    if not cfg.team:
+        return
+    team_field = (fields if fields is not None else cfg.fields_for(level)).get("team")
+    if team_field:
+        extra[team_field] = cfg.team
+
+
 def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str) -> dict:
     """Extra fields for the top-level Feature/Epic issue: a real
     description built from brd.md's Business Objectives (falls back to a
-    pointer at brd.md if none are parsed yet), High priority, and the
-    Epic Name custom field for classic/company-managed Jira projects
-    (only if custom_fields.epic_name is configured)."""
+    pointer at brd.md if none are parsed yet), High priority, the Epic
+    Name custom field for classic/company-managed Jira projects (only if
+    custom_fields.epic_name is configured), and the team field (if
+    cfg.team is set)."""
     objectives = parse_brd_objectives(features_dir)
     extra: dict = {
         "description": adf_doc(
@@ -68,9 +79,11 @@ def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str)
         ),
         "priority": {"name": "High"},
     }
-    epic_name_field = cfg.custom_fields.get("epic_name")
+    fields = cfg.fields_for("feature")
+    epic_name_field = fields.get("epic_name")
     if epic_name_field:
         extra[epic_name_field] = feature_name
+    _apply_team_field(extra, cfg, "feature", fields)
     return extra
 
 
@@ -107,7 +120,8 @@ def jira_command():
 @click.option("--profile", default=None, help="Profile from ~/.sdd/config.yml")
 @click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
 @click.option("--level", type=click.Choice(_LEVELS), default="all",
-              help="SDD level to push (default: all -- Feature/Epic, Story, and Task)")
+              help="SDD level to push (default: all -- Feature/Epic, Story, and Task). "
+                   "uc-draft is separate from all -- run it explicitly right after /specify-uc.")
 @click.option("--cr", default=None, metavar="CR-NNN",
               help="Change request ID -- required when --level chg")
 @click.option("--dry-run", is_flag=True, help="Print plan without calling the API")
@@ -171,6 +185,13 @@ def jira_push(profile, feature, level, cr, dry_run):
             console.print(f"  [red]✗  No CHG tasks found in changesets/{cr}.md §4.[/red]")
             raise SystemExit(1)
 
+    if level == "uc-draft":
+        use_cases = parse_use_cases(features_dir)
+        if not use_cases:
+            console.print("  [yellow]  No UC-NNN found in use-cases.md — run /specify-uc first.[/yellow]")
+            console.print()
+            return
+
     stories = parse_stories(features_dir)
     tasks   = parse_tasks(features_dir)
 
@@ -183,6 +204,8 @@ def jira_push(profile, feature, level, cr, dry_run):
     h = jira_cfg.issue_hierarchy
     console.print(f"  Project  : [cyan]{project_name}[/cyan]")
     console.print(f"  Feature  : [cyan]{feature_name}[/cyan]")
+    if level == "uc-draft":
+        console.print(f"  UCs      : [cyan]{len(use_cases)}[/cyan]")
     if level in ("story", "all"):
         console.print(f"  Stories  : [cyan]{len(stories)}[/cyan]")
     if level in ("task", "all"):
@@ -193,9 +216,24 @@ def jira_push(profile, feature, level, cr, dry_run):
         f"  Jira     : [cyan]{jira_cfg.project_key}[/cyan]  "
         f"[dim]{h['feature']} → {h['story']} → {h['task']}[/dim]"
     )
+    if jira_cfg.project_keys:
+        overrides = ", ".join(f"{lvl}→{key}" for lvl, key in jira_cfg.project_keys.items())
+        console.print(f"  [yellow]project_keys override: {overrides}[/yellow]")
+        console.print(
+            "  [yellow]!  Jira's parent/Epic-Link field generally can't link issues "
+            "across projects — parent links between these levels may fail. Any failure "
+            "prints a warning rather than vanishing silently, but check your Jira "
+            "before relying on this.[/yellow]"
+        )
     console.print()
 
     if dry_run:
+        if level == "uc-draft":
+            console.print("  [bold]Would create draft Stories (one per UC):[/bold]")
+            for uc in use_cases:
+                console.print(f"  ├── [{h['story']}] {uc.id} — {uc.title}  [dim](draft)[/dim]")
+            console.print()
+            return
         _print_dry_run(feature_name, stories, tasks, jira_cfg, level,
                         chg_tasks if level == "chg" else None)
         return
@@ -208,6 +246,22 @@ def jira_push(profile, feature, level, cr, dry_run):
         raise SystemExit(1)
 
     client = JiraClient(session, prof.base_url)
+
+    if level == "uc-draft":
+        epic_key = _find_feature_key(client, jira_cfg.key_for("feature"), feature_name)
+        if not epic_key:
+            console.print(
+                "  [yellow]!  Feature/Epic not found — draft Stories will be created "
+                "without a parent link. Run --level epic first (normally already done by /specify).[/yellow]"
+            )
+        _push_uc_draft_stories(client, feature_name, use_cases, jira_cfg, epic_key)
+        console.print()
+        console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+        console.print("  [bold green]Jira push complete![/bold green]")
+        console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+        console.print()
+        return
+
     _push(client, feature_name, features_dir, stories, tasks, jira_cfg, level=level, cr=cr)
 
 
@@ -308,15 +362,27 @@ def _find_feature_key(client: JiraClient, project_key: str, feature_name: str) -
     return issue["key"] if issue else None
 
 
-def _find_story_key(client: JiraClient, project_key: str, feature_name: str, story_id: str) -> str | None:
-    issue = client.find_by_label(project_key, _item_label(feature_name, story_id))
+def _find_story_key(client: JiraClient, project_key: str, feature_name: str, story: Story) -> str | None:
+    """Looks up a previously-pushed Story's Jira key by idempotency label.
+    Checks the UC-derived label first (sdd:{feature}:UC-NNN) when the
+    story traces 1:1 to a use case, since that's the label _push_stories()
+    actually used to create/finalize it -- falling back to the story's
+    own STORY-NNN label (the shape every story used before UC drafts
+    existed). Without this, running `--level task` in a separate
+    invocation from `--level story` would silently fail to find a
+    UC-derived story's real key and push its tasks with no parent link."""
+    if story.derived_uc:
+        issue = client.find_by_label(project_key, _item_label(feature_name, story.derived_uc))
+        if issue:
+            return issue["key"]
+    issue = client.find_by_label(project_key, _item_label(feature_name, story.id))
     return issue["key"] if issue else None
 
 
 def _push_epic(client: JiraClient, feature_name: str, features_dir: Path, cfg: JiraConfig) -> str:
     feature_extra = feature_extra_fields(features_dir, cfg, feature_name)
     key, created = _upsert_issue(
-        client, cfg.project_key, cfg.issue_hierarchy["feature"], feature_name,
+        client, cfg.key_for("feature"), cfg.issue_hierarchy["feature"], feature_name,
         feature_extra, f"sdd-feature:{feature_name}", cfg.labels,
     )
     _log(cfg.issue_hierarchy["feature"], key, feature_name, created)
@@ -337,34 +403,87 @@ def _push_stories(client: JiraClient, feature_name: str, stories: list[Story],
             "priority": {"name": cfg.priority_map.get(story.moscow, "Medium")},
             "description": description,
         }
-        if story.story_points and "story_points" in cfg.custom_fields:
-            extra[cfg.custom_fields["story_points"]] = story.story_points
-        if ac_text and "acceptance_criteria" in cfg.custom_fields:
-            extra[cfg.custom_fields["acceptance_criteria"]] = ac_text
-        if story.satisfies and "fr_reference" in cfg.custom_fields:
-            extra[cfg.custom_fields["fr_reference"]] = ", ".join(story.satisfies)
-        if "moscow_priority" in cfg.custom_fields:
-            extra[cfg.custom_fields["moscow_priority"]] = story.moscow
+        fields = cfg.fields_for("story")
+        if story.story_points and "story_points" in fields:
+            extra[fields["story_points"]] = story.story_points
+        if ac_text and "acceptance_criteria" in fields:
+            extra[fields["acceptance_criteria"]] = ac_text
+        if story.satisfies and "fr_reference" in fields:
+            extra[fields["fr_reference"]] = ", ".join(story.satisfies)
+        if "moscow_priority" in fields:
+            extra[fields["moscow_priority"]] = story.moscow
+        _apply_team_field(extra, cfg, "story", fields)
 
+        # A story derived 1:1 from a single use case reuses that UC's
+        # idempotency label instead of minting a new one keyed by the
+        # story's own STORY-NNN id -- so this finalizes the SAME draft
+        # Story issue `--level uc-draft` created at /specify-uc time
+        # (right down to the description/points/etc. now being real),
+        # rather than creating a second, separate issue for it.
+        id_label = (
+            _item_label(feature_name, story.derived_uc) if story.derived_uc
+            else _item_label(feature_name, story.id)
+        )
         key, created = _upsert_issue(
-            client, cfg.project_key, cfg.issue_hierarchy["story"],
+            client, cfg.key_for("story"), cfg.issue_hierarchy["story"],
             f"{story.id} — {story.title}",
             extra,
-            _item_label(feature_name, story.id),
+            id_label,
             cfg.labels,
         )
         story_key_map[story.id] = key
 
         if epic_key:
             try:
-                client.set_parent(key, epic_key, cfg.parent_field)
+                client.set_parent(key, epic_key, cfg.parent_field_for("story"))
             except Exception as e:
-                _warn_parent_link_failed(key, epic_key, cfg.project_key, e)
+                _warn_parent_link_failed(key, epic_key, cfg.key_for("story"), e)
 
         pts = f"  {story.story_points}sp" if story.story_points else ""
         _log(cfg.issue_hierarchy["story"], key, f"{story.id}: {story.title} ({story.moscow}{pts})", created)
 
     return story_key_map
+
+
+def _push_uc_draft_stories(client: JiraClient, feature_name: str, use_cases: list[UseCase],
+                            cfg: JiraConfig, epic_key: str | None) -> dict[str, str]:
+    """One lightweight placeholder Story per UC, pushed right after
+    /specify-uc -- before stories.md exists. Labeled the same way
+    _push_stories() labels a "Derived from: UC-NNN" story
+    (_item_label(feature_name, uc.id)), so when /task later generates a
+    real Story that traces 1:1 back to this UC, _push_stories() finds and
+    finalizes this SAME issue in place instead of creating a second one.
+    Issue type is Story, not Task -- these sit at the same hierarchy
+    level as the real Stories they'll become."""
+    uc_key_map: dict[str, str] = {}
+    for uc in use_cases:
+        extra = {
+            "description": adf_doc(
+                f"Draft Story for {uc.id} — details pending /task.",
+                "This issue will be finalized (title, acceptance criteria, "
+                "story points, FR traceability) once tasks.md/stories.md "
+                "are generated — it is not yet ready for sprint planning.",
+            ),
+        }
+        _apply_team_field(extra, cfg, "story")
+        key, created = _upsert_issue(
+            client, cfg.key_for("story"), cfg.issue_hierarchy["story"],
+            f"{uc.id} — {uc.title} (draft)",
+            extra,
+            _item_label(feature_name, uc.id),
+            cfg.labels,
+        )
+        uc_key_map[uc.id] = key
+
+        if epic_key:
+            try:
+                client.set_parent(key, epic_key, cfg.parent_field_for("story"))
+            except Exception as e:
+                _warn_parent_link_failed(key, epic_key, cfg.key_for("story"), e)
+
+        _log(cfg.issue_hierarchy["story"], key, f"{uc.id}: {uc.title} (draft)", created)
+
+    return uc_key_map
 
 
 def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
@@ -378,13 +497,15 @@ def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
             f"Acceptance Criteria: {ac_text}" if ac_text else "",
         )
         extra: dict = {"description": description}
-        if ac_text and "acceptance_criteria" in cfg.custom_fields:
-            extra[cfg.custom_fields["acceptance_criteria"]] = ac_text
-        if task.satisfies and "fr_reference" in cfg.custom_fields:
-            extra[cfg.custom_fields["fr_reference"]] = ", ".join(task.satisfies)
+        fields = cfg.fields_for("task")
+        if ac_text and "acceptance_criteria" in fields:
+            extra[fields["acceptance_criteria"]] = ac_text
+        if task.satisfies and "fr_reference" in fields:
+            extra[fields["fr_reference"]] = ", ".join(task.satisfies)
+        _apply_team_field(extra, cfg, "task", fields)
 
         key, created = _upsert_issue(
-            client, cfg.project_key, cfg.issue_hierarchy["task"],
+            client, cfg.key_for("task"), cfg.issue_hierarchy["task"],
             f"{task.id} — {task.title}",
             extra,
             _item_label(feature_name, task.id),
@@ -395,9 +516,9 @@ def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
         parent_key = story_key_map.get(task.story_id) if task.story_id else None
         if parent_key:
             try:
-                client.set_parent(key, parent_key, cfg.parent_field)
+                client.set_parent(key, parent_key, cfg.parent_field_for("task"))
             except Exception as e:
-                _warn_parent_link_failed(key, parent_key, cfg.project_key, e)
+                _warn_parent_link_failed(key, parent_key, cfg.key_for("task"), e)
 
         story_ref = f"  [dim]→ {parent_key or '?'}[/dim]" if task.story_id else ""
         _log(cfg.issue_hierarchy["task"], key, f"{task.id}: {task.title}{story_ref}", created)
@@ -434,20 +555,22 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
             f"Description: {chg['description']}",
         )
         extra: dict = {"description": description, "priority": {"name": "Medium"}}
-        if "fr_reference" in cfg.custom_fields:
-            extra[cfg.custom_fields["fr_reference"]] = satisfies
+        chg_fields = cfg.fields_for("chg")
+        if "fr_reference" in chg_fields:
+            extra[chg_fields["fr_reference"]] = satisfies
+        _apply_team_field(extra, cfg, "chg", chg_fields)
 
         key, created = _upsert_issue(
-            client, cfg.project_key, chg_issue_type, chg["description"],
+            client, cfg.key_for("chg"), chg_issue_type, chg["description"],
             extra, _item_label(feature_name, chg["sdd_id"]), cfg.labels,
         )
         chg_key_map[chg["sdd_id"]] = key
 
         if parent_key:
             try:
-                client.set_parent(key, parent_key, cfg.parent_field)
+                client.set_parent(key, parent_key, cfg.parent_field_for("chg"))
             except Exception as e:
-                _warn_parent_link_failed(key, parent_key, cfg.project_key, e)
+                _warn_parent_link_failed(key, parent_key, cfg.key_for("chg"), e)
 
         _log(chg_issue_type, key, f"{chg['sdd_id']}: {chg['description']}", created)
 
@@ -472,7 +595,7 @@ def _push(client: JiraClient, feature_name: str, features_dir: Path,
     if do_epic:
         epic_key = _push_epic(client, feature_name, features_dir, cfg)
     elif do_story or do_chg:
-        epic_key = _find_feature_key(client, cfg.project_key, feature_name)
+        epic_key = _find_feature_key(client, cfg.key_for("feature"), feature_name)
         if not epic_key and do_story:
             console.print(
                 "  [yellow]!  Feature/Epic not found — Stories will be created "
@@ -484,7 +607,7 @@ def _push(client: JiraClient, feature_name: str, features_dir: Path,
         story_key_map = _push_stories(client, feature_name, stories, cfg, epic_key)
     elif do_task or do_chg:
         for story in stories:
-            key = _find_story_key(client, cfg.project_key, feature_name, story.id)
+            key = _find_story_key(client, cfg.key_for("story"), feature_name, story)
             if key:
                 story_key_map[story.id] = key
 
@@ -597,7 +720,7 @@ def jira_sync(profile, feature):
 
     tasks   = parse_tasks(features_dir)
     client  = JiraClient(session, prof.base_url)
-    project_key = cfg.jira.project_key
+    project_key = cfg.jira.key_for("task")
 
     console.print(f"  {'TASK ID':<12} {'Jira Key':<14} Status")
     console.print(f"  {'─'*12} {'─'*14} {'─'*20}")

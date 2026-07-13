@@ -56,6 +56,34 @@ Migrate an existing project's `manifest.yml` to the current pack version.
 sdd upgrade
 ```
 
+**This only ever touches `manifest.yml`'s `sdd_version` field.** Fixes made
+to prompt file *content* (`.github/prompts/*.md`, `.claude/commands/*.md`)
+after your project was scaffolded do **not** reach an existing project just
+by running `sdd upgrade` or upgrading the `sddflow` package — those files
+were copied into your project once, at `sdd init` time, and nothing
+re-syncs them automatically. For that, use `--sync-prompts`:
+
+```bash
+sdd upgrade --sync-prompts              # preview + confirm, then re-copy
+sdd upgrade --sync-prompts --yes        # skip the confirmation prompt
+sdd upgrade --sync-prompts --pack sdd-backend-service   # override pack detection
+```
+
+Which pack to sync from is resolved, in order: `--pack` flag →
+`manifest.yml`'s `pack` field (written automatically by `sdd init` on
+every new project) → inferred from `project_type` → `sdd-universal` as a
+last resort. If it had to guess, it says so and tells you to pass `--pack`
+if the guess is wrong — projects scaffolded before this field existed
+won't have `pack` recorded, so double-check the inference on those.
+
+Every file about to be overwritten is shown first (and left alone if you
+say no); anything actually overwritten is backed up to
+`.specify/.prompt-sync-backups/{timestamp}/` first, so a project with
+hand-edited prompt files never just loses those edits silently. Only
+`.github/prompts/` and `.claude/commands/` are touched — nothing under
+`.specify/` (templates, constitution, your generated docs) is ever synced
+by this command.
+
 ---
 
 ### `sdd config init`
@@ -137,15 +165,18 @@ Create or update Jira issues from `brd.md`, `stories.md`, and `tasks.md`.
 Hierarchy: **Feature/Epic → Story → Task** (configurable issue type names).
 
 By default pushes everything at once. Use `--level` to push progressively at
-each SDLC gate instead — Epic right after BRD approval, Stories after Use
-Case/SRD approval, Tasks after `/task`, CHG tasks after `/change` — matching
-what the agent's `/jira-push` slash command does (it's a thin wrapper around
-this same command). Parent links for a level pushed on its own are found live
-via Jira labels, so there's no strict ordering requirement.
+each SDLC gate instead — Epic right after `/specify` (the `epic-bootstrap-step`
+in `specify.prompt.md` already runs this automatically, before any spec doc
+exists), Stories after Use Case/SRD approval, Tasks after `/task`, CHG tasks
+after `/change` — matching what the agent's `/jira-push` slash command does
+(it's a thin wrapper around this same command). Parent links for a level
+pushed on its own are found live via Jira labels, so there's no strict
+ordering requirement.
 
 ```bash
 sdd jira push                          # push Feature/Epic + Story + Task
-sdd jira push --level epic             # after /specify-brd approval
+sdd jira push --level epic             # normally already run by /specify
+sdd jira push --level uc-draft         # normally already run by /specify-uc
 sdd jira push --level story            # after /specify-uc or /specify-srd
 sdd jira push --level task             # after /task
 sdd jira push --level chg --cr CR-001  # after /change
@@ -153,6 +184,16 @@ sdd jira push --dry-run          # print plan, no API calls
 sdd jira push --feature auth     # override feature name
 sdd jira push --profile on-prem  # use a specific auth profile
 ```
+
+**`--level uc-draft`** creates one lightweight placeholder Story per
+`UC-NNN` in `use-cases.md` — issue type Story (not Task), parented to the
+Epic — right after `/specify-uc`, before `stories.md` exists. It's
+separate from `--level all`/`--level story`, not part of either: a later
+`--level story` push finalizes the *same* issue in place for any story
+whose `**Derived from:** UC-NNN` field names one of these drafts (same
+idempotency label, `sdd:{feature}:UC-NNN`), instead of creating a second,
+separate issue for the same use case. Stories with no single-UC origin
+just get a normal new Story issue, exactly as before this existed.
 
 **Dry-run output:**
 ```
@@ -234,12 +275,27 @@ message.
 with that title already exists, it is updated (version incremented). If not,
 it is created under the configured parent page.
 
+**Page hierarchy:** every page nests under `parent_page_id` → a Project page
+(named after `manifest.yml`'s project name) → a Feature page (named after
+the active feature) — both created automatically and idempotently the first
+time any doc is pushed. Living/service-level docs (`data-model`,
+`security-design`, `api-spec`, `component-library`, `runbook`) nest directly
+under the Project page instead, since they're shared across every feature.
+
+This nesting is purely a navigation convenience, not a namespace — Confluence
+enforces page-title uniqueness **per space**, not per parent page, so two
+features' same-titled pages would still collide even nested under different
+Feature pages. That's why `page_map`/`document_reviews.confluence_page`
+templates keep `{feature}` in the title text; don't remove it just because
+nesting exists.
+
 ---
 
 ### `sdd review submit`
 
-Push a document to Confluence and create a Jira review task assigned to the
-configured reviewer.
+Push a document to Confluence and create a Jira review story (issue type
+Story, parented to the feature's Epic — same hierarchy level as dev
+Stories) assigned to the configured reviewer.
 
 ```bash
 sdd review submit --doc brd
@@ -250,10 +306,13 @@ sdd review submit --doc adr --feature auth
 What it does:
 1. Reads `.specify/features/{feature}/{doc}.md`
 2. Converts Markdown → Confluence Storage Format, creates or updates the page
-3. Ensures a Feature/Epic issue exists for the project (created from the BRD's
-   Business Objectives if needed) and creates (or updates) a Jira task with
-   the label `sdd-doc:{feature}:{doc}`, parented under that Epic and assigned
-   to the configured reviewer
+3. Ensures a Feature/Epic issue exists for the project — normally already
+   created by `/specify` before any spec document exists (see `sdd jira push
+   --level epic` below); self-bootstrapped here too as a fallback, refreshed
+   with the BRD's Business Objectives if they weren't available yet — and
+   creates (or updates) a Jira **Story** with the label
+   `sdd-doc:{feature}:{doc}`, parented under that Epic and assigned to the
+   configured reviewer
 
 **Sequence enforcement:** Within each phase, a document cannot be submitted
 until its predecessor is approved (e.g. BRD must be approved before SRD can be
@@ -286,12 +345,24 @@ sdd review check --doc srd --profile on-prem
 a keyword from `approved_keywords` (default: `approved`, `lgtm`, `looks good`,
 `go ahead`, `confirmed`).
 
+**No `jira:` section configured?** `sdd review check` falls back to
+dashboard-left comments (`.specify/.dashboard-comments.json`, written by
+`sdd dashboard`'s comment box) instead of returning "not submitted" outright —
+any not-yet-acknowledged comment for that doc is printed and the command
+exits `1`, exactly like the Jira NEEDS REVISION path. This is the only way
+review feedback reaches the agent in pure local mode: a dashboard comment has
+no Jira ticket to poll, and (unlike Confluence-configured setups where it
+mirrors to Jira automatically) there's nothing else watching for it.
+
 ---
 
 ### `sdd review apply`
 
 After the agent addresses reviewer comments, re-push the updated document to
-Confluence and notify the reviewer in Jira with a comment.
+Confluence and notify the reviewer in Jira with a comment — or, in pure local
+mode (neither `jira:` nor `confluence:` configured), acknowledge the
+dashboard comments that triggered the edit so `sdd review check` stops
+repeating them.
 
 ```bash
 sdd review apply --doc brd
@@ -301,8 +372,22 @@ Typical agent workflow:
 ```
 sdd review check --doc brd          # exit 1: NEEDS_REVISION
 # (agent edits .specify/features/{feature}/brd.md)
-sdd review apply --doc brd          # re-push + notify reviewer
+sdd review apply --doc brd          # re-push + notify reviewer (or: ack local comments)
 sdd review check --doc brd          # poll again after reviewer re-reviews
+```
+
+---
+
+### `sdd review comments`
+
+Read or acknowledge dashboard-left comments directly, without going through
+the full check/apply cycle. `sdd review check`/`sdd review apply` already
+call into this in pure local mode (see above) — this command exists for
+explicit/manual use.
+
+```bash
+sdd review comments --doc brd              # list unacknowledged comments (exit 1 if any, 0 if none)
+sdd review comments --doc brd --ack        # mark every current comment as addressed
 ```
 
 ---
@@ -348,15 +433,19 @@ Output:
   SPECIFY phase
     ✓  BRD        Approved            Product Owner
     ✓  SRD        Approved            Business Analyst
-    ⏳  ARCH       Pending             Architect
+    ⏳  ARCH       Pending             Architect         · ask Ava
     🔒  HLD        Blocked             Architect
 
   PLANNING phase
-    ·  LLD        Not Submitted       Tech Lead
-    ·  ADR        Not Submitted       Architect
+    ·  LLD        Not Submitted       Tech Lead          · ask Leo
+    ·  ADR        Not Submitted       Architect          · ask Ava
 ```
 
-Blocked = predecessor in the same phase is not yet approved.
+Blocked = predecessor in the same phase is not yet approved. Any row that
+isn't Approved or Blocked gets a `· ask {name}` hint naming the Virtual
+Team member who owns that doc type (same roster the dashboard uses) — a
+doc key with no mapped persona (rare — only the handful outside
+`CLAUDE.md`'s "Virtual Team" table) just omits the hint.
 **Requires Jira** (`integrations.yml` with a `jira:` section) — for a
 status view that works with any review mode (chat, local, or jira), see
 `sdd dashboard` below.
@@ -392,7 +481,21 @@ Shows, per feature under `.specify/features/`:
   with sdd review check --doc brd`). This is derived purely from
   `manifest.yml` (`scope`, `plan_mode`) and each doc's `Status:` header —
   no extra configuration needed.
-- **Documents** — every generated doc and its `Status:` (Draft/Approved/etc.), with a best-effort "what's next" guess. Each doc has a **View** button that reads the raw `.md` straight from disk into the page — no need to leave the browser to check content.
+  - **Virtual Team persona hints.** Any step owned by a named team member
+    (see CLAUDE.md's "Virtual Team — Address by Name" table: Maya, Rex,
+    Ava, Leo, Kai, Quinn, Riley) shows that name as a small badge on the
+    step and in its hover tooltip, and the **Next** box adds a second
+    line with a ready-to-type natural-language ask —
+    e.g. `💬 Or just say: "Maya, write the use cases for checkout"
+    (Maya — Business Analyst)` — so you don't need to look up which
+    slash command a step maps to. Steps that run before any persona
+    takes over (`/specify`, `GATE-1`) or that are a byproduct of another
+    command (the runbook, generated by `/implement`) have no persona
+    badge. A doc that already exists and is just awaiting review skips
+    the ask too — the phrasing is always creation-oriented ("create the
+    BRD"), which would misleadingly suggest the doc doesn't exist yet.
+    sdd-micro has no Virtual Team, so none of this ever appears there.
+- **Documents** — every generated doc and its `Status:` (Draft/Approved/etc.), with a best-effort "what's next" guess, including the same persona ask shown on the Full Pipeline's Next box when the next doc has an owner. Each doc has a **View** button that reads the raw `.md` straight from disk into the page — no need to leave the browser to check content.
 - **Tasks** — parsed from `tasks.md` (works with both the full packs' checkbox-based tasks and sdd-micro's `**Status:**` field)
 - **Token Usage** — the running totals from `token-usage.md`, if token usage logging is enabled for that feature
 - **Jira Export** — the Epic/Story/Task links from the progressive export (`docs/jira/{feature}/keys.yml`), if you've run `/jira-push` or `sdd jira push`
@@ -735,11 +838,22 @@ profile: work-cloud     # references a profile in ~/.sdd/config.yml
 
 jira:
   project_key: MYPROJ
+  # Optional: per-level overrides when Features live in one Jira project
+  # and Stories/Tasks live in another. Any level not listed falls back
+  # to project_key. Valid levels: feature, story, task, review, chg, cr.
+  # project_keys:
+  #   story: SUNT
+  #   task: SUNT
   issue_hierarchy:
     feature: Feature    # or "Epic" if your project has no Feature type
     story: Story
     task: Task
   parent_field: parent  # "parent" for next-gen; "customfield_10014" for classic
+  # Optional: per-level overrides for parent_field, for the same reason
+  # project_keys exists -- the level here is the CHILD being linked (e.g.
+  # "story" for a Story linking under its Epic).
+  # parent_field_by_level:
+  #   story: customfield_10014
   base_fields:
     priority_map:
       must-have:   High
@@ -747,19 +861,65 @@ jira:
       could-have:  Low
       wont-have:   Lowest
     labels: [sdd-generated]
+    # Optional: a fixed team name/ID stamped on every issue this CLI
+    # creates. Requires the matching custom_fields.team entry below.
+    # team: Team Phoenix
   custom_fields:
     story_points: customfield_10016   # run "sdd config fields" to find yours
+    # team: customfield_10100         # pairs with base_fields.team above
+  # Optional: per-level overrides for custom_fields, for the same reason
+  # project_keys exists -- a level in a different Jira project usually
+  # has a different custom field scheme too.
+  # custom_fields_by_level:
+  #   story:
+  #     story_points: customfield_99001
 
 confluence:
   space_key: ENG
   parent_page_id: "123456"
   page_map:
-    brd:     "My Project — Business Requirements"
-    hld:     "My Project — High-Level Design"
-    runbook: "My Project — Runbook"
+    brd:     "{feature} — Business Requirements"
+    hld:     "{feature} — High-Level Design"
+    runbook: "Runbook"   # living doc -- no {feature}, nests under the Project page
 ```
 
 Full reference: see `.specify/integrations.yml.example`.
+
+**`project_keys` cross-project caveat:** Jira's parent/Epic-Link field
+generally does not support linking issues across different Jira
+projects — true cross-project hierarchy needs Advanced Roadmaps (Jira
+Premium), not the standard REST API this CLI uses. If you override a
+level to a different project than its parent level, the child issue is
+still created, but the parent link may silently fail to appear in Jira.
+`sdd jira push` never fails silently on this — it always prints a
+warning (`was not linked under ...`) when a parent link doesn't take, so
+check the CLI output after pushing if you use `project_keys`.
+
+### Rendering diagrams in Confluence
+
+Confluence has **no native Mermaid or PlantUML renderer**. By default, a
+` ```mermaid ` or ` ```plantuml ` fenced block in your `.md` files pushes to
+Confluence as plain syntax-highlighted text — the diagram source, not a
+rendered diagram. Three modes fix this, configured via `confluence.diagrams`:
+
+```yaml
+confluence:
+  diagrams:
+    mode: local-svg   # none (default) | local-svg | mermaid-app | plantuml-macro
+```
+
+| Mode | What it needs | Notes |
+|---|---|---|
+| `none` (default) | Nothing | Diagrams show as text, exactly as today |
+| `local-svg` | `pip install "sddflow[diagrams]"` (an optional extra — not installed by default) | Renders ` ```mermaid ` fences to SVG **entirely offline** — no Confluence app, no external network call at render time — then attaches the image to the page. The right choice if your org can't reach external services or can't install Confluence apps. Backed by [`mmdr`](https://pypi.org/project/mmdr/), a small (~18MB) Rust-based renderer with zero further dependencies — chosen after testing it against every diagram type (flowchart, sequenceDiagram, classDiagram, erDiagram) the SDD templates actually generate; a candidate that looked promising on paper (`mermaidx`) failed on flowchart stadium-shape nodes and classDiagram entirely, which is why this wasn't just picked from a package description. A missing dependency, or any single diagram that fails to render, falls back to a plain code block for that one diagram rather than failing the whole document push |
+| `mermaid_app` | A Mermaid-rendering Confluence app installed (10+ compete on the Atlassian Marketplace) + its macro name | Only affects ` ```mermaid ` fences; a fence with no `macro_name` configured falls back to plain text rather than a broken macro |
+| `plantuml_macro` | A PlantUML-rendering app (e.g. "PlantUML for Confluence") + its macro name | Only affects fences already written as ` ```plantuml ` — this does **not** convert Mermaid syntax to PlantUML, they're different diagram languages. Most of these apps render via the public `plantuml.com` server by default (an external network call); if your org can't reach external services, a Confluence admin needs to point the app at a self-hosted PlantUML server instead, or use `local-svg` above |
+
+A fourth mode, **`markdown-macro`** (delegate the whole page to a
+whole-document Markdown-rendering app that bundles Mermaid support), is
+planned but not yet implemented — these are Forge-based and use a different,
+less-guessable macro reference shape than the three modes above, and needs
+verified testing against a real installed app before it ships.
 
 ---
 

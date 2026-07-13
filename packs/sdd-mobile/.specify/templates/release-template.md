@@ -1,7 +1,8 @@
 # Release Plan
 # Feature: {Feature Name}
 > Version: 1.0 | Date: {date}
-> Run after: /implement — all tasks "PR ready" and merged
+> Run after: /implement — all tasks complete ("PR ready" + merged in
+> github mode, or "Task accepted" in local mode)
 > Gate before: production go-live (app store / OTA)
 
 ---
@@ -11,7 +12,7 @@
 |---|---|
 | tasks.md | {sections/IDs referenced} |
 | qa-testcases.summary.md | {sections/IDs referenced} |
-| docs/runbook/local-setup.md | {sections/IDs referenced} |
+| docs/runbook/local-setup.md (mvp+) | {sections/IDs referenced} |
 
 ## 1. Pre-Release Checklist
 

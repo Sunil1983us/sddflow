@@ -8,10 +8,11 @@ import pytest
 import yaml
 
 from sdd.commands.jira import (
-    parse_changeset, _push, _push_chg, _keys_path,
+    parse_changeset, _push, _push_chg, _keys_path, _push_uc_draft_stories, _push_stories,
+    _push_epic, _push_tasks,
 )
 from sdd.utils.integrations import JiraConfig
-from sdd.utils.sdd_parser import Story, Task
+from sdd.utils.sdd_parser import Story, Task, UseCase
 
 
 class FakeJiraClient:
@@ -138,6 +139,230 @@ class TestLevelScopedPush:
                     satisfies=[], estimate=None, description="", acceptance_criteria=[])
         _push(client, "feat", tmp_path, [story], [task], _cfg(), level="all")
         assert len(client.created) == 3  # Feature + Story + Task
+
+
+class RecordingFakeJiraClient(FakeJiraClient):
+    """Same fake, but also records the project_key argument every
+    find_by_label call was made with -- lets tests confirm a level's
+    lookup used the *overridden* key, not just that create used it."""
+    def __init__(self):
+        super().__init__()
+        self.find_by_label_calls: list[tuple[str, str]] = []
+
+    def find_by_label(self, project_key, label):
+        self.find_by_label_calls.append((project_key, label))
+        return super().find_by_label(project_key, label)
+
+
+class TestProjectKeysOverride:
+    """cfg.key_for(level) wiring -- when project_keys overrides a level,
+    every create_issue/find_by_label call for that level must use the
+    override, while un-overridden levels keep falling back to
+    project_key. Exercised through the public _push() entry point so
+    these tests catch regressions in the call-site wiring, not just in
+    JiraConfig.key_for() itself (already covered in
+    test_config_and_integrations.py)."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+    def _cfg_with_override(self, **project_keys):
+        return JiraConfig(project_key="SUN", project_keys=project_keys)
+
+    def test_epic_create_uses_feature_override(self, tmp_path):
+        client = RecordingFakeJiraClient()
+        cfg = self._cfg_with_override(feature="SUNF")
+        _push(client, "feat", tmp_path, [_story()], [], cfg, level="epic")
+        assert client.created[0]["project"]["key"] == "SUNF"
+
+    def test_epic_falls_back_to_project_key_when_not_overridden(self, tmp_path):
+        client = RecordingFakeJiraClient()
+        cfg = self._cfg_with_override(story="SUNT")  # only story overridden
+        _push(client, "feat", tmp_path, [_story()], [], cfg, level="epic")
+        assert client.created[0]["project"]["key"] == "SUN"
+
+    def test_story_create_and_epic_lookup_use_their_own_overrides(self, tmp_path):
+        client = RecordingFakeJiraClient()
+        client.by_label["sdd-feature:feat"] = {"key": "SUNF-1"}
+        cfg = self._cfg_with_override(feature="SUNF", story="SUNT")
+        _push(client, "feat", tmp_path, [_story()], [], cfg, level="story")
+
+        # Epic lookup (to find the parent to link under) used the feature key
+        assert ("SUNF", "sdd-feature:feat") in client.find_by_label_calls
+        # The Story itself was created under the story-level override
+        assert client.created[0]["project"]["key"] == "SUNT"
+
+    def test_task_create_and_story_lookup_use_their_own_overrides(self, tmp_path):
+        client = RecordingFakeJiraClient()
+        client.by_label["sdd:feat:STORY-001"] = {"key": "SUNT-1"}
+        cfg = self._cfg_with_override(story="SUNT", task="SUNK")
+        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
+                    satisfies=[], estimate=None, description="", acceptance_criteria=[])
+        _push(client, "feat", tmp_path, [_story()], [task], cfg, level="task")
+
+        # Story lookup (to find the parent to link the Task under) used the story key
+        assert ("SUNT", "sdd:feat:STORY-001") in client.find_by_label_calls
+        # The Task itself was created under the task-level override
+        assert client.created[0]["project"]["key"] == "SUNK"
+
+    def test_uc_draft_story_create_uses_story_override(self, tmp_path):
+        client = RecordingFakeJiraClient()
+        cfg = self._cfg_with_override(story="SUNT")
+        uc = UseCase(id="UC-001", title="Login")
+        _push_uc_draft_stories(client, "feat", [uc], cfg, epic_key=None)
+        assert client.created[0]["project"]["key"] == "SUNT"
+
+
+class TestCustomFieldsAndTeam:
+    """fields_for(level) wiring -- a story_points/etc. custom field ID
+    override for one level must not leak into another level's issues,
+    and the fixed cfg.team value (when configured) must be stamped on
+    every issue type this CLI creates, via whichever field "team" maps
+    to for that level."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+    def test_story_uses_story_level_custom_field_override(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(
+            project_key="MYPROJ",
+            custom_fields={"story_points": "customfield_10016"},
+            custom_fields_by_level={"story": {"story_points": "customfield_99001"}},
+        )
+        story = Story(id="STORY-001", title="Login", moscow="must-have",
+                       description="", acceptance_criteria=[], story_points=5,
+                       satisfies=[])
+        _push_stories(client, "feat", [story], cfg, epic_key=None)
+        assert client.created[0]["customfield_99001"] == 5
+        assert "customfield_10016" not in client.created[0]
+
+    def test_task_falls_back_to_common_mapping_when_not_overridden(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(
+            project_key="MYPROJ",
+            custom_fields={"acceptance_criteria": "customfield_10017"},
+            custom_fields_by_level={"story": {"acceptance_criteria": "customfield_99002"}},
+        )
+        task = Task(id="TASK-001", title="Endpoint", story_id=None,
+                    satisfies=[], estimate=None, description="",
+                    acceptance_criteria=["Returns 200"])
+        _push_tasks(client, "feat", [task], cfg, story_key_map={})
+        # task level has no override -- uses the common mapping, not story's
+        assert client.created[0]["customfield_10017"] == "Returns 200"
+
+    def test_team_stamped_on_epic_story_task_uc_draft_and_chg(self, tmp_path):
+        cfg = JiraConfig(
+            project_key="MYPROJ",
+            custom_fields={"team": "customfield_20000"},
+            team="Team Phoenix",
+        )
+        story = Story(id="STORY-001", title="Login", moscow="must-have",
+                       description="", acceptance_criteria=[], story_points=None,
+                       satisfies=["FR-003"])
+        task = Task(id="TASK-001", title="Endpoint", story_id=None,
+                    satisfies=[], estimate=None, description="",
+                    acceptance_criteria=[])
+        uc = UseCase(id="UC-001", title="Login")
+
+        epic_client = FakeJiraClient()
+        _push_epic(epic_client, "feat", tmp_path, cfg)
+        assert epic_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+        story_client = FakeJiraClient()
+        _push_stories(story_client, "feat", [story], cfg, epic_key=None)
+        assert story_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+        task_client = FakeJiraClient()
+        _push_tasks(task_client, "feat", [task], cfg, story_key_map={})
+        assert task_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+        uc_draft_client = FakeJiraClient()
+        _push_uc_draft_stories(uc_draft_client, "feat", [uc], cfg, epic_key=None)
+        assert uc_draft_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)])
+        chg_client = FakeJiraClient()
+        _push_chg(chg_client, "feat", cfg, "CR-001", tmp_path,
+                  [story], {"STORY-001": "PROJ-5"}, epic_key="PROJ-1")
+        assert chg_client.created[0]["customfield_20000"] == "Team Phoenix"
+
+    def test_team_not_stamped_when_unset(self, tmp_path):
+        """cfg.team defaulting to None must never send a team field, even
+        if custom_fields.team happens to be configured (e.g. left over
+        from a shared config template)."""
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ", custom_fields={"team": "customfield_20000"})
+        story = Story(id="STORY-001", title="Login", moscow="must-have",
+                       description="", acceptance_criteria=[], story_points=None,
+                       satisfies=[])
+        _push_stories(client, "feat", [story], cfg, epic_key=None)
+        assert "customfield_20000" not in client.created[0]
+
+
+class TestParentFieldOverride:
+    """parent_field_for(level) wiring -- the field used to link a CHILD
+    issue at a given level to its parent must honor a
+    parent_field_by_level override for that level, independently of
+    every other level's linking, while un-overridden levels keep using
+    the common parent_field."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+    def test_story_link_uses_story_level_override(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"story": "customfield_10014"})
+        story = Story(id="STORY-001", title="Login", moscow="must-have",
+                       description="", acceptance_criteria=[], story_points=None,
+                       satisfies=[])
+        _push_stories(client, "feat", [story], cfg, epic_key="EPIC-1")
+        assert client.parents == [("PROJ-1", "EPIC-1", "customfield_10014")]
+
+    def test_task_link_falls_back_when_story_override_does_not_apply(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"story": "customfield_10014"})
+        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
+                    satisfies=[], estimate=None, description="",
+                    acceptance_criteria=[])
+        _push_tasks(client, "feat", [task], cfg, story_key_map={"STORY-001": "STORY-1"})
+        # task level has no override -- default "parent" system field
+        assert client.parents == [("PROJ-1", "STORY-1", "parent")]
+
+    def test_task_link_uses_task_level_override(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"task": "customfield_10099"})
+        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
+                    satisfies=[], estimate=None, description="",
+                    acceptance_criteria=[])
+        _push_tasks(client, "feat", [task], cfg, story_key_map={"STORY-001": "STORY-1"})
+        assert client.parents == [("PROJ-1", "STORY-1", "customfield_10099")]
+
+    def test_uc_draft_story_link_uses_story_level_override(self, tmp_path):
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"story": "customfield_10014"})
+        uc = UseCase(id="UC-001", title="Login")
+        _push_uc_draft_stories(client, "feat", [uc], cfg, epic_key="EPIC-1")
+        assert client.parents == [("PROJ-1", "EPIC-1", "customfield_10014")]
+
+    def test_chg_link_uses_chg_level_override(self, tmp_path):
+        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)])
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ",
+                          parent_field_by_level={"chg": "customfield_10020"})
+        story = _story(satisfies=["FR-003"])
+        story_key_map = {"STORY-001": "PROJ-5"}
+        chg_map = _push_chg(client, "feat", cfg, "CR-001", tmp_path,
+                             [story], story_key_map, epic_key="PROJ-1")
+        chg_key = chg_map["CHG-001"]
+        assert client.parents == [(chg_key, "PROJ-5", "customfield_10020")]
 
 
 class TestChgPush:
@@ -284,3 +509,68 @@ class TestParentLinkFailureIsVisible:
         story = _story()
         _push(client, "feat", tmp_path, [story], [], _cfg(), level="story")
         assert len(client.created) == 1
+
+
+class TestUcDraftStories:
+    def test_creates_one_draft_story_per_uc(self):
+        client = FakeJiraClient()
+        use_cases = [
+            UseCase(id="UC-001", title="Submit payment"),
+            UseCase(id="UC-002", title="Reconcile settlement"),
+        ]
+        result = _push_uc_draft_stories(client, "feat", use_cases, _cfg(), epic_key=None)
+
+        assert len(client.created) == 2
+        assert result == {"UC-001": "PROJ-1", "UC-002": "PROJ-2"}
+        assert client.created[0]["summary"] == "UC-001 — Submit payment (draft)"
+        assert client.created[0]["issuetype"] == {"name": "Story"}
+        assert "sdd:feat:UC-001" in client.created[0]["labels"]
+
+    def test_parents_draft_stories_to_epic_when_given(self):
+        client = FakeJiraClient()
+        use_cases = [UseCase(id="UC-001", title="Submit payment")]
+        _push_uc_draft_stories(client, "feat", use_cases, _cfg(), epic_key="PROJ-1")
+        assert client.parents == [("PROJ-1", "PROJ-1", "parent")]
+
+    def test_rerun_updates_existing_draft_instead_of_duplicating(self):
+        client = FakeJiraClient()
+        client.by_label["sdd:feat:UC-001"] = {"key": "PROJ-9"}
+        use_cases = [UseCase(id="UC-001", title="Submit payment")]
+        result = _push_uc_draft_stories(client, "feat", use_cases, _cfg(), epic_key=None)
+
+        assert client.created == []
+        assert len(client.updated) == 1
+        assert client.updated[0][0] == "PROJ-9"
+        assert result == {"UC-001": "PROJ-9"}
+
+    def test_story_derived_from_uc_finalizes_the_draft_in_place(self):
+        """A stories.md Story with '**Derived from:** UC-001' must reuse
+        the UC's idempotency label -- finalizing the SAME issue
+        --level uc-draft created, not creating a second one."""
+        client = FakeJiraClient()
+        client.by_label["sdd:feat:UC-001"] = {"key": "PROJ-9"}
+        story = Story(id="STORY-001", title="Submit payment", moscow="must-have",
+                      description="As a user I want to pay",
+                      acceptance_criteria=[], story_points=3, satisfies=["FR-001"],
+                      derived_uc="UC-001")
+
+        story_key_map = _push_stories(client, "feat", [story], _cfg(), epic_key=None)
+
+        assert client.created == []  # updated the draft, not a new issue
+        assert len(client.updated) == 1
+        assert client.updated[0][0] == "PROJ-9"
+        assert client.updated[0][1]["summary"] == "STORY-001 — Submit payment"
+        assert story_key_map == {"STORY-001": "PROJ-9"}
+
+    def test_story_without_derived_uc_uses_its_own_story_id_label(self):
+        """Unchanged behavior: a Story with no single-UC origin still gets
+        its own sdd:{feature}:STORY-NNN label, exactly as before this
+        feature existed."""
+        client = FakeJiraClient()
+        story = _story()  # derived_uc defaults to None
+        assert story.derived_uc is None
+
+        _push_stories(client, "feat", [story], _cfg(), epic_key=None)
+
+        assert len(client.created) == 1
+        assert "sdd:feat:STORY-001" in client.created[0]["labels"]

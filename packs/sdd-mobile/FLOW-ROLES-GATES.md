@@ -146,7 +146,7 @@ prerequisite.
 |---|---|---|---|
 | **chat** *(default)* | none | Reviewer reads the doc in chat, says "approved" → agent flips `Status: Draft → Approved` | Doc header + git history |
 | **local** | `pip install sddflow` | Same, plus `sdd review approve --local` records who/when/why. Also usable from `sdd dashboard`'s Approve button | `.specify/.local-approvals.yml` |
-| **jira** | `.specify/integrations.yml` | `sdd review submit / check / apply` — a real Confluence page + Jira review task per document | Jira + Confluence |
+| **jira** | `.specify/integrations.yml` | `sdd review submit / check / apply` — a real Confluence page + Jira review story per document | Jira + Confluence |
 
 ---
 

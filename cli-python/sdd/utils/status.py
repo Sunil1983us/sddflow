@@ -119,14 +119,25 @@ def _feature_docs(root: Path, feature: str) -> list[dict]:
     return docs
 
 
-def _current_stage(docs: list[dict]) -> dict:
-    """Last pipeline-ordered doc that exists, plus a best-effort 'next' guess."""
+def _current_stage(docs: list[dict], feature: str = "this feature",
+                    scope: str | None = "pilot") -> dict:
+    """Last pipeline-ordered doc that exists, plus a best-effort 'next' guess
+    and (when the next doc has one) its Virtual Team persona hint. No hint
+    for the "(awaiting approval)" case -- the ask templates are all
+    creation-phrased and the doc already exists, waiting on a human
+    reviewer, not on the persona who'd create it."""
     known = [d for d in docs if d["key"] in _PIPELINE_ORDER]
     if not known:
-        return {"doc": None, "status": None, "next": PIPELINE_DOCS[0][1] if PIPELINE_DOCS else None}
+        first_key = PIPELINE_DOCS[0][0] if PIPELINE_DOCS else None
+        return {
+            "doc": None, "status": None,
+            "next": PIPELINE_DOCS[0][1] if PIPELINE_DOCS else None,
+            "persona": _persona_hint(first_key, feature, scope) if first_key else None,
+        }
     known.sort(key=lambda d: _PIPELINE_ORDER[d["key"]])
     last = known[-1]
     idx = _PIPELINE_ORDER[last["key"]]
+    next_key = PIPELINE_DOCS[idx + 1][0] if idx + 1 < len(PIPELINE_DOCS) else None
     next_label = PIPELINE_DOCS[idx + 1][1] if idx + 1 < len(PIPELINE_DOCS) else None
     status = (last["status"] or "").lower()
     awaiting_approval = status not in ("approved",) and status != ""
@@ -134,7 +145,17 @@ def _current_stage(docs: list[dict]) -> dict:
         "doc": last["label"],
         "status": last["status"],
         "next": ("(awaiting approval)" if awaiting_approval else next_label),
+        "persona": (None if awaiting_approval or not next_key
+                    else _persona_hint(next_key, feature, scope)),
     }
+
+
+def persona_for(step_id: str, feature: str, scope: str | None) -> dict | None:
+    """Public wrapper around the pipeline's Virtual Team persona lookup, for
+    callers outside build_pipeline/build_feature_status that want the same
+    hint (e.g. `sdd review status`, which reads document_reviews keys
+    directly rather than going through the pipeline)."""
+    return _persona_hint(step_id, feature, scope)
 
 
 def _service_docs_exist(root: Path) -> bool:
@@ -155,6 +176,65 @@ _SCOPE_ORDER = {"pilot": 0, "mvp": 1, "full": 2}
 
 def _scope_at_least(scope: str | None, minimum: str) -> bool:
     return _SCOPE_ORDER.get(scope or "pilot", 0) >= _SCOPE_ORDER[minimum]
+
+
+# Virtual Team roster (see each pack's CLAUDE.md "Virtual Team — Address by
+# Name" table) -- name -> role, for the persona hint shown in the tooltip
+# and next-action box. sdd-micro has no Virtual Team at all (its steps use
+# id "task", not "tasks", and are never looked up here since callers pass
+# scope=None for micro).
+_PERSONA_ROLE = {
+    "Maya":  "Business Analyst",
+    "Rex":   "Requirements Engineer",
+    "Ava":   "Software Architect",
+    "Leo":   "Lead Developer",
+    "Kai":   "Engineering Manager",
+    "Quinn": "QA Lead",
+    "Riley": "Release Manager",
+}
+
+# Pipeline step id -> (persona name, natural-language ask with a {feature}
+# placeholder). Addressing a persona by name (e.g. "Ava, design checkout")
+# works identically to running that step's slash command -- see each
+# pack's CLAUDE.md "Virtual Team" routing rule. Steps with no clear owner
+# (specify/gate1 -- run before any persona takes over; runbook -- a
+# byproduct of /implement, not something you ask for directly) are
+# intentionally absent from this map.
+_STEP_PERSONA = {
+    "brd":            ("Maya",  "create the BRD for {feature}"),
+    "use-cases":      ("Maya",  "write the use cases for {feature}"),
+    "srd":            ("Rex",   "write the SRD for {feature}"),
+    "extended-specs": ("Ava",   "write the data model and security design for {feature}"),
+    "checklist":      ("Quinn", "run the spec quality checklist for {feature}"),
+    "validate":       ("Maya",  "validate {feature}"),
+    "analyze":        ("Ava",   "run the cross-doc analysis on {feature}"),
+    "clarify":        ("Rex",   "clarify the open questions on {feature}"),
+    "design":         ("Ava",   "design {feature}"),
+    "arch":           ("Ava",   "design the architecture for {feature}"),
+    "hld":            ("Ava",   "write the high-level design for {feature}"),
+    "adr":            ("Ava",   "record the architecture decisions for {feature}"),
+    "lld":            ("Leo",   "write the low-level design for {feature}"),
+    "stories":        ("Kai",   "break {feature} into stories"),
+    "tasks":          ("Kai",   "break {feature} into tasks"),
+    "smoke-tests":    ("Kai",   "write smoke tests for {feature}"),
+    "qa-testcases":   ("Kai",   "write QA test cases for {feature}"),
+    "implement":      ("Leo",   "implement the next task for {feature}"),
+    "release":        ("Riley", "plan the release for {feature}"),
+}
+
+
+def _persona_hint(step_id: str, feature: str, scope: str | None) -> dict | None:
+    """Which Virtual Team member owns this step, plus an example
+    natural-language ask the user can type instead of memorizing the slash
+    command. None for sdd-micro (scope is None) and for steps with no
+    persona owner (see _STEP_PERSONA's docstring)."""
+    if scope is None:
+        return None
+    entry = _STEP_PERSONA.get(step_id)
+    if not entry:
+        return None
+    name, template = entry
+    return {"name": name, "role": _PERSONA_ROLE[name], "ask": template.format(feature=feature)}
 
 
 def _standard_pipeline_steps(scope: str | None, plan_mode: str) -> list[dict]:
@@ -262,7 +342,8 @@ def _next_action_sentence(step: dict, state: str, tasks: dict) -> str:
 
 
 def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_docs_exist: bool,
-                    plan_mode: str = "unified", scope: str | None = "pilot") -> dict:
+                    plan_mode: str = "unified", scope: str | None = "pilot",
+                    feature: str = "this feature") -> dict:
     """The full command sequence for this feature (every step this scope/
     plan_mode can ever produce, including skipped ones with a reason),
     each resolved to done/current/upcoming from what's actually on disk —
@@ -275,20 +356,29 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
     resolved: list[dict] = []
     next_action: str | None = None
     next_step_id: str | None = None
+    next_persona: dict | None = None
     for step in steps:
+        persona = _persona_hint(step["id"], feature, scope)
         if step.get("skip"):
-            resolved.append({**step, "state": "skipped"})
+            resolved.append({**step, "state": "skipped", "persona": persona})
             continue
         state = _step_state(step, docs_by_key, tasks, constitution, service_docs_exist)
-        resolved.append({**step, "state": state})
+        resolved.append({**step, "state": state, "persona": persona})
         if state != "done" and next_action is None:
             next_action = _next_action_sentence(step, state, tasks)
             next_step_id = step["id"]
+            # A doc "current"/awaiting-review isn't waiting to be *created* --
+            # the ask templates are all creation-phrased ("create the BRD"),
+            # which would misleadingly imply the doc doesn't exist yet. Only
+            # attach the persona ask when it's actually about to be done.
+            awaiting_review = step["kind"] == "doc" and state == "current"
+            next_persona = None if awaiting_review else persona
 
     return {
         "steps": resolved,
         "next_step_id": next_step_id,
         "next_action": next_action or "All pipeline steps complete for this feature.",
+        "next_persona": next_persona,
     }
 
 
@@ -481,7 +571,7 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
     return {
         "name": feature,
         "docs": docs,
-        "current_stage": _current_stage(docs),
+        "current_stage": _current_stage(docs, feature, scope),
         "tasks": tasks,
         "token_usage": _parse_token_usage(feature_dir / "token-usage.md"),
         "local_links": {
@@ -490,7 +580,7 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
         },
         "pipeline": build_pipeline(
             docs, tasks, constitution or _constitution_status(root),
-            _service_docs_exist(root), plan_mode, scope,
+            _service_docs_exist(root), plan_mode, scope, feature=feature,
         ),
     }
 

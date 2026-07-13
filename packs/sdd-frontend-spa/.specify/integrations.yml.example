@@ -16,7 +16,33 @@ profile: default
 
 jira:
   # Your Jira project key (the prefix on issue keys, e.g. MYPROJ-123)
+  # This is the default used at every hierarchy level unless overridden
+  # below in project_keys.
   project_key: MYPROJ
+
+  # Optional: per-level project key overrides, for orgs that keep
+  # Features/Epics in one Jira project and Stories/Tasks in another
+  # (e.g. Epic under "SUN", Story/Task under "SUNT"). Any level not
+  # listed here falls back to project_key above. Valid keys:
+  #   feature — the Epic/Feature created at /specify
+  #   story   — dev Stories (and UC-draft placeholder Stories)
+  #   task    — dev Tasks
+  #   review  — the review-gate Story each `sdd review submit` creates
+  #   chg     — CHG-NNN change-request tasks (see change_requests below)
+  #   cr      — CR-NNN change-request review tasks (sdd cr submit)
+  #
+  # ⚠  IMPORTANT: Jira's parent/Epic-Link field generally does NOT
+  # support linking issues across different Jira projects (this is a
+  # Jira Cloud/Server platform limitation, not an SDD bug — true
+  # cross-project hierarchy needs Advanced Roadmaps / Jira Premium).
+  # If you override a level to a different project than its parent
+  # level, the child issue will still be created, but the parent link
+  # may silently fail to appear in Jira — sdd jira push always prints a
+  # warning (never fails silently) when a parent link doesn't take, so
+  # watch for "was not linked under" in the output after pushing.
+  # project_keys:
+  #   story: SUNT
+  #   task: SUNT
 
   # Issue type names for the Feature → Story → Task hierarchy.
   #
@@ -40,6 +66,18 @@ jira:
   # after a push, switch to "customfield_10014".
   parent_field: parent
 
+  # Optional: per-level overrides for parent_field, for the same reason
+  # project_keys/custom_fields_by_level exist -- if a level's issues (via
+  # project_keys above) live in a different Jira project than the level
+  # they link under, that project may need a different parenting
+  # mechanism (e.g. the Epic's project is next-gen and uses "parent",
+  # but the Story/Task project is classic and needs the Epic Link custom
+  # field). The level here is the CHILD being linked -- e.g. "story" for
+  # linking a Story under its Epic, "task" for a Task under its Story.
+  # Any level not listed here falls back to parent_field above.
+  # parent_field_by_level:
+  #   story: customfield_10014
+
   base_fields:
     # Maps SDD MoSCoW priority labels to Jira priority names.
     # Jira priority names are case-sensitive and must match exactly.
@@ -49,14 +87,22 @@ jira:
       could-have:  Low
       wont-have:   Lowest
 
-    # Labels added to every issue created by sdd jira push.
-    # The idempotency labels (sdd:STORY-001 etc.) are added automatically
-    # and do not need to be listed here.
+    # Labels added to every issue this CLI creates -- Epic/Story/Task/CHG
+    # via sdd jira push, review-gate Stories via sdd review submit, and CR
+    # review tasks via sdd cr submit. The idempotency labels (sdd:STORY-001
+    # etc.) are added automatically and do not need to be listed here.
     labels: [sdd-generated]
 
     # Optional: pin all issues to a Jira fix version / release.
     # Must match an existing version name in your Jira project.
     # fix_version: v1.0
+
+    # Optional: a fixed team name/ID stamped on every issue this CLI
+    # creates (Epic, Story, Task, CHG, UC-draft Story) — same value on
+    # every one, not something that varies per story/task. Requires the
+    # matching custom_fields.team entry below (the field ID this value
+    # gets written into); if that's not set, this is silently ignored.
+    # team: Team Phoenix
 
   # Custom field IDs — these vary by Jira instance.
   # Run "sdd config fields" to list all custom fields for your instance.
@@ -73,7 +119,7 @@ jira:
   custom_fields:
     story_points: customfield_10016
     # acceptance_criteria: customfield_10021
-    # team:                customfield_10100
+    # team:                customfield_10100   # pairs with base_fields.team above
     # sprint:              customfield_10020
     #
     # Optional traceability fields — store SDD references as separate Jira
@@ -82,6 +128,17 @@ jira:
     # by SDD reference. Only set on Story/Task/CHG when configured here.
     # fr_reference:    customfield_10101   # e.g. "FR-001, FR-002"
     # moscow_priority: customfield_10105   # e.g. "must-have"
+
+  # Optional: per-level overrides for the custom field IDs above, for
+  # orgs where a level's issues live in a different Jira project (see
+  # project_keys above) with its own, different custom field scheme.
+  # Any (level, field) pair not listed here falls back to custom_fields.
+  # Valid levels: feature, story, task, review, chg, cr.
+  # custom_fields_by_level:
+  #   story:
+  #     story_points: customfield_99001
+  #   task:
+  #     acceptance_criteria: customfield_99002
 
 
 # ── Confluence ────────────────────────────────────────────────────────────────
@@ -106,30 +163,86 @@ confluence:
   #   ?pageId=123456  ← that number is the ID
   # parent_page_id: "123456"
 
-  # Page title templates for each SDD document type.
-  # {project} is replaced with the project name from manifest.yml at push time.
+  # Page HIERARCHY: every page nests under parent_page_id -> a "{project}"
+  # container page -> a "{feature}" container page (created automatically,
+  # idempotently, the first time any doc is pushed for that project/
+  # feature) -- except living/service-level documents (data-model,
+  # security-design, api-spec, component-library, runbook), which nest
+  # directly under the "{project}" page since they're shared across every
+  # feature, not per-feature. This is purely a navigation convenience.
+  #
+  # Page TITLE templates for each SDD document type.
   # {feature} is replaced with the active feature (or --feature override) at
-  # push time — include it for any per-feature document on a multi-feature
-  # project, or two features will upsert the SAME Confluence page and
-  # silently overwrite each other's content. Living/service-level documents
-  # (data-model, security-design, api-spec, component-library, runbook) are
-  # shared across every feature by design — {feature} is ignored for those
-  # even if present, so there's no harm leaving it out of their entries.
+  # push time -- keep it in every per-feature entry below. This is NOT just
+  # cosmetic: Confluence enforces page-title uniqueness per SPACE, not per
+  # parent page, so nesting under a Feature page does NOT stop two features'
+  # same-titled pages from colliding -- only {feature} in the title text
+  # does. Living/service-level documents don't need {feature} since they're
+  # shared across every feature by design (one page total, not one per
+  # feature).
   #
   # Only documents listed here are pushed. Remove any you don't want published.
   # Add extra entries if your team uses additional document types.
   page_map:
-    brd:       "{project} — Business Requirements — {feature}"
-    use-cases: "{project} — Use Cases — {feature}"
-    srd:       "{project} — System Requirements — {feature}"
-    design:    "{project} — Design — {feature}"                 # unified plan_mode
-    arch:      "{project} — Architecture Overview — {feature}"  # separate plan_mode
-    hld:       "{project} — High-Level Design — {feature}"      # separate plan_mode
-    adr:       "{project} — Architecture Decisions — {feature}" # separate plan_mode
-    lld:       "{project} — Low-Level Design — {feature}"
-    runbook:   "{project} — Runbook"                            # living — no {feature}
-    # validate: "{project} — Validation Report — {feature}"
-    # release:  "{project} — Release Notes — {feature}"
+    brd:       "{feature} — Business Requirements"
+    use-cases: "{feature} — Use Cases"
+    srd:       "{feature} — System Requirements"
+    design:    "{feature} — Design"                 # unified plan_mode
+    arch:      "{feature} — Architecture Overview"  # separate plan_mode
+    hld:       "{feature} — High-Level Design"      # separate plan_mode
+    adr:       "{feature} — Architecture Decisions" # separate plan_mode
+    lld:       "{feature} — Low-Level Design"
+    runbook:   "Runbook"                            # living — no {feature}, nests under {project}
+    # validate: "{feature} — Validation Report"
+    # release:  "{feature} — Release Notes"
+
+  # Diagram rendering: Confluence has NO native Mermaid or PlantUML
+  # renderer. By default (mode: none, or this whole section omitted), a
+  # ```mermaid or ```plantuml fenced block just shows as plain
+  # syntax-highlighted text, exactly like any other code fence — the
+  # diagram source, not a rendered diagram.
+  #
+  # diagrams:
+  #   mode: none   # none (default) | local-svg | mermaid-app | plantuml-macro
+  #
+  #   # Renders ```mermaid fences to SVG locally -- no Confluence app to
+  #   # install, no external network call at render time -- then attaches
+  #   # the image to the page. This is the option to use if your org
+  #   # can't reach external services or can't install Confluence apps.
+  #   # Requires the optional 'mmdr' package:
+  #   #     pip install "sddflow[diagrams]"
+  #   # A missing dependency, or any single diagram that fails to render,
+  #   # falls back to a plain code block for that one diagram rather than
+  #   # failing the whole document push.
+  #   local_svg: {}   # no options today -- placeholder for future ones
+  #
+  #   # Routes ```mermaid fences through the named macro of a
+  #   # Mermaid-rendering Confluence app you already have installed
+  #   # (there are 10+ competing apps on the Atlassian Marketplace — e.g.
+  #   # "Mermaid Macros for Confluence", "Mermaid Charts & Diagrams for
+  #   # Confluence" — each registers its own macro name; check your app's
+  #   # docs for the exact value). A ```mermaid fence with no macro_name
+  #   # configured silently falls back to a plain code block rather than
+  #   # emitting a broken macro reference.
+  #   mermaid_app:
+  #     macro_name: mermaid-cloud
+  #
+  #   # Only applies to fences already written as ```plantuml — this does
+  #   # NOT convert ```mermaid content to PlantUML syntax (they're
+  #   # different diagram languages, not mechanically translatable). Note:
+  #   # apps like "PlantUML for Confluence" render by sending your diagram
+  #   # source to plantuml.com by default (an external network call) — if
+  #   # your org can't reach external services, a Confluence admin needs
+  #   # to point the app at a self-hosted PlantUML render server instead
+  #   # (Confluence Settings → Apps → PlantUML), or use local_svg above.
+  #   plantuml_macro:
+  #     macro_name: plantuml
+  #
+  # A fourth mode, markdown-macro (delegate the WHOLE page body to an
+  # installed whole-document Markdown-rendering app), is planned but not
+  # yet available -- these are Forge-based and use a different,
+  # less-guessable macro reference shape than the modes above, and needs
+  # verified testing against a real installed app before it ships.
 
 
 # ── Document review gates ─────────────────────────────────────────────────────
@@ -155,6 +268,12 @@ confluence:
 # main spec-phase gate (brd/use-cases/srd/design/lld/tasks/runbook/
 # release) — add entries here for any other document you want a Jira/
 # Confluence review gate on.
+#
+# confluence_page keeps {feature} in the title for every per-feature entry
+# below, same reasoning as page_map above: `sdd review submit` nests pages
+# under {project} -> {feature} container pages automatically, but that
+# nesting alone does not prevent two features colliding on the same title
+# (Confluence enforces title uniqueness per space, not per parent page).
 # The specify-phase sequence depends on plan_mode (manifest.yml):
 #   unified  (default): BRD → Use Cases → SRD → Design       (design.md)
 #   separate:           BRD → Use Cases → SRD, then in the planning phase
@@ -170,28 +289,28 @@ document_reviews:
     reviewer_role:      Product Owner
     phase:              specify
     sequence:           1
-    confluence_page:    "{project} — Business Requirements"
+    confluence_page:    "{feature} — Business Requirements"
 
   use-cases:
     reviewer_jira_user: "6d8c9b3e1f4a2b5c0d7e9g32"   # BA's Jira accountId
     reviewer_role:      Business Analyst
     phase:              specify
     sequence:           2    # cannot submit until BRD approved
-    confluence_page:    "{project} — Use Cases"
+    confluence_page:    "{feature} — Use Cases"
 
   srd:
     reviewer_jira_user: "6d8c9b3e1f4a2b5c0d7e9g32"   # BA's Jira accountId
     reviewer_role:      Business Analyst
     phase:              specify
     sequence:           3    # cannot submit until Use Cases approved
-    confluence_page:    "{project} — System Requirements"
+    confluence_page:    "{feature} — System Requirements"
 
   design:                    # unified plan_mode only — remove for separate mode
     reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect's accountId
     reviewer_role:      Architect
     phase:              specify
     sequence:           4    # cannot submit until SRD approved
-    confluence_page:    "{project} — Design"
+    confluence_page:    "{feature} — Design"
 
   # ── planning phase ────────────────────────────────────────────────────────
   # separate plan_mode only — uncomment these three (and remove design: above).
@@ -201,21 +320,21 @@ document_reviews:
   #   reviewer_role:      Architect
   #   phase:              planning
   #   sequence:           1
-  #   confluence_page:    "{project} — Architecture Overview"
+  #   confluence_page:    "{feature} — Architecture Overview"
   #
   # hld:
   #   reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # same Architect
   #   reviewer_role:      Architect
   #   phase:              planning
   #   sequence:           2    # cannot submit until Arch approved
-  #   confluence_page:    "{project} — High-Level Design"
+  #   confluence_page:    "{feature} — High-Level Design"
   #
   # adr:
   #   reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect
   #   reviewer_role:      Architect
   #   phase:              planning
   #   sequence:           3    # cannot submit until HLD approved
-  #   confluence_page:    "{project} — Architecture Decisions"
+  #   confluence_page:    "{feature} — Architecture Decisions"
 
   lld:
     reviewer_jira_user: "8f0e1d5g3h6c4d7e2f9g1i54"   # Tech Lead's accountId
@@ -223,7 +342,7 @@ document_reviews:
     phase:              planning
     sequence:           4    # separate mode: cannot submit until ADR approved;
                              # unified mode: no predecessor (arch/hld/adr absent)
-    confluence_page:    "{project} — Low-Level Design"
+    confluence_page:    "{feature} — Low-Level Design"
 
   # ── tasks phase ──────────────────────────────────────────────────────────
   tasks:
@@ -231,7 +350,7 @@ document_reviews:
     reviewer_role:      Scrum Master
     phase:              tasks
     sequence:           1
-    confluence_page:    "{project} — Task Breakdown"
+    confluence_page:    "{feature} — Task Breakdown"
 
   # ── release phase (Runbook → Release) ───────────────────────────────────
   runbook:
@@ -246,7 +365,7 @@ document_reviews:
     reviewer_role:      Release Manager
     phase:              release
     sequence:           2    # cannot submit until Runbook approved
-    confluence_page:    "{project} — Release Notes"
+    confluence_page:    "{feature} — Release Notes"
 
 
 # Jira task statuses that count as approval

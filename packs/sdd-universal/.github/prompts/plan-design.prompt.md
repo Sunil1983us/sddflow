@@ -222,46 +222,48 @@ update its Running Totals table. If the file still doesn't exist, skip
 this silently — do not create it and do not mention it.
 <!-- shared:token-usage-log-step:end -->
 
-### Stakeholder Review and Approval
+### Submit for Review
 
-**Step A — Stakeholder commenting (Confluence only)**
+`doc_key` = `design`.
 
-Check whether `.specify/integrations.yml` has a `confluence:` section.
+<!-- shared:submit-for-review-step:start -->
+Check `.specify/integrations.yml` for `confluence:` and `jira:` sections.
 
-If yes — push draft:
+**Both configured — submit immediately.** This pushes the document to
+Confluence AND creates the Jira review Story in one call, right now —
+there is no separate "push a draft, wait, then submit" staging step;
+both happen together the moment the document is generated:
 ```bash
-sdd confluence draft --doc design
+sdd review submit --doc {doc_key}
 ```
 Tell the user:
-> "Design document draft pushed to Confluence — open the link above.
-> Tech Lead and Architect can comment on architecture decisions, diagrams,
-> and API contracts. Say **'done'** when reviewed and I'll pull the
-> comments, incorporate them, then submit for formal approval."
+> "Pushed to Confluence and submitted for Jira review — see the links
+> above. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once it's
+> reviewed, or just check back with me any time — I'll poll Jira for you."
 
-When the user says **"done"**:
-1. Run automatically:
-   ```bash
-   sdd confluence pull --doc design
-   ```
-2. If the pulled file contains a `## Confluence Comments` section:
-   - Map each comment to the DEC-NNN, endpoint, or ADR it addresses
-   - Resolve `[ASSUMPTION-NNN]` or `[NEEDS CLARIFICATION]` markers
-   - Update `design.md`, remove the comments section, re-save `design.md` and `design.summary.md`
-3. Submit for formal approval (continue to Step B).
+If the command fails, say so briefly and fall back to the chat-mode
+prompt below instead.
 
-**Step B — Formal submission**
-
-Submit to Jira (with or without Confluence):
+**Only `confluence:` configured (no `jira:`)** — no formal Jira gate
+exists yet; push a draft for informal stakeholder comments instead:
 ```bash
-sdd review submit --doc design
+sdd confluence draft --doc {doc_key}
 ```
-If the command succeeds, tell the user:
-> "Design document submitted for Jira review. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once the reviewer approves."
+> "Draft pushed to Confluence — open the link above. Stakeholders can
+> comment on any section. Say **'done'** when reviewed and I'll pull the
+> comments, incorporate them, then ask you to approve in chat."
 
-If the CLI fails or is not configured, present the document and ask:
-> "Design document generated. Review it above and reply **'approved'** (or 'yes', 'LGTM', 'looks good') to continue, or provide feedback:"
+When the user says **"done"**: run `sdd confluence pull --doc {doc_key}`
+automatically. If the pulled file contains a `## Confluence Comments`
+section, resolve each `[NEEDS CLARIFICATION]`/`[ASSUMPTION-NNN]` it
+answers, update the document, remove the comments section, and re-save
+the document and its `.summary.md`. Then present it and ask for
+**'approved'**.
 
-**Step C.** `doc_key` = `design`.
+**Neither configured (chat mode)** — present the document above and ask:
+> "Generated. Review it above and reply **'approved'** (or 'yes', 'LGTM')
+> to continue, or provide feedback:"
+<!-- shared:submit-for-review-step:end -->
 
 <!-- shared:review-decision-step:start -->
 **On review response** — trigger this whenever the user's message indicates
@@ -276,24 +278,42 @@ these should trigger this step.
    and follow its exit code:
    - **Exit 0 (APPROVED)** — continue to step 2 below.
    - **Exit 1 (NEEDS REVISION)** — the command prints the reviewer's
-     comments. Read each one, edit the document to address the feedback,
-     then run `sdd review apply --doc {doc_key}`. Tell the user the
-     document has been updated per the review comments and the reviewer
-     has been notified — then **STOP**. Do not continue to step 2; wait
-     for the user to check back in.
+     comments (this also surfaces comments left via the dashboard when
+     Jira is configured — dashboard comments mirror to the doc's Jira
+     review ticket). Read each one, edit the document to address the
+     feedback, apply **Revision Logging** below, then run
+     `sdd review apply --doc {doc_key}`. Tell the user the document has
+     been updated per the review comments and the reviewer has been
+     notified — then **STOP**. Do not continue to step 2; wait for the
+     user to check back in.
    - **Exit 2 (PENDING)** — tell the user the document is still awaiting
      review by the accountable role (see roles.yml) — **STOP**, do not
      continue to step 2.
    - **CLI not configured, or the command is unavailable** — this is
      chat-mode review: if the user's message was an explicit approval
      signal, continue to step 2. Otherwise treat their message as direct
-     feedback — apply it to the document yourself and ask for re-review;
-     do not continue to step 2.
+     feedback (including feedback the user relays from a local-mode
+     dashboard comment, which has no Jira ticket to poll) — apply
+     **Revision Logging** below, then ask for re-review; do not continue
+     to step 2.
+
+**Revision Logging** — every time reviewer feedback causes a content edit,
+regardless of which mode surfaced it (a Jira comment via `sdd review
+check`, a dashboard comment, or feedback relayed directly in chat):
+increment the document's `Version:` header (`1.0` → `1.1`, `1.1` → `1.2`,
+...) and append a row to its `## Version History` table:
+`| {new version} | {today} | {reviewer name if known, else "reviewer feedback"} | {1-sentence summary of what changed} | — |`
+— the same discipline `/change` already uses for post-approval CRs. Skip
+only if the feedback needed no content change (e.g. a clarifying question
+you answered without editing the document).
+
 2. Update the document header: flip its `Status:` value (`Draft` or
    `Proposed`) to `Approved`, date → today.
 3. Update the Approvals table: all Pending rows → `Approved` + today's
-   date. Version History: append
-   `| 1.0 | {today} | {jira or chat} | Approved | — |`
+   date. Version History: append a row using the document's **current**
+   version (a pure approval doesn't bump it — only Revision Logging
+   above does that):
+   `| {current version} | {today} | {jira or chat} | Approved | — |`
 4. Re-save the document and regenerate its `.summary.md`.
 5. Ask once: "Recording the approval — approver name/role and an optional
    comment?" (defaults: the accountable role for this gate in roles.yml;

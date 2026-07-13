@@ -82,7 +82,10 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
 
     cr_text    = cr_file.read_text()
     cr_summary = _extract_cr_summary(cr_text)
-    page_title = f"{project_name} — {cr_id}: {cr_summary}"[:200]
+    # Feature name (not project name) keeps this collision-safe: Confluence
+    # enforces title uniqueness per SPACE, so two features could otherwise
+    # push the same CR id (e.g. both have a "CR-001") to the same title.
+    page_title = f"{feature_name} — {cr_id}: {cr_summary}"[:200]
 
     console.print(f"  CR file  : [cyan]{cr_file}[/cyan]")
     console.print(f"  Title    : [cyan]{page_title}[/cyan]")
@@ -105,14 +108,17 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
     # ── Push CR record to Confluence ─────────────────────────────────────────
     if cfg.confluence:
         cf_client = ConfluenceClient(session, prof.base_url)
-        body_html = md_to_storage(cr_text)
+        body_html, attachments = md_to_storage(cr_text, cfg.confluence.diagrams)
         try:
+            from sdd.commands.confluence import resolve_feature_parent_id, upload_diagram_attachments
+            parent_id = resolve_feature_parent_id(cf_client, cfg.confluence, project_name, feature_name)
             page, created = cf_client.upsert_page(
                 cfg.confluence.space_key,
                 page_title,
                 body_html,
-                cfg.confluence.parent_page_id,
+                parent_id,
             )
+            upload_diagram_attachments(cf_client, page["id"], attachments)
             action   = "[green]created[/green]" if created else "[dim]updated[/dim]"
             web_ui   = page.get("_links", {}).get("webui", "")
             page_url = f"{prof.base_url}/wiki{web_ui}" if web_ui else ""
@@ -128,7 +134,8 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
     if cfg.jira:
         jira_client      = JiraClient(session, prof.base_url)
         idempotency_label = f"sdd-cr:{cr_id.lower()}"
-        existing          = jira_client.find_by_label(cfg.jira.project_key, idempotency_label)
+        cr_project_key    = cfg.jira.key_for("cr")
+        existing          = jira_client.find_by_label(cr_project_key, idempotency_label)
 
         reviewer_id = (
             reviewer
@@ -143,10 +150,14 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
             f"To REQUEST CHANGES: add comments and leave the task open."
         )
         fields: dict = {
-            "project":   {"key": cfg.jira.project_key},
+            "project":   {"key": cr_project_key},
             "issuetype": {"name": cfg.jira.issue_hierarchy.get("task", "Task")},
             "summary":   f"Review: {project_name} — {cr_id}",
-            "labels":    ["sdd-cr", idempotency_label],
+            # cfg.jira.labels (base_fields.labels, e.g. "sdd-generated") is
+            # applied here the same way _upsert_issue() applies it to every
+            # Epic/Story/Task/CHG issue -- CR review tasks aren't a
+            # separate shape, they just don't route through _upsert_issue().
+            "labels":    cfg.jira.labels + ["sdd-cr", idempotency_label],
             "description": {
                 "type": "doc", "version": 1,
                 "content": [{"type": "paragraph", "content": [
@@ -156,6 +167,10 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
         }
         if reviewer_id:
             fields["assignee"] = {"accountId": reviewer_id}
+        # Fixed team stamp (base_fields.team), same as every other issue
+        # type -- no other custom_fields entries apply here.
+        from sdd.commands.jira import _apply_team_field
+        _apply_team_field(fields, cfg.jira, "cr")
 
         try:
             if existing:
@@ -204,7 +219,7 @@ def cr_check(cr, profile):
         raise SystemExit(1)
 
     client = JiraClient(session, prof.base_url)
-    issue  = client.find_by_label(cfg.jira.project_key, f"sdd-cr:{cr_id.lower()}")
+    issue  = client.find_by_label(cfg.jira.key_for("cr"), f"sdd-cr:{cr_id.lower()}")
 
     if not issue:
         console.print(f"  [dim]·  {cr_id} — NOT SUBMITTED[/dim]")

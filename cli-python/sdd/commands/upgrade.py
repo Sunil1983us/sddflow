@@ -3,6 +3,7 @@ import click
 from rich.console import Console
 
 from sdd.utils.manifest import read_manifest, patch_manifest, MANIFEST_PATH, SDD_VERSION
+from sdd.utils.scaffold import ALL_PACKS, TYPE_TO_PACK, UNIVERSAL_PACK, sync_pack_prompts
 
 console = Console()
 
@@ -962,11 +963,815 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.29"},
     },
+    {
+        "from":        "2.7.29",
+        "to":          "2.7.30",
+        "description": "Feature: sdd upgrade --sync-prompts -- re-copies .github/prompts/ and .claude/commands/ from the current pack into an already-scaffolded project, since plain `sdd upgrade` only ever patches manifest.yml's sdd_version and never touches prompt file content; sdd init now also records a new `pack` manifest field",
+        "notes": [
+            "Root cause of a real user-reported confusion: after several "
+            "prompt-content fixes shipped in 2.7.24/2.7.26/2.7.27 (review-"
+            "decision-step wiring, token-usage-log-step placement and "
+            "stale-context wording), the user upgraded the sddflow package "
+            "and still saw the old, unfixed behavior in their existing "
+            "test project -- because sdd init copies .github/prompts/ and "
+            ".claude/commands/ into a project exactly once, at scaffold "
+            "time, and sdd upgrade has never re-synced them",
+            "New sdd/utils/scaffold.py:sync_pack_prompts() diffs each file "
+            "in those two directories against the installed pack's "
+            "current version; unchanged files are left alone, changed "
+            "files are backed up to .specify/.prompt-sync-backups/"
+            "{timestamp}/ before being overwritten (so a project with "
+            "hand-edited prompts never silently loses those edits), and "
+            "missing files are added",
+            "sdd upgrade --sync-prompts shows a preview (updated/added/"
+            "unchanged counts and filenames) and asks for confirmation "
+            "before writing anything, unless --yes is passed; runs even "
+            "when the project is already at the current sdd_version, "
+            "since that check and this one are orthogonal",
+            "Which pack to sync from is resolved via --pack flag > "
+            "manifest.yml's new 'pack' field (written by sdd init on "
+            "every new project going forward) > inferred from "
+            "project_type > sdd-universal as a last resort -- an inferred "
+            "guess is always labeled as such in the output, since "
+            "projects scaffolded before this release have no 'pack' field "
+            "recorded and the guess could be wrong (e.g. someone who used "
+            "sdd-universal for a backend-service-typed project)",
+            "26 new tests (7 in test_scaffold.py for sync_pack_prompts "
+            "itself -- add/update/unchanged/backup/dry-run/out-of-scope-"
+            "dirs-untouched/unknown-pack; 19 in test_upgrade.py for pack "
+            "resolution and the CLI flag's preview/confirm/cancel/--yes/"
+            "already-current-version paths); also verified live end-to-"
+            "end against the real bundled packs (sdd init, hand-stale a "
+            "prompt file, sdd upgrade --sync-prompts, confirm/cancel both "
+            "paths, re-run to confirm idempotency)",
+            "New manifest.yml field: 'pack' (string, e.g. "
+            "'sdd-backend-service') -- written by sdd init only on a "
+            "fresh scaffold; this migration does not backfill it onto "
+            "existing projects, since sdd upgrade has no reliable way to "
+            "know which pack an existing project was scaffolded from "
+            "(that's exactly the gap --pack/inference exists to cover)",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.30"},
+    },
+    {
+        "from":        "2.7.30",
+        "to":          "2.7.31",
+        "description": "Feature: Jira Epic/Story/Task hierarchy overhaul -- Epic now created at /specify (before any spec doc exists), review tickets are Story issues (not Task) parented to the Epic, Confluence + Jira submission happen together immediately (no more 'push a draft, wait for done, then submit' staging step), and specify-uc pushes a draft Story per use case that /task finalizes in place; no manifest schema changes",
+        "notes": [
+            "User-requested redesign, in four parts, confirmed via explicit "
+            "design choices before implementation: (1) Epic/Feature "
+            "created right after /specify generates the constitution, "
+            "not lazily on first `sdd review submit`; (2) review tickets "
+            "(BRD, Use Cases, SRD, Design/Arch/HLD/ADR, LLD, Tasks, "
+            "Runbook, Release) are now issue type Story, not Task, so "
+            "they sit at the same hierarchy level as dev Stories under "
+            "the Epic -- Epic -> Story -> Task throughout, review tickets "
+            "included; (3) `sdd review submit` (Confluence push + Jira "
+            "Story creation) now runs immediately when a document is "
+            "generated, replacing the old two-stage 'push a Confluence-"
+            "only draft, wait for the user to say done, then formally "
+            "submit to Jira' flow; (4) `sdd jira push --level uc-draft` "
+            "(new) creates one lightweight placeholder Story per UC-NNN "
+            "right after /specify-uc, which /task later finalizes in "
+            "place -- via a new '**Derived from:** UC-NNN' field on "
+            "stories that trace 1:1 to a single use case -- instead of "
+            "creating a second, separate issue for the same use case",
+            "New shared block epic-bootstrap-step.md wired into all 5 "
+            "packs' specify.prompt.md (via the blocks sync system, not "
+            "full-file sync, since specify.prompt.md differs per pack)",
+            "New shared block submit-for-review-step.md replaces the old "
+            "duplicated Step A/B Confluence-then-Jira prose in 9 command "
+            "prompts (specify-brd/uc/srd/doc, plan-design/arch/hld/adr/"
+            "lld) -- 5 of these previously had the two-stage pattern, 4 "
+            "(plan-arch/hld/adr/lld) already called `sdd review submit` "
+            "directly and were converted to the shared block for "
+            "consistency, not because they were broken",
+            "review.py: review ticket issuetype changed from "
+            "issue_hierarchy.get('task', 'Task') to "
+            "issue_hierarchy.get('story', 'Story'); "
+            "_link_review_task_to_epic renamed to "
+            "_link_review_story_to_epic; review_submit now also records "
+            "its Confluence page in the same .confluence-drafts.json "
+            "drafts file `sdd confluence draft` uses, so `sdd confluence "
+            "pull --doc {doc}` still works after this change even though "
+            "the separate draft-push step is gone",
+            "jira.py: new _push_uc_draft_stories() function and 'uc-draft' "
+            "--level choice (deliberately excluded from --level all, "
+            "since it's a one-time bootstrap tied to /specify-uc, not "
+            "part of the regular epic -> story -> task progression); "
+            "_push_stories() now reuses a UC's idempotency label "
+            "(sdd:{feature}:UC-NNN) instead of minting a new "
+            "sdd:{feature}:STORY-NNN one when a Story's new derived_uc "
+            "field is set, so the SAME Jira issue gets finalized in "
+            "place rather than duplicated",
+            "sdd_parser.py: new UseCase dataclass + parse_use_cases(); "
+            "Story dataclass gained a derived_uc: str | None field, "
+            "parsed from a '**Derived from:** UC-NNN' line -- only "
+            "present when a story traces 1:1 back to a single use case, "
+            "per task.prompt.md's own instruction; omitted otherwise, "
+            "falling back to today's STORY-NNN-keyed labeling unchanged",
+            "sdd init now writes a new 'pack' field to manifest.yml "
+            "(unrelated to this feature directly, carried over from "
+            "2.7.30's --sync-prompts work) -- not touched further here",
+            "26 new tests across test_jira_push_levels.py (UC draft "
+            "creation, re-run idempotency, derived_uc reuse, unchanged "
+            "no-derived_uc behavior), test_sdd_parser.py (new file: "
+            "derived_uc extraction, parse_use_cases), and "
+            "test_review_helpers.py (Confluence drafts-file bookkeeping "
+            "on review submit, plus the _link_review_story_to_epic "
+            "rename)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.31"},
+    },
+    {
+        "from":        "2.7.31",
+        "to":          "2.7.32",
+        "description": "Feature: per-issue-type Jira project key overrides -- new integrations.yml jira.project_keys: {level: KEY} block lets an org keep its Epic/Feature in one Jira project and Stories/Tasks (or review tickets, CRs, CHGs) in another; every project-key call site now resolves through JiraConfig.key_for(level) instead of the single project_key field; no manifest schema changes",
+        "notes": [
+            "User-requested: 'cfg.jira.project_key is only KEY, there are "
+            "possible that org can have different project key for type of "
+            "ticket ... I have to have configuration as much as possible'",
+            "integrations.py: JiraConfig gained project_keys: dict "
+            "(default {}) and a key_for(level) method -- returns "
+            "project_keys.get(level, project_key); every level not listed "
+            "in project_keys silently falls back to the single "
+            "project_key, so existing integrations.yml files with no "
+            "project_keys: block are unaffected",
+            "Valid levels: feature (the Epic/Feature created at "
+            "/specify), story (dev Stories + UC-draft placeholder "
+            "Stories), task (dev Tasks), review (the review-gate Story "
+            "each `sdd review submit` creates), chg (CHG-NNN "
+            "change-request tasks), cr (CR-NNN change-request review "
+            "tasks from `sdd cr submit`)",
+            "jira.py, review.py, cr.py, pr.py, dashboard.py: every "
+            "cfg.jira.project_key / jira_cfg.project_key call site that "
+            "picks a project for a create/find-by-label call converted "
+            "to cfg.jira.key_for(<level>); _find_story_key's signature "
+            "changed from (client, project_key, feature_name, story_id) "
+            "to (client, project_key, feature_name, story) -- it now "
+            "checks the UC-derived label before falling back to the "
+            "STORY-NNN label, fixing a latent bug where a UC-derived "
+            "story's real key could be missed entirely when --level task "
+            "ran in a separate invocation from --level story",
+            "sdd jira push's status header now prints any configured "
+            "project_keys overrides plus a standing warning when any are "
+            "set",
+            "IMPORTANT CAVEAT (documented in integrations.yml.example "
+            "and README.md, not a bug): Jira's parent/Epic-Link field "
+            "generally does not support linking issues across different "
+            "Jira projects on the standard REST API this CLI uses -- "
+            "true cross-project hierarchy needs Advanced Roadmaps (Jira "
+            "Premium). If project_keys puts a child level in a different "
+            "project than its parent level, the child issue is still "
+            "created but the parent link may silently fail to appear in "
+            "Jira. This was already covered by the existing "
+            "_warn_parent_link_failed() safety net (prints 'was not "
+            "linked under ...' rather than swallowing the error), which "
+            "this feature relies on rather than duplicating",
+            "7 new tests: 2 in test_config_and_integrations.py (key_for "
+            "default-empty-dict and override-specific-levels), 5 across "
+            "test_jira_push_levels.py (TestProjectKeysOverride -- epic/"
+            "story/task/uc-draft create + parent-lookup calls all use "
+            "their level's override) and test_review_helpers.py "
+            "(_ensure_epic under a feature override; failed-link warning "
+            "names the review-level override, not the base project_key)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.32"},
+    },
+    {
+        "from":        "2.7.32",
+        "to":          "2.7.33",
+        "description": "Feature: per-level custom field ID overrides + fixed team field -- new integrations.yml jira.custom_fields_by_level: {level: {field: id}} block overrides the common custom_fields mapping per level, and base_fields.team + custom_fields.team stamps a fixed team name/ID on every issue created; no manifest schema changes",
+        "notes": [
+            "User-requested follow-on to 2.7.32's project_keys: 'They "
+            "need to have team name, story point, acceptance criteria, "
+            "and they can have some customer field also .. can it send "
+            "the field as per the configuration .. they have have "
+            "project specific or common'",
+            "Motivation: if project_keys (2.7.32) puts a level's issues "
+            "in a different Jira project than another level's, that "
+            "project almost always has different custom field IDs too "
+            "-- not just a different project key -- so a single common "
+            "custom_fields mapping would silently write to the wrong "
+            "(or a nonexistent) field ID on that project",
+            "integrations.py: JiraConfig gained custom_fields_by_level: "
+            "dict (default {}) and a fields_for(level) method -- merges "
+            "custom_fields_by_level.get(level, {}) over the common "
+            "custom_fields dict, override wins per-key, mirroring "
+            "key_for()'s fallback semantics; every project with no "
+            "custom_fields_by_level entries behaves exactly as before",
+            "JiraConfig also gained team: str | None (parsed from "
+            "base_fields.team) -- a single fixed value (e.g. 'Team "
+            "Phoenix'), the same on every issue, not something that "
+            "varies per story/task; confirmed explicitly by the user as "
+            "the intended semantics before implementation",
+            "jira.py: every custom-field call site (feature_extra_fields, "
+            "_push_stories, _push_tasks, _push_chg, "
+            "_push_uc_draft_stories) now reads cfg.fields_for(level) "
+            "instead of cfg.custom_fields directly; new "
+            "_apply_team_field() helper stamps cfg.team via "
+            "fields_for(level)['team'] on every issue type when both are "
+            "configured, no-ops otherwise",
+            "8 new tests: 4 in test_config_and_integrations.py "
+            "(fields_for default/override, team default/parsed), 4 in "
+            "test_jira_push_levels.py (TestCustomFieldsAndTeam -- "
+            "per-level custom field override doesn't leak to other "
+            "levels, team stamped on Epic/Story/Task/UC-draft/CHG, team "
+            "never sent when cfg.team is unset even if the field ID is "
+            "configured)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.33"},
+    },
+    {
+        "from":        "2.7.33",
+        "to":          "2.7.34",
+        "description": "Fix: sdd review submit / sdd cr submit were silently skipping base_fields.labels and the team stamp that every other issue type gets; add jira.parent_field_by_level per-level override, same pattern as project_keys/custom_fields_by_level; no manifest schema changes",
+        "notes": [
+            "User-requested field audit ('Can you check all fields while "
+            "sending to api for jira?') surfaced two real gaps, not just "
+            "documentation drift: review.py's review_submit() and cr.py's "
+            "cr_submit() hand-build their Jira `fields` dict directly "
+            "rather than routing through jira.py's _upsert_issue() (the "
+            "function every Epic/Story/Task/CHG issue goes through) -- "
+            "both had silently dropped cfg.jira.labels (base_fields.labels, "
+            "e.g. the default 'sdd-generated' label) and never applied "
+            "base_fields.team, even when configured",
+            "Fix: review_submit's fields['labels'] is now "
+            "cfg.jira.labels + ['sdd-review', idempotency_label] (was: "
+            "hardcoded to just the latter two); cr_submit's is now "
+            "cfg.jira.labels + ['sdd-cr', idempotency_label]; both now "
+            "call jira.py's _apply_team_field() helper so a configured "
+            "team is stamped on review/CR tickets exactly like it already "
+            "was on Epic/Story/Task/CHG issues. No other custom_fields "
+            "entries (story_points/acceptance_criteria/etc.) are applied "
+            "to review/CR tickets -- those have no meaning on a review "
+            "ticket, this was a deliberate scope decision, not an "
+            "oversight",
+            "New JiraConfig.parent_field_by_level: dict + "
+            "parent_field_for(level) method, exact same fallback pattern "
+            "as key_for()/fields_for() from 2.7.32/2.7.33 -- lets an org "
+            "whose Story/Task Jira project (via project_keys) needs a "
+            "different parenting mechanism than the Epic's project (e.g. "
+            "one is next-gen and uses the 'parent' system field, the "
+            "other is classic company-managed and needs the Epic Link "
+            "custom field) express that per level. All 5 set_parent() "
+            "call sites (Story/UC-draft-Story/Task/CHG under their "
+            "parent in jira.py, review Story under Epic in review.py) "
+            "now resolve through parent_field_for(level) instead of the "
+            "single parent_field",
+            "10 new tests: 2 in test_config_and_integrations.py "
+            "(parent_field_for default/override), 5 in "
+            "test_jira_push_levels.py (TestParentFieldOverride -- each "
+            "set_parent() call site honors its own level's override), "
+            "2 in test_review_helpers.py (parent_field_for override on "
+            "the review-Epic link, plus a full review_submit() "
+            "end-to-end test confirming labels/team now reach the "
+            "created Story -- not just the extracted helper functions), "
+            "and a new test_cr.py (cr_submit() end-to-end, same "
+            "assertion for CR review tasks)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.34"},
+    },
+    {
+        "from":        "2.7.34",
+        "to":          "2.7.35",
+        "description": "Feature: Confluence page hierarchy (Project -> Feature -> doc pages), created automatically and idempotently -- fix: document_reviews.confluence_page titles never had {feature} substituted, only {project}, so two features submitting the same doc type silently overwrote each other's Confluence page; no manifest schema changes",
+        "notes": [
+            "User-requested: 'can we have created under sub pages .. create "
+            "a project page, under feature page and different steps pages "
+            "under feature?' -- every page now nests under parent_page_id "
+            "-> a Project container page -> a Feature container page, both "
+            "created idempotently the first time any doc is pushed for "
+            "that project/feature. Living/service-level docs (data-model, "
+            "security-design, api-spec, component-library, runbook) nest "
+            "directly under the Project page instead, since they're "
+            "shared across every feature",
+            "IMPORTANT CAVEAT verified before implementing (Confluence "
+            "enforces page-title uniqueness per SPACE, not per parent "
+            "page -- confirmed via Atlassian community docs): nesting is "
+            "purely a navigation convenience, it does NOT relax the need "
+            "for {feature} in the page title text. Two features' "
+            "same-titled pages would still collide even nested under "
+            "different Feature pages. This is why page_map/"
+            "document_reviews.confluence_page templates keep {feature} in "
+            "the title -- confirmed with the user before implementing, "
+            "since an earlier 'simplify titles now that nesting exists' "
+            "framing would have silently reintroduced the exact collision "
+            "bug fixed in 2.7.x's earlier 'Fix Confluence page-title "
+            "collision across features' work",
+            "REAL BUG FOUND AND FIXED: document_reviews.confluence_page "
+            "(used by sdd review submit/_push_doc_page, separate from "
+            "page_map used by sdd confluence push/draft) only ever had "
+            "{project} substituted in its title -- {feature} was never "
+            "substituted at all, in any of the 3 call sites (review_submit, "
+            "_push_doc_page, review_apply). Two features submitting the "
+            "same doc type (e.g. both push a BRD for review) would upsert "
+            "the SAME Confluence page, silently overwriting each other's "
+            "content -- the exact collision class already fixed for "
+            "page_map, just never applied to document_reviews.confluence_page. "
+            "All 3 call sites now do .replace('{feature}', feature_name) "
+            "in addition to .replace('{project}', project_name)",
+            "confluence.py: new _ensure_container_page() (idempotent "
+            "find-by-title-in-space, else create), resolve_feature_parent_id() "
+            "(Project -> Feature chain), resolve_doc_parent_id() (routes "
+            "living/service-level docs to the Project page instead of a "
+            "Feature page); wired into confluence_push, confluence_draft, "
+            "review.py's review_submit/_push_doc_page/review_apply, and "
+            "cr.py's cr_submit (which also dropped {project} from its CR "
+            "page title in favor of {feature}, matching the new "
+            "'feature-first' title convention)",
+            "_push_doc_page() signature changed: now takes feature_name "
+            "as a required third argument (previously computed nothing "
+            "about feature at all) -- callers in review.py's review_approve "
+            "and dashboard.py's approve endpoint updated to resolve and "
+            "pass it",
+            "_CONTEXT_PAGE_TITLE changed from '{project} — Context: "
+            "{feature}' to '{feature} — Context', matching the new "
+            "feature-first convention applied to page_map/"
+            "document_reviews.confluence_page in the shipped example",
+            "9 new tests: 8 in new test_confluence_hierarchy.py "
+            "(_ensure_container_page idempotency, resolve_feature_parent_id "
+            "Project->Feature chain and sharing across features, "
+            "resolve_doc_parent_id living-doc vs per-feature routing), 1 "
+            "regression test in test_review_helpers.py proving two "
+            "features no longer collide on the same review Confluence "
+            "page, plus fixes to 2 pre-existing tests whose expectations "
+            "matched the old title format",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.35"},
+    },
+    {
+        "from":        "2.7.35",
+        "to":          "2.7.36",
+        "description": "Feature: Confluence diagram-macro rendering modes (mermaid-app, plantuml-macro) -- new confluence.diagrams: config block routes ```mermaid/```plantuml fences through an installed Confluence app's macro instead of the plain code-block rendering; no manifest schema changes",
+        "notes": [
+            "User-reported: Mermaid diagrams pushed to Confluence only "
+            "ever showed as plain code text, never as a rendered "
+            "diagram -- root cause is that md_to_cf.py routed every "
+            "fenced code block, regardless of language, through "
+            "Confluence's built-in 'code' macro (a syntax-highlighted "
+            "text block), and Confluence has no native diagram renderer "
+            "at all",
+            "Researched (with web search) and ruled out several "
+            "approaches before implementing: Confluence's native "
+            "paste-markdown editor feature does not render Mermaid; "
+            "whole-document 'Markdown macro' apps and Mermaid-specific "
+            "apps both exist on the Atlassian Marketplace but are "
+            "org-installation-dependent; PlantUML apps require a "
+            "different diagram language (not mechanically convertible "
+            "from Mermaid) and by default call out to the public "
+            "plantuml.com server unless self-hosted",
+            "Shipped this round: new integrations.py DiagramsConfig "
+            "dataclass (ConfluenceConfig.diagrams field) supporting "
+            "mode: none (default, unchanged behavior) | mermaid-app | "
+            "plantuml-macro, each with a configurable macro_name (the "
+            "ac:name of whatever Confluence app the org has installed)",
+            "md_to_cf.py: new _render_fence()/_diagram_macro() helpers -- "
+            "a ```mermaid fence routes through mermaid_app.macro_name "
+            "when mode == mermaid-app; a ```plantuml fence routes "
+            "through plantuml_macro.macro_name when mode == "
+            "plantuml-macro; every other fence (and a diagram fence "
+            "with no matching mode/macro configured) falls back to the "
+            "existing code-macro rendering, never crashes or emits a "
+            "broken macro reference for a misconfiguration",
+            "md_to_storage()'s signature gained an optional second "
+            "parameter (diagrams: DiagramsConfig | None = None, "
+            "defaulting to mode 'none') -- all 6 call sites across "
+            "confluence.py, review.py, and cr.py updated to pass "
+            "cfg.confluence.diagrams through",
+            "Two more modes -- local-svg (render Mermaid to SVG "
+            "locally, no external network call, then attach as an "
+            "image) and markdown-macro (delegate the whole page to a "
+            "whole-document Markdown-rendering Forge app) -- were "
+            "explicitly deferred, not implemented: local-svg needs a "
+            "rendering-tool evaluation spike first (which Python-native "
+            "renderer actually covers the diagram types SDD templates "
+            "generate), and markdown-macro's Forge-based macro "
+            "reference shape (ac:adf-node type=\"extension\" with a "
+            "dynamically-obtained local-id, confirmed via research, not "
+            "the same simple ac:structured-macro ac:name=\"...\" shape "
+            "the other two modes use) needs verified testing against a "
+            "real installed app before shipping, to avoid producing a "
+            "broken macro island in Confluence",
+            "7 new tests in test_md_to_cf.py (TestDiagramMacros) -- "
+            "default behavior unchanged, correct macro emitted per "
+            "mode, safe fallback when misconfigured, diagram fences of "
+            "the wrong mode/language left alone, CDATA escaping",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.36"},
+    },
+    {
+        "from":        "2.7.36",
+        "to":          "2.7.37",
+        "description": "Feature: Confluence local-svg diagram mode -- ```mermaid fences can now be rendered to SVG entirely offline (no browser, no Node.js, no network call, no Confluence app) and attached to the page as an image; no manifest schema changes",
+        "notes": [
+            "Completes the local-svg mode explicitly deferred in "
+            "2.7.36's migration notes -- that release shipped "
+            "mermaid-app/plantuml-macro (both require an installed "
+            "Confluence app); this release adds the offline option for "
+            "orgs that don't have or can't install one",
+            "Renderer choice was verified, not assumed: built an "
+            "isolated venv, confirmed two PyPI candidates actually "
+            "exist, extracted the real Mermaid diagram types SDD "
+            "templates generate (flowchart, sequenceDiagram, "
+            "classDiagram, erDiagram), and rendered each type through "
+            "each candidate. mermaidx/mmdc (JS-engine backend) failed "
+            "on flowchart stadium-shape nodes (Actor([\"User\"]), used "
+            "in every design/hld/arch template's Actor node) and on "
+            "classDiagram entirely. mmdr (Rust-based, ~18MB, zero "
+            "further Python dependencies) rendered all four correctly, "
+            "confirmed both textually and via visual PNG inspection",
+            "mmdr is an optional dependency, not a hard one -- new "
+            "[project.optional-dependencies].diagrams extra in "
+            "pyproject.toml, installed with pip install "
+            "\"sddflow[diagrams]\", imported lazily only when "
+            "diagrams.mode == local-svg is actually configured",
+            "New sdd/utils/mermaid_render.py wraps mmdr.render(...).svg() "
+            "and raises a clear MermaidRendererNotInstalled error naming "
+            "the exact install command if configured but missing, "
+            "instead of a bare ImportError traceback",
+            "New ConfluenceClient.upload_attachment() posts to "
+            "/content/{id}/child/attachment with the X-Atlassian-Token: "
+            "nocheck header multipart uploads require to bypass XSRF "
+            "protection -- Confluence auto-versions an existing "
+            "attachment with the same filename, so no separate update "
+            "path is needed",
+            "md_to_storage()'s return type changed from str to "
+            "tuple[str, list[Attachment]] -- attachments is always [] "
+            "except in local-svg mode, where each successfully-rendered "
+            "```mermaid fence contributes one (filename, svg_bytes, "
+            "media_type) entry the caller uploads after upsert_page(); "
+            "all 6 call sites across confluence.py, review.py, and "
+            "cr.py updated to unpack the tuple and call the new shared "
+            "upload_diagram_attachments() helper",
+            "Every failure mode falls back to something safe rather "
+            "than crashing the whole document push: missing dependency "
+            "or invalid diagram source -> plain code block for that one "
+            "diagram (page push continues); failed attachment upload -> "
+            "warning printed, page content (already saved) is "
+            "unaffected, remaining attachments still upload",
+            "17 new tests across 4 files: test_mermaid_render.py (3), "
+            "TestLocalSvgMode in test_md_to_cf.py (5), "
+            "test_confluence_client.py (5), TestUploadDiagramAttachments "
+            "in test_confluence_hierarchy.py (4)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.37"},
+    },
+    {
+        "from":        "2.7.37",
+        "to":          "2.7.38",
+        "description": "Feature: Virtual Team persona hints on the sdd dashboard's Full Pipeline stepper -- each step owned by a named team member (Maya, Rex, Ava, Leo, Kai, Quinn, Riley) shows a name badge and a ready-to-type natural-language ask; no manifest schema changes",
+        "notes": [
+            "User-requested: the dashboard's Full Pipeline stepper showed "
+            "only raw slash commands (e.g. 'Run /plan-design to generate "
+            "the Design') -- no link back to the CLAUDE.md 'Virtual Team "
+            "— Address by Name' convention already documented and used "
+            "throughout every pack, where addressing a team member by "
+            "name (e.g. 'Ava, design checkout') works identically to "
+            "running the underlying slash command",
+            "New _STEP_PERSONA map in status.py maps each pipeline step "
+            "id to (persona name, natural-language ask template with a "
+            "{feature} placeholder) -- e.g. brd -> (Maya, 'create the BRD "
+            "for {feature}'). Steps with no clear single owner are "
+            "intentionally absent: /specify and GATE-1 run before any "
+            "persona takes over; the runbook is a byproduct of "
+            "/implement, not something you ask for directly",
+            "build_pipeline() gained a feature: str parameter (interpolated "
+            "into each persona's ask) and now attaches a persona dict "
+            "(name, role, ask) to every resolved step plus a next_persona "
+            "field alongside the existing next_action sentence",
+            "sdd-micro has no Virtual Team at all (see its own CLAUDE.md) "
+            "-- _persona_hint() returns None unconditionally when scope "
+            "is None (the signal build_pipeline already uses to select "
+            "sdd-micro's 3-command pipeline over the standard one), so "
+            "the hint never appears there",
+            "dashboard.py: each pstep badge shows the persona's name "
+            "before its label and the full name/role/ask in its hover "
+            "tooltip; the Next box gained a second line -- e.g. "
+            "'Or just say: \"Maya, write the use cases for checkout\" "
+            "(Maya — Business Analyst)' -- rendered only when the next "
+            "step has a persona owner",
+            "Verified end-to-end against a real temp project through a "
+            "running sdd dashboard instance (not just unit tests) -- "
+            "confirmed via headless-browser screenshot in both light and "
+            "dark mode that the persona badge and Next-box ask line "
+            "render correctly",
+            "4 new tests in test_status.py covering: next_persona names "
+            "the right owner, every step with an owner carries a persona "
+            "dict, specify/gate1 have none, sdd-micro never gets a hint",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.38"},
+    },
+    {
+        "from":        "2.7.38",
+        "to":          "2.7.39",
+        "description": "Feature: extend Virtual Team persona hints to the dashboard's Documents card and sdd review status; fix: awaiting-review docs no longer show a misleading creation-phrased persona ask; no manifest schema changes",
+        "notes": [
+            "Extends 2.7.38's dashboard Full Pipeline persona hints to the "
+            "two other places that guess 'what's next': the dashboard's "
+            "Documents card ('Next: Use Cases — or say: \"Maya, write the "
+            "use cases for checkout\"') and the terminal-only `sdd review "
+            "status` (each non-Approved, non-Blocked row gains a '· ask "
+            "{name}' hint using the same Virtual Team roster)",
+            "Bug found while extending: build_pipeline's next_persona was "
+            "attached even when a step was 'current' because the doc "
+            "already exists and is awaiting review, not because it's "
+            "about to be created -- every ask template is creation-phrased "
+            "('create the BRD for X'), which misleadingly implied the doc "
+            "didn't exist yet. Fixed by suppressing next_persona (and the "
+            "equivalent field on _current_stage) specifically for that "
+            "state; the per-step badge/tooltip is unaffected since it's a "
+            "general 'who owns this kind of work' reference, not a "
+            "claim about this specific document's current state",
+            "New public status.persona_for(step_id, feature, scope) "
+            "wrapper lets sdd review status (which reads "
+            "document_reviews keys directly, not the pipeline) reuse the "
+            "same _STEP_PERSONA lookup without importing a private helper",
+            "_current_stage() gained feature/scope parameters (previously "
+            "positional-only docs) so it can build the same "
+            "{feature}-interpolated ask the pipeline uses",
+            "9 new tests: 1 for the awaiting-review suppression fix, 5 for "
+            "_current_stage's persona field (fresh project, upcoming doc, "
+            "awaiting approval, sdd-micro), 1 for persona_for(), 3 in "
+            "test_review_helpers.py for sdd review status's ask hint "
+            "(not-submitted, approved-shows-nothing, needs-revision)",
+            "Verified end-to-end against a live dashboard instance via "
+            "headless-browser screenshot, confirming both the Documents "
+            "card's ask line and the awaiting-approval no-ask case render "
+            "correctly, not just unit tests",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.39"},
+    },
+    {
+        "from":        "2.7.39",
+        "to":          "2.7.40",
+        "description": "Fix: review-driven document edits (Jira comment, dashboard comment, or chat feedback) now bump the doc's Version header and log a Version History row -- previously only /change did this, and the approval step's Version History row hardcoded '1.0' instead of the document's actual current version; prompt/template content only, no manifest schema changes",
+        "notes": [
+            "User-reported: after addressing reviewer comments (via Jira, "
+            "local mode, or the dashboard) and updating a document, its "
+            "Version header stayed at 1.0 forever with no record of what "
+            "changed or when -- unlike /change (post-approval Change "
+            "Requests), which already bumps the version and appends a "
+            "Version History row for every applied change",
+            "Root cause: the shared review-decision-step.md block (embedded "
+            "in every review-gated command -- specify-brd, specify-uc, "
+            "specify-srd, specify-doc, plan-design/arch/hld/adr/lld) told "
+            "the agent to 'edit the document to address the feedback' on "
+            "NEEDS REVISION, but never mentioned bumping Version or logging "
+            "Version History -- so the discipline /change already has was "
+            "simply never applied to the earlier pre-approval review cycle",
+            "Second, smaller bug found while fixing the first: the "
+            "approval-logging step's Version History row template hardcoded "
+            "'| 1.0 | {today} | ... |' literally, instead of referencing "
+            "the document's actual current version -- wrong for any doc "
+            "past its first revision. Fixed to use '{current version}' in "
+            "both review-decision-step.md and validate.prompt.md's own "
+            "inline copy of the same approval step",
+            "New 'Revision Logging' rule in review-decision-step.md: any "
+            "review-driven content edit, regardless of which mode surfaced "
+            "the feedback (Jira comment via sdd review check, a dashboard "
+            "comment -- which mirrors to the Jira ticket when Jira is "
+            "configured -- or feedback relayed in chat), increments the "
+            "Version header and appends a Version History row. A pure "
+            "approval with no content change does not bump the version",
+            "review-gates.md (CLAUDE.md's Document Review Gates summary) "
+            "gained a one-line pointer to this rule for discoverability "
+            "at session-startup read time, without duplicating the full "
+            "step-by-step instructions",
+            "Maintenance note for future _shared/ edits: files that are "
+            "BOTH full-file-synced AND contain a shared:{id} marker span "
+            "(the 9 review-decision-step.md host files) need their marker "
+            "content refreshed in _shared/full/ itself too -- the blocks "
+            "loop only touches ../sdd-*/ directories, so editing only "
+            "blocks/{id}.md leaves _shared/full/'s copy stale, and the "
+            "full-file loop that runs after it will silently overwrite the "
+            "packs' freshly-substituted content back to that stale copy",
+            "Prompt/template content only -- no CLI code changed, no new "
+            "tests (nothing here is unit-testable; verified by reading the "
+            "synced output in all 5 packs and re-running sync-blocks.sh "
+            "twice to confirm convergence, plus the existing pytest suite "
+            "and assert-output.sh/test-setup.sh regression suites, none of "
+            "which touch prompt file content)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.40"},
+    },
+    {
+        "from":        "2.7.40",
+        "to":          "2.7.41",
+        "description": "Feature: sdd review check/apply now discover and acknowledge dashboard-left review comments in pure local mode (no jira: configured) -- new sdd review comments command too; no manifest schema changes",
+        "notes": [
+            "User-reported gap, found while shipping 2.7.40's version-bump "
+            "fix: in pure local mode (no jira: section at all), a dashboard "
+            "comment landed only in .dashboard-comments.json with no way "
+            "for the agent to discover it except the user manually relaying "
+            "it in chat -- sdd review check always returned NOT SUBMITTED "
+            "in that case, and sdd review apply hard-required both jira: "
+            "and confluence: to even run",
+            "New sdd/utils/dashboard_comments.py: unacknowledged(feature, "
+            "doc) reads .dashboard-comments.json and filters out anything "
+            "already handled; acknowledge(feature, doc) records the current "
+            "moment in a new .specify/.dashboard-comments-ack.json (an "
+            "append-only comments log has no per-entry 'handled' flag, so "
+            "acknowledgement is tracked separately as a per-feature/doc "
+            "timestamp cutoff)",
+            "sdd review check: when no jira: is configured, falls back to "
+            "unacknowledged() before giving up with NOT SUBMITTED -- prints "
+            "any found in the same shape as the Jira NEEDS_REVISION branch "
+            "and exits 1, so the existing review-decision-step.md prompt "
+            "instructions ('run sdd review check ... follow exit code') "
+            "work unchanged in pure local mode, no prompt edits needed",
+            "sdd review apply: when neither jira: nor confluence: is "
+            "configured (including no integrations.yml at all), "
+            "acknowledges local comments instead of hard-erroring -- the "
+            "existing 'then run sdd review apply' prompt instruction now "
+            "also works unchanged in pure local mode",
+            "New sdd review comments --doc {doc} [--ack] command for "
+            "explicit/manual use and discoverability outside the "
+            "check/apply cycle -- lists unacknowledged comments (exit "
+            "1 if any, 0 if none) or, with --ack, marks them all addressed",
+            "When Jira IS configured, dashboard comments already mirror to "
+            "the doc's Jira review ticket (existing behavior, unchanged) "
+            "-- the new fallback only ever triggers in the jira: absent "
+            "branches, so nothing here affects Jira-configured projects",
+            "14 new tests: 8 in test_dashboard_comments.py (all_comments, "
+            "unacknowledged, acknowledge -- including that acknowledging "
+            "doesn't hide comments left afterward), 6 in "
+            "test_review_helpers.py (check/apply/comments CLI behavior end "
+            "to end via CliRunner, no mocking)",
+            "Verified end-to-end against the real sdd CLI (not just pytest "
+            "mocks): ran a live sdd dashboard instance, posted a comment "
+            "through its actual /api/comment endpoint exactly as the "
+            "browser UI would, confirmed sdd review check picked it up "
+            "(exit 1, comment text printed), edited the doc, ran sdd "
+            "review apply (acknowledged), then confirmed sdd review check "
+            "and sdd review comments both correctly stopped reporting it",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.41"},
+    },
+    {
+        "from":        "2.7.41",
+        "to":          "2.7.42",
+        "description": "Docs consistency (Virtual Team + /taskstoissues in HOW-TO-USE.md, dangling CHANGELOG.md reference removed, workflow_mode wording propagated to frontend-spa/mobile/fullstack) + new test coverage for sdd init, sdd pr, and the dashboard HTTP handler; no manifest schema changes",
+        "notes": [
+            "Quick-win doc fixes from a full-project audit: removed the "
+            "dangling 'CHANGELOG.md' row from the README.md Read Next "
+            "table in all 5 packs (no such file is ever scaffolded into a "
+            "user's project); added a Virtual Team -- Address by Name "
+            "section and a /taskstoissues entry to HOW-TO-USE.md in all 5 "
+            "packs (both features already existed and worked, they just "
+            "weren't documented in the primary end-user guide)",
+            "workflow_mode (github/local) consistency fix: "
+            "sdd-frontend-spa, sdd-mobile, and sdd-fullstack already "
+            "documented workflow_mode: local as supported in "
+            "HOW-TO-USE.md, but CLAUDE.md's PR Contract/VALIDATE-RELEASE "
+            "gate text, implement.prompt.md's After Writing branch, "
+            "release.prompt.md's Verify Gate, PROMPT-GUIDE.md, the "
+            "quality-gate.yml starter-workflow comment, and "
+            "constitution.md's PR Rules table never branched on it -- "
+            "local mode silently behaved like github mode in those 3 "
+            "packs. Propagated the exact pattern already proven in "
+            "sdd-universal/sdd-backend-service so all 5 packs now behave "
+            "identically",
+            "New tests/test_dashboard_http.py (12 tests): real-socket "
+            "tests against dashboard.py's _Handler on an ephemeral "
+            "localhost port -- GET /, /api/status, /api/doc, "
+            "/api/review-links, POST /api/approve, /api/comment, "
+            "path-traversal rejection, invalid-JSON-body rejection, and "
+            "404s. Complements the existing helper-level tests in "
+            "test_dashboard.py, which never exercised do_GET/do_POST "
+            "themselves",
+            "New tests/test_init.py (6 tests): fill mode (manifest.yml "
+            "already exists) with CLI flags supplied, context-file "
+            "no-clobber, sdd-micro detection (manifest lacking "
+            "project_type/scope), invalid project-name rejection, and "
+            "scaffold mode (no manifest.yml yet -- pack gets copied in "
+            "first)",
+            "New tests/test_pr.py (14 tests): sdd pr create (task lookup, "
+            "branch/PR-title/PR-body construction, missing-task and "
+            "missing-integrations.yml failures, PrCreateError manual "
+            "fallback, --feature override), plus comments/reply/resolve/"
+            "request-review (unresolved-comment listing, comment-id "
+            "matching, and graceful degradation when a provider raises "
+            "ReviewActionError e.g. Bitbucket has no thread-resolution "
+            "API). All git-host interaction is mocked at the "
+            "detect_host/get_provider boundary -- provider-internal "
+            "behavior is already covered by test_git_host.py",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.42"},
+    },
 ]
 
 
+def _resolve_pack(manifest: dict, pack_override: str | None) -> tuple[str, str]:
+    """Returns (pack_name, how-we-know) -- "how" is shown to the user so an
+    inferred (rather than certain) answer is never presented as fact.
+    Raises ValueError if --pack names something that doesn't exist."""
+    if pack_override:
+        if pack_override not in ALL_PACKS:
+            raise ValueError(f"Unknown pack '{pack_override}'. Available: {', '.join(ALL_PACKS)}")
+        return pack_override, "--pack flag"
+
+    stored = manifest.get("pack")
+    if stored:
+        return stored, "manifest.yml 'pack' field"
+
+    project = manifest.get("project") or {}
+    is_micro = "project_type" not in manifest and "scope" not in project
+    if is_micro:
+        return "sdd-micro", "no scope/project_type in manifest.yml (sdd-micro shape)"
+
+    project_type = manifest.get("project_type")
+    if project_type in TYPE_TO_PACK:
+        return TYPE_TO_PACK[project_type], f"inferred from project_type '{project_type}'"
+
+    return UNIVERSAL_PACK, "no pack recorded and project_type unrecognized — defaulting to sdd-universal"
+
+
+def _do_sync_prompts(pack_override: str | None, yes: bool) -> None:
+    manifest = read_manifest() or {}
+    try:
+        pack_name, source = _resolve_pack(manifest, pack_override)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        console.print()
+        return
+
+    console.print(f"  [bold]Syncing prompts from pack:[/bold] [cyan]{pack_name}[/cyan]  [dim]({source})[/dim]")
+    if "inferred" in source or "defaulting" in source:
+        console.print(
+            "  [dim]Not certain which pack this project uses — pass --pack "
+            "explicitly if this guess is wrong.[/dim]"
+        )
+    console.print()
+
+    preview = sync_pack_prompts(pack_name, dry_run=True)
+    changed = preview["updated"] + preview["added"]
+    if not changed:
+        console.print("  [green]✓  .github/prompts/ and .claude/commands/ are already up to date.[/green]")
+        console.print()
+        return
+
+    if preview["updated"]:
+        console.print(f"  [yellow]{len(preview['updated'])} file(s) will be updated[/yellow] (backed up first):")
+        for f in preview["updated"]:
+            console.print(f"    [dim]•[/dim] {f}")
+    if preview["added"]:
+        console.print(f"  [green]{len(preview['added'])} file(s) will be added[/green] (new in this pack version):")
+        for f in preview["added"]:
+            console.print(f"    [dim]•[/dim] {f}")
+    console.print(f"  [dim]{len(preview['unchanged'])} file(s) already up to date, left alone.[/dim]")
+    console.print()
+
+    if not yes and not click.confirm("  Proceed?", default=True):
+        console.print("  [yellow]Cancelled — no files changed.[/yellow]")
+        console.print()
+        return
+
+    result = sync_pack_prompts(pack_name)
+    console.print(
+        f"  [green]✓[/green]  {len(result['updated'])} updated, {len(result['added'])} added, "
+        f"{len(result['unchanged'])} unchanged."
+    )
+    if result["backup_dir"]:
+        console.print(f"  [dim]Backups of overwritten files: {result['backup_dir']}[/dim]")
+    console.print()
+
+
 @click.command()
-def upgrade_command():
+@click.option("--sync-prompts", is_flag=True,
+              help="Re-copy this project's .github/prompts/ and .claude/commands/ "
+                   "from the current pack, overwriting stale copies. sdd upgrade "
+                   "alone only ever patches manifest.yml's sdd_version -- it never "
+                   "touches these files, so fixes made to prompt content after this "
+                   "project was scaffolded need this flag to actually reach it.")
+@click.option("--pack", "pack_override", default=None,
+              help=f"Pack to sync prompts from, overriding manifest.yml/inference. One of: {', '.join(ALL_PACKS)}")
+@click.option("-y", "--yes", is_flag=True, help="Skip the confirmation prompt for --sync-prompts.")
+def upgrade_command(sync_prompts, pack_override, yes):
     """Migrate manifest.yml to the current pack version."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
@@ -984,43 +1789,48 @@ def upgrade_command():
     if current_version == SDD_VERSION:
         console.print(f"  [green]✓  Already at v{SDD_VERSION} — nothing to do.[/green]")
         console.print()
-        return
-
-    console.print(f"  Current version : [yellow]{current_version or 'pre-versioning (v1.x)'}[/yellow]")
-    console.print(f"  Target version  : [green]{SDD_VERSION}[/green]")
-    console.print()
-
-    pending = [
-        m for m in MIGRATIONS
-        if (current_version is None and m["from"] is None)
-        or m["from"] == current_version
-    ]
-
-    if not pending:
-        console.print("[yellow]  No migration path found. See CHANGELOG.md for manual steps.[/yellow]")
-        console.print()
-        return
-
-    for migration in pending:
-        console.print(f"  [bold]Migrating → v{migration['to']}: {migration['description']}[/bold]")
-        for note in migration["notes"]:
-            console.print(f"    [dim]•[/dim] {note}")
+        if not sync_prompts:
+            return
+    else:
+        console.print(f"  Current version : [yellow]{current_version or 'pre-versioning (v1.x)'}[/yellow]")
+        console.print(f"  Target version  : [green]{SDD_VERSION}[/green]")
         console.print()
 
-        updated = migration["migrate"](read_manifest())
-        patch_manifest({"sdd_version": updated["sdd_version"]})
-        console.print(f"  [green]✓[/green]  {MANIFEST_PATH} updated to v{migration['to']}")
-        console.print()
+        pending = [
+            m for m in MIGRATIONS
+            if (current_version is None and m["from"] is None)
+            or m["from"] == current_version
+        ]
 
-    final_version = (read_manifest() or {}).get("sdd_version")
-    if final_version != SDD_VERSION:
-        console.print(
-            f"  [yellow]Now at v{final_version} — run [cyan]sdd upgrade[/cyan] again "
-            f"to continue to v{SDD_VERSION}.[/yellow]"
-        )
-        console.print()
+        if not pending:
+            console.print("[yellow]  No migration path found. See CHANGELOG.md for manual steps.[/yellow]")
+            console.print()
+            if not sync_prompts:
+                return
+        else:
+            for migration in pending:
+                console.print(f"  [bold]Migrating → v{migration['to']}: {migration['description']}[/bold]")
+                for note in migration["notes"]:
+                    console.print(f"    [dim]•[/dim] {note}")
+                console.print()
 
-    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print("  [bold green]Upgrade complete![/bold green]")
-    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print()
+                updated = migration["migrate"](read_manifest())
+                patch_manifest({"sdd_version": updated["sdd_version"]})
+                console.print(f"  [green]✓[/green]  {MANIFEST_PATH} updated to v{migration['to']}")
+                console.print()
+
+            final_version = (read_manifest() or {}).get("sdd_version")
+            if final_version != SDD_VERSION:
+                console.print(
+                    f"  [yellow]Now at v{final_version} — run [cyan]sdd upgrade[/cyan] again "
+                    f"to continue to v{SDD_VERSION}.[/yellow]"
+                )
+                console.print()
+
+            console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+            console.print("  [bold green]Upgrade complete![/bold green]")
+            console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+            console.print()
+
+    if sync_prompts:
+        _do_sync_prompts(pack_override, yes)

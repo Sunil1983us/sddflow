@@ -14,6 +14,10 @@ name: Quality Gate (AI-5)
 # Browser E2E tests (Playwright/Cypress) are intentionally a SEPARATE
 # job/workflow — they are typically slower and run on a schedule or
 # pre-release, not on every PR.
+#
+# Only applies when manifest.workflow_mode == "github". In "local" mode
+# (no GitHub), the agent runs these same checks itself during /implement
+# — see HOW-TO-USE.md "Workflow Mode".
 
 on:
   pull_request:

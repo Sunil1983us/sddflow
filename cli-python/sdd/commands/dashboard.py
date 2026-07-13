@@ -127,18 +127,28 @@ _PAGE = """<!doctype html>
   .pstep-upcoming { color: var(--muted); }
   .pstep-skipped { color: var(--dim); text-decoration: line-through; border-style: dashed; }
   .pstep-optional { font-size: .68rem; color: var(--dim); font-weight: 400; }
+  .pstep-persona {
+    font-size: .68rem; font-weight: 700; opacity: .75; border-right: 1px solid currentColor;
+    padding-right: .3rem; margin-right: -.05rem;
+  }
   .pipeline-arrow { color: var(--dim); font-size: .8rem; }
   .pipeline-legend { color: var(--dim); font-size: .74rem; margin-bottom: .75rem; }
   .next-action-box {
-    display: flex; gap: .5rem; align-items: baseline; padding: .6rem .8rem;
+    display: flex; flex-direction: column; gap: .35rem; padding: .6rem .8rem;
     border-radius: 8px; background: color-mix(in srgb, var(--accent) 10%, transparent);
     border: 1px solid var(--accent); font-size: .88rem;
   }
-  .next-action-box strong { color: var(--accent); white-space: nowrap; }
+  .next-action-main { display: flex; gap: .5rem; align-items: baseline; }
+  .next-action-main strong { color: var(--accent); white-space: nowrap; }
   .next-action-box code, .pstep code {
     background: var(--card); border-radius: 4px; padding: .05rem .35rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em;
   }
+  .next-persona-ask { color: var(--fg); font-size: .85rem; }
+  .next-persona-ask em { color: var(--accent); font-style: normal; font-weight: 600; }
+  .next-persona-role { color: var(--dim); font-size: .8rem; }
+  .doc-next-ask { color: var(--dim); }
+  .doc-next-ask em { color: var(--fg); font-style: normal; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -292,7 +302,11 @@ function renderDocs(docs, stage, feature, localConfluence) {
   if (!docs || docs.length === 0) return '<div class="empty">No spec documents yet.</div>';
   const reviewEntry = state.reviewLinks[feature];
   const rows = docs.map(d => renderDocRow(d, feature, localConfluence, typeof reviewEntry === 'object' ? reviewEntry : null)).join('');
-  const next = stage.next ? `<div class="sub">Next: ${stage.next}</div>` : '';
+  const p = stage.persona;
+  const ask = p
+    ? ` <span class="doc-next-ask">— or say: <em>"${escapeHtml(p.name)}, ${escapeHtml(p.ask)}"</em></span>`
+    : '';
+  const next = stage.next ? `<div class="sub">Next: ${escapeHtml(stage.next)}${ask}</div>` : '';
   return `<table><thead><tr><th>Document</th><th>Status</th><th>Links</th></tr></thead><tbody>${rows}</tbody></table>${next}`;
 }
 
@@ -347,11 +361,14 @@ const _PSTEP_ICON  = { done: '✓', current: '●', upcoming: '○', skipped: '�
 function renderPipelineStep(s) {
   const cls = _PSTEP_CLASS[s.state] || 'pstep-upcoming';
   const icon = _PSTEP_ICON[s.state] || '○';
+  const p = s.persona;
+  const cmdLine = s.command ? `Command: ${s.command}` : 'Manual step — no command';
   const title = s.state === 'skipped'
     ? `Skipped — ${s.skip}`
-    : (s.command ? `Command: ${s.command}` : 'Manual step — no command');
+    : (p ? `${p.name} — ${p.role}\n${cmdLine}\nOr say: "${p.name}, ${p.ask}"` : cmdLine);
   const optTag = s.optional ? ' <span class="pstep-optional">(optional)</span>' : '';
-  return `<span class="pstep ${cls}" title="${escapeHtml(title)}">${icon} ${escapeHtml(s.label)}${optTag}</span>`;
+  const personaTag = (p && s.state !== 'skipped') ? `<span class="pstep-persona">${escapeHtml(p.name)}</span>` : '';
+  return `<span class="pstep ${cls}" title="${escapeHtml(title)}">${icon} ${personaTag}${escapeHtml(s.label)}${optTag}</span>`;
 }
 
 function renderPipelineFlow(f, project) {
@@ -363,11 +380,19 @@ function renderPipelineFlow(f, project) {
     ? `Scope: <strong>${escapeHtml(project.scope || '—')}</strong> · Plan mode: <strong>${escapeHtml(project.plan_mode || '—')}</strong>`
     : '';
   const flow = pipeline.steps.map(renderPipelineStep).join('<span class="pipeline-arrow">→</span>');
+  const persona = pipeline.next_persona;
+  const askLine = persona
+    ? `<div class="next-persona-ask">💬 Or just say: <em>"${escapeHtml(persona.name)}, ${escapeHtml(persona.ask)}"</em>
+        <span class="next-persona-role">(${escapeHtml(persona.name)} — ${escapeHtml(persona.role)})</span></div>`
+    : '';
   return `
     ${meta ? `<div class="pipeline-caption">${meta}</div>` : ''}
     <div class="pipeline-flow">${flow}</div>
     <div class="pipeline-legend">✓ done · ● current — you are here · ○ upcoming · ┄ skipped for this scope/plan mode (hover a step for why)</div>
-    <div class="next-action-box"><strong>Next:</strong> <span>${mdInlineCode(pipeline.next_action)}</span></div>
+    <div class="next-action-box">
+      <div class="next-action-main"><strong>Next:</strong> <span>${mdInlineCode(pipeline.next_action)}</span></div>
+      ${askLine}
+    </div>
   `;
 }
 
@@ -610,7 +635,7 @@ def _fetch_review_links(feature: str) -> dict:
 
         if jira_client:
             try:
-                issue = jira_client.find_by_label(cfg.jira.project_key, f"sdd-doc:{feature}:{doc_key}")
+                issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc_key}")
                 if issue:
                     entry["jira"] = {
                         "key": issue["key"],
@@ -677,7 +702,7 @@ def _post_jira_comment(feature: str, doc: str, text: str) -> dict:
         return {"posted": False, "reason": "Jira not configured"}
     client, cfg = built
     try:
-        issue = client.find_by_label(cfg.jira.project_key, f"sdd-doc:{feature}:{doc}")
+        issue = client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc}")
         if not issue:
             return {"posted": False, "reason": "no review ticket found for this document"}
         client.add_comment(issue["key"], text)
@@ -713,7 +738,9 @@ def _do_approve(feature: str, doc: str, by: str, note: str) -> dict:
     if md_path and md_path.exists():
         result["md_updated"] = _mark_md_approved(md_path)
         try:
-            title = _push_doc_page(doc, md_path)
+            manifest     = read_manifest() or {}
+            feature_name = feature or (manifest.get("project") or {}).get("feature", "")
+            title = _push_doc_page(doc, md_path, feature_name)
             result["confluence"] = {"updated": bool(title), "title": title}
         except Exception as e:
             result["confluence"] = {"error": str(e)}

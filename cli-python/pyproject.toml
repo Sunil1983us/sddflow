@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sddflow"
-version = "2.7.29"
+version = "2.7.42"
 description = "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -35,6 +35,16 @@ dependencies = [
     "questionary>=2.0",
     "requests>=2.28",
     "keyring>=24.0",
+]
+
+[project.optional-dependencies]
+# Only needed for confluence.diagrams.mode: local-svg -- renders Mermaid
+# diagrams to SVG entirely offline (no browser, no Node.js, no network
+# call at render time) via a small (~18MB) Rust-based native renderer.
+# Not a hard dependency: orgs that never use local-svg mode never pull
+# this in. Install with: pip install "sddflow[diagrams]"
+diagrams = [
+    "mmdr>=0.3.0",
 ]
 
 [project.scripts]

@@ -192,6 +192,9 @@ Each gate requires the previous step complete and reviewed.
 - If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
 - After task: state files + lines + "PR ready" → wait for go.
 <!-- shared:pr-contract:end -->
+- If `manifest.workflow_mode = local`: instead of "PR ready", run
+  build/test/lint/coverage locally → report ✅/❌ per check → state
+  files + lines + "Task accepted" → wait for go.
 
 ## Summary
 After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
@@ -297,7 +300,7 @@ top of it, never a prerequisite.
 |---|---|---|---|
 | **chat** (default) | nothing | Reviewer reads the doc; user replies "approved" in chat → agent flips `Status: Draft → Approved` + fills Approvals table | Doc header + Approvals table + git history |
 | **local** | `pip install sddflow` | Same as chat, plus the agent records it: `sdd review approve --doc {doc} --local --by "{approver}" --note "{comment}"` | `.specify/.local-approvals.yml` |
-| **jira** | CLI + `integrations.yml` (`jira:` + `confluence:`) | `sdd review submit / check / apply` — Confluence page + Jira review task per doc | Jira + Confluence |
+| **jira** | CLI + `integrations.yml` (`jira:` + `confluence:`) | `sdd review submit / check / apply` — Confluence page + Jira review story per doc | Jira + Confluence |
 
 **Confluence stays in sync in every mode.** When a `confluence:` section exists
 in `.specify/integrations.yml`, `sdd review approve --local` also updates the
@@ -326,7 +329,7 @@ filenames: `design` exists in unified mode; `arch`/`hld`/`adr` in separate mode.
 | release | Runbook → Release | Runbook → Release | DevOps → Release Manager |
 
 ```bash
-sdd review submit --doc brd      # push to Confluence + create Jira review task
+sdd review submit --doc brd      # push to Confluence + create Jira review story
 sdd review check  --doc brd      # poll: exit 0=approved 1=needs-revision 2=pending
 sdd review apply  --doc brd      # re-push after addressing reviewer comments
 sdd review status                # full dashboard for all documents
@@ -335,6 +338,13 @@ sdd review status                # full dashboard for all documents
 When `sdd review check` exits 1 (NEEDS REVISION): read reviewer comments, update
 the document, then run `sdd review apply` and ask reviewer to re-review.
 Configure reviewers in `.specify/integrations.yml` — see `integrations.yml.example`.
+
+**Every review-driven edit bumps the version.** Whichever mode surfaced the
+feedback — a Jira comment, a dashboard comment, or direct chat feedback —
+increment the document's `Version:` header and append a row to its
+`## Version History` table before re-submitting (see each command's own
+review-response step for the exact format). A pure approval with no content
+change does not bump the version.
 <!-- shared:review-gates:end -->
 ## IMPLEMENT — Code Review Gate
 
@@ -368,7 +378,8 @@ For each task in the `/implement` phase:
               Run after: /specify (Action 2) | Gate before: /analyze
 
 /release    → UAT plan, store-release plan, go-live gate, BO closure
-              Gate: all tasks "PR ready" and merged
+              Gate: all tasks complete — "PR ready" + merged (github mode)
+              or "Task accepted" (local mode)
               Review: qa lead, product owner, tech lead, devops/sre
               Run after: /implement (all tasks) | Gate before: go-live
 

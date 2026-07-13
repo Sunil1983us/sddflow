@@ -12,7 +12,9 @@ from sdd.utils.jira_client import JiraClient
 from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.manifest import read_manifest
+from sdd.utils.status import persona_for
 from sdd.utils.validate import resolve_doc_path, LIVING_SERVICE_DOCS
+from sdd.utils.dashboard_comments import unacknowledged, acknowledge
 
 console = Console()
 
@@ -112,7 +114,7 @@ def _mark_md_approved(md_path: Path) -> bool:
     return True
 
 
-def _push_doc_page(doc: str, md_path: Path) -> str | None:
+def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> str | None:
     """Upsert the document's Confluence page so it reflects the approved .md.
 
     Returns the page title on success, or None when Confluence is not
@@ -134,16 +136,23 @@ def _push_doc_page(doc: str, md_path: Path) -> str | None:
         title = cfg.document_reviews[doc].confluence_page
     else:
         title = cfg.confluence.page_map.get(doc, f"{{project}} — {doc.upper()}")
-    title = title.replace("{project}", project_name)
+    # {feature} must always be substituted, not just {project} -- Confluence
+    # enforces title uniqueness per SPACE, so two features pushing the same
+    # doc type without {feature} in the title would silently overwrite each
+    # other's page (this was the exact bug fixed for confluence.py's
+    # page_map templates; document_reviews.confluence_page had the same gap).
+    title = title.replace("{project}", project_name).replace("{feature}", feature_name)
 
     prof      = load_profile(cfg.profile)
     session   = build_session(prof)
     cf_client = ConfluenceClient(session, prof.base_url)
-    body_html = md_to_storage(md_path.read_text())
-    cf_client.upsert_page(
-        cfg.confluence.space_key, title, body_html,
-        cfg.confluence.parent_page_id,
+    body_html, attachments = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
+    from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
+    parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
+    page, _created = cf_client.upsert_page(
+        cfg.confluence.space_key, title, body_html, parent_id,
     )
+    upload_diagram_attachments(cf_client, page["id"], attachments)
     return title
 
 
@@ -168,6 +177,28 @@ def _extract_text(body) -> str:
 
 
 # ── Review status helpers ──────────────────────────────────────────────────────
+
+def _print_local_comments_if_any(doc: str, feature_name: str) -> bool:
+    """Pure-local-mode fallback for `sdd review check` when no jira: section
+    exists to poll: dashboard comments have no external ticket to check, so
+    print any not yet acknowledged (see dashboard_comments.py) in the same
+    shape as the Jira NEEDS_REVISION branch. Returns True if any were
+    printed (caller should exit 1), False otherwise (caller falls through
+    to its existing NOT SUBMITTED message)."""
+    comments = unacknowledged(feature_name, doc)
+    if not comments:
+        return False
+    console.print(f"  [yellow]✗  {doc.upper()} — NEEDS REVISION[/yellow]  [dim](local dashboard comments)[/dim]")
+    console.print()
+    console.print("  [bold]Review comments:[/bold]")
+    console.print()
+    for c in comments:
+        console.print(f"  [cyan]{c.get('by', 'Unknown')}[/cyan]  [dim]{c.get('at', '')[:10]}[/dim]")
+        for line in c.get("text", "").splitlines():
+            console.print(f"  {line}")
+        console.print()
+    return True
+
 
 def _get_review_status(
     doc_key: str,
@@ -219,8 +250,21 @@ def _check_predecessor(
     if not preds:
         return True, None
     pred_key = preds[0]
-    status, _ = _get_review_status(pred_key, client, cfg.jira.project_key, cfg, feature_name)
+    status, _ = _get_review_status(pred_key, client, cfg.jira.key_for("review"), cfg, feature_name)
     return (status == "APPROVED"), (None if status == "APPROVED" else pred_key)
+
+
+def _record_confluence_draft_link(doc: str, page: dict, page_title: str) -> None:
+    """`sdd review submit` is now the only step needed to get a document in
+    front of both stakeholders (Confluence) and the formal reviewer (Jira)
+    -- there is no separate "draft first, submit later" stage. Recording
+    this page in the same drafts file `sdd confluence draft` uses means
+    `sdd confluence pull --doc {doc}` still works afterward if the user
+    wants to pull in edits/comments left on this page."""
+    from sdd.commands.confluence import _load_drafts, _save_drafts
+    drafts = _load_drafts()
+    drafts[doc] = {"page_id": page.get("id", ""), "title": page_title}
+    _save_drafts(drafts)
 
 
 def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | None:
@@ -240,7 +284,7 @@ def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | 
         extra = feature_extra_fields(features_dir, jira_cfg, feature_name)
         h = jira_cfg.issue_hierarchy
         key, _ = _upsert_issue(
-            jira_client, jira_cfg.project_key, h["feature"], feature_name,
+            jira_client, jira_cfg.key_for("feature"), h["feature"], feature_name,
             extra, f"sdd-feature:{feature_name}", jira_cfg.labels,
         )
         return key
@@ -252,8 +296,8 @@ def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | 
         return None
 
 
-def _link_review_task_to_epic(jira_client: JiraClient, task_key: str,
-                               epic_key: str, jira_cfg) -> None:
+def _link_review_story_to_epic(jira_client: JiraClient, story_key: str,
+                                epic_key: str, jira_cfg) -> None:
     """Best-effort: parent the review ticket under the Feature/Epic. Never
     blocks the review submission — the ticket itself was already created
     successfully. Reuses jira.py's _warn_parent_link_failed rather than a
@@ -262,9 +306,9 @@ def _link_review_task_to_epic(jira_client: JiraClient, task_key: str,
     instead of vanishing with no trace."""
     from sdd.commands.jira import _warn_parent_link_failed
     try:
-        jira_client.set_parent(task_key, epic_key, jira_cfg.parent_field)
+        jira_client.set_parent(story_key, epic_key, jira_cfg.parent_field_for("review"))
     except Exception as e:
-        _warn_parent_link_failed(task_key, epic_key, jira_cfg.project_key, e)
+        _warn_parent_link_failed(story_key, epic_key, jira_cfg.key_for("review"), e)
 
 
 # ── Command group ──────────────────────────────────────────────────────────────
@@ -282,7 +326,7 @@ def review_command():
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_submit(doc, profile, feature):
-    """Push a document to Confluence and create a Jira review task for it."""
+    """Push a document to Confluence and create a Jira review story for it."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print(f"  [bold cyan]Review Submit[/bold cyan] — {doc.upper()}")
@@ -341,16 +385,20 @@ def review_submit(doc, profile, feature):
         console.print(f"  [red]✗  {md_path} not found — run the SDD command that generates it first[/red]")
         raise SystemExit(1)
 
-    page_title = doc_cfg.confluence_page.replace("{project}", project_name)
-    body_html  = md_to_storage(md_path.read_text())
+    page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
+    body_html, attachments = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
+    from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
+    parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
     page, created = cf_client.upsert_page(
-        cfg.confluence.space_key, page_title, body_html,
-        cfg.confluence.parent_page_id,
+        cfg.confluence.space_key, page_title, body_html, parent_id,
     )
+    upload_diagram_attachments(cf_client, page["id"], attachments)
     page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
     action   = "[green]created[/green]" if created else "[dim]updated[/dim]"
     console.print(f"  {action}  Confluence: [cyan]{page_title}[/cyan]")
     console.print(f"          {page_url}")
+
+    _record_confluence_draft_link(doc, page, page_title)
 
     # ── Ensure a Feature/Epic exists ──────────────────────────────────────────
     # So every review ticket -- and later every dev Story/Task from
@@ -361,25 +409,33 @@ def review_submit(doc, profile, feature):
     # well before this review ticket exists to need a parent.
     epic_key = _ensure_epic(jira_client, cfg.jira, feature_name)
 
-    # ── Create / update Jira review task ──────────────────────────────────────
+    # ── Create / update Jira review story ─────────────────────────────────────
+    # Issue type is "story" (not "task") so review tickets sit at the same
+    # hierarchy level as dev Stories under the Epic -- Epic -> Story -> Task
+    # throughout, review tickets included, not a separate shape.
     # Label is feature-qualified for the same reason Story/Task labels are
     # (see jira.py's _item_label): an un-qualified "sdd-doc:brd" would let
     # a second feature's BRD review submission find and silently overwrite
     # the first feature's review ticket.
     idempotency_label = f"sdd-doc:{feature_name}:{doc}"
-    existing          = jira_client.find_by_label(cfg.jira.project_key, idempotency_label)
-    task_summary      = f"Review: {project_name} — {doc.upper()}"
+    review_project_key = cfg.jira.key_for("review")
+    existing          = jira_client.find_by_label(review_project_key, idempotency_label)
+    story_summary     = f"Review: {project_name} — {doc.upper()}"
     desc_text = (
         f"Please review the {doc.upper()} document.\n\n"
         f"Confluence: {page_url}\n\n"
-        f"To APPROVE: set task status to Done and comment 'Approved'.\n"
-        f"To REQUEST CHANGES: add review comments and leave the task open."
+        f"To APPROVE: set status to Done and comment 'Approved'.\n"
+        f"To REQUEST CHANGES: add review comments and leave it open."
     )
     fields: dict = {
-        "project":     {"key": cfg.jira.project_key},
-        "issuetype":   {"name": cfg.jira.issue_hierarchy.get("task", "Task")},
-        "summary":     task_summary,
-        "labels":      ["sdd-review", idempotency_label],
+        "project":     {"key": review_project_key},
+        "issuetype":   {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
+        "summary":     story_summary,
+        # cfg.jira.labels (base_fields.labels, e.g. "sdd-generated") is
+        # applied here the same way _upsert_issue() applies it to every
+        # Epic/Story/Task/CHG issue -- review tickets aren't a separate
+        # shape, they just don't route through _upsert_issue().
+        "labels":      cfg.jira.labels + ["sdd-review", idempotency_label],
         "description": {
             "type": "doc", "version": 1,
             "content": [{"type": "paragraph", "content": [
@@ -390,18 +446,23 @@ def review_submit(doc, profile, feature):
     if doc_cfg.reviewer_jira_user:
         # accountId for Cloud; use {"name": ...} for Server/DC if needed
         fields["assignee"] = {"accountId": doc_cfg.reviewer_jira_user}
+    # Fixed team stamp (base_fields.team), same as every other issue type
+    # -- no other custom_fields entries apply here (story_points/
+    # acceptance_criteria/etc. have no meaning on a review ticket).
+    from sdd.commands.jira import _apply_team_field
+    _apply_team_field(fields, cfg.jira, "review")
 
     if existing:
         jira_client.update_issue(existing["key"], fields)
-        task_key = existing["key"]
-        console.print(f"  [dim]·[/dim]   Jira task updated: [cyan]{task_key}[/cyan]")
+        story_key = existing["key"]
+        console.print(f"  [dim]·[/dim]   Jira review story updated: [cyan]{story_key}[/cyan]")
     else:
-        result   = jira_client.create_issue(fields)
-        task_key = result["key"]
-        console.print(f"  [green]✓[/green]  Jira task created: [cyan]{task_key}[/cyan]")
+        result    = jira_client.create_issue(fields)
+        story_key = result["key"]
+        console.print(f"  [green]✓[/green]  Jira review story created: [cyan]{story_key}[/cyan]")
 
     if epic_key:
-        _link_review_task_to_epic(jira_client, task_key, epic_key, cfg.jira)
+        _link_review_story_to_epic(jira_client, story_key, epic_key, cfg.jira)
 
     console.print(
         f"          Assigned to: [cyan]{doc_cfg.reviewer_role}[/cyan]"
@@ -435,12 +496,18 @@ def review_check(doc, profile, feature):
         console.print()
         raise SystemExit(0)
 
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+
     # ── Jira check ────────────────────────────────────────────────────────────
     try:
         cfg     = load_integrations()
         prof    = load_profile(profile or cfg.profile)
         session = build_session(prof)
     except Exception as e:
+        if _print_local_comments_if_any(doc, feature_name):
+            raise SystemExit(1)
         console.print(
             f"  [dim]·  {doc.upper()} — NOT SUBMITTED[/dim]\n"
             f"  [dim]   (Jira not configured; no local approval recorded)[/dim]\n"
@@ -449,18 +516,16 @@ def review_check(doc, profile, feature):
         raise SystemExit(3)
 
     if not cfg.jira:
+        if _print_local_comments_if_any(doc, feature_name):
+            raise SystemExit(1)
         console.print(
             f"  [dim]·  {doc.upper()} — NOT SUBMITTED[/dim]\n"
             f"  [dim]   No jira: section in integrations.yml and no local approval recorded.[/dim]"
         )
         raise SystemExit(3)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
-    feature_name = feature or proj.get("feature", "")
-
     client  = JiraClient(session, prof.base_url)
-    status, comments = _get_review_status(doc, client, cfg.jira.project_key, cfg, feature_name)
+    status, comments = _get_review_status(doc, client, cfg.jira.key_for("review"), cfg, feature_name)
     doc_cfg = cfg.document_reviews.get(doc)
     role    = doc_cfg.reviewer_role if doc_cfg else "reviewer"
 
@@ -495,6 +560,50 @@ def review_check(doc, profile, feature):
     console.print(f"     Run [cyan]sdd review submit --doc {doc}[/cyan] first.")
     console.print()
     raise SystemExit(3)
+
+
+# ── sdd review comments ─────────────────────────────────────────────────────────
+
+@review_command.command("comments")
+@click.option("--doc",     required=True)
+@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
+@click.option("--ack",     is_flag=True, default=False,
+              help="Mark every comment currently on this doc as addressed")
+def review_comments(doc, feature, ack):
+    """Read (or acknowledge) dashboard-left review comments directly --
+    the pure-local-mode path for feedback that has no Jira ticket to poll.
+    `sdd review check` already calls into this when jira: isn't configured;
+    this command exists for explicit/manual use and discoverability.
+
+    Exit codes: 0=no unacknowledged comments (or --ack succeeded), 1=some found.
+    """
+    console.print()
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+
+    if ack:
+        acknowledge(feature_name, doc)
+        console.print(f"  [green]✓[/green]  {doc.upper()} — comments acknowledged.")
+        console.print()
+        raise SystemExit(0)
+
+    comments = unacknowledged(feature_name, doc)
+    if not comments:
+        console.print(f"  [dim]·  {doc.upper()} — no unacknowledged comments[/dim]")
+        console.print()
+        raise SystemExit(0)
+
+    console.print(f"  [yellow]{len(comments)} unacknowledged comment(s) on {doc.upper()}[/yellow]")
+    console.print()
+    for c in comments:
+        console.print(f"  [cyan]{c.get('by', 'Unknown')}[/cyan]  [dim]{c.get('at', '')[:10]}[/dim]")
+        for line in c.get("text", "").splitlines():
+            console.print(f"  {line}")
+        console.print()
+    console.print(f"  [dim]After addressing them: sdd review comments --doc {doc} --ack[/dim]")
+    console.print()
+    raise SystemExit(1)
 
 
 # ── sdd review approve ─────────────────────────────────────────────────────────
@@ -548,7 +657,9 @@ def review_approve(doc, local, by, note, feature, no_confluence):
             console.print("  [dim]·  Confluence update skipped (--no-confluence)[/dim]")
         else:
             try:
-                title = _push_doc_page(doc, md_path)
+                manifest     = read_manifest() or {}
+                feature_name = feature or (manifest.get("project") or {}).get("feature", "")
+                title = _push_doc_page(doc, md_path, feature_name)
                 if title:
                     console.print(f"  [green]✓[/green]  Confluence page updated: [cyan]{title}[/cyan]")
                 else:
@@ -577,15 +688,37 @@ def review_approve(doc, local, by, note, feature, no_confluence):
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_apply(doc, profile, feature):
-    """After updating a document, re-push to Confluence and notify the reviewer in Jira."""
+    """After updating a document, re-push to Confluence and notify the
+    reviewer in Jira -- or, in pure local mode (neither configured),
+    acknowledge dashboard comments as addressed."""
     console.print()
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+
     try:
         cfg     = load_integrations()
         prof    = load_profile(profile or cfg.profile)
         session = build_session(prof)
     except Exception as e:
-        console.print(f"  [red]✗  {e}[/red]")
-        raise SystemExit(1)
+        # No integrations.yml at all -- still acknowledge any local
+        # dashboard comments so `sdd review check` stops repeating them.
+        acknowledge(feature_name, doc)
+        console.print(
+            f"  [green]✓[/green]  {doc.upper()} updated — local review comments acknowledged.\n"
+            f"  [dim]   (No integrations.yml — nothing to push to Confluence/Jira.)[/dim]"
+        )
+        console.print()
+        return
+
+    if not cfg.jira and not cfg.confluence:
+        acknowledge(feature_name, doc)
+        console.print(
+            f"  [green]✓[/green]  {doc.upper()} updated — local review comments acknowledged.\n"
+            f"  [dim]   sdd review check will no longer repeat them for this round.[/dim]"
+        )
+        console.print()
+        return
 
     if not cfg.jira or not cfg.confluence:
         console.print("  [red]✗  Both jira: and confluence: required in integrations.yml[/red]")
@@ -596,10 +729,7 @@ def review_apply(doc, profile, feature):
         console.print(f"  [red]✗  '{doc}' not found in document_reviews[/red]")
         raise SystemExit(1)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
     project_name = proj.get("name", "Project")
-    feature_name = feature or proj.get("feature", "")
 
     jira_client = JiraClient(session, prof.base_url)
     cf_client   = ConfluenceClient(session, prof.base_url)
@@ -612,25 +742,27 @@ def review_apply(doc, profile, feature):
         raise SystemExit(1)
     page_url     = ""
     if md_path.exists():
-        page_title = doc_cfg.confluence_page.replace("{project}", project_name)
-        body_html  = md_to_storage(md_path.read_text())
+        page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
+        body_html, attachments = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
+        from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
+        parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
         page, _    = cf_client.upsert_page(
-            cfg.confluence.space_key, page_title, body_html,
-            cfg.confluence.parent_page_id,
+            cfg.confluence.space_key, page_title, body_html, parent_id,
         )
+        upload_diagram_attachments(cf_client, page["id"], attachments)
         page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
         console.print(f"  [green]✓[/green]  Confluence updated: [cyan]{page_title}[/cyan]")
     else:
         console.print(f"  [dim]·[/dim]  {md_path} not found — skipping Confluence update")
 
     # Notify reviewer on Jira
-    issue = jira_client.find_by_label(cfg.jira.project_key, f"sdd-doc:{feature_name}:{doc}")
+    issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature_name}:{doc}")
     if issue:
         msg = f"Document updated per review comments. Please re-review: {page_url}"
         jira_client.add_comment(issue["key"], msg)
         console.print(f"  [green]✓[/green]  Reviewer notified on [cyan]{issue['key']}[/cyan]")
     else:
-        console.print(f"  [yellow]·[/yellow]  No Jira review task found for {doc.upper()}")
+        console.print(f"  [yellow]·[/yellow]  No Jira review story found for {doc.upper()}")
 
     console.print()
     console.print(
@@ -663,6 +795,7 @@ def review_status(profile, feature):
     manifest     = read_manifest() or {}
     proj         = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
+    scope        = proj.get("scope")
 
     client = JiraClient(session, prof.base_url)
 
@@ -697,7 +830,7 @@ def review_status(profile, feature):
                 icon, label, style = "🔒", "Blocked", "dim"
                 all_statuses[key] = "BLOCKED"
             else:
-                st, _ = _get_review_status(key, client, cfg.jira.project_key, cfg, feature_name)
+                st, _ = _get_review_status(key, client, cfg.jira.key_for("review"), cfg, feature_name)
                 all_statuses[key] = st
                 if st == "APPROVED":
                     icon, label, style = "✓ ", "Approved",       "green"
@@ -708,9 +841,19 @@ def review_status(profile, feature):
                 else:
                     icon, label, style = "· ", "Not Submitted",   "dim"
 
+            # A doc already Approved needs no owner hint, and one that's
+            # Blocked isn't ready to be worked on yet (its predecessor
+            # isn't approved) -- everything else (Not Submitted, Pending,
+            # Needs Revision) is a real "ask this person" moment.
+            ask_hint = ""
+            if all_statuses[key] not in ("APPROVED", "BLOCKED"):
+                persona = persona_for(key, feature_name, scope)
+                if persona:
+                    ask_hint = f"  [dim]· ask {persona['name']}[/dim]"
+
             console.print(
                 f"    [{style}]{icon}  {key.upper():<10} {label:<18}[/{style}]"
-                f"  [dim]{dc.reviewer_role}[/dim]"
+                f"  [dim]{dc.reviewer_role}[/dim]{ask_hint}"
             )
 
     console.print()

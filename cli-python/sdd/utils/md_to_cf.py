@@ -8,8 +8,26 @@ from __future__ import annotations
 import re
 import html
 
+from sdd.utils.integrations import DiagramsConfig
 
-def md_to_storage(md: str) -> str:
+# One attachment: (filename, raw bytes, media type) -- returned alongside
+# the HTML by md_to_storage() when diagrams.mode == "local-svg" so the
+# caller can upload each rendered diagram to the page after upserting it.
+Attachment = tuple[str, bytes, str]
+
+
+def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str, list[Attachment]]:
+    """Convert Markdown to Confluence storage-format XHTML.
+
+    Returns (html, attachments). attachments is always [] except in
+    diagrams.mode == "local-svg", where each successfully-rendered
+    ```mermaid fence contributes one (filename, svg_bytes, media_type)
+    entry the caller must upload as a page attachment after upsert_page()
+    -- the returned html already references that filename via
+    <ac:image><ri:attachment ri:filename="...">, but Confluence won't
+    resolve it to an actual image until the attachment exists."""
+    diagrams = diagrams or DiagramsConfig()
+    attachments: list[Attachment] = []
     lines = md.splitlines()
     out: list[str] = []
     i = 0
@@ -44,13 +62,7 @@ def md_to_storage(md: str) -> str:
             while i < len(lines) and not lines[i].startswith("```"):
                 code_lines.append(lines[i])
                 i += 1
-            code = html.escape("\n".join(code_lines))
-            out.append(
-                f'<ac:structured-macro ac:name="code">'
-                f'<ac:parameter ac:name="language">{lang}</ac:parameter>'
-                f'<ac:plain-text-body><![CDATA[{code}]]></ac:plain-text-body>'
-                f'</ac:structured-macro>'
-            )
+            out.append(_render_fence(lang, "\n".join(code_lines), diagrams, attachments))
             i += 1
             continue
 
@@ -125,7 +137,66 @@ def md_to_storage(md: str) -> str:
 
     flush_para()
     flush_list()
-    return "\n".join(out)
+    return "\n".join(out), attachments
+
+
+def _render_fence(lang: str, code: str, diagrams: DiagramsConfig,
+                   attachments: list[Attachment]) -> str:
+    """Render one fenced code block. A ```mermaid or ```plantuml fence
+    routes through the matching installed Confluence app's macro when
+    diagrams.mode selects it and a macro name is configured, or through
+    a locally-rendered SVG image when diagrams.mode == "local-svg"
+    (appending to `attachments` as a side effect). Every other fence --
+    and a diagram fence whose render/macro path fails or isn't
+    configured -- falls back to Confluence's built-in "code" macro,
+    which is a syntax-highlighted text block, not a rendered diagram.
+    Confluence has no native diagram renderer, so without one of these
+    modes configured, a ```mermaid fence always shows as text."""
+    if lang == "mermaid" and diagrams.mode == "mermaid-app" and diagrams.mermaid_app_macro:
+        return _diagram_macro(diagrams.mermaid_app_macro, code)
+    if lang == "plantuml" and diagrams.mode == "plantuml-macro" and diagrams.plantuml_macro:
+        return _diagram_macro(diagrams.plantuml_macro, code)
+    if lang == "mermaid" and diagrams.mode == "local-svg":
+        rendered = _render_local_svg(code, attachments)
+        if rendered is not None:
+            return rendered
+    escaped = html.escape(code)
+    return (
+        f'<ac:structured-macro ac:name="code">'
+        f'<ac:parameter ac:name="language">{lang or "none"}</ac:parameter>'
+        f'<ac:plain-text-body><![CDATA[{escaped}]]></ac:plain-text-body>'
+        f'</ac:structured-macro>'
+    )
+
+
+def _render_local_svg(code: str, attachments: list[Attachment]) -> str | None:
+    """Render Mermaid source to SVG locally and queue it as a page
+    attachment. Returns None (never raises) on any failure -- a missing
+    optional dependency, invalid diagram source, or renderer bug must
+    never fail the whole document push; the caller falls back to a
+    plain code block for this one diagram."""
+    from sdd.utils.mermaid_render import render_mermaid_svg
+    try:
+        svg = render_mermaid_svg(code)
+    except Exception:
+        return None
+    filename = f"diagram-{len(attachments) + 1}.svg"
+    attachments.append((filename, svg.encode("utf-8"), "image/svg+xml"))
+    return f'<ac:image><ri:attachment ri:filename="{filename}" /></ac:image>'
+
+
+def _diagram_macro(macro_name: str, source: str) -> str:
+    """A structured macro wrapping raw diagram source in its plain-text
+    body -- used for mermaid-app/plantuml-macro modes, where the
+    installed Confluence app owns parsing and rendering; we just hand it
+    the diagram source verbatim, same CDATA-wrapping convention as the
+    code macro above."""
+    escaped = html.escape(source)
+    return (
+        f'<ac:structured-macro ac:name="{macro_name}">'
+        f'<ac:plain-text-body><![CDATA[{escaped}]]></ac:plain-text-body>'
+        f'</ac:structured-macro>'
+    )
 
 
 def _split_table_row(line: str) -> list[str]:
