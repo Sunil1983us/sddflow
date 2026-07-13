@@ -11,6 +11,12 @@ from sdd.utils.scaffold import (
     PACK_DESCRIPTIONS, ALL_PACKS, TYPE_TO_PACK,
 )
 
+# Reverse of TYPE_TO_PACK — packs dedicated to one project type don't need
+# to ask (or auto-detect) project_type at all, since choosing the pack
+# already answers that question. Only sdd-universal (not in this map)
+# genuinely branches its tech-stack tables on project_type.
+PACK_TO_TYPE: dict[str, str] = {v: k for k, v in TYPE_TO_PACK.items()}
+
 AI_TOOLS = [
     questionary.Choice("Claude Code    — type /specify",                                value="claude-code"),
     questionary.Choice("GitHub Copilot — type /specify",                                value="copilot"),
@@ -59,16 +65,27 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     # template has neither key, which is how we detect it in fill mode
     # (existing manifest, chosen_pack unknown) without tracking the pack
     # name anywhere persistent.
+    existing = read_manifest() or {} if chosen_pack is None else {}
     if chosen_pack == "sdd-micro":
         is_micro = True
     elif chosen_pack is None:
-        existing = read_manifest() or {}
         is_micro = "project_type" not in existing and "scope" not in existing.get("project", {})
     else:
         is_micro = False
 
+    # A pack dedicated to one project type already answers the question —
+    # asking again (or running detection a second time, right after
+    # scaffold_pack just copied that pack's own files into the directory)
+    # is redundant and, worse, offers irrelevant choices like "mobile" for
+    # a project the user just told us is sdd-backend-service.
+    pack_name = chosen_pack or existing.get("pack")
+    pinned_type = PACK_TO_TYPE.get(pack_name)
+
     # ── Project type (needed for manifest even in fill mode) ─────────────────
-    if not is_micro and not project_type:
+    if not is_micro and not project_type and pinned_type:
+        project_type = pinned_type
+        console.print(f"[dim]  Project type:[/dim] [green]{project_type}[/green] [dim](from {pack_name})[/dim]")
+    elif not is_micro and not project_type:
         console.print("[dim]  Detecting project type...[/dim] ", end="")
         detected = detect_project_type(".")
         if detected:

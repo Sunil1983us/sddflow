@@ -4,6 +4,24 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.43] — 2026-07-13 (Fix: redundant project-type prompt on scaffold)
+
+### Fixed
+
+- **`sdd init` no longer asks for project type a second time when you've
+  already chosen a type-dedicated pack** (`sdd-backend-service`,
+  `sdd-frontend-spa`, `sdd-mobile`, `sdd-fullstack`). Previously, choosing
+  one of these packs from "Choose from all packs…" still triggered a
+  second `detect_project_type()` call and — since detection on a
+  freshly-scaffolded directory usually fails — a confusing `Project type:`
+  select listing all 10 types (including irrelevant ones like `mobile`
+  for a project you just said was `sdd-backend-service`). The pack choice
+  now pins `project_type` directly (e.g. `sdd-backend-service` →
+  `backend-service`) with no further prompt. `sdd-universal` is
+  unaffected — it genuinely branches its tech-stack tables on
+  `project_type`, so its detect/select flow is unchanged.
+  Fixed in both `cli-python` (`sdd init`) and the Node `cli` (`sdd init`).
+
 ## [2.7.42] — 2026-07-13 (Docs consistency + test coverage)
 
 ### Fixed

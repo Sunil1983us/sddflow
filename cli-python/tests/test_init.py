@@ -150,6 +150,39 @@ class TestScaffoldMode:
         assert saved["project"]["name"] == "payments"
         assert saved["project_type"] == "backend-service"
 
+    def test_dedicated_pack_choice_skips_redundant_type_prompt(self, runner, tmp_path, monkeypatch):
+        """Regression: choosing a type-dedicated pack (e.g. sdd-backend-service)
+        must not re-detect or re-ask project type afterward -- the pack choice
+        already answers it. Detection here returns None (not detected, as in
+        the user's original repro) and questionary.select only has 2 canned
+        answers (pack choice, ai_tool) -- a third .ask() call for project type
+        would raise StopIteration and fail the test."""
+        monkeypatch.chdir(tmp_path)
+
+        def _fake_scaffold_pack(pack_name, dest="."):
+            manifest_dir = Path(dest) / ".specify"
+            manifest_dir.mkdir(parents=True, exist_ok=True)
+            (manifest_dir / "manifest.yml").write_text(yaml.dump({
+                "project": {"name": "", "feature": ""},
+                "project_type": "",
+                "pr_rules": {"max_lines_per_pr": 400, "max_files_per_pr": 5},
+            }))
+            return 42
+
+        with patch("sdd.commands.init.detect_project_type", return_value=None), \
+             patch("sdd.commands.init.scaffold_pack", side_effect=_fake_scaffold_pack), \
+             patch("questionary.select", side_effect=[
+                 _Answer("__all__"), _Answer("sdd-backend-service"), _Answer("claude-code"),
+             ]):
+            result = runner.invoke(init_command, [
+                "-p", "payments", "-f", "checkout", "-s", "pilot",
+            ])
+
+        assert result.exit_code == 0, result.output
+        saved = yaml.safe_load((tmp_path / ".specify" / "manifest.yml").read_text())
+        assert saved["project_type"] == "backend-service"
+        assert "from sdd-backend-service" in result.output
+
     def test_scaffold_cancelled_exits_nonzero(self, runner, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
 

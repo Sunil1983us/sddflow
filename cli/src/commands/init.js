@@ -10,6 +10,14 @@ import {
   PACK_DESCRIPTIONS, ALL_PACKS, TYPE_TO_PACK,
 } from '../utils/scaffold.js';
 
+// Reverse of TYPE_TO_PACK — packs dedicated to one project type don't need
+// to ask (or auto-detect) project_type at all, since choosing the pack
+// already answers that question. Only sdd-universal (not in this map)
+// genuinely branches its tech-stack tables on project_type.
+const PACK_TO_TYPE = Object.fromEntries(
+  Object.entries(TYPE_TO_PACK).map(([type, pack]) => [pack, type])
+);
+
 const SCOPES = ['pilot', 'mvp', 'full'];
 
 const AI_TOOLS = [
@@ -51,19 +59,30 @@ export async function initCommand(opts) {
   // chosenPack unknown) detects it without tracking the pack name anywhere
   // persistent.
   let isMicro;
+  const existing = chosenPack === null ? (readManifest() ?? {}) : {};
   if (chosenPack === 'sdd-micro') {
     isMicro = true;
   } else if (chosenPack === null) {
-    const existing = readManifest() ?? {};
     isMicro = !('project_type' in existing) && !('scope' in (existing.project ?? {}));
   } else {
     isMicro = false;
   }
 
+  // A pack dedicated to one project type already answers the question —
+  // asking again (or running detection a second time, right after
+  // scaffoldPack just copied that pack's own files into the directory) is
+  // redundant and, worse, offers irrelevant choices like "mobile" for a
+  // project the user just told us is sdd-backend-service.
+  const packName = chosenPack ?? existing.pack;
+  const pinnedType = PACK_TO_TYPE[packName];
+
   // ── Project type ─────────────────────────────────────────────────────────
   let projectType = opts.type ?? null;
 
-  if (!isMicro && !projectType) {
+  if (!isMicro && !projectType && pinnedType) {
+    projectType = pinnedType;
+    console.log(chalk.dim(`  Project type: `) + chalk.green(projectType) + chalk.dim(` (from ${packName})`));
+  } else if (!isMicro && !projectType) {
     process.stdout.write(chalk.dim('  Detecting project type... '));
     const detected = detectProjectType('.');
     if (detected) {

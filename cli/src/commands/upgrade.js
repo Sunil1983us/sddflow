@@ -1201,6 +1201,27 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.42',
+    to:   '2.7.43',
+    description: 'Fix: sdd init no longer re-asks project type after a type-dedicated pack (backend-service/frontend-spa/mobile/fullstack) is chosen -- no manifest schema changes',
+    notes: [
+      'Choosing a type-dedicated pack (e.g. sdd-backend-service) used to ' +
+      'still trigger a second project-type detection/select right after ' +
+      'scaffolding, offering irrelevant choices like mobile/desktop for a ' +
+      'project already identified by the pack choice',
+      'New PACK_TO_TYPE reverse map (of scaffold.js TYPE_TO_PACK) pins ' +
+      'projectType directly from the chosen pack for the 4 dedicated ' +
+      'packs; sdd-universal is unaffected since it genuinely branches on ' +
+      'project_type',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.43';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

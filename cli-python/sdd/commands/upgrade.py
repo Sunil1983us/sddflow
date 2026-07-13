@@ -1683,6 +1683,40 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.42"},
     },
+    {
+        "from":        "2.7.42",
+        "to":          "2.7.43",
+        "description": "Fix: sdd init no longer re-asks project type after a type-dedicated pack (backend-service/frontend-spa/mobile/fullstack) is chosen -- no manifest schema changes",
+        "notes": [
+            "User-reported: choosing sdd-backend-service from 'Choose from "
+            "all packs...' (when auto-detection failed) still triggered a "
+            "second detect_project_type() call right after scaffold_pack "
+            "copied that pack's own files in, and then a 'Project type:' "
+            "select listing all 10 types including irrelevant ones (mobile, "
+            "desktop, ...) for a project the user just said was "
+            "sdd-backend-service",
+            "New PACK_TO_TYPE reverse map (of scaffold.py's TYPE_TO_PACK) in "
+            "init.py -- when the chosen (or, in fill mode, already-recorded "
+            "manifest.pack) pack is one of the 4 type-dedicated packs, "
+            "project_type is pinned directly from the pack name and neither "
+            "detection nor the select prompt runs",
+            "sdd-universal is unaffected -- it is not in TYPE_TO_PACK "
+            "(genuinely branches its tech-stack tables on project_type "
+            "across 10 types), so its existing detect/confirm/select flow "
+            "is unchanged",
+            "Same fix applied to the Node CLI (cli/src/commands/init.js) "
+            "for parity, though it has no test suite to extend",
+            "New regression test in test_init.py "
+            "(test_dedicated_pack_choice_skips_redundant_type_prompt): "
+            "detection returns None (as in the user's repro) and "
+            "questionary.select has only 2 canned answers (pack choice, "
+            "ai_tool) -- a third .ask() call for project type would raise "
+            "StopIteration and fail the test",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.43"},
+    },
 ]
 
 
