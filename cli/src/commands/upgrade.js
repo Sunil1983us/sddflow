@@ -1308,6 +1308,27 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.47',
+    to:   '2.7.48',
+    description: "Feature: dashboard's review-links check now also surfaces sdd review check --doc classification and reviewer comments (Python CLI) -- no manifest schema changes",
+    notes: [
+      "The dashboard's existing on-demand 'Check Jira/Confluence review " +
+      "links' button now also classifies each document APPROVED / " +
+      'NEEDS_REVISION / PENDING (same logic as sdd review check --doc) ' +
+      'and shows Jira reviewer comments inline',
+      'This Node CLI does not implement sdd dashboard -- it stays scoped ' +
+      'to init/upgrade scaffolding, per its own README; this migration ' +
+      'entry exists so both CLIs report the same sdd_version chain for a ' +
+      'given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.48';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

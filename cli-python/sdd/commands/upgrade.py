@@ -1874,6 +1874,38 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.47"},
     },
+    {
+        "from":        "2.7.47",
+        "to":          "2.7.48",
+        "description": "Feature: dashboard's existing 'Check Jira/Confluence review links' button now also surfaces the sdd review check --doc classification (APPROVED/NEEDS_REVISION/PENDING) and reviewer comments per document -- no manifest schema changes",
+        "notes": [
+            "User-requested: a dashboard equivalent of `sdd review check "
+            "--doc` to check review status/comments without leaving the "
+            "browser",
+            "dashboard.py's _fetch_review_links() (the existing on-demand, "
+            "button-triggered Jira/Confluence lookup, architecturally "
+            "separate from the network-free 5s /api/status poll) now also "
+            "calls review.py's own _get_review_status() -- reusing the "
+            "exact APPROVED/NEEDS_REVISION/PENDING classification `sdd "
+            "review check` uses instead of re-deriving it -- and fetches "
+            "Jira reviewer comments via client.get_comments()",
+            "Frontend: a color-coded review-status badge (reusing the "
+            "existing badge() renderer, new 'review' kind) now appears "
+            "next to each document's Jira pill, and Jira review comments "
+            "are shown in the existing per-doc comments panel (💬), "
+            "labeled separately from local dashboard comments",
+            "Same requirement as `sdd review check` itself: only works "
+            "where document_reviews is configured in integrations.yml -- "
+            "no new gap introduced",
+            "2 new tests in test_dashboard.py exercising the real "
+            "classification wiring (NEEDS_REVISION with a comment, "
+            "APPROVED via approved_statuses) plus 2 source-level page "
+            "guards for the new badge/comments markup",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.48"},
+    },
 ]
 
 

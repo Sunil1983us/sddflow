@@ -151,3 +151,114 @@ def test_page_renders_full_pipeline_section():
 def test_page_pipeline_shows_scope_and_plan_mode():
     assert "project.scope" in _PAGE
     assert "project.plan_mode" in _PAGE
+
+
+# Regression guards for the dashboard-side sdd review check equivalent:
+# _fetch_review_links must surface the same APPROVED/NEEDS_REVISION/PENDING
+# classification and reviewer comments as `sdd review check --doc`, by
+# reusing review.py's own _get_review_status rather than re-deriving it.
+def test_page_renders_review_status_badge_and_jira_comments():
+    assert "reviewStatusBadge" in _PAGE
+    assert "Jira review comments" in _PAGE
+    assert "kind === 'review'" in _PAGE
+
+
+def test_fetch_review_links_surfaces_classification_and_comments(tmp_path, monkeypatch):
+    import sdd.commands.dashboard as dashboard_mod
+    import sdd.utils.integrations as integrations_mod
+    import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.jira_client as jira_client_mod
+    from sdd.utils.integrations import IntegrationsConfig, JiraConfig, DocumentReview
+    from sdd.utils.atlassian_auth import Profile
+
+    monkeypatch.chdir(tmp_path)
+
+    cfg = IntegrationsConfig(
+        profile=None,
+        jira=JiraConfig(project_key="PROJ"),
+        confluence=None,
+        document_reviews={
+            "brd": DocumentReview(
+                reviewer_jira_user="abc123",
+                reviewer_role="Product Owner",
+                phase="specify",
+                sequence=1,
+                confluence_page="{project} — BRD",
+            ),
+        },
+    )
+    monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
+    monkeypatch.setattr(auth_mod, "load_profile", lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"))
+    monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
+
+    class FakeJiraClient:
+        def __init__(self, session, base_url):
+            pass
+
+        def find_by_label(self, project_key, label):
+            return {"key": "PROJ-9", "fields": {"status": {"name": "In Review"}}}
+
+        def get_comments(self, issue_key):
+            return [{
+                "author": {"displayName": "Jane Reviewer"},
+                "created": "2026-07-10T12:00:00.000+0000",
+                "body": "Please fix section 3",
+            }]
+
+    monkeypatch.setattr(jira_client_mod, "JiraClient", FakeJiraClient)
+
+    result = dashboard_mod._fetch_review_links("payments")
+
+    brd = result["docs"]["brd"]
+    assert brd["jira"]["key"] == "PROJ-9"
+    assert brd["jira"]["review_status"] == "NEEDS_REVISION"
+    assert brd["jira"]["comments"] == [{
+        "author": "Jane Reviewer",
+        "created": "2026-07-10",
+        "text": "Please fix section 3",
+    }]
+
+
+def test_fetch_review_links_classifies_approved_status(tmp_path, monkeypatch):
+    import sdd.commands.dashboard as dashboard_mod
+    import sdd.utils.integrations as integrations_mod
+    import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.jira_client as jira_client_mod
+    from sdd.utils.integrations import IntegrationsConfig, JiraConfig, DocumentReview
+    from sdd.utils.atlassian_auth import Profile
+
+    monkeypatch.chdir(tmp_path)
+
+    cfg = IntegrationsConfig(
+        profile=None,
+        jira=JiraConfig(project_key="PROJ"),
+        confluence=None,
+        document_reviews={
+            "brd": DocumentReview(
+                reviewer_jira_user="abc123",
+                reviewer_role="Product Owner",
+                phase="specify",
+                sequence=1,
+                confluence_page="{project} — BRD",
+            ),
+        },
+    )
+    monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
+    monkeypatch.setattr(auth_mod, "load_profile", lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"))
+    monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
+
+    class FakeJiraClient:
+        def __init__(self, session, base_url):
+            pass
+
+        def find_by_label(self, project_key, label):
+            return {"key": "PROJ-9", "fields": {"status": {"name": "Done"}}}
+
+        def get_comments(self, issue_key):
+            return []
+
+    monkeypatch.setattr(jira_client_mod, "JiraClient", FakeJiraClient)
+
+    result = dashboard_mod._fetch_review_links("payments")
+    assert result["docs"]["brd"]["jira"]["review_status"] == "APPROVED"
+    assert result["docs"]["brd"]["jira"]["comments"] == []
