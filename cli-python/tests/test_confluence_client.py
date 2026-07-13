@@ -29,7 +29,24 @@ class TestUploadAttachment:
         client, session, _ = self._client()
         client.upload_attachment("12345", "diagram-1.svg", b"<svg/>", "image/svg+xml")
         _, kwargs = session.post.call_args
-        assert kwargs["headers"] == {"X-Atlassian-Token": "nocheck"}
+        assert kwargs["headers"]["X-Atlassian-Token"] == "nocheck"
+
+    def test_unsets_content_type_so_requests_computes_the_multipart_boundary(self):
+        """Regression: build_session() sets a blanket "application/json"
+        Content-Type on the shared session for every other call this
+        client makes. A per-request headers dict merges over that
+        session default rather than replacing it, so without explicitly
+        clearing it here, requests never computes and sets its own
+        multipart/form-data; boundary=... header -- Confluence then
+        receives multipart bytes labeled application/json and rejects
+        the upload with 415, while the page content itself still saves
+        fine (a broken-image placeholder, no error surfaced anywhere).
+        Passing Content-Type: None is requests' documented way to
+        remove a session-level header for one request."""
+        client, session, _ = self._client()
+        client.upload_attachment("12345", "diagram-1.svg", b"<svg/>", "image/svg+xml")
+        _, kwargs = session.post.call_args
+        assert kwargs["headers"]["Content-Type"] is None
 
     def test_sends_filename_content_and_media_type_as_multipart_file(self):
         client, session, _ = self._client()

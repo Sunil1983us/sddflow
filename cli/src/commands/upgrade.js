@@ -1352,6 +1352,30 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.49',
+    to:   '2.7.50',
+    description: 'Fix: Confluence diagram attachment uploads rejected with HTTP 415 due to a stale multipart Content-Type header (Python CLI) -- no manifest schema changes',
+    notes: [
+      "confluence_client.py's upload_attachment() (diagrams.mode: " +
+      "local-svg) posts a multipart file upload on a shared session " +
+      "that already carries a blanket Content-Type: application/json " +
+      "header -- requests only computes its own multipart/form-data; " +
+      "boundary=... header when no Content-Type is already present, so " +
+      "every diagram attachment was silently rejected by Confluence " +
+      "with 415 while the page content itself still saved fine",
+      'This Node CLI does not implement sdd confluence push -- it stays ' +
+      'scoped to init/upgrade scaffolding, per its own README; this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.50';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
