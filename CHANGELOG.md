@@ -4,6 +4,48 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.55] — 2026-07-13 (Fix: sdd review pull-answers never patched markers in projects that predate NEEDS CLARIFICATION-NNN numbering)
+
+### Fixed
+
+- **User-reported: after answering all 7 open questions on a `push-questions`
+  ticket (and confirming the 2.7.54 multi-line fix worked correctly),
+  `sdd review pull-answers` still reported 0 items patched every time.**
+  - Diagnosed via a sequence of live checks against the user's real project:
+    the ADF text extraction, working directory, and comment-answer parsing
+    were each confirmed correct in isolation, narrowing the failure to
+    `_patch_marker` itself — every call returned `False`.
+  - Root cause: `validate.md`'s own §3a-BLOCKING scan only **displays**
+    synthesized `{doc}:NC-{NNN}` IDs for legacy unnumbered
+    `[NEEDS CLARIFICATION: ...]` markers (order of appearance) — it never
+    writes those numbers back into the source document, since scanning
+    isn't editing. Confirmed via a live
+    `grep -o "NEEDS CLARIFICATION-[0-9]*" brd.md` returning zero matches
+    despite the displayed table citing `brd:NC-001` etc. `_patch_marker`'s
+    exact-string search for the numbered form therefore never found
+    anything to replace, in any project generated before the
+    `NEEDS CLARIFICATION-NNN` numbering feature (2.7.53) shipped.
+  - New `_number_legacy_markers()`: retroactively numbers any unnumbered
+    `[NEEDS CLARIFICATION: ...]` marker in a source doc as
+    `[NEEDS CLARIFICATION-NNN: ...]`, in order of appearance, continuing
+    after the highest existing number so a doc with a mix of both forms
+    doesn't collide. Wired into `review_pull_answers` to run once per
+    referenced doc before any patch is attempted.
+  - Secondary fix: the AI generating `validate.md`'s Locations column has,
+    in practice, abbreviated `use-cases.md` as `uc` (`resolve_doc_path`'s
+    real key is `use-cases`, matching the filename stem). New
+    `_normalize_doc_key()` maps known abbreviations before every
+    `resolve_doc_path` call sourced from a parsed location ID.
+    `validate.prompt.md` (all 5 packs) tightened to require an exact
+    filename stem going forward.
+  - 11 new tests: legacy-marker numbering (order, zero-padding,
+    mixed-state continuation, already-numbered untouched, missing file),
+    doc-key alias normalization, and an end-to-end reproduction of the
+    exact reported bug.
+  - No manifest schema changes.
+
+---
+
 ## [2.7.54] — 2026-07-13 (Fix: multi-line Jira replies to sdd review pull-answers were collapsed into one line)
 
 ### Fixed

@@ -2155,6 +2155,55 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.54"},
     },
+    {
+        "from":        "2.7.54",
+        "to":          "2.7.55",
+        "description": "Fix: sdd review pull-answers never patched a marker in any project whose brd.md/use-cases.md/srd.md predate the NEEDS CLARIFICATION-NNN numbering feature -- no manifest schema changes",
+        "notes": [
+            "User-reported: pull-answers reported 0 items patched every "
+            "time despite valid, correctly-formatted answers on the "
+            "Jira ticket, confirmed via live diagnostics against the "
+            "user's real project -- extract_text (fixed in 2.7.54), "
+            "cwd, and comment parsing were each individually confirmed "
+            "correct in isolation, narrowing the failure to "
+            "_patch_marker itself",
+            "Root cause: validate.md's own §3a-BLOCKING scan only "
+            "DISPLAYS synthesized {doc}:NC-{NNN} IDs for legacy "
+            "unnumbered [NEEDS CLARIFICATION: ...] markers (order of "
+            "appearance) -- it never writes those numbers back into the "
+            "source document, since scanning isn't editing. Confirmed "
+            "via a live grep -o \"NEEDS CLARIFICATION-[0-9]*\" against "
+            "the user's brd.md returning zero matches despite the "
+            "displayed table citing brd:NC-001 etc. _patch_marker's "
+            "exact-string search for the numbered form therefore never "
+            "found anything to replace, in any project generated before "
+            "this feature shipped",
+            "New _number_legacy_markers(): retroactively numbers any "
+            "unnumbered [NEEDS CLARIFICATION: ...] marker in a source "
+            "doc as [NEEDS CLARIFICATION-NNN: ...], in order of "
+            "appearance, continuing after the highest existing number so "
+            "a doc with a mix of both forms doesn't collide -- wired "
+            "into review_pull_answers to run once per referenced doc "
+            "before any patch is attempted",
+            "Secondary fix: the AI generating validate.md's Locations "
+            "column has, in practice, abbreviated use-cases.md as 'uc' "
+            "(resolve_doc_path's real key is 'use-cases', matching the "
+            "filename stem) -- new _normalize_doc_key() maps known "
+            "abbreviations before every resolve_doc_path call sourced "
+            "from a parsed location ID. validate.prompt.md (all 5 packs) "
+            "tightened to require an exact filename stem going forward",
+            "11 new tests: legacy-marker numbering (order, zero-padding, "
+            "mixed-state continuation, already-numbered untouched, "
+            "missing file), doc-key alias normalization, and an "
+            "end-to-end reproduction of the exact reported bug (a "
+            "validate.md table citing brd:NC-001/uc:NC-001 against docs "
+            "still in the old unnumbered form, confirming pull-answers "
+            "now retrofits and patches both)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.55"},
+    },
 ]
 
 

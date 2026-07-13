@@ -903,6 +903,74 @@ class TestPatchMarker:
         assert "answer" in p.read_text()
 
 
+class TestNumberLegacyMarkers:
+    def _doc(self, project, name, body):
+        p = project / ".specify" / "features" / "auth" / f"{name}.md"
+        p.write_text(body)
+        return p
+
+    def test_numbers_unnumbered_markers_in_order(self, project):
+        p = self._doc(project, "brd", (
+            "# BRD\n\n"
+            "§4 [NEEDS CLARIFICATION: What problem does this solve?]\n\n"
+            "§5 [NEEDS CLARIFICATION: How long must records be retained?]\n"
+        ))
+        assert review._number_legacy_markers(p) == 2
+        text = p.read_text()
+        assert "[NEEDS CLARIFICATION-001: What problem does this solve?]" in text
+        assert "[NEEDS CLARIFICATION-002: How long must records be retained?]" in text
+
+    def test_zero_pads_to_three_digits(self, project):
+        body = "\n".join(
+            f"[NEEDS CLARIFICATION: q{i}?]" for i in range(1, 11)
+        )
+        p = self._doc(project, "brd", body)
+        review._number_legacy_markers(p)
+        text = p.read_text()
+        assert "[NEEDS CLARIFICATION-001:" in text
+        assert "[NEEDS CLARIFICATION-010:" in text
+
+    def test_continues_after_highest_existing_number_in_mixed_doc(self, project):
+        p = self._doc(project, "brd", (
+            "[NEEDS CLARIFICATION-002: already numbered?]\n\n"
+            "[NEEDS CLARIFICATION: legacy, unnumbered?]\n"
+        ))
+        assert review._number_legacy_markers(p) == 1
+        text = p.read_text()
+        assert "[NEEDS CLARIFICATION-002: already numbered?]" in text
+        assert "[NEEDS CLARIFICATION-003: legacy, unnumbered?]" in text
+
+    def test_leaves_already_numbered_markers_untouched(self, project):
+        p = self._doc(project, "brd", "[NEEDS CLARIFICATION-001: already numbered?]\n")
+        assert review._number_legacy_markers(p) == 0
+        assert p.read_text() == "[NEEDS CLARIFICATION-001: already numbered?]\n"
+
+    def test_no_legacy_markers_returns_zero_and_does_not_rewrite_file(self, project):
+        p = self._doc(project, "brd", "# BRD\n\nNo open questions here.\n")
+        before = p.read_text()
+        assert review._number_legacy_markers(p) == 0
+        assert p.read_text() == before
+
+    def test_nonexistent_file_returns_zero(self, project):
+        p = project / ".specify" / "features" / "auth" / "does-not-exist.md"
+        assert review._number_legacy_markers(p) == 0
+
+
+class TestNormalizeDocKey:
+    def test_uc_normalizes_to_use_cases(self):
+        assert review._normalize_doc_key("uc") == "use-cases"
+
+    def test_usecases_normalizes_to_use_cases(self):
+        assert review._normalize_doc_key("usecases") == "use-cases"
+
+    def test_is_case_insensitive(self):
+        assert review._normalize_doc_key("UC") == "use-cases"
+
+    def test_unknown_key_passes_through_lowercased(self):
+        assert review._normalize_doc_key("BRD") == "brd"
+        assert review._normalize_doc_key("srd") == "srd"
+
+
 class TestPushPullQuestionsCommands:
     @pytest.fixture()
     def runner(self):
@@ -1037,3 +1105,78 @@ class TestPushPullQuestionsCommands:
     def test_pull_answers_exits_quietly_when_not_configured(self, project, runner):
         result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
         assert result.exit_code == 0
+
+    @pytest.fixture()
+    def legacy_blocked_project(self, project):
+        """Reproduces the reported production bug: validate.md's table
+        displays synthesized brd:NC-001/use-cases:NC-001-style IDs
+        (order-of-appearance) even though the underlying docs predate the
+        NEEDS CLARIFICATION-NNN numbering feature and still use the old
+        unnumbered `[NEEDS CLARIFICATION: ...]` form. Also exercises the
+        `uc` -> `use-cases` doc-key alias, since that's how the AI
+        abbreviated the Locations column in the real report."""
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n> Version: 1.0 | Status: Draft\n\n"
+            "§4 [NEEDS CLARIFICATION: What business problem does this solve?]\n\n"
+            "## Version History\n\n| Version | Date | Changed By | Summary | CHG-NNN |\n"
+            "|---|---|---|---|---|\n| 1.0 | 2026-01-01 | init | Initial draft | — |\n"
+        )
+        (project / ".specify" / "features" / "auth" / "use-cases.md").write_text(
+            "# Use Cases\n> Version: 1.0 | Status: Draft\n\n"
+            "§2 [NEEDS CLARIFICATION: What HTTP status should a duplicate return?]\n\n"
+            "## Version History\n\n| Version | Date | Changed By | Summary | CHG-NNN |\n"
+            "|---|---|---|---|---|\n| 1.0 | 2026-01-01 | init | Initial draft | — |\n"
+        )
+        (project / ".specify" / "features" / "auth" / "validate.md").write_text(
+            "# Validation Report\n> Version: 1.0 | Status: BLOCKED\n\n"
+            "| ID | Locations | Question |\n|---|---|---|\n"
+            "| brd:NC-001 | brd:NC-001 | What business problem does this solve? |\n"
+            "| uc:NC-001 | uc:NC-001 | What HTTP status should a duplicate return? |\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  validate:\n"
+            "    reviewer_jira_user: '712020:abc'\n"
+            "    reviewer_role: 'Business Analyst'\n"
+            "    phase: specify\n"
+            "    sequence: 4\n"
+            "    confluence_page: '{feature} — Validation'\n"
+        )
+        return project
+
+    def test_pull_answers_retrofits_legacy_unnumbered_markers_and_patches(
+        self, legacy_blocked_project, runner
+    ):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+            issue_key = review._load_review_links()["validate"]["key"]
+            fake_jira.comments_by_key[issue_key] = [{
+                "body": "brd:NC-001: Demonstrates real-time settlement.\n"
+                        "uc:NC-001: 409 Conflict.",
+                "author": {"displayName": "PO"}, "created": "2026-01-02T00:00:00+00:00",
+            }]
+            # Before the fix, brd.md/use-cases.md still have the OLD
+            # unnumbered `[NEEDS CLARIFICATION: ...]` form -- confirm that
+            # precondition explicitly, matching the live `grep -o
+            # "NEEDS CLARIFICATION-[0-9]*"` diagnostic that proved the bug.
+            brd_before = (legacy_blocked_project / ".specify" / "features" / "auth" / "brd.md").read_text()
+            assert "NEEDS CLARIFICATION-" not in brd_before
+
+            result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+
+        assert result.exit_code == 0, result.output
+        brd_text = (legacy_blocked_project / ".specify" / "features" / "auth" / "brd.md").read_text()
+        uc_text = (legacy_blocked_project / ".specify" / "features" / "auth" / "use-cases.md").read_text()
+        assert "Demonstrates real-time settlement." in brd_text
+        assert "NEEDS CLARIFICATION" not in brd_text
+        assert "409 Conflict." in uc_text
+        assert "NEEDS CLARIFICATION" not in uc_text

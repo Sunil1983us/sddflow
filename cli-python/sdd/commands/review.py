@@ -336,6 +336,18 @@ _ANSWER_LINE_RE = re.compile(
     re.MULTILINE | re.IGNORECASE,
 )
 
+# validate.prompt.md tells the AI to cite each marker's doc as "{doc}:NC-{NNN}"
+# but doesn't mandate an exact spelling -- a model writing the Locations
+# column for use-cases.md has, in practice, abbreviated it "uc" (a reasonable
+# guess, but resolve_doc_path's actual doc key is "use-cases", matching the
+# filename). Normalize known abbreviations before ever calling
+# resolve_doc_path with a doc-key parsed out of a location ID.
+_DOC_KEY_ALIASES = {"uc": "use-cases", "usecases": "use-cases"}
+
+
+def _normalize_doc_key(doc_key: str) -> str:
+    return _DOC_KEY_ALIASES.get(doc_key.lower(), doc_key.lower())
+
 
 def _parse_open_questions(doc_text: str) -> list[dict]:
     """Parse a blocked document's `| ID | Locations | Question |` table
@@ -412,6 +424,52 @@ def _patch_marker(md_path: Path, nnn: str, answer: str) -> bool:
     new_text = _bump_version_and_log(new_text, f"NC-{nnn} resolved via Jira/Confluence comment")
     md_path.write_text(new_text)
     return True
+
+
+_LEGACY_MARKER_RE = re.compile(r'\[NEEDS CLARIFICATION:\s*')
+
+
+def _number_legacy_markers(md_path: Path) -> int:
+    """Retroactively number any un-numbered `[NEEDS CLARIFICATION: ...]`
+    markers in md_path as `[NEEDS CLARIFICATION-NNN: ...]`, in order of
+    appearance, 1-indexed and zero-padded to 3 digits -- the exact
+    convention specify-brd/uc/srd/doc.prompt.md now write for documents
+    generated after this feature shipped.
+
+    Projects whose brd.md/use-cases.md/srd.md predate that convention
+    still have the old unnumbered form. validate.prompt.md's own
+    §3a-BLOCKING table numbers them the same way (order of appearance)
+    purely for DISPLAY -- it never patches the source file, since
+    scanning isn't editing. Without this retrofit, that displayed
+    numbering (what a reviewer's Jira/Confluence answer cites) never
+    lines up with any real text in the source file, so
+    push-questions/pull-answers's exact-ID matching can never find a
+    marker to patch.
+
+    The literal regex `\\[NEEDS CLARIFICATION:` (colon immediately
+    after "CLARIFICATION", no dash) only matches the legacy unnumbered
+    form -- an already-numbered `[NEEDS CLARIFICATION-NNN:` has a "-NNN"
+    in between and is left untouched. Numbering continues after the
+    highest existing NNN, so a doc with a mix of both forms doesn't
+    collide. Returns the count of markers renumbered (0 if none found,
+    including when the file doesn't exist)."""
+    if not md_path.exists():
+        return 0
+    text = md_path.read_text()
+
+    existing_nums = [int(n) for n in re.findall(r'\[NEEDS CLARIFICATION-(\d+):', text)]
+    state = {"next_num": max(existing_nums, default=0) + 1, "count": 0}
+
+    def renumber(_m: re.Match) -> str:
+        replacement = f"[NEEDS CLARIFICATION-{state['next_num']:03d}: "
+        state["next_num"] += 1
+        state["count"] += 1
+        return replacement
+
+    new_text = _LEGACY_MARKER_RE.sub(renumber, text)
+    if state["count"]:
+        md_path.write_text(new_text)
+    return state["count"]
 
 
 def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | None:
@@ -825,6 +883,28 @@ def review_pull_answers(doc, profile, feature):
     if not items:
         raise SystemExit(0)
 
+    # Retrofit: a doc that predates NEEDS CLARIFICATION-NNN numbering
+    # still has the old unnumbered [NEEDS CLARIFICATION: ...] form, even
+    # though validate.md's table above already displays synthesized
+    # brd:NC-001-style IDs for it (order-of-appearance, same rule) --
+    # number the source file's markers to match before attempting any
+    # patch, or the exact-ID search below would never find them.
+    referenced_docs = {
+        _normalize_doc_key(loc_id.split(":NC-")[0])
+        for item in items for loc_id in item["locations"]
+    }
+    for doc_key in referenced_docs:
+        try:
+            loc_path = resolve_doc_path(doc_key, feature_name)
+        except ValueError:
+            continue
+        renumbered = _number_legacy_markers(loc_path)
+        if renumbered:
+            console.print(
+                f"  [dim]·  Numbered {renumbered} legacy marker(s) in "
+                f"{loc_path.name} to match validate.md's IDs[/dim]"
+            )
+
     links     = _load_review_links()
     issue_key = (links.get(doc) or {}).get("key")
     if not issue_key:
@@ -863,6 +943,7 @@ def review_pull_answers(doc, profile, feature):
         answer_text = answers[item["id"]]
         for loc_id in item["locations"]:
             doc_key, nnn = loc_id.split(":NC-")
+            doc_key = _normalize_doc_key(doc_key)
             try:
                 loc_path = resolve_doc_path(doc_key, feature_name)
             except ValueError:

@@ -72,7 +72,9 @@ For each `[ASSUMPTION-NNN]` the owner marks as incorrect:
    Scan brd.md, use-cases.md, and srd.md for any `[NEEDS CLARIFICATION-NNN: ...]`
    markers. If any found: list each as one row in a `| ID | Locations | Question |`
    table. **ID** = this marker's doc-qualified ID, `{doc}:NC-{NNN}` (e.g.
-   `brd:NC-002` for marker 002 in brd.md). **Locations** = comma-separated
+   `brd:NC-002` for marker 002 in brd.md — `{doc}` must exactly match the
+   file's stem: `brd`, `use-cases`, or `srd`, never an abbreviation like
+   `uc`). **Locations** = comma-separated
    doc-qualified IDs for every place this SAME question's answer applies —
    almost always just the ID itself again (e.g. `brd:NC-002`), but when one
    question was asked in more than one document (a duplicate — same

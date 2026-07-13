@@ -1477,6 +1477,35 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.54',
+    to:   '2.7.55',
+    description: "Fix: sdd review pull-answers never patched a marker in any project whose brd.md/use-cases.md/srd.md predate the NEEDS CLARIFICATION-NNN numbering feature (Python CLI) -- no manifest schema changes",
+    notes: [
+      "validate.md's own §3a-BLOCKING scan only displays synthesized " +
+      "{doc}:NC-{NNN} IDs for legacy unnumbered [NEEDS CLARIFICATION: " +
+      "...] markers (order of appearance) -- it never writes those " +
+      "numbers back into the source document, since scanning isn't " +
+      "editing, so the exact-string patch search in any pre-existing " +
+      "project never found a match",
+      "New _number_legacy_markers() retroactively numbers any " +
+      "unnumbered marker to match the numbering convention, wired into " +
+      "review_pull_answers to run once per referenced doc before any " +
+      "patch is attempted; new _normalize_doc_key() also maps the " +
+      "'uc' -> 'use-cases' abbreviation some model runs used in " +
+      "validate.md's Locations column",
+      "This Node CLI does not implement sdd review pull-answers -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.55';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
