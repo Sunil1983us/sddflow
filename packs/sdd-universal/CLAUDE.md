@@ -319,6 +319,7 @@ filenames: `design` exists in unified mode; `arch`/`hld`/`adr` in separate mode.
 | Phase | Sequence (unified) | Sequence (separate) | Reviewer |
 |---|---|---|---|
 | specify | BRD → Use Cases → SRD → Design | BRD → Use Cases → SRD | PO → BA → BA → Architect |
+| validate | Validate → Analyze → Clarify | Validate → Analyze → Clarify | PO → Tech Lead → Architect |
 | planning | LLD (mvp+) | Arch → HLD → ADR (mvp+) → LLD (mvp+) | Tech Lead / Architect |
 | tasks | Tasks | Tasks | Scrum Master |
 | release | Runbook → Release | Runbook → Release | DevOps → Release Manager |
@@ -333,6 +334,13 @@ sdd review status                # full dashboard for all documents
 When `sdd review check` exits 1 (NEEDS REVISION): read reviewer comments, update
 the document, then run `sdd review apply` and ask reviewer to re-review.
 Configure reviewers in `.specify/integrations.yml` — see `integrations.yml.example`.
+
+**The `validate` phase is optional per-document.** Unlike the `specify`/
+`planning`/`tasks`/`release` phases, `validate`/`analyze`/`clarify` fall back
+to chat approval individually if their own `document_reviews` entry is
+missing — add `document_reviews.validate` (and/or `.analyze`, `.clarify`) to
+`integrations.yml` only for the ones you want routed through Jira/Confluence;
+the rest stay chat-only.
 
 **Blocked documents can still collect answers via Jira/Confluence.** A
 document like `validate.md` can be blocked on `[NEEDS CLARIFICATION-NNN]`

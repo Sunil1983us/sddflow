@@ -79,6 +79,54 @@ CF-NNN IDs. Include in analyze.summary.md:
 
 - Save to: .specify/features/{manifest.project.feature}/analyze.md
 - Save summary to: analyze.summary.md (max SUMMARY_MAX_LINES)
+- Present the report.
+
+### Stakeholder Review and Approval
+
+**Step B — Formal submission**
+
+If `.specify/integrations.yml` has `document_reviews.analyze` configured:
+```bash
+sdd review submit --doc analyze
+```
+If the command succeeds, tell the user:
+> "Analysis report submitted for Jira review. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once the Tech Lead approves."
+
+If the CLI fails or is not configured, present the document and ask:
+> "Analysis report generated. Review §1–§9 above and reply **'approved'** (or 'yes', 'LGTM', 'looks good') to continue, or provide feedback:"
+
+**Step C — On approval (any path: Jira or chat)**
+
+When the user replies with any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'**, or any similar affirmative (case-insensitive):
+1. Run `sdd review check --doc analyze` to verify:
+   - Exit 0 → confirmed. Proceed.
+   - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
+   - CLI not available → skip check and proceed.
+2. Update `analyze.md`:
+   - Header: `Status: Draft` → `Status: Approved`, date → today.
+   - Approvals table: all Pending rows → `Approved` + today's date.
+   - Version History: append a row using the document's **current**
+     version (a pure approval doesn't bump it):
+     `| {current version} | {today} | {jira or chat} | Approved | — |`
+   - **Never** use this document-level approval signal to also check any
+     of the per-item risk/dependency/complexity findings in §1–§9 as
+     resolved — approval here means "the analysis is sound and complete
+     enough to proceed," not that every CF-NNN finding or R-NNN risk has
+     been individually addressed. Those are tracked to closure by
+     /clarify and /task, not by this approval.
+3. Re-save `analyze.md` and regenerate `analyze.summary.md`.
+4. Ask once: "Recording the approval — approver name/role and an optional comment?"
+   (defaults: the accountable role for this gate in roles.yml; "approved in chat")
+5. Record locally and sync Confluence:
+```bash
+sdd review approve --doc analyze --local --by "{approver}" --note "{comment}"
+```
+This also updates the document's existing Confluence page when a `confluence:`
+section exists in `.specify/integrations.yml`.
+If the command fails or the CLI is not installed, note: "Analyze approved ✓
+(Confluence page not updated)" and continue — the `Status: Approved` header is
+the authoritative gate.
+
 <!-- shared:token-usage-log-step:start -->
 ## Token Usage Logging (this command)
 Check now, with a fresh file read — not a memory of whether
@@ -93,4 +141,4 @@ update its Running Totals table. If the file still doesn't exist, skip
 this silently — do not create it and do not mention it.
 <!-- shared:token-usage-log-step:end -->
 
-- Wait for review before CLARIFY.
+- Do NOT proceed to /clarify until the approval above is recorded.

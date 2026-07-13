@@ -527,7 +527,7 @@ def review_command():
 
 @review_command.command("submit")
 @click.option("--doc",     required=True,
-              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), lld, tasks, runbook, release")
+              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), validate, analyze, clarify, lld, tasks, runbook, release")
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_submit(doc, profile, feature):
@@ -1115,7 +1115,7 @@ def review_comments(doc, feature, ack):
 
 @review_command.command("approve")
 @click.option("--doc",      required=True,
-              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), lld, ...")
+              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), validate, analyze, clarify, lld, ...")
 @click.option("--local",    is_flag=True, required=True,
               help="Write a local approval record (fallback when Jira is not configured)")
 @click.option("--by",       default="chat",

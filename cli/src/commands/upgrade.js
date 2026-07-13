@@ -1555,6 +1555,31 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.57',
+    to:   '2.7.58',
+    description: "Feature: analyze.md and clarify.md can now go through the same Jira/Confluence review-gate flow as brd/srd/etc, a new 'validate' phase (Python CLI) -- no manifest schema changes",
+    notes: [
+      "Added document_reviews.validate/.analyze/.clarify entries to " +
+      "integrations.yml.example (phase: validate, sequence 1/2/3), plus " +
+      "matching page_map entries and Stakeholder Review and Approval " +
+      "sections in analyze.prompt.md/clarify.prompt.md (all 5 packs) -- " +
+      "each of the three is optional individually",
+      "Fixed clarify-template.md's header (Status: OPEN -> Draft) so " +
+      "the standard approval flip works for clarify.md the same way it " +
+      "does for every other document",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.58';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

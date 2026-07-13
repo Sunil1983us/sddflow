@@ -2268,6 +2268,44 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.57"},
     },
+    {
+        "from":        "2.7.57",
+        "to":          "2.7.58",
+        "description": "Feature: analyze.md and clarify.md can now go through the same Jira/Confluence review-gate flow as brd/srd/etc (a new 'validate' phase) -- no manifest schema changes",
+        "notes": [
+            "User asked why /analyze and /clarify never got pushed to "
+            "Confluence/Jira the way /validate does -- by design they "
+            "were chat-only working documents, but nothing in "
+            "resolve_doc_path/review_submit/review_approve actually "
+            "required that; they're fully generic by doc key",
+            "Added document_reviews.validate/.analyze/.clarify entries "
+            "to integrations.yml.example (phase: validate, sequence "
+            "1/2/3 -- validate before analyze before clarify, enforced "
+            "by the same predecessor-sequence gate every other phase "
+            "already uses), plus matching page_map entries",
+            "analyze.prompt.md and clarify.prompt.md (all 5 packs) gained "
+            "the same Stakeholder Review and Approval Step B/C section "
+            "validate.prompt.md already has -- sdd review submit/check/"
+            "approve, same approval-signal handling, same guardrail "
+            "against inferring per-section findings as individually "
+            "confirmed by a document-level approval",
+            "Fixed clarify-template.md's header, which said "
+            "'Status: OPEN' instead of 'Status: Draft' -- "
+            "_mark_md_approved's regex only recognizes Draft/Proposed, "
+            "so the approval flip would have silently never updated the "
+            "header for clarify.md without this fix",
+            "Each of validate/analyze/clarify is optional individually -- "
+            "add only the ones you want routed through Jira/Confluence; "
+            "the rest stay chat-only, per review-gates.md",
+            "4 new tests: generic submit works for analyze/clarify doc "
+            "keys, the validate-phase sequence gate blocks analyze until "
+            "validate is approved, and the clarify.md header fix is "
+            "confirmed to make the approval flow work end-to-end",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.58"},
+    },
 ]
 
 

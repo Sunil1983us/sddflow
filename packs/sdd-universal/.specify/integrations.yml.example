@@ -195,7 +195,9 @@ confluence:
     adr:       "{feature} — Architecture Decisions" # separate plan_mode
     lld:       "{feature} — Low-Level Design"
     runbook:   "Runbook"                            # living — no {feature}, nests under {project}
-    # validate: "{feature} — Validation Report"
+    validate:  "{feature} — Validation Report"
+    analyze:   "{feature} — Analysis Report"
+    clarify:   "{feature} — Clarifications"
     # release:  "{feature} — Release Notes"
 
   # Diagram rendering: Confluence has NO native Mermaid or PlantUML
@@ -266,10 +268,12 @@ confluence:
 # docs/runbook/local-setup.md, and living/service-level documents
 # (data-model, security-design, api-spec, component-library — shared
 # across every feature in this service, see CLAUDE.md "Living
-# Documents") live at .specify/service/. This example only wires up the
-# main spec-phase gate (brd/use-cases/srd/design/lld/tasks/runbook/
-# release) — add entries here for any other document you want a Jira/
-# Confluence review gate on.
+# Documents") live at .specify/service/. This example wires up the main
+# spec-phase gate (brd/use-cases/srd/design), the validate phase
+# (validate/analyze/clarify — each optional individually, see
+# CLAUDE.md "Document Review Gates"), and lld/tasks/runbook/release —
+# add entries here for any other document you want a Jira/Confluence
+# review gate on.
 #
 # confluence_page keeps {feature} in the title for every per-feature entry
 # below, same reasoning as page_map above: `sdd review submit` nests pages
@@ -313,6 +317,33 @@ document_reviews:
     phase:              specify
     sequence:           4    # cannot submit until SRD approved
     confluence_page:    "{feature} — Design"
+
+  # ── validate phase (Validate → Analyze → Clarify) ─────────────────────────
+  # Runs after the specify phase is fully approved, before planning begins.
+  # Each of these three is optional individually — remove any entry you want
+  # to keep chat-only; only the ones present here get routed through Jira/
+  # Confluence. When present, sequence within this phase is still enforced
+  # the same way as any other phase (validate before analyze before clarify).
+  validate:
+    reviewer_jira_user: "5c7b8a2d0f3e1a4b9d6c8f21"   # PO's Jira accountId (same as brd)
+    reviewer_role:      Product Owner
+    phase:              validate
+    sequence:           1
+    confluence_page:    "{feature} — Validation Report"
+
+  analyze:
+    reviewer_jira_user: "8f0e1d5g3h6c4d7e2f9g1i54"   # Tech Lead's accountId (same as lld)
+    reviewer_role:      Tech Lead
+    phase:              validate
+    sequence:           2    # cannot submit until Validate approved
+    confluence_page:    "{feature} — Analysis Report"
+
+  clarify:
+    reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect's accountId (same as design)
+    reviewer_role:      Architect
+    phase:              validate
+    sequence:           3    # cannot submit until Analyze approved
+    confluence_page:    "{feature} — Clarifications"
 
   # ── planning phase ────────────────────────────────────────────────────────
   # separate plan_mode only — uncomment these three (and remove design: above).

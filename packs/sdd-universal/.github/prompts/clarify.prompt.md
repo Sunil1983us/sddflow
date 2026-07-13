@@ -81,6 +81,53 @@ For each spec document with content affected by a resolved item:
 
 Write `.specify/features/{manifest.project.feature}/clarify.summary.md` — confirm all items RESOLVED. If any items were resolved by best guess, list them so the Plan-Design reviewer is aware.
 
+### Step 6 — Stakeholder Review and Approval
+
+**Step B — Formal submission**
+
+If `.specify/integrations.yml` has `document_reviews.clarify` configured:
+```bash
+sdd review submit --doc clarify
+```
+If the command succeeds, tell the user:
+> "Clarification report submitted for Jira review. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once the Architect approves."
+
+If the CLI fails or is not configured, present the document and ask:
+> "Clarification report generated — all items resolved. Review the answers above and reply **'approved'** (or 'yes', 'LGTM', 'looks good') to continue, or provide feedback:"
+
+**Step C — On approval (any path: Jira or chat)**
+
+When the user replies with any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**, **'looks good'**, **'go ahead'**, **'confirmed'**, or any similar affirmative (case-insensitive):
+1. Run `sdd review check --doc clarify` to verify:
+   - Exit 0 → confirmed. Proceed.
+   - Non-0 and CLI is configured → warn: "Jira shows not yet approved. Confirm you want to proceed? (yes/no)" — wait for response.
+   - CLI not available → skip check and proceed.
+2. Update `clarify.md`:
+   - Header: `Status: Draft` → `Status: Approved`, date → today.
+   - Approvals table: all Pending rows → `Approved` + today's date.
+   - Version History: append a row using the document's **current**
+     version (a pure approval doesn't bump it — Step 3 above already
+     bumped it when the items were resolved):
+     `| {current version} | {today} | {jira or chat} | Approved | — |`
+   - This approval confirms the Architect has reviewed the resolved
+     answers (including any best-guess items) and is satisfied to
+     proceed to /plan-design — it does not re-open, and must not be
+     used to silently overwrite, the per-item RESOLVED/CONFIRMED/
+     DECIDED/CORRECTED status already recorded in the STATUS TABLE at
+     Step 3.
+3. Re-save `clarify.md` and regenerate `clarify.summary.md`.
+4. Ask once: "Recording the approval — approver name/role and an optional comment?"
+   (defaults: the accountable role for this gate in roles.yml; "approved in chat")
+5. Record locally and sync Confluence:
+```bash
+sdd review approve --doc clarify --local --by "{approver}" --note "{comment}"
+```
+This also updates the document's existing Confluence page when a `confluence:`
+section exists in `.specify/integrations.yml`.
+If the command fails or the CLI is not installed, note: "Clarify approved ✓
+(Confluence page not updated)" and continue — the `Status: Approved` header is
+the authoritative gate.
+
 <!-- shared:token-usage-log-step:start -->
 ## Token Usage Logging (this command)
 Check now, with a fresh file read — not a memory of whether

@@ -39,11 +39,19 @@ def test_shipped_example_parses_and_agrees_with_defaults():
     example = Path(__file__).resolve().parents[2] / \
         "packs/_shared/full/.specify/integrations.yml.example"
     data = yaml.safe_load(example.read_text())
-    assert set(data["confluence"]["page_map"]) == set(EXPECTED_DOC_KEYS)
+    # The shipped example is a superset of the wizard's minimal default --
+    # it also documents the optional "validate" phase (validate/analyze/
+    # clarify), which "sdd config init" deliberately leaves out since it
+    # needs reviewer info the wizard doesn't collect (see review-gates.md:
+    # "each optional individually").
+    assert set(EXPECTED_DOC_KEYS) <= set(data["confluence"]["page_map"])
+    assert set(data["confluence"]["page_map"]) - set(EXPECTED_DOC_KEYS) == \
+        {"validate", "analyze", "clarify"}
     # active document_reviews ships in unified mode: design yes, arch/hld/adr commented
     reviews = data["document_reviews"]
     assert "use-cases" in reviews and "design" in reviews
     assert "arch" not in reviews  # separate-mode block stays commented
+    assert {"validate", "analyze", "clarify"} <= set(reviews)
 
     # sequence within each phase must be strictly increasing (predecessor gating)
     by_phase: dict[str, list[int]] = {}

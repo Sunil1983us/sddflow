@@ -1,5 +1,5 @@
 # Clarification Report — {Feature Name}
-> Version: {spec version} | Status: OPEN | Date: {date} | Author: {author}
+> Version: {spec version} | Status: Draft | Date: {date} | Author: {author}
 > Fill all answers before PLAN begins
 
 ---
@@ -85,7 +85,7 @@ All items must be resolved before PLAN begins.
 ## Approvals
 | Role | Status | Date |
 |---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Architect (accountable) | Pending | |
 
 ## Version History
 
