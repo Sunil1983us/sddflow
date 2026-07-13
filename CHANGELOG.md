@@ -4,6 +4,44 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.49] — 2026-07-13 (Fix: silent Confluence diagram-render failures now print a warning)
+
+### Fixed
+
+- **User-reported: set `diagrams.mode: local-svg` in `integrations.yml`,
+  re-pushed a Use Cases page containing a Mermaid relationship diagram,
+  and the diagram still showed as plain text instead of an image — with
+  no error or warning anywhere to explain why.**
+  - Root cause: `md_to_cf.py`'s `_render_local_svg()` caught every
+    renderer exception — including the most likely real-world cause,
+    `pip install "sddflow[diagrams]"` never having been run so the
+    optional `mmdr` package isn't installed — and silently discarded the
+    reason, falling back to a plain code block. A real, fixable failure
+    was indistinguishable from `diagrams.mode` simply not being
+    configured at all (which is expected, documented default behavior).
+  - `md_to_storage()`'s return type changed (again) from
+    `tuple[str, list[Attachment]]` to
+    `tuple[str, list[Attachment], list[str]]` — the third element is one
+    human-readable warning per diagram fence whose *configured* mode
+    failed to render. Never populated when `diagrams.mode` is `"none"`,
+    since that's not a failure.
+  - Same silent-fallback gap fixed for `mermaid-app`/`plantuml-macro`
+    modes selected with no `macro_name` configured — previously also
+    indistinguishable from an unconfigured mode.
+  - All 6 call sites (`sdd confluence push`, `sdd confluence draft`,
+    `sdd review submit`, `sdd review apply`, `review.py`'s internal
+    `_push_doc_page`, `sdd cr submit`) now print each warning in yellow
+    right after a successful page push, so a future push immediately
+    names the actual problem (e.g. "Diagram failed to render (...) —
+    shown as plain code instead", or the exact `pip install` command
+    when `mmdr` isn't installed) instead of leaving silence to guess from.
+  - 9 new/updated tests in `test_md_to_cf.py`: missing-`macro_name`
+    warnings for both `mermaid-app` and `plantuml-macro`, a
+    renderer-exception warning naming the actual error, a dedicated
+    `MermaidRendererNotInstalled` test asserting the warning names the
+    exact install fix, and confirming `mode: none` / successful renders
+    never produce warnings.
+
 ## [2.7.48] — 2026-07-13 (Feature: dashboard surfaces `sdd review check --doc` status/comments)
 
 ### Added
