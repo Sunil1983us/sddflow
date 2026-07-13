@@ -82,6 +82,37 @@ The SDD pack works with any AI coding assistant. How you invoke a command depend
 
 ---
 
+### Virtual Team — Address by Name
+
+You can address any team member by name — no slash command needed.
+They read your message, check the pipeline state, and run the right step automatically.
+
+| Name | Role | Handles |
+|---|---|---|
+| **Maya** | Business Analyst | BRD, Use Cases, Validate, Context, Change Request |
+| **Rex** | Requirements Engineer | SRD, Clarify |
+| **Ava** | Software Architect | Analyze, Design, Security, API Spec, Data Model, Resilience |
+| **Leo** | Lead Developer | LLD, Implement, Pre-review, Address review, Bug assess, Bug fix |
+| **Kai** | Engineering Manager | Tasks, Stories, Export to Jira / GitHub Issues |
+| **Quinn** | QA Lead | Spec quality checklist |
+| **Riley** | Release Manager | Release planning and go-live |
+| **Morgan** | Delivery Manager | Full pipeline orchestration, progressive Jira push |
+
+**Works three ways — all equivalent:**
+
+```
+/maya                                   ← slash command (Claude Code + Copilot)
+Maya, create BRD for payments           ← natural language (any AI tool)
+"Hey Ava, I need a design for auth"     ← conversational (any AI tool)
+```
+
+**Routing rule:** When a name appears at the start of a message or is addressed
+directly (e.g. "Maya, …" / "Hey Ava" / "Can Rex clarify"), read and follow
+`.github/prompts/{name}.prompt.md` exactly. The prompt file handles context
+detection and routes to the correct underlying command automatically.
+
+---
+
 ## Command Flow
 
 | Command | What It Does | Scope |
@@ -545,6 +576,10 @@ Agent reads all unresolved comment threads on the PR, presents them as a numbere
 Slash commands that help manage the document review cycle — present the agent with reviewer comments and let it update the document.
 
 Without the CLI, share documents manually with reviewers and tell the agent the outcome (e.g. "BRD approved").
+
+#### `/taskstoissues` — Export Tasks and Stories to GitHub Issues
+
+Run as **Kai**. Reads `tasks.md` and `stories.md` and produces `tasks-to-issues.md` (GitHub-flavored markdown, one issue per task/story) plus `gh-create-issues.sh` (bulk-creates them via the `gh` CLI). Use once tasks/stories are approved and you want to work the backlog from GitHub Issues instead of `tasks.md`.
 
 ---
 

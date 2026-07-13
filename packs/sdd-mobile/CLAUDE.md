@@ -192,6 +192,9 @@ Each gate requires the previous step complete and reviewed.
 - If > max_lines_per_pr → SPLIT A/B/C → confirm → one at a time.
 - After task: state files + lines + "PR ready" → wait for go.
 <!-- shared:pr-contract:end -->
+- If `manifest.workflow_mode = local`: instead of "PR ready", run
+  build/test/lint/coverage locally → report ✅/❌ per check → state
+  files + lines + "Task accepted" → wait for go.
 
 ## Summary
 After every doc: write .summary.md (max SUMMARY_MAX_LINES). See AI-2 above.
@@ -375,7 +378,8 @@ For each task in the `/implement` phase:
               Run after: /specify (Action 2) | Gate before: /analyze
 
 /release    → UAT plan, store-release plan, go-live gate, BO closure
-              Gate: all tasks "PR ready" and merged
+              Gate: all tasks complete — "PR ready" + merged (github mode)
+              or "Task accepted" (local mode)
               Review: qa lead, product owner, tech lead, devops/sre
               Run after: /implement (all tasks) | Gate before: go-live
 

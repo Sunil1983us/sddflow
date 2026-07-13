@@ -1178,6 +1178,29 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.41',
+    to:   '2.7.42',
+    description: 'Docs consistency (Virtual Team + /taskstoissues in HOW-TO-USE.md, dangling CHANGELOG.md reference removed, workflow_mode wording propagated to frontend-spa/mobile/fullstack) + new Python-CLI test coverage -- no manifest schema changes',
+    notes: [
+      'Doc-only fixes across all 5 packs: removed a dangling CHANGELOG.md ' +
+      'reference from README.md, documented the existing Virtual Team ' +
+      '(address-by-name) feature and /taskstoissues command in ' +
+      'HOW-TO-USE.md, and propagated workflow_mode (github/local) wording ' +
+      'to the 3 packs whose CLAUDE.md/prompt files had not caught up with ' +
+      'the docs already promising local-mode support',
+      'This Node CLI does not implement sdd dashboard, sdd init, or sdd ' +
+      'pr -- it stays scoped to init/upgrade scaffolding, per its own ' +
+      'README; this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.42';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

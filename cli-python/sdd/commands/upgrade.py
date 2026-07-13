@@ -1630,6 +1630,59 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.41"},
     },
+    {
+        "from":        "2.7.41",
+        "to":          "2.7.42",
+        "description": "Docs consistency (Virtual Team + /taskstoissues in HOW-TO-USE.md, dangling CHANGELOG.md reference removed, workflow_mode wording propagated to frontend-spa/mobile/fullstack) + new test coverage for sdd init, sdd pr, and the dashboard HTTP handler; no manifest schema changes",
+        "notes": [
+            "Quick-win doc fixes from a full-project audit: removed the "
+            "dangling 'CHANGELOG.md' row from the README.md Read Next "
+            "table in all 5 packs (no such file is ever scaffolded into a "
+            "user's project); added a Virtual Team -- Address by Name "
+            "section and a /taskstoissues entry to HOW-TO-USE.md in all 5 "
+            "packs (both features already existed and worked, they just "
+            "weren't documented in the primary end-user guide)",
+            "workflow_mode (github/local) consistency fix: "
+            "sdd-frontend-spa, sdd-mobile, and sdd-fullstack already "
+            "documented workflow_mode: local as supported in "
+            "HOW-TO-USE.md, but CLAUDE.md's PR Contract/VALIDATE-RELEASE "
+            "gate text, implement.prompt.md's After Writing branch, "
+            "release.prompt.md's Verify Gate, PROMPT-GUIDE.md, the "
+            "quality-gate.yml starter-workflow comment, and "
+            "constitution.md's PR Rules table never branched on it -- "
+            "local mode silently behaved like github mode in those 3 "
+            "packs. Propagated the exact pattern already proven in "
+            "sdd-universal/sdd-backend-service so all 5 packs now behave "
+            "identically",
+            "New tests/test_dashboard_http.py (12 tests): real-socket "
+            "tests against dashboard.py's _Handler on an ephemeral "
+            "localhost port -- GET /, /api/status, /api/doc, "
+            "/api/review-links, POST /api/approve, /api/comment, "
+            "path-traversal rejection, invalid-JSON-body rejection, and "
+            "404s. Complements the existing helper-level tests in "
+            "test_dashboard.py, which never exercised do_GET/do_POST "
+            "themselves",
+            "New tests/test_init.py (6 tests): fill mode (manifest.yml "
+            "already exists) with CLI flags supplied, context-file "
+            "no-clobber, sdd-micro detection (manifest lacking "
+            "project_type/scope), invalid project-name rejection, and "
+            "scaffold mode (no manifest.yml yet -- pack gets copied in "
+            "first)",
+            "New tests/test_pr.py (14 tests): sdd pr create (task lookup, "
+            "branch/PR-title/PR-body construction, missing-task and "
+            "missing-integrations.yml failures, PrCreateError manual "
+            "fallback, --feature override), plus comments/reply/resolve/"
+            "request-review (unresolved-comment listing, comment-id "
+            "matching, and graceful degradation when a provider raises "
+            "ReviewActionError e.g. Bitbucket has no thread-resolution "
+            "API). All git-host interaction is mocked at the "
+            "detect_host/get_provider boundary -- provider-internal "
+            "behavior is already covered by test_git_host.py",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.42"},
+    },
 ]
 
 

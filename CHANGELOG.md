@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.42] — 2026-07-13 (Docs consistency + test coverage)
+
+### Fixed
+
+- Removed the dangling `CHANGELOG.md` reference from the "Read Next" table
+  in all 5 packs' `README.md` — no such file is ever scaffolded into a
+  user's project, so the row pointed nowhere.
+- Propagated the `workflow_mode` (github/local) wording fix to the 3 packs
+  that had lagged behind `sdd-universal`/`sdd-backend-service`
+  (`sdd-frontend-spa`, `sdd-mobile`, `sdd-fullstack`): `release-template.md`,
+  `CLAUDE.md` (PR Contract + VALIDATE/RELEASE gate wording),
+  `implement.prompt.md` ("After Writing" branch), `release.prompt.md`
+  (Verify Gate), `PROMPT-GUIDE.md`, `quality-gate.yml` (starter-workflow
+  comment), and `constitution.md` (PR Rules table) — these 3 packs already
+  documented `workflow_mode: local` as supported in `HOW-TO-USE.md`, but
+  the actual command prompts never branched on it, so local mode silently
+  behaved like github mode. It now works end-to-end in all 5 packs.
+
+### Added
+
+- **Virtual Team — Address by Name** section added to `HOW-TO-USE.md` in
+  all 5 packs (previously only documented in each pack's `CLAUDE.md`, not
+  in the primary end-user-facing guide).
+- **`/taskstoissues`** documented under "Optional and Utility Commands" in
+  `HOW-TO-USE.md` in all 5 packs (command existed and worked; it just
+  wasn't listed anywhere a user would find it).
+- Real-socket HTTP tests for `sdd dashboard`'s request handler
+  (`tests/test_dashboard_http.py`, 12 tests) — spins up the actual
+  `ThreadingHTTPServer` on an ephemeral port and drives it with real
+  requests, covering routes, status codes, and input validation that the
+  existing helper-level tests didn't reach.
+- Unit tests for `sdd init` (`tests/test_init.py`, 6 tests) — fill mode,
+  scaffold mode, sdd-micro detection, name validation, context-file
+  no-clobber behavior.
+- Unit tests for `sdd pr` (`tests/test_pr.py`, 14 tests) — `create`,
+  `comments`, `reply`, `resolve`, `request-review`, covering task lookup,
+  branch/PR-body construction, and graceful degradation when a git host
+  doesn't support an action.
+
 ## [2.7.41] — 2026-07-13 (Feature: local-mode dashboard comment discovery)
 
 ### Added

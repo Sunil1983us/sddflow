@@ -11,6 +11,10 @@ name: Quality Gate (AI-5)
 # This is a starter workflow — adjust the build/test commands for your
 # Tech Stack (constitution.md Part 2). Defaults assume Java + Maven
 # (backend) and Node + npm (frontend).
+#
+# Only applies when manifest.workflow_mode == "github". In "local" mode
+# (no GitHub), the agent runs these same checks itself during /implement
+# — see HOW-TO-USE.md "Workflow Mode".
 
 on:
   pull_request:

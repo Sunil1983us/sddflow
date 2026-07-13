@@ -211,4 +211,3 @@ Full detail on each file (what each field does, sample values, troubleshooting) 
 | `.specify/memory/roles.yml` | RACI — fill in reviewer names |
 | `.specify/contexts/CONTEXT-GUIDE.md` | How to write a good context file |
 | `docs/SUMMARY-GUIDE.md` | How AI-2 summary-first reading works |
-| `CHANGELOG.md` | Version history |
