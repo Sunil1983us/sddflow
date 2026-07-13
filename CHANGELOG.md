@@ -4,6 +4,51 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.46] — 2026-07-13 (Fix: review-submit failure silently skipped Confluence + Jira Epic refresh)
+
+### Fixed
+
+- **User-reported: when `sdd review submit --doc brd` failed because
+  `document_reviews` wasn't configured for `brd` in `integrations.yml`
+  (a separate config section from `jira:`/`confluence:` — needs a
+  reviewer assigned per doc), the agent silently fell all the way back to
+  plain chat-mode review — skipping the Confluence draft push entirely
+  even though `confluence:` *was* configured, and never refreshing the
+  Jira Epic with the BRD's real Business Objectives** (the Epic refresh
+  happens as a side effect of `sdd review submit` succeeding — it never
+  ran). Both silently missing was confusing: Jira/Confluence had worked
+  earlier in the same session (constitution's Epic-bootstrap step), so it
+  looked broken rather than just falling through a documented-but-narrow
+  edge case.
+  - `submit-for-review-step.md` (the shared block used by all 9
+    doc-generating commands — BRD, Use Cases, SRD, extended docs, and all
+    `/plan-*` commands): a failed `sdd review submit` now falls through to
+    the "Confluence-only" branch (push a draft) instead of skipping
+    Confluence entirely, and only drops to bare chat mode if `confluence:`
+    itself is absent too.
+  - `specify-brd.prompt.md` (all 5 packs) Step D: when `jira:` is
+    configured but the Epic wasn't refreshed by a successful review
+    submit, now explicitly runs `sdd jira push --level epic` to push the
+    real Business Objectives — this only needs `jira:` configured, not
+    `document_reviews`.
+  - Hit the same maintenance gotcha as the 2.7.40 fix: `submit-for-
+    review-step.md` is embedded in 9 prompt files that are ALSO full-file
+    synced from `_shared/full/` — editing the block and running
+    `sync-blocks.sh` without first patching `_shared/full/`'s own stale
+    copies reverted the change back on the very next sync. Fixed by
+    patching all 9 `_shared/full/.github/prompts/*.prompt.md` copies
+    (plus the `specify-brd.prompt.md`-specific Step D edit) before
+    re-running `sync-blocks.sh`; verified 0 diffs on two subsequent runs.
+- **Also clarified (not a bug, but worth documenting)**: `constitution.md`
+  is never synced to Confluence at all — it has no `page_map` entry, by
+  design (it's an internal project-config artifact, not a
+  stakeholder-facing spec doc). And hand-editing any `.md` file locally
+  never auto-pushes to Confluence on its own — sync only happens on an
+  explicit command (`sdd review submit`, `sdd confluence draft/push`, or
+  as a side effect of `sdd review approve --local`). There is no
+  filesystem watcher; this is a manual/command-triggered sync model by
+  design, not a bug.
+
 ## [2.7.45] — 2026-07-13 (Fix: dashboard crashed reading Jira export keys)
 
 ### Fixed

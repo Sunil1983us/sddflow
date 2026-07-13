@@ -1796,6 +1796,51 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.45"},
     },
+    {
+        "from":        "2.7.45",
+        "to":          "2.7.46",
+        "description": "Fix: a failed sdd review submit (document_reviews not configured for a doc) silently skipped the Confluence draft push and the Jira Epic Business Objectives refresh -- no manifest schema changes",
+        "notes": [
+            "User-reported: sdd review submit --doc brd failed with "
+            "\"'brd' not in document_reviews in integrations.yml\" "
+            "(document_reviews is a separate config section from jira:/"
+            "confluence: -- needs a reviewer assigned per doc) -- the "
+            "agent correctly fell back to chat-mode review per spec, but "
+            "that fallback skipped the Confluence draft push entirely "
+            "even though confluence: WAS configured, and never refreshed "
+            "the Jira Epic with the BRD's real Business Objectives (that "
+            "refresh only happens as a side effect of review submit "
+            "succeeding)",
+            "submit-for-review-step.md (shared block used by all 9 "
+            "doc-generating commands -- BRD, Use Cases, SRD, extended "
+            "docs, all /plan-* commands): a failed sdd review submit now "
+            "falls through to the confluence-only branch (push a draft) "
+            "instead of skipping Confluence, only dropping to bare chat "
+            "mode if confluence: itself is absent too",
+            "specify-brd.prompt.md (all 5 packs) Step D: when jira: is "
+            "configured but the Epic wasn't refreshed by a successful "
+            "review submit, now explicitly runs 'sdd jira push --level "
+            "epic' to push the real Business Objectives -- this only "
+            "needs jira: configured, not document_reviews",
+            "Hit the same _shared/full/ full-file-sync-overwrites-"
+            "blocks-sync gotcha as the 2.7.40 fix: submit-for-review-"
+            "step.md is embedded in 9 prompt files that are ALSO "
+            "full-file synced from _shared/full/ -- patched all 9 "
+            "_shared/full/.github/prompts/*.prompt.md copies (plus the "
+            "specify-brd.prompt.md-specific Step D edit) before "
+            "re-running sync-blocks.sh; verified 0 diffs on two "
+            "subsequent runs",
+            "Also clarified for the user (not a bug): constitution.md is "
+            "never Confluence-synced at all (no page_map entry, by "
+            "design), and hand-editing any .md file locally never "
+            "auto-pushes to Confluence on its own -- sync only happens "
+            "on an explicit command or as a side effect of sdd review "
+            "approve --local. No filesystem watcher exists by design",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.46"},
+    },
 ]
 
 

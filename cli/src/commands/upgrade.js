@@ -1265,6 +1265,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.45',
+    to:   '2.7.46',
+    description: 'Fix: a failed sdd review submit silently skipped the Confluence draft push and Jira Epic Business Objectives refresh -- no manifest schema changes',
+    notes: [
+      'submit-for-review-step.md (shared prompt block): a failed sdd ' +
+      'review submit now falls through to a Confluence-only draft push ' +
+      'instead of skipping Confluence entirely, and specify-brd.prompt.md ' +
+      "now explicitly refreshes the Jira Epic via 'sdd jira push --level " +
+      "epic' when review submit didn't run it as a side effect",
+      'This Node CLI does not implement sdd review submit or sdd jira ' +
+      'push -- it stays scoped to init/upgrade scaffolding, per its own ' +
+      'README; this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.46';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

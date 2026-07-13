@@ -72,11 +72,18 @@ Tell the user:
 > above. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once it's
 > reviewed, or just check back with me any time — I'll poll Jira for you."
 
-If the command fails, say so briefly and fall back to the chat-mode
-prompt below instead.
+If the command fails (e.g. `'{doc_key}' not in document_reviews in
+integrations.yml` — the Jira review-story gate needs a reviewer assigned
+per doc, configured separately from `jira:`/`confluence:` themselves),
+say so briefly, **do not silently drop all the way to chat mode** — a
+`confluence:` section still means the document should land in
+Confluence. Fall through to the "Only `confluence:` configured" branch
+below instead (push a draft there); only fall all the way to chat mode
+if `confluence:` itself is absent too.
 
-**Only `confluence:` configured (no `jira:`)** — no formal Jira gate
-exists yet; push a draft for informal stakeholder comments instead:
+**Only `confluence:` configured (no `jira:`, or `jira:` present but
+`sdd review submit` failed above)** — no formal Jira gate exists (yet, or
+for this doc); push a draft for informal stakeholder comments instead:
 ```bash
 sdd confluence draft --doc {doc_key}
 ```
@@ -160,9 +167,20 @@ you answered without editing the document).
 ### Step D — Local Epic Reference Snapshot
 
 The Epic itself already exists in Jira by this point (created by `/specify`'s
-epic-bootstrap step before this document existed, then refreshed with real
-Business Objectives by the "Submit for Review" step above) — this step
-just writes a local, human-readable reference copy, the same idea as
+epic-bootstrap step before this document existed). If `sdd review submit
+--doc brd` ran successfully above, it already refreshed the Epic with real
+Business Objectives as a side effect — skip the refresh below.
+
+**If `jira:` is configured but the Epic was NOT refreshed above** (e.g.
+`sdd review submit` failed because `document_reviews` isn't set up for
+`brd` yet, so it fell through to a Confluence draft or chat mode instead)
+— refresh the Epic directly now. This only needs `jira:` configured, not
+`document_reviews`:
+```bash
+sdd jira push --level epic
+```
+
+Then write a local, human-readable reference copy, the same idea as
 `docs/jira/{feature}/keys.yml`, not something that creates or pushes
 anything new:
 
