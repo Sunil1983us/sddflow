@@ -175,10 +175,14 @@ class FakeJiraClient:
         self.updated: list[tuple[str, dict]] = []
         self.parents: list[tuple[str, str, str]] = []
         self.comments_by_key: dict[str, list[dict]] = {}
+        self.added_comments: list[tuple[str, str]] = []
         self._next_key = 1
 
     def find_by_label(self, project_key, label):
         return self.by_label.get(label)
+
+    def add_comment(self, issue_key, text):
+        self.added_comments.append((issue_key, text))
 
     def create_issue(self, fields):
         key = f"PROJ-{self._next_key}"
@@ -318,6 +322,26 @@ class TestRecordConfluenceDraftLink:
 
         drafts = _load_drafts()
         assert drafts["brd"] == {"page_id": "new-id", "title": "Fresh title"}
+
+
+class TestRecordReviewLink:
+    def test_writes_entry_readable_by_load_review_links(self, project):
+        review._record_review_link("brd", "PROJ-9")
+        links = review._load_review_links()
+        assert links["brd"] == {"key": "PROJ-9"}
+
+    def test_preserves_other_docs_already_recorded(self, project):
+        review._save_review_links({"srd": {"key": "PROJ-1"}})
+        review._record_review_link("brd", "PROJ-9")
+        links = review._load_review_links()
+        assert links["srd"] == {"key": "PROJ-1"}
+        assert links["brd"] == {"key": "PROJ-9"}
+
+    def test_overwrites_stale_entry_for_same_doc(self, project):
+        review._save_review_links({"brd": {"key": "OLD-1"}})
+        review._record_review_link("brd", "NEW-2")
+        links = review._load_review_links()
+        assert links["brd"] == {"key": "NEW-2"}
 
 
 class TestGetReviewStatusFeatureQualified:
@@ -480,6 +504,77 @@ class TestReviewSubmitFieldWiring:
         assert "billing — BRD" in shared_cf_client.pages_by_title
         assert shared_cf_client.pages_by_title["auth — BRD"]["id"] != \
                shared_cf_client.pages_by_title["billing — BRD"]["id"]
+
+    def test_submit_records_the_review_link_locally(self, review_project, runner):
+        """Regression: the dashboard's per-document Jira pill previously
+        had no local fallback at all (unlike Confluence's), staying blank
+        until the user manually clicked "Check Jira/Confluence review
+        links" -- sdd review submit must record the review-gate ticket
+        key the same way it already records the Confluence page."""
+        from sdd.utils.atlassian_auth import Profile
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        links = review._load_review_links()
+        assert links["brd"]["key"].startswith("PROJ-")
+
+
+class TestReviewApplyRecordsLink:
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    @pytest.fixture()
+    def review_project(self, project):
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{feature} — BRD'\n"
+        )
+        return project
+
+    def test_apply_records_the_review_link_when_issue_found(self, review_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-7", "fields": {"status": {"name": "In Review"}},
+        }
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert fake_jira.added_comments == [("PROJ-7", "Document updated per review comments. Please re-review: ")]
+        links = review._load_review_links()
+        assert links["brd"] == {"key": "PROJ-7"}
+
+    def test_apply_does_not_record_a_link_when_no_issue_found(self, review_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert review._load_review_links() == {}
 
 
 class TestReviewStatusPersonaHint:

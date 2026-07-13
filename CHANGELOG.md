@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.51] — 2026-07-13 (Feature: dashboard Jira review pill gets a local, instant fallback)
+
+### Added
+
+- **User-reported: the dashboard's Confluence pill next to a document
+  always showed up, but the Jira review-gate pill only appeared after
+  clicking the live "Check Jira/Confluence review links" button.** This
+  turned out to be a real asymmetry, not a config issue: `sdd review
+  submit` creates the review-gate Jira ticket but never wrote its key
+  anywhere locally — unlike Confluence, whose page ID is recorded on
+  every push.
+  - New `.specify/.jira-review-links.json`, written by `review.py`'s
+    `_record_review_link()` — called from both `review_submit` (after
+    the review Story is created/updated) and `review_apply` (when it
+    finds the existing ticket to notify). Same not-feature-scoped
+    limitation as `.confluence-drafts.json` by design, to keep the two
+    files symmetric.
+  - `status.py`'s new `_local_review_links()` reads it the same way
+    `_local_confluence_links()` reads the Confluence file — no network
+    call, wired into `build_feature_status()`'s `local_links.jira_review`.
+  - `dashboard.py` threads `local.jira_review` through `renderFeature` →
+    `renderDocs` → `renderDocRow`, used as a fallback (`reviewJira ||
+    localJira`) the same way the Confluence pill already falls back to
+    its local cache — the live check remains what refreshes
+    status/comments and re-verifies a possibly-stale local pill.
+  - 13 new/updated tests: `_record_review_link` round-trip
+    (`test_review_helpers.py`), `review_submit`/`review_apply` writing
+    the link end-to-end, 6 `status.py` reader tests plus a real-writer
+    round-trip lock, and a `dashboard.py` source-level guard for the new
+    frontend wiring.
+  - Also corrected two now-stale docstrings that predated this fix:
+    `_local_confluence_links()` claimed `sdd review submit` pages were
+    "never cached locally the same way" — they already were, via
+    `_record_confluence_draft_link()`, well before this session.
+
 ## [2.7.50] — 2026-07-13 (Fix: Confluence diagram attachment uploads rejected with HTTP 415)
 
 ### Fixed

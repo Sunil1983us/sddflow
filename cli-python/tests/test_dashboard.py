@@ -262,3 +262,15 @@ def test_fetch_review_links_classifies_approved_status(tmp_path, monkeypatch):
     result = dashboard_mod._fetch_review_links("payments")
     assert result["docs"]["brd"]["jira"]["review_status"] == "APPROVED"
     assert result["docs"]["brd"]["jira"]["comments"] == []
+
+
+# Regression guard: the dashboard's per-document Jira pill previously had
+# no local fallback at all (unlike Confluence's), staying blank until the
+# user clicked "Check Jira/Confluence review links" -- local.jira_review
+# (status.py's _local_review_links) must be threaded all the way through
+# renderFeature -> renderDocs -> renderDocRow and used as a fallback for
+# the Jira pill, the same way local.confluence already is.
+def test_page_wires_local_jira_review_link_into_doc_row():
+    assert "local.jira_review" in _PAGE
+    assert "localJiraReview" in _PAGE
+    assert "reviewJira || localJira" in _PAGE

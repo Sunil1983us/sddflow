@@ -544,8 +544,8 @@ def _jira_key_from(value) -> str | None:
 def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
     """Jira Epic/Story/Task links already persisted by the progressive
     export (docs/jira/{feature}/keys.yml, written by `sdd jira push`). No
-    network call — review-gate ticket links (from `sdd review submit`)
-    are never cached locally, see the live /api/review-links endpoint."""
+    network call — review-gate ticket links (from `sdd review submit`/
+    `apply`) live in a separate file, see _local_review_links() below."""
     result: dict = {"epic": None, "stories": [], "tasks": []}
     keys_path = root / "docs" / "jira" / feature / "keys.yml"
     if not keys_path.exists():
@@ -572,10 +572,9 @@ def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
 
 def _local_confluence_links(root: Path, base_url: str | None) -> dict:
     """Confluence page links already persisted by `sdd confluence push`/
-    `draft` (.specify/.confluence-drafts.json). No network call — pages
-    pushed via `sdd review submit` are never cached locally the same way,
-    see the live /api/review-links endpoint. Project-wide, not per-feature
-    (the drafts file isn't feature-scoped)."""
+    `draft`/`sdd review submit`/`apply` (all write to the same
+    .specify/.confluence-drafts.json). No network call. Project-wide, not
+    per-feature (the drafts file isn't feature-scoped)."""
     drafts_path = root / ".specify" / ".confluence-drafts.json"
     if not drafts_path.exists():
         return {}
@@ -595,6 +594,32 @@ def _local_confluence_links(root: Path, base_url: str | None) -> dict:
     return links
 
 
+def _local_review_links(root: Path, base_url: str | None) -> dict:
+    """Review-gate Jira ticket links persisted by `sdd review submit`/
+    `apply` (.specify/.jira-review-links.json). No network call -- mirrors
+    _local_confluence_links' pattern (and its same not-feature-scoped
+    limitation: the file has no feature keying) so the dashboard's Jira
+    pill can show instantly the same way the Confluence one already does,
+    instead of staying blank until the live /api/review-links check runs."""
+    links_path = root / ".specify" / ".jira-review-links.json"
+    if not links_path.exists():
+        return {}
+    try:
+        raw = json.loads(links_path.read_text())
+    except Exception:
+        return {}
+    links = {}
+    for doc_key, entry in raw.items():
+        key = entry.get("key") if isinstance(entry, dict) else None
+        if not key:
+            continue
+        links[doc_key] = {
+            "key": key,
+            "url": f"{base_url}/browse/{key}" if base_url else None,
+        }
+    return links
+
+
 def build_feature_status(root: Path, feature: str, constitution: dict | None = None,
                           plan_mode: str = "unified", scope: str | None = "pilot") -> dict:
     feature_dir = root / ".specify" / "features" / feature
@@ -610,6 +635,7 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
         "local_links": {
             "jira": _local_jira_links(root, feature, base_url),
             "confluence": _local_confluence_links(root, base_url),
+            "jira_review": _local_review_links(root, base_url),
         },
         "pipeline": build_pipeline(
             docs, tasks, constitution or _constitution_status(root),

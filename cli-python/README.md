@@ -508,12 +508,17 @@ out of scope for this command).
 
 **Jira/Confluence links** come in two tiers:
 - **Local, instant, always shown** — Jira Epic/Story/Task links (from
-  `docs/jira/{feature}/keys.yml`) and Confluence page links for docs
+  `docs/jira/{feature}/keys.yml`), Confluence page links for docs
   pushed via `sdd confluence push`/`draft` (from
-  `.specify/.confluence-drafts.json`). Pure file reads, no network call.
+  `.specify/.confluence-drafts.json`), and the review-gate Jira ticket
+  key recorded the moment `sdd review submit`/`apply` creates or touches
+  it (from `.specify/.jira-review-links.json`). Pure file reads, no
+  network call — the Jira pill next to a document shows up right away
+  instead of staying blank until you click the live check below.
 - **Live, on demand** — click **"🔄 Check Jira/Confluence review links"**
-  on a feature to look up that feature's `sdd review submit` tickets
-  (these aren't cached anywhere locally, unlike the progressive export).
+  on a feature to refresh that feature's `sdd review submit` tickets
+  against Jira/Confluence directly (the local cache above can go stale —
+  e.g. if a ticket's status changed, or the page was deleted/recreated).
   This one call uses your existing `~/.sdd/config.yml` profile and
   `.specify/integrations.yml` — same credentials as `sdd review status`,
   and only fires when you click the button, never on the automatic poll.
