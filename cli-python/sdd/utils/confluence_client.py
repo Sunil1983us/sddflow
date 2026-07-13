@@ -88,10 +88,23 @@ class ConfluenceClient:
         relies on for pages themselves.
 
         X-Atlassian-Token: nocheck is required on multipart uploads --
-        Confluence's XSRF protection otherwise rejects them."""
+        Confluence's XSRF protection otherwise rejects them.
+
+        Content-Type: None is required too -- build_session() sets a
+        blanket "application/json" Content-Type on the shared session for
+        every other call this client makes, but requests only computes
+        the multipart/form-data; boundary=... header itself when no
+        Content-Type is already present. Since a per-request header
+        merges over the session default rather than replacing it,
+        leaving this unset would silently send multipart bytes labeled
+        application/json -- Confluence's attachment endpoint returns 415
+        for that, while the page content itself still saves fine (this
+        is what a missing SVG image with no error looked like in
+        practice). Passing None here is requests' documented way to
+        remove a session-level header for one request."""
         r = self._s.post(
             self._api(f"/content/{page_id}/child/attachment"),
-            headers={"X-Atlassian-Token": "nocheck"},
+            headers={"X-Atlassian-Token": "nocheck", "Content-Type": None},
             files={"file": (filename, content, media_type)},
         )
         r.raise_for_status()

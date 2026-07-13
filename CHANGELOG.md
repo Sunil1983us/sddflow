@@ -4,6 +4,36 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.50] — 2026-07-13 (Fix: Confluence diagram attachment uploads rejected with HTTP 415)
+
+### Fixed
+
+- **User-reported (via their own diagnosis of an editable install): after
+  fixing an unrelated `integrations.yml` indentation bug that was
+  silently disabling `diagrams.mode` entirely, the diagram still didn't
+  render — this time with a real Confluence API error:
+  `diagram-1.svg — 415 Unsupported Media Type`.**
+  - Root cause: `build_session()` sets a blanket `Content-Type:
+    application/json` on the shared `requests.Session` for every other
+    call the Confluence client makes. `upload_attachment()`'s multipart
+    file POST (`files=...`) never overrode it, and `requests` only
+    computes its own `multipart/form-data; boundary=...` header when no
+    `Content-Type` is already present on the request — so Confluence
+    received multipart bytes mislabeled as `application/json` and
+    rejected the upload with 415, while the page content itself still
+    saved fine (only the image attachment failed — silently, per the
+    code's own defensive design, since a failed attachment upload must
+    never fail the whole document push).
+  - `confluence_client.py`'s `upload_attachment()` now explicitly passes
+    `Content-Type: None` in the per-request headers dict — `requests`'
+    documented way to remove a session-level header for one request —
+    letting it compute the correct multipart boundary header itself.
+    Verified against a real `requests.Session` (not just a mock) that
+    this produces the expected `multipart/form-data; boundary=...`
+    header.
+  - 1 new test in `test_confluence_client.py` asserting `Content-Type`
+    is explicitly unset in the request headers for this call.
+
 ## [2.7.49] — 2026-07-13 (Fix: silent Confluence diagram-render failures now print a warning)
 
 ### Fixed

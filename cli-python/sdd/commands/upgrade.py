@@ -1948,6 +1948,43 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.49"},
     },
+    {
+        "from":        "2.7.49",
+        "to":          "2.7.50",
+        "description": "Fix: Confluence diagram attachment uploads (diagrams.mode: local-svg) were rejected with HTTP 415 by every Confluence instance -- the multipart request never actually carried a multipart Content-Type header -- no manifest schema changes",
+        "notes": [
+            "User-reported (via their own diagnosis of the editable "
+            "install): after fixing an unrelated integrations.yml "
+            "indentation bug that was silently disabling diagrams.mode "
+            "entirely, the diagram STILL didn't render -- this time "
+            "with a real Confluence API error: 'diagram-1.svg -- 415 "
+            "Unsupported Media Type'",
+            "Root cause: build_session() sets a blanket Content-Type: "
+            "application/json on the shared requests.Session for every "
+            "other call this client makes. upload_attachment()'s "
+            "multipart POST (files=...) never overrode it, and requests "
+            "only computes its own multipart/form-data; boundary=... "
+            "Content-Type when no Content-Type header is already "
+            "present on the request -- so Confluence received multipart "
+            "bytes mislabeled as application/json and rejected them "
+            "with 415, while the page content itself still saved fine "
+            "(only the image attachment failed, silently, per the "
+            "code's own defensive design -- no exception surfaced "
+            "anywhere in this call path)",
+            "confluence_client.py's upload_attachment() now explicitly "
+            "passes Content-Type: None in the per-request headers dict "
+            "-- requests' documented way to remove a session-level "
+            "header for one request -- letting it compute the correct "
+            "multipart boundary header itself. Verified against a real "
+            "requests.Session (not just a mock) that this produces the "
+            "expected 'multipart/form-data; boundary=...' header",
+            "1 new test in test_confluence_client.py asserting Content-"
+            "Type is explicitly unset in the request headers",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.50"},
+    },
 ]
 
 
