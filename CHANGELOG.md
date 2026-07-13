@@ -4,6 +4,37 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.39] — 2026-07-13 (Feature: persona hints on Documents card + review status; fix: awaiting-review ask)
+
+### Added
+
+- **Virtual Team persona hints extended to two more surfaces**: the
+  dashboard's **Documents** card now shows the same ready-to-type ask next
+  to its "what's next" line (`Next: Use Cases — or say: "Maya, write the
+  use cases for checkout"`), and the terminal-only `sdd review status` adds
+  a `· ask {name}` hint to every row that isn't Approved or Blocked.
+- New public `status.persona_for(step_id, feature, scope)` lets callers
+  outside the dashboard pipeline (like `sdd review status`, which reads
+  Jira `document_reviews` keys directly) reuse the same Virtual Team
+  lookup.
+
+### Fixed
+
+- **Awaiting-review docs no longer show a misleading persona ask.** 2.7.38
+  attached a persona ask to every non-done pipeline step, but the ask
+  templates are all creation-phrased ("create the BRD for X") — for a doc
+  that already exists and is just waiting on a human reviewer, that
+  wording wrongly implied it hadn't been created yet. The ask is now
+  suppressed specifically for that state, on both the dashboard's Full
+  Pipeline Next box and the Documents card; the per-step badge/tooltip is
+  unaffected since it's a general "who owns this kind of work" reference,
+  not a claim about one document's current state.
+- 9 new tests; verified end-to-end against a live dashboard instance via
+  headless-browser screenshot, confirming both the new Documents-card ask
+  line and the awaiting-approval no-ask case render correctly.
+
+---
+
 ## [2.7.38] — 2026-07-13 (Feature: Virtual Team persona hints on the dashboard)
 
 ### Added

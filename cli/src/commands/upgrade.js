@@ -1102,6 +1102,32 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.38',
+    to:   '2.7.39',
+    description: 'Feature: extend Virtual Team persona hints to the dashboard Documents card and sdd review status (Python CLI); fix: awaiting-review docs no longer show a misleading creation-phrased persona ask; no manifest schema changes',
+    notes: [
+      'Extends 2.7.38\'s dashboard Full Pipeline persona hints to the ' +
+      'Documents card\'s "what\'s next" line and to the terminal-only ' +
+      '`sdd review status` (each non-Approved, non-Blocked row gains a ' +
+      '"· ask {name}" hint)',
+      'Fixed a bug found while extending: a doc awaiting review isn\'t ' +
+      'waiting to be *created*, but the ask templates are all ' +
+      'creation-phrased -- suppressed the ask specifically for that ' +
+      'state rather than showing a misleading "create the BRD" for a ' +
+      'BRD that already exists',
+      'This Node CLI does not implement the dashboard or review status ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.39';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

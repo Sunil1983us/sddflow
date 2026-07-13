@@ -1478,6 +1478,48 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.38"},
     },
+    {
+        "from":        "2.7.38",
+        "to":          "2.7.39",
+        "description": "Feature: extend Virtual Team persona hints to the dashboard's Documents card and sdd review status; fix: awaiting-review docs no longer show a misleading creation-phrased persona ask; no manifest schema changes",
+        "notes": [
+            "Extends 2.7.38's dashboard Full Pipeline persona hints to the "
+            "two other places that guess 'what's next': the dashboard's "
+            "Documents card ('Next: Use Cases — or say: \"Maya, write the "
+            "use cases for checkout\"') and the terminal-only `sdd review "
+            "status` (each non-Approved, non-Blocked row gains a '· ask "
+            "{name}' hint using the same Virtual Team roster)",
+            "Bug found while extending: build_pipeline's next_persona was "
+            "attached even when a step was 'current' because the doc "
+            "already exists and is awaiting review, not because it's "
+            "about to be created -- every ask template is creation-phrased "
+            "('create the BRD for X'), which misleadingly implied the doc "
+            "didn't exist yet. Fixed by suppressing next_persona (and the "
+            "equivalent field on _current_stage) specifically for that "
+            "state; the per-step badge/tooltip is unaffected since it's a "
+            "general 'who owns this kind of work' reference, not a "
+            "claim about this specific document's current state",
+            "New public status.persona_for(step_id, feature, scope) "
+            "wrapper lets sdd review status (which reads "
+            "document_reviews keys directly, not the pipeline) reuse the "
+            "same _STEP_PERSONA lookup without importing a private helper",
+            "_current_stage() gained feature/scope parameters (previously "
+            "positional-only docs) so it can build the same "
+            "{feature}-interpolated ask the pipeline uses",
+            "9 new tests: 1 for the awaiting-review suppression fix, 5 for "
+            "_current_stage's persona field (fresh project, upcoming doc, "
+            "awaiting approval, sdd-micro), 1 for persona_for(), 3 in "
+            "test_review_helpers.py for sdd review status's ask hint "
+            "(not-submitted, approved-shows-nothing, needs-revision)",
+            "Verified end-to-end against a live dashboard instance via "
+            "headless-browser screenshot, confirming both the Documents "
+            "card's ask line and the awaiting-approval no-ask case render "
+            "correctly, not just unit tests",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.39"},
+    },
 ]
 
 

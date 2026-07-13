@@ -4,7 +4,10 @@
 from pathlib import Path
 
 import sdd.utils.status as status_mod
-from sdd.utils.status import build_project_status, build_feature_status, build_pipeline
+from sdd.utils.status import (
+    build_project_status, build_feature_status, build_pipeline,
+    _current_stage, persona_for,
+)
 
 
 def _write_manifest(root: Path, scope_line: str = "") -> None:
@@ -563,6 +566,19 @@ def test_micro_scope_never_gets_a_persona_hint():
     assert p["next_persona"] is None
 
 
+def test_pipeline_awaiting_review_suppresses_the_creation_phrased_ask():
+    """A doc that already exists and is awaiting review isn't waiting to be
+    *created* -- the ask templates are all creation-phrased ('create the
+    BRD'), which would misleadingly suggest it doesn't exist yet."""
+    docs = [{"key": "brd", "status": "Draft"}]
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot", feature="payments")
+    assert p["next_step_id"] == "brd"
+    assert p["next_persona"] is None
+    # the per-step badge/tooltip still names the general owner, though
+    assert _step(p, "brd")["persona"]["name"] == "Maya"
+
+
 def test_build_feature_status_includes_pipeline(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
@@ -575,4 +591,62 @@ def test_build_feature_status_includes_pipeline(tmp_path, monkeypatch):
     feat = build_feature_status(tmp_path, "payments", scope="pilot")
     assert "pipeline" in feat
     assert feat["pipeline"]["next_step_id"] == "brd"
-    assert "payments" in feat["pipeline"]["next_persona"]["ask"]
+    # brd.md exists and is awaiting review -- no creation-phrased ask (see
+    # test_pipeline_awaiting_review_suppresses_the_creation_phrased_ask)
+    assert feat["pipeline"]["next_persona"] is None
+    # but current_stage agrees: BRD is the last known doc, awaiting approval
+    assert feat["current_stage"]["next"] == "(awaiting approval)"
+    assert feat["current_stage"]["persona"] is None
+
+
+# ── Documents Card "Next" Hint (_current_stage) ──────────────────────────
+
+def test_current_stage_fresh_project_hints_the_first_doc_owner(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path, '  scope: "pilot"\n')
+    feat = build_feature_status(tmp_path, "payments", scope="pilot")
+    stage = feat["current_stage"]
+    assert stage["next"] == "BRD"
+    assert stage["persona"]["name"] == "Maya"
+    assert "payments" in stage["persona"]["ask"]
+
+
+def test_current_stage_next_upcoming_doc_carries_a_persona(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path, '  scope: "pilot"\n')
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text("> Status: Approved\n")
+    feat = build_feature_status(tmp_path, "payments", scope="pilot")
+    stage = feat["current_stage"]
+    assert stage["next"] == "Use Cases"
+    assert stage["persona"]["name"] == "Maya"
+    assert "payments" in stage["persona"]["ask"]
+
+
+def test_current_stage_awaiting_approval_has_no_persona(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path, '  scope: "pilot"\n')
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text("> Status: Draft\n")
+    feat = build_feature_status(tmp_path, "payments", scope="pilot")
+    stage = feat["current_stage"]
+    assert stage["next"] == "(awaiting approval)"
+    assert stage["persona"] is None
+
+
+def test_current_stage_micro_scope_never_gets_a_persona_hint(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)  # no scope line -- sdd-micro shape
+    feat = build_feature_status(tmp_path, "payments", scope=None)
+    assert feat["current_stage"]["persona"] is None
+
+
+def test_persona_for_public_wrapper_matches_internal_lookup():
+    assert persona_for("srd", "payments", "pilot") == {
+        "name": "Rex", "role": "Requirements Engineer",
+        "ask": "write the SRD for payments",
+    }
+    assert persona_for("srd", "payments", None) is None
+    assert persona_for("specify", "payments", "pilot") is None

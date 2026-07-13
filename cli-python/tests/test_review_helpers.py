@@ -480,3 +480,67 @@ class TestReviewSubmitFieldWiring:
         assert "billing — BRD" in shared_cf_client.pages_by_title
         assert shared_cf_client.pages_by_title["auth — BRD"]["id"] != \
                shared_cf_client.pages_by_title["billing — BRD"]["id"]
+
+
+class TestReviewStatusPersonaHint:
+    """`sdd review status` -- same Virtual Team persona hint the dashboard
+    shows, added next to each non-approved/non-blocked row so the terminal
+    output tells you who to ask, not just what state a doc is in."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    @pytest.fixture()
+    def review_project(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".specify" / "features" / "auth").mkdir(parents=True)
+        (tmp_path / ".specify" / "manifest.yml").write_text(
+            yaml.dump({"project": {"name": "Demo", "feature": "auth", "scope": "pilot"}})
+        )
+        (tmp_path / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+        )
+        return tmp_path
+
+    def _run(self, runner, fake_jira):
+        from sdd.utils.atlassian_auth import Profile
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira):
+            return runner.invoke(review.review_command, ["status"])
+
+    def test_not_submitted_doc_shows_who_to_ask(self, review_project, runner):
+        result = self._run(runner, FakeJiraClient())  # by_label empty -> NOT_SUBMITTED
+        assert result.exit_code == 0, result.output
+        assert "ask Maya" in result.output
+
+    def test_approved_doc_shows_no_ask_hint(self, review_project, runner):
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-1", "fields": {"status": {"name": "Done"}},
+        }
+        fake_jira.comments_by_key["PROJ-1"] = []
+        result = self._run(runner, fake_jira)
+        assert result.exit_code == 0, result.output
+        assert "ask" not in result.output
+
+    def test_needs_revision_doc_shows_who_to_ask(self, review_project, runner):
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-1", "fields": {"status": {"name": "In Review"}},
+        }
+        fake_jira.comments_by_key["PROJ-1"] = [{"body": "please clarify this section"}]
+        result = self._run(runner, fake_jira)
+        assert result.exit_code == 0, result.output
+        assert "ask Maya" in result.output

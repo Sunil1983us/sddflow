@@ -119,14 +119,25 @@ def _feature_docs(root: Path, feature: str) -> list[dict]:
     return docs
 
 
-def _current_stage(docs: list[dict]) -> dict:
-    """Last pipeline-ordered doc that exists, plus a best-effort 'next' guess."""
+def _current_stage(docs: list[dict], feature: str = "this feature",
+                    scope: str | None = "pilot") -> dict:
+    """Last pipeline-ordered doc that exists, plus a best-effort 'next' guess
+    and (when the next doc has one) its Virtual Team persona hint. No hint
+    for the "(awaiting approval)" case -- the ask templates are all
+    creation-phrased and the doc already exists, waiting on a human
+    reviewer, not on the persona who'd create it."""
     known = [d for d in docs if d["key"] in _PIPELINE_ORDER]
     if not known:
-        return {"doc": None, "status": None, "next": PIPELINE_DOCS[0][1] if PIPELINE_DOCS else None}
+        first_key = PIPELINE_DOCS[0][0] if PIPELINE_DOCS else None
+        return {
+            "doc": None, "status": None,
+            "next": PIPELINE_DOCS[0][1] if PIPELINE_DOCS else None,
+            "persona": _persona_hint(first_key, feature, scope) if first_key else None,
+        }
     known.sort(key=lambda d: _PIPELINE_ORDER[d["key"]])
     last = known[-1]
     idx = _PIPELINE_ORDER[last["key"]]
+    next_key = PIPELINE_DOCS[idx + 1][0] if idx + 1 < len(PIPELINE_DOCS) else None
     next_label = PIPELINE_DOCS[idx + 1][1] if idx + 1 < len(PIPELINE_DOCS) else None
     status = (last["status"] or "").lower()
     awaiting_approval = status not in ("approved",) and status != ""
@@ -134,7 +145,17 @@ def _current_stage(docs: list[dict]) -> dict:
         "doc": last["label"],
         "status": last["status"],
         "next": ("(awaiting approval)" if awaiting_approval else next_label),
+        "persona": (None if awaiting_approval or not next_key
+                    else _persona_hint(next_key, feature, scope)),
     }
+
+
+def persona_for(step_id: str, feature: str, scope: str | None) -> dict | None:
+    """Public wrapper around the pipeline's Virtual Team persona lookup, for
+    callers outside build_pipeline/build_feature_status that want the same
+    hint (e.g. `sdd review status`, which reads document_reviews keys
+    directly rather than going through the pipeline)."""
+    return _persona_hint(step_id, feature, scope)
 
 
 def _service_docs_exist(root: Path) -> bool:
@@ -346,7 +367,12 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
         if state != "done" and next_action is None:
             next_action = _next_action_sentence(step, state, tasks)
             next_step_id = step["id"]
-            next_persona = persona
+            # A doc "current"/awaiting-review isn't waiting to be *created* --
+            # the ask templates are all creation-phrased ("create the BRD"),
+            # which would misleadingly imply the doc doesn't exist yet. Only
+            # attach the persona ask when it's actually about to be done.
+            awaiting_review = step["kind"] == "doc" and state == "current"
+            next_persona = None if awaiting_review else persona
 
     return {
         "steps": resolved,
@@ -545,7 +571,7 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
     return {
         "name": feature,
         "docs": docs,
-        "current_stage": _current_stage(docs),
+        "current_stage": _current_stage(docs, feature, scope),
         "tasks": tasks,
         "token_usage": _parse_token_usage(feature_dir / "token-usage.md"),
         "local_links": {

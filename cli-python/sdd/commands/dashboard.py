@@ -147,6 +147,8 @@ _PAGE = """<!doctype html>
   .next-persona-ask { color: var(--fg); font-size: .85rem; }
   .next-persona-ask em { color: var(--accent); font-style: normal; font-weight: 600; }
   .next-persona-role { color: var(--dim); font-size: .8rem; }
+  .doc-next-ask { color: var(--dim); }
+  .doc-next-ask em { color: var(--fg); font-style: normal; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -300,7 +302,11 @@ function renderDocs(docs, stage, feature, localConfluence) {
   if (!docs || docs.length === 0) return '<div class="empty">No spec documents yet.</div>';
   const reviewEntry = state.reviewLinks[feature];
   const rows = docs.map(d => renderDocRow(d, feature, localConfluence, typeof reviewEntry === 'object' ? reviewEntry : null)).join('');
-  const next = stage.next ? `<div class="sub">Next: ${stage.next}</div>` : '';
+  const p = stage.persona;
+  const ask = p
+    ? ` <span class="doc-next-ask">— or say: <em>"${escapeHtml(p.name)}, ${escapeHtml(p.ask)}"</em></span>`
+    : '';
+  const next = stage.next ? `<div class="sub">Next: ${escapeHtml(stage.next)}${ask}</div>` : '';
   return `<table><thead><tr><th>Document</th><th>Status</th><th>Links</th></tr></thead><tbody>${rows}</tbody></table>${next}`;
 }
 

@@ -12,6 +12,7 @@ from sdd.utils.jira_client import JiraClient
 from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.manifest import read_manifest
+from sdd.utils.status import persona_for
 from sdd.utils.validate import resolve_doc_path, LIVING_SERVICE_DOCS
 
 console = Console()
@@ -704,6 +705,7 @@ def review_status(profile, feature):
     manifest     = read_manifest() or {}
     proj         = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
+    scope        = proj.get("scope")
 
     client = JiraClient(session, prof.base_url)
 
@@ -749,9 +751,19 @@ def review_status(profile, feature):
                 else:
                     icon, label, style = "· ", "Not Submitted",   "dim"
 
+            # A doc already Approved needs no owner hint, and one that's
+            # Blocked isn't ready to be worked on yet (its predecessor
+            # isn't approved) -- everything else (Not Submitted, Pending,
+            # Needs Revision) is a real "ask this person" moment.
+            ask_hint = ""
+            if all_statuses[key] not in ("APPROVED", "BLOCKED"):
+                persona = persona_for(key, feature_name, scope)
+                if persona:
+                    ask_hint = f"  [dim]· ask {persona['name']}[/dim]"
+
             console.print(
                 f"    [{style}]{icon}  {key.upper():<10} {label:<18}[/{style}]"
-                f"  [dim]{dc.reviewer_role}[/dim]"
+                f"  [dim]{dc.reviewer_role}[/dim]{ask_hint}"
             )
 
     console.print()
