@@ -1520,6 +1520,61 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.39"},
     },
+    {
+        "from":        "2.7.39",
+        "to":          "2.7.40",
+        "description": "Fix: review-driven document edits (Jira comment, dashboard comment, or chat feedback) now bump the doc's Version header and log a Version History row -- previously only /change did this, and the approval step's Version History row hardcoded '1.0' instead of the document's actual current version; prompt/template content only, no manifest schema changes",
+        "notes": [
+            "User-reported: after addressing reviewer comments (via Jira, "
+            "local mode, or the dashboard) and updating a document, its "
+            "Version header stayed at 1.0 forever with no record of what "
+            "changed or when -- unlike /change (post-approval Change "
+            "Requests), which already bumps the version and appends a "
+            "Version History row for every applied change",
+            "Root cause: the shared review-decision-step.md block (embedded "
+            "in every review-gated command -- specify-brd, specify-uc, "
+            "specify-srd, specify-doc, plan-design/arch/hld/adr/lld) told "
+            "the agent to 'edit the document to address the feedback' on "
+            "NEEDS REVISION, but never mentioned bumping Version or logging "
+            "Version History -- so the discipline /change already has was "
+            "simply never applied to the earlier pre-approval review cycle",
+            "Second, smaller bug found while fixing the first: the "
+            "approval-logging step's Version History row template hardcoded "
+            "'| 1.0 | {today} | ... |' literally, instead of referencing "
+            "the document's actual current version -- wrong for any doc "
+            "past its first revision. Fixed to use '{current version}' in "
+            "both review-decision-step.md and validate.prompt.md's own "
+            "inline copy of the same approval step",
+            "New 'Revision Logging' rule in review-decision-step.md: any "
+            "review-driven content edit, regardless of which mode surfaced "
+            "the feedback (Jira comment via sdd review check, a dashboard "
+            "comment -- which mirrors to the Jira ticket when Jira is "
+            "configured -- or feedback relayed in chat), increments the "
+            "Version header and appends a Version History row. A pure "
+            "approval with no content change does not bump the version",
+            "review-gates.md (CLAUDE.md's Document Review Gates summary) "
+            "gained a one-line pointer to this rule for discoverability "
+            "at session-startup read time, without duplicating the full "
+            "step-by-step instructions",
+            "Maintenance note for future _shared/ edits: files that are "
+            "BOTH full-file-synced AND contain a shared:{id} marker span "
+            "(the 9 review-decision-step.md host files) need their marker "
+            "content refreshed in _shared/full/ itself too -- the blocks "
+            "loop only touches ../sdd-*/ directories, so editing only "
+            "blocks/{id}.md leaves _shared/full/'s copy stale, and the "
+            "full-file loop that runs after it will silently overwrite the "
+            "packs' freshly-substituted content back to that stale copy",
+            "Prompt/template content only -- no CLI code changed, no new "
+            "tests (nothing here is unit-testable; verified by reading the "
+            "synced output in all 5 packs and re-running sync-blocks.sh "
+            "twice to confirm convergence, plus the existing pytest suite "
+            "and assert-output.sh/test-setup.sh regression suites, none of "
+            "which touch prompt file content)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.40"},
+    },
 ]
 
 

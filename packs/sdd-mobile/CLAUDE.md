@@ -335,6 +335,13 @@ sdd review status                # full dashboard for all documents
 When `sdd review check` exits 1 (NEEDS REVISION): read reviewer comments, update
 the document, then run `sdd review apply` and ask reviewer to re-review.
 Configure reviewers in `.specify/integrations.yml` — see `integrations.yml.example`.
+
+**Every review-driven edit bumps the version.** Whichever mode surfaced the
+feedback — a Jira comment, a dashboard comment, or direct chat feedback —
+increment the document's `Version:` header and append a row to its
+`## Version History` table before re-submitting (see each command's own
+review-response step for the exact format). A pure approval with no content
+change does not bump the version.
 <!-- shared:review-gates:end -->
 ## IMPLEMENT — Code Review Gate
 

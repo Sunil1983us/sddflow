@@ -121,7 +121,10 @@ When the user replies with any approval signal — **'approved'**, **'approve'**
 2. Update `validate.md`:
    - Header: `Status: Draft` → `Status: Approved`, date → today.
    - Approvals table: all Pending rows → `Approved` + today's date.
-   - Version History: append `| 1.0 | {today} | {jira or chat} | Approved | — |`
+   - Version History: append a row using the document's **current**
+     version (a pure approval doesn't bump it — only an assumption
+     correction in §3 above does):
+     `| {current version} | {today} | {jira or chat} | Approved | — |`
 3. Re-save `validate.md` and regenerate `validate.summary.md`.
 4. Ask once: "Recording the approval — approver name/role and an optional comment?"
    (defaults: the accountable role for this gate in roles.yml; "approved in chat")

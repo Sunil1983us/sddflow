@@ -4,6 +4,40 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.40] — 2026-07-13 (Fix: review-driven document edits now bump Version + log Version History)
+
+### Fixed
+
+- **After addressing reviewer comments, the document's `Version:` header
+  now actually updates.** Reported: whether feedback came via Jira, local
+  mode, or the dashboard, updating a document to address it left the
+  `Version:` header frozen at 1.0 forever with no record of what changed
+  or when — `/change` (post-approval Change Requests) already had this
+  discipline, but the earlier pre-approval review cycle never did.
+- The shared `review-decision-step.md` instruction block (embedded in
+  every review-gated command — BRD, Use Cases, SRD, extended docs, Design/
+  Arch/HLD/ADR, LLD) now has an explicit **Revision Logging** rule: any
+  content edit made in response to reviewer feedback — a Jira comment via
+  `sdd review check`, a dashboard comment (which mirrors to the Jira
+  ticket when Jira is configured), or feedback relayed in chat —
+  increments the document's version and appends a row to its
+  `## Version History` table. A pure approval with no content change does
+  not bump the version.
+- Also fixed a smaller, related bug: the approval-logging step's Version
+  History row template hardcoded `| 1.0 | ... |` literally instead of
+  referencing the document's actual current version — wrong for any doc
+  past its first revision. Fixed in both `review-decision-step.md` and
+  `validate.prompt.md`'s own inline copy of the same approval step.
+- `review-gates.md` (CLAUDE.md's Document Review Gates summary) gained a
+  one-line pointer to this rule for discoverability at session-startup
+  read time.
+- Prompt/template content only — no CLI code changed. Verified by reading
+  the synced output across all 5 packs and re-running `sync-blocks.sh`
+  twice to confirm convergence, plus the existing pytest/assert-output.sh/
+  test-setup.sh regression suites.
+
+---
+
 ## [2.7.39] — 2026-07-13 (Feature: persona hints on Documents card + review status; fix: awaiting-review ask)
 
 ### Added

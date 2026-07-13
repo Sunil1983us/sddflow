@@ -1128,6 +1128,31 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.39',
+    to:   '2.7.40',
+    description: 'Fix: review-driven document edits now bump the Version header and log Version History (prompt/template content only) -- no manifest schema changes',
+    notes: [
+      'Reviewer feedback (Jira comment, dashboard comment, or chat ' +
+      'feedback) that causes a document edit now bumps its Version ' +
+      'header and appends a Version History row, matching the discipline ' +
+      '/change already used for post-approval changes -- previously the ' +
+      'pre-approval review cycle never did this',
+      'Also fixed a hardcoded "1.0" in the approval-logging Version ' +
+      'History template that should have referenced the document\'s ' +
+      'actual current version',
+      'This Node CLI does not implement any document-review commands -- ' +
+      'it stays scoped to init/upgrade scaffolding, per its own README; ' +
+      'this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.40';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
