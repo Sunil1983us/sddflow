@@ -69,6 +69,25 @@ def test_get_api_status_returns_json(server):
     assert "project" in data
 
 
+def test_get_api_status_returns_json_error_instead_of_crashing_on_exception(server, monkeypatch):
+    """Regression: a real user's dashboard died with a bare connection
+    reset (raw traceback in the server log, frontend stuck on stale data)
+    when a malformed docs/jira/{feature}/keys.yml caused build_project_status
+    to raise. /api/status must degrade to a JSON error response instead."""
+    import sdd.commands.dashboard as dashboard_mod
+
+    def _boom(root):
+        raise AttributeError("'str' object has no attribute 'get'")
+
+    monkeypatch.setattr(dashboard_mod, "build_project_status", _boom)
+    httpd, _ = server
+    status, content_type, body = _get(httpd.server_address[1], "/api/status")
+    assert status == 500
+    assert content_type == "application/json"
+    data = json.loads(body)
+    assert "AttributeError" in data["error"]
+
+
 def test_get_api_doc_valid_feature_returns_content(server):
     httpd, tmp_path = server
     _scaffold_feature(tmp_path)

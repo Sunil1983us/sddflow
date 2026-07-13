@@ -1683,6 +1683,119 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.42"},
     },
+    {
+        "from":        "2.7.42",
+        "to":          "2.7.43",
+        "description": "Fix: sdd init no longer re-asks project type after a type-dedicated pack (backend-service/frontend-spa/mobile/fullstack) is chosen -- no manifest schema changes",
+        "notes": [
+            "User-reported: choosing sdd-backend-service from 'Choose from "
+            "all packs...' (when auto-detection failed) still triggered a "
+            "second detect_project_type() call right after scaffold_pack "
+            "copied that pack's own files in, and then a 'Project type:' "
+            "select listing all 10 types including irrelevant ones (mobile, "
+            "desktop, ...) for a project the user just said was "
+            "sdd-backend-service",
+            "New PACK_TO_TYPE reverse map (of scaffold.py's TYPE_TO_PACK) in "
+            "init.py -- when the chosen (or, in fill mode, already-recorded "
+            "manifest.pack) pack is one of the 4 type-dedicated packs, "
+            "project_type is pinned directly from the pack name and neither "
+            "detection nor the select prompt runs",
+            "sdd-universal is unaffected -- it is not in TYPE_TO_PACK "
+            "(genuinely branches its tech-stack tables on project_type "
+            "across 10 types), so its existing detect/confirm/select flow "
+            "is unchanged",
+            "Same fix applied to the Node CLI (cli/src/commands/init.js) "
+            "for parity, though it has no test suite to extend",
+            "New regression test in test_init.py "
+            "(test_dedicated_pack_choice_skips_redundant_type_prompt): "
+            "detection returns None (as in the user's repro) and "
+            "questionary.select has only 2 canned answers (pack choice, "
+            "ai_tool) -- a third .ask() call for project type would raise "
+            "StopIteration and fail the test",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.43"},
+    },
+    {
+        "from":        "2.7.43",
+        "to":          "2.7.44",
+        "description": "Fix: sdd dashboard's Full Pipeline flow no longer shows 'Constitution (Part 2)' as done before /specify has actually run -- no manifest schema changes",
+        "notes": [
+            "User-reported: on a brand-new project (sdd init only, /specify "
+            "never run), the dashboard's Full Pipeline showed a checkmark "
+            "next to 'Constitution (Part 2)' -- constitution.md is "
+            "scaffolded for every project by sdd init (Part 1 boilerplate + "
+            "a Part 2 template full of {extracted from context} / "
+            "{derived} / {date} placeholders), so the old 'does the file "
+            "exist' check was always true, immediately after scaffolding",
+            "_constitution_status() in status.py now also parses the Part "
+            "2 section (from the 'PART 2' marker onward) for unresolved "
+            "{...}-style template placeholders via a new "
+            "_TEMPLATE_PLACEHOLDER_RE regex -- only when none remain (i.e. "
+            "/specify has actually filled Part 2 in, even pre-GATE-1 as a "
+            "DRAFT) is the new 'part2_generated' field True",
+            "_step_state() for both the 'constitution' and 'manual_gate' "
+            "(GATE-1) pipeline-step kinds now branches on "
+            "constitution.part2_generated instead of the old bare "
+            "constitution.exists",
+            "dashboard.py's 'Constitution — GATE-1' detail card gained a "
+            "new 'Part 2 generated' row alongside the existing 'Exists' "
+            "row, for the same clarity in the raw-status view",
+            "Verified against all 5 packs' real shipped constitution.md "
+            "templates (sdd-universal, sdd-backend-service, "
+            "sdd-frontend-spa, sdd-mobile, sdd-fullstack) plus sdd-micro's, "
+            "and via a live build_project_status() run against a "
+            "freshly-scaffolded project directory -- all correctly report "
+            "part2_generated: False pre-/specify",
+            "5 new/updated tests in test_status.py: 2 new end-to-end tests "
+            "against build_project_status() (freshly-scaffolded template "
+            "vs. filled-in Part 2), 1 new build_pipeline() regression test, "
+            "plus 2 existing fixtures (_GATE1_PASSED and the GATE-1 "
+            "awaiting-confirmation test) updated to include the new field",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.44"},
+    },
+    {
+        "from":        "2.7.44",
+        "to":          "2.7.45",
+        "description": "Fix: sdd dashboard crashed on every poll once a feature had a Jira progressive export (docs/jira/{feature}/keys.yml) -- no manifest schema changes",
+        "notes": [
+            "User-reported: AttributeError ('str' object has no attribute "
+            "'get') on every /api/status poll. status.py's "
+            "_local_jira_links() assumed keys.yml's epic field was a dict "
+            "and stories/tasks were lists of dicts, each with a jira_key "
+            "field -- but jira.py's actual writer (_save_keys_summary()) "
+            "writes epic as a plain string and stories/tasks as flat "
+            "{sdd_id: jira_key} dicts. This schema drifted apart when "
+            "jira.py was rewritten (Phase 1, replacing jira-push.py) "
+            "without updating the reader to match",
+            "The existing unit tests for _local_jira_links() were written "
+            "against the reader's (wrong) assumed shape, not the writer's "
+            "real output, so the drift went uncaught until a real user "
+            "hit it",
+            "New _jira_key_from() helper in status.py parses both the "
+            "real (string epic / flat-dict stories+tasks) shape and the "
+            "old assumed (dict-with-jira_key / list-of-dicts) shape -- "
+            "never crashes regardless of which is on disk",
+            "New round-trip test (test_jira_keys_round_trip_through_real_"
+            "writer) calls jira.py's actual _save_keys_summary() and "
+            "verifies status.py's reader parses exactly what it wrote, so "
+            "this writer/reader contract can't silently drift apart "
+            "again without failing a test",
+            "Hardening: /api/status now catches any exception and returns "
+            "a JSON {\"error\": ...} with status 500 instead of a bare "
+            "connection reset (which was crashing the whole request, not "
+            "just this endpoint); the frontend's 5s poll loop catches "
+            "fetch/parse failures and shows a visible error banner "
+            "instead of silently freezing on stale data",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.45"},
+    },
 ]
 
 

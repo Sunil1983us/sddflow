@@ -1201,6 +1201,70 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.42',
+    to:   '2.7.43',
+    description: 'Fix: sdd init no longer re-asks project type after a type-dedicated pack (backend-service/frontend-spa/mobile/fullstack) is chosen -- no manifest schema changes',
+    notes: [
+      'Choosing a type-dedicated pack (e.g. sdd-backend-service) used to ' +
+      'still trigger a second project-type detection/select right after ' +
+      'scaffolding, offering irrelevant choices like mobile/desktop for a ' +
+      'project already identified by the pack choice',
+      'New PACK_TO_TYPE reverse map (of scaffold.js TYPE_TO_PACK) pins ' +
+      'projectType directly from the chosen pack for the 4 dedicated ' +
+      'packs; sdd-universal is unaffected since it genuinely branches on ' +
+      'project_type',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.43';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.43',
+    to:   '2.7.44',
+    description: "Fix: sdd dashboard's Full Pipeline flow no longer shows 'Constitution (Part 2)' as done before /specify has actually run (Python CLI) -- no manifest schema changes",
+    notes: [
+      'constitution.md is scaffolded for every project by sdd init, Part 2 ' +
+      'full of {extracted from context}/{derived}/{date} placeholders -- ' +
+      'the dashboard used to treat the file existing on disk as Part 2 ' +
+      'being generated, showing a checkmark before /specify ever ran',
+      'This Node CLI does not implement sdd dashboard -- it stays scoped ' +
+      'to init/upgrade scaffolding, per its own README; this migration ' +
+      'entry exists so both CLIs report the same sdd_version chain for a ' +
+      'given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.44';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.44',
+    to:   '2.7.45',
+    description: "Fix: sdd dashboard crashed on every poll once a feature had a Jira progressive export (Python CLI) -- no manifest schema changes",
+    notes: [
+      "status.py's _local_jira_links() assumed keys.yml's epic/stories/" +
+      'tasks fields were dicts with a jira_key field, but jira.py\'s ' +
+      'actual writer produces a plain string for epic and flat ' +
+      '{id: jira_key} dicts for stories/tasks -- fixed to parse both ' +
+      'shapes defensively',
+      'This Node CLI does not implement sdd dashboard or sdd jira push -- ' +
+      'it stays scoped to init/upgrade scaffolding, per its own README; ' +
+      'this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.45';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

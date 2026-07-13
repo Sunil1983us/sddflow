@@ -4,6 +4,72 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.45] — 2026-07-13 (Fix: dashboard crashed reading Jira export keys)
+
+### Fixed
+
+- **User-reported: `sdd dashboard` crashed every poll (`AttributeError:
+  'str' object has no attribute 'get'`) once a feature had a Jira
+  progressive export (`docs/jira/{feature}/keys.yml`).** `status.py`'s
+  `_local_jira_links()` assumed `epic` was a dict and `stories`/`tasks`
+  were lists of dicts, each with a `jira_key` field — but `jira.py`'s
+  actual writer (`_save_keys_summary()`) writes `epic` as a plain string
+  and `stories`/`tasks` as flat `{sdd_id: jira_key}` dicts. This schema
+  drifted apart when `jira.py` was rewritten (v2.7.x Phase 1) without the
+  reader being updated to match, and the existing unit tests were written
+  against the reader's (wrong) assumption rather than the writer's real
+  output, so nothing caught it. `_local_jira_links()` now parses both the
+  real (string/flat-dict) shape and the old assumed
+  (dict-with-jira_key/list-of-dicts) shape defensively, with a new
+  `_jira_key_from()` helper and a round-trip test that calls the real
+  writer and reader together so this can't silently drift apart again.
+- **Hardening**: a malformed file anywhere under `.specify/` or
+  `docs/jira/` no longer takes the whole dashboard down. `/api/status`
+  now catches any exception and returns a JSON `{"error": ...}` with
+  status 500 instead of a bare connection reset; the frontend's poll loop
+  catches fetch/parse failures and shows a visible "Couldn't load
+  status… Retrying in 5s" banner instead of silently freezing on stale
+  data forever.
+
+## [2.7.44] — 2026-07-13 (Fix: dashboard showed Constitution done before /specify ran)
+
+### Fixed
+
+- **User-reported: the dashboard's Full Pipeline flow showed "✓ Constitution
+  (Part 2)" as done on a brand-new project, before `/specify` had ever been
+  run.** `constitution.md` is scaffolded by `sdd init` for *every* project —
+  Part 1 boilerplate plus a Part 2 template full of `{extracted from
+  context}` / `{derived}` / `{date}` placeholders — so `status.py`'s old
+  check (does the file exist on disk?) was true immediately after
+  scaffolding, well before Part 2 had actually been filled in.
+  `_constitution_status()` now also checks whether Part 2 still contains
+  unresolved `{...}` template placeholders; only once they're gone (i.e.
+  `/specify` has actually run) is Part 2 reported as generated. The
+  "Constitution (Part 2)" and "GATE-1" pipeline steps, and the dashboard's
+  "Constitution — GATE-1" detail card (new "Part 2 generated" row), now
+  correctly show upcoming/○ until `/specify` runs.
+  Verified against all 5 packs' real shipped `constitution.md` templates
+  (including sdd-micro) plus a live `build_project_status()` run against a
+  freshly-scaffolded project directory.
+
+## [2.7.43] — 2026-07-13 (Fix: redundant project-type prompt on scaffold)
+
+### Fixed
+
+- **`sdd init` no longer asks for project type a second time when you've
+  already chosen a type-dedicated pack** (`sdd-backend-service`,
+  `sdd-frontend-spa`, `sdd-mobile`, `sdd-fullstack`). Previously, choosing
+  one of these packs from "Choose from all packs…" still triggered a
+  second `detect_project_type()` call and — since detection on a
+  freshly-scaffolded directory usually fails — a confusing `Project type:`
+  select listing all 10 types (including irrelevant ones like `mobile`
+  for a project you just said was `sdd-backend-service`). The pack choice
+  now pins `project_type` directly (e.g. `sdd-backend-service` →
+  `backend-service`) with no further prompt. `sdd-universal` is
+  unaffected — it genuinely branches its tech-stack tables on
+  `project_type`, so its detect/select flow is unchanged.
+  Fixed in both `cli-python` (`sdd init`) and the Node `cli` (`sdd init`).
+
 ## [2.7.42] — 2026-07-13 (Docs consistency + test coverage)
 
 ### Fixed

@@ -303,11 +303,11 @@ def _step_state(step: dict, docs_by_key: dict, tasks: dict, constitution: dict, 
     in progress (tasks partially done); 'upcoming' means not started."""
     kind = step["kind"]
     if kind == "constitution":
-        return "done" if constitution.get("exists") else "upcoming"
+        return "done" if constitution.get("part2_generated") else "upcoming"
     if kind == "manual_gate":
         if constitution.get("gate1_inferred") == "passed":
             return "done"
-        return "current" if constitution.get("exists") else "upcoming"
+        return "current" if constitution.get("part2_generated") else "upcoming"
     if kind == "service_docs":
         return "done" if service_docs_exist else "upcoming"
     if kind == "tasks_progress":
@@ -468,10 +468,24 @@ def _parse_token_usage(path: Path) -> dict | None:
     }
 
 
+_TEMPLATE_PLACEHOLDER_RE = re.compile(r'\{[a-z][a-zA-Z0-9 _/]*\}')
+
+
 def _constitution_status(root: Path) -> dict:
     path = root / ".specify" / "memory" / "constitution.md"
     if not path.exists():
         return {"exists": False, "gate1_inferred": "unknown"}
+    # constitution.md is scaffolded by `sdd init` for every project (Part 1
+    # boilerplate + a Part 2 template full of {extracted from context} /
+    # {derived} / {date} placeholders) — the file existing on disk does NOT
+    # mean /specify has run yet. Only treat Part 2 as generated once those
+    # literal placeholders are gone (the agent replaces every one of them
+    # when it fills Part 2, even in DRAFT form pre-GATE-1).
+    text = path.read_text(errors="replace")
+    part2_marker = text.find("PART 2")
+    part2_text = text[part2_marker:] if part2_marker != -1 else text
+    if _TEMPLATE_PLACEHOLDER_RE.search(part2_text):
+        return {"exists": True, "part2_generated": False, "gate1_inferred": "unknown"}
     # No machine-readable Draft/Finalized flag is written into constitution.md
     # by design (GATE-1 confirmation happens in chat) — infer from whether any
     # downstream feature doc exists, since the workflow can't produce those
@@ -491,6 +505,7 @@ def _constitution_status(root: Path) -> dict:
                 break
     return {
         "exists": True,
+        "part2_generated": True,
         "gate1_inferred": "passed" if any_downstream else "pending_or_unknown",
     }
 
@@ -512,9 +527,23 @@ def _local_base_url() -> str | None:
         return None
 
 
+def _jira_key_from(value) -> str | None:
+    """keys.yml's actual shape (written by jira.py's _save_keys_summary):
+    epic is a plain string, stories/tasks are {id: jira_key} dicts. Also
+    tolerate a {"jira_key": "..."} dict per entry, in case an older or
+    hand-edited keys.yml uses that shape — never assume either shape and
+    never crash on whichever one is actually on disk."""
+    if isinstance(value, str) and value:
+        return value
+    if isinstance(value, dict):
+        k = value.get("jira_key")
+        return k if isinstance(k, str) and k else None
+    return None
+
+
 def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
     """Jira Epic/Story/Task links already persisted by the progressive
-    export (docs/jira/{feature}/keys.yml, written by jira-push.py). No
+    export (docs/jira/{feature}/keys.yml, written by `sdd jira push`). No
     network call — review-gate ticket links (from `sdd review submit`)
     are never cached locally, see the live /api/review-links endpoint."""
     result: dict = {"epic": None, "stories": [], "tasks": []}
@@ -529,11 +558,15 @@ def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
     def _link(jira_key: str) -> dict:
         return {"key": jira_key, "url": f"{base_url}/browse/{jira_key}" if base_url else None}
 
-    epic = keys.get("epic") or {}
-    if epic.get("jira_key"):
-        result["epic"] = _link(epic["jira_key"])
-    result["stories"] = [_link(s["jira_key"]) for s in (keys.get("stories") or []) if s.get("jira_key")]
-    result["tasks"] = [_link(t["jira_key"]) for t in (keys.get("tasks") or []) if t.get("jira_key")]
+    def _collect(raw) -> list[dict]:
+        items = raw.values() if isinstance(raw, dict) else (raw or [])
+        return [_link(k) for k in (_jira_key_from(item) for item in items) if k]
+
+    epic_key = _jira_key_from(keys.get("epic"))
+    if epic_key:
+        result["epic"] = _link(epic_key)
+    result["stories"] = _collect(keys.get("stories"))
+    result["tasks"] = _collect(keys.get("tasks"))
     return result
 
 
