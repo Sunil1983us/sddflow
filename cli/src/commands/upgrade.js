@@ -1529,6 +1529,32 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.56',
+    to:   '2.7.57',
+    description: "Guardrail: validate.prompt.md Step C no longer lets a document-level approval auto-check per-item §1-§4 confirmation checkboxes -- no manifest schema changes",
+    notes: [
+      "A prior agent session, chasing the analyze.prompt.md verify " +
+      "gate's literal 'VALIDATE complete' string, bulk-checked every " +
+      "unchecked confirmation box in validate.md's §1-§4 purely because " +
+      "the document's Jira ticket was closed -- not because a named " +
+      "reviewer actually addressed each specific item",
+      "validate.prompt.md's Step C only ever specified updating the " +
+      "header and the §5 Approvals table on approval; this migration " +
+      "tightens the wording across all 5 packs to explicitly forbid " +
+      "inferring §1-§4 item-level confirmations from a document-level " +
+      "approval signal, and says what to do instead",
+      "This Node CLI does not implement /validate itself (prompt-only " +
+      "change, no code) -- this migration entry exists so both CLIs " +
+      "report the same sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.57';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

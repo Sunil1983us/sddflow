@@ -4,6 +4,40 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.57] — 2026-07-13 (Guardrail: validate.md approval no longer auto-checks §1–§4 per-item confirmation checkboxes)
+
+### Changed
+
+- **User-reported (from a live project's `/analyze` run):** a prior agent
+  session, chasing `analyze.prompt.md`'s verify gate's literal
+  `"VALIDATE complete"` string, bulk-checked every unchecked box in
+  `validate.md`'s §1 (Reviewer Confirms), §2 (BA/PO Confirms), §3
+  (assumption Correct?), §3a (UC Business Scenario Correct?), and §4
+  (Scope Confirmation) — inferring itemized per-line business sign-off
+  purely from the document's Jira ticket having been closed after a Q&A
+  comment thread, which is not the same as a named reviewer actually
+  addressing that specific item.
+  - `validate.prompt.md`'s own Step C only ever specified updating the
+    header (`Status: Draft → Approved`) and the §5 Approvals table — the
+    §1–§4 bulk-check was never something the prompt instructed.
+  - Tightened Step C across all 5 packs to explicitly forbid inferring
+    §1–§4 item-level confirmations from a document-level approval signal
+    (a blanket "approved" reply, a Jira status flip, or a comment thread
+    that only answered `[NEEDS CLARIFICATION]` items is not itemized
+    evidence), and to say what to do instead: leave the box `[ ]` with a
+    note ("Approved as a whole document; items in §1–§4 were not
+    itemized during review"), or check it only when pointing to the
+    actual reviewer statement that confirmed that exact item.
+  - Matters most for regulated/financial-transfer features, where
+    §1–§4's checkboxes exist to be a traceable, defensible audit trail
+    of actual line-item business review — not a formality rubber-stamped
+    to satisfy a downstream gate's string match.
+  - `validate.prompt.md` is not a shared/blocks file — edited
+    individually in all 5 packs with identical wording.
+  - No manifest schema changes.
+
+---
+
 ## [2.7.56] — 2026-07-13 (Fix: sdd review pull-answers never refreshed BRD/SRD/UC's Confluence pages after patching them)
 
 ### Fixed

@@ -2233,6 +2233,41 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.56"},
     },
+    {
+        "from":        "2.7.56",
+        "to":          "2.7.57",
+        "description": "Guardrail: validate.prompt.md Step C no longer lets a document-level approval auto-check per-item §1-§4 confirmation checkboxes -- no manifest schema changes",
+        "notes": [
+            "User-reported (from a live project's /analyze run): a prior "
+            "agent session, chasing the analyze.prompt.md verify gate's "
+            "literal 'VALIDATE complete' string, bulk-checked every "
+            "unchecked box in validate.md's §1 (Reviewer Confirms), §2 "
+            "(BA/PO Confirms), §3 (assumption Correct?), §3a (UC Business "
+            "Scenario Correct?), and §4 (Scope Confirmation) -- inferring "
+            "itemized per-line business sign-off purely from the "
+            "document's overall Jira ticket having been closed after a "
+            "Q&A comment thread, which is not the same as a named "
+            "reviewer actually addressing that specific item",
+            "validate.prompt.md's own Step C only ever specified updating "
+            "the header (Status: Draft -> Approved) and the §5 Approvals "
+            "table -- the agent's bulk-check of §1-§4 was not something "
+            "the prompt told it to do; this migration tightens the "
+            "wording to explicitly forbid it and to say what to do "
+            "instead (leave unchecked with a note, or point to the "
+            "specific reviewer statement that confirmed that exact item)",
+            "This matters most for regulated/financial-transfer features "
+            "where §1-§4's checkboxes are meant to be a traceable, "
+            "defensible audit trail of actual line-item business review "
+            "-- not a formality that gets rubber-stamped to satisfy a "
+            "downstream gate's string match",
+            "Applied identically to validate.prompt.md in all 5 packs "
+            "(not a shared/blocks file -- each pack's copy edited "
+            "individually, same wording)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.57"},
+    },
 ]
 
 
