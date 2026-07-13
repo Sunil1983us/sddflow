@@ -161,21 +161,43 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> str | None:
 
 # ── Text extraction ────────────────────────────────────────────────────────────
 
+_ADF_BLOCK_TYPES = {"paragraph", "heading", "codeBlock", "blockquote", "listItem"}
+
+
 def _extract_text(body) -> str:
-    """Extract plain text from Jira ADF (Cloud) or string (Server/DC) comment body."""
+    """Extract plain text from Jira ADF (Cloud) or string (Server/DC) comment
+    body, preserving line boundaries between block-level nodes as newlines.
+
+    Jira's rich-text comment editor stores each line a user types as a
+    SEPARATE paragraph node in the ADF tree, not one paragraph with embedded
+    newlines -- joining every text run in the whole document with a single
+    space (the previous behavior) collapsed a multi-line reply like
+    pull-answers' "{doc}:NC-{NNN}: {answer}" format (one item per line) into
+    one run-on line, breaking _ANSWER_LINE_RE's per-line matching entirely."""
     if isinstance(body, str):
         return body
     if isinstance(body, dict):
-        texts: list[str] = []
+        lines: list[str] = []
 
-        def walk(node: dict) -> None:
+        def walk_inline(node: dict, buf: list[str]) -> None:
             if node.get("type") == "text":
-                texts.append(node.get("text", ""))
+                buf.append(node.get("text", ""))
+            elif node.get("type") == "hardBreak":
+                buf.append("\n")
             for child in node.get("content", []):
-                walk(child)
+                walk_inline(child, buf)
 
-        walk(body)
-        return " ".join(texts)
+        def walk_block(node: dict) -> None:
+            if node.get("type") in _ADF_BLOCK_TYPES:
+                buf: list[str] = []
+                walk_inline(node, buf)
+                lines.append("".join(buf))
+            else:
+                for child in node.get("content", []):
+                    walk_block(child)
+
+        walk_block(body)
+        return "\n".join(lines)
     return ""
 
 

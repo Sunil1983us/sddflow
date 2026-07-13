@@ -2117,6 +2117,44 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.53"},
     },
+    {
+        "from":        "2.7.53",
+        "to":          "2.7.54",
+        "description": "Fix: multi-line sdd review pull-answers replies (one 'brd:NC-NNN: answer' per line, e.g. a real 7-item Jira comment) were silently collapsed into a single garbled line, so only the first item ever got parsed -- no manifest schema changes",
+        "notes": [
+            "User-reported: a reviewer answered all 7 open questions on a "
+            "push-questions ticket, one per line as instructed, but "
+            "pull-answers reported 'no new replies' every time",
+            "Root cause: _extract_text() joined every text run in the "
+            "whole ADF comment body with a single space, with no regard "
+            "for paragraph boundaries. Jira's rich-text comment editor "
+            "stores each line a user types as a SEPARATE paragraph node "
+            "in the ADF tree, not one paragraph with embedded newlines -- "
+            "so a real multi-line reply collapsed into one run-on line, "
+            "and _ANSWER_LINE_RE's per-line ^...$ matching (anchored on "
+            "actual \\n characters) then only ever found the first item, "
+            "with the rest of the comment swallowed into its answer",
+            "_extract_text() rewritten to walk ADF block-level nodes "
+            "(paragraph, heading, codeBlock, blockquote, listItem) and "
+            "join THOSE with newlines, while text runs within a single "
+            "block are concatenated directly (also fixes a smaller "
+            "pre-existing issue: formatting-split text runs within one "
+            "sentence previously got a spurious extra space inserted "
+            "between them). hardBreak nodes (shift+enter within one "
+            "paragraph) also now produce a newline",
+            "Also used by review_check's printed reviewer-comment display "
+            "and the dashboard's Jira-comment surfacing -- both benefit "
+            "from the same fix, previously showing run-on multi-line "
+            "Jira comments as one wrapped line",
+            "5 new tests: separate-paragraphs-become-separate-lines, "
+            "plain-string-body unchanged, hardBreak handling, and an "
+            "end-to-end reproduction of the exact reported bug (7 "
+            "distinct paragraph answers, all 7 must parse)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.54"},
+    },
 ]
 
 

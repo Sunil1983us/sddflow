@@ -4,6 +4,39 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.54] — 2026-07-13 (Fix: multi-line Jira replies to sdd review pull-answers were collapsed into one line)
+
+### Fixed
+
+- **User-reported: a reviewer answered all 7 open questions on a
+  `push-questions` ticket, one item per line as instructed, but
+  `sdd review pull-answers` reported "no new replies" every time.**
+  - Root cause: `_extract_text()` joined every text run in the whole ADF
+    comment body with a single space, with no regard for paragraph
+    boundaries. Jira's rich-text comment editor stores each line a user
+    types as a **separate paragraph node** in the ADF tree, not one
+    paragraph with embedded newlines — so a real multi-line reply
+    collapsed into one run-on line, and the per-line `^...$` answer
+    parser (anchored on actual `\n` characters) then only ever found the
+    first item, with the rest of the comment swallowed into its answer.
+  - `_extract_text()` rewritten to walk ADF block-level nodes
+    (`paragraph`, `heading`, `codeBlock`, `blockquote`, `listItem`) and
+    join *those* with newlines, while text runs within a single block
+    are concatenated directly (also fixes a smaller pre-existing issue:
+    formatting-split text runs within one sentence previously got a
+    spurious extra space). `hardBreak` nodes now also produce a newline.
+  - Also used by `review_check`'s printed reviewer-comment display and
+    the dashboard's Jira-comment surfacing — both benefit from the same
+    fix, previously showing run-on multi-line Jira comments as one
+    wrapped line.
+  - 5 new tests: separate-paragraphs-become-separate-lines,
+    plain-string-body unchanged, `hardBreak` handling, and an end-to-end
+    reproduction of the exact reported bug (7 distinct paragraph
+    answers, all 7 must parse).
+  - No manifest schema changes.
+
+---
+
 ## [2.7.53] — 2026-07-13 (Feature: blocked documents can collect answers via Jira/Confluence)
 
 ### Added
