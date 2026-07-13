@@ -78,6 +78,25 @@ class ConfluenceClient:
         r.raise_for_status()
         return r.json()
 
+    def upload_attachment(self, page_id: str, filename: str, content: bytes,
+                          media_type: str = "image/svg+xml") -> dict:
+        """Attach a file to a page. Confluence's attachment endpoint
+        automatically creates a new version of an existing attachment
+        with the same filename rather than erroring or duplicating it --
+        callers don't need to check for an existing attachment first,
+        the same idempotent-by-name behavior upsert_page() already
+        relies on for pages themselves.
+
+        X-Atlassian-Token: nocheck is required on multipart uploads --
+        Confluence's XSRF protection otherwise rejects them."""
+        r = self._s.post(
+            self._api(f"/content/{page_id}/child/attachment"),
+            headers={"X-Atlassian-Token": "nocheck"},
+            files={"file": (filename, content, media_type)},
+        )
+        r.raise_for_status()
+        return r.json()
+
     def get_page_with_body(self, page_id: str) -> dict:
         """Fetch a page including its body in storage format."""
         r = self._s.get(

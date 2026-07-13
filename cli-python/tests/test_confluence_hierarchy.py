@@ -9,6 +9,7 @@ import pytest
 
 from sdd.commands.confluence import (
     _ensure_container_page, resolve_feature_parent_id, resolve_doc_parent_id,
+    upload_diagram_attachments,
 )
 from sdd.utils.integrations import ConfluenceConfig
 
@@ -19,6 +20,7 @@ class FakeConfluenceClient:
     def __init__(self):
         self.pages_by_title: dict[str, dict] = {}
         self.create_calls: list[tuple[str, str, str | None]] = []
+        self.uploaded_attachments: list[tuple[str, str, bytes, str]] = []
         self._next_id = 1
 
     def get_page_by_title(self, space_key, title):
@@ -30,6 +32,17 @@ class FakeConfluenceClient:
         self._next_id += 1
         self.pages_by_title[title] = page
         return page
+
+    def upload_attachment(self, page_id, filename, content, media_type="image/svg+xml"):
+        self.uploaded_attachments.append((page_id, filename, content, media_type))
+        return {"id": f"att-{filename}"}
+
+
+class RaisingAttachmentClient(FakeConfluenceClient):
+    """upload_attachment always fails -- used to confirm a failed upload
+    warns rather than raising and aborting the rest of the push."""
+    def upload_attachment(self, page_id, filename, content, media_type="image/svg+xml"):
+        raise RuntimeError("HTTP 413 — attachment too large")
 
 
 class TestEnsureContainerPage:
@@ -100,3 +113,52 @@ class TestResolveDocParentId:
         p1 = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "auth", "security-design")
         p2 = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "billing", "security-design")
         assert p1 == p2  # same Project-level parent regardless of which feature pushed it
+
+
+class TestUploadDiagramAttachments:
+    """The local-svg mode's attach-after-upsert step: each rendered
+    diagram queued by md_to_storage() gets uploaded to the page that was
+    just created/updated with a body already referencing its filename."""
+
+    def test_uploads_each_attachment_to_the_given_page(self):
+        client = FakeConfluenceClient()
+        attachments = [
+            ("diagram-1.svg", b"<svg>a</svg>", "image/svg+xml"),
+            ("diagram-2.svg", b"<svg>b</svg>", "image/svg+xml"),
+        ]
+        upload_diagram_attachments(client, "999", attachments)
+        assert client.uploaded_attachments == [
+            ("999", "diagram-1.svg", b"<svg>a</svg>", "image/svg+xml"),
+            ("999", "diagram-2.svg", b"<svg>b</svg>", "image/svg+xml"),
+        ]
+
+    def test_empty_attachments_list_is_a_no_op(self):
+        client = FakeConfluenceClient()
+        upload_diagram_attachments(client, "999", [])
+        assert client.uploaded_attachments == []
+
+    def test_a_failed_upload_warns_but_does_not_raise(self, capsys):
+        """The document content itself already saved successfully by
+        the time attachments are uploaded -- a failed attachment must
+        never look like the whole push failed."""
+        client = RaisingAttachmentClient()
+        upload_diagram_attachments(
+            client, "999", [("diagram-1.svg", b"<svg/>", "image/svg+xml")]
+        )  # must not raise
+        out = capsys.readouterr().out
+        assert "diagram-1.svg" in out
+        assert "attachment upload failed" in out
+
+    def test_one_failure_does_not_block_the_remaining_uploads(self):
+        class PartiallyFailingClient(FakeConfluenceClient):
+            def upload_attachment(self, page_id, filename, content, media_type="image/svg+xml"):
+                if filename == "diagram-1.svg":
+                    raise RuntimeError("boom")
+                return super().upload_attachment(page_id, filename, content, media_type)
+
+        client = PartiallyFailingClient()
+        upload_diagram_attachments(client, "999", [
+            ("diagram-1.svg", b"<svg>a</svg>", "image/svg+xml"),
+            ("diagram-2.svg", b"<svg>b</svg>", "image/svg+xml"),
+        ])
+        assert [a[1] for a in client.uploaded_attachments] == ["diagram-2.svg"]

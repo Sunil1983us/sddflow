@@ -200,48 +200,49 @@ confluence:
   # renderer. By default (mode: none, or this whole section omitted), a
   # ```mermaid or ```plantuml fenced block just shows as plain
   # syntax-highlighted text, exactly like any other code fence — the
-  # diagram source, not a rendered diagram. To actually render it, you
-  # need a Confluence app installed that provides a macro for it, and to
-  # tell this CLI that macro's name below.
+  # diagram source, not a rendered diagram.
   #
   # diagrams:
-  #   mode: none   # none (default) | mermaid-app | plantuml-macro
+  #   mode: none   # none (default) | local-svg | mermaid-app | plantuml-macro
   #
-  #   # Only read when mode: mermaid-app. macro_name is the ac:name of
-  #   # your installed Mermaid-rendering app's macro (there are 10+
-  #   # competing apps on the Atlassian Marketplace — e.g. "Mermaid
-  #   # Macros for Confluence", "Mermaid Charts & Diagrams for
-  #   # Confluence" — each registers its own macro name; check your
-  #   # app's docs for the exact value). A ```mermaid fence with no
-  #   # macro_name configured silently falls back to a plain code block
-  #   # rather than emitting a broken macro reference.
+  #   # Renders ```mermaid fences to SVG locally -- no Confluence app to
+  #   # install, no external network call at render time -- then attaches
+  #   # the image to the page. This is the option to use if your org
+  #   # can't reach external services or can't install Confluence apps.
+  #   # Requires the optional 'mmdr' package:
+  #   #     pip install "sddflow[diagrams]"
+  #   # A missing dependency, or any single diagram that fails to render,
+  #   # falls back to a plain code block for that one diagram rather than
+  #   # failing the whole document push.
+  #   local_svg: {}   # no options today -- placeholder for future ones
+  #
+  #   # Routes ```mermaid fences through the named macro of a
+  #   # Mermaid-rendering Confluence app you already have installed
+  #   # (there are 10+ competing apps on the Atlassian Marketplace — e.g.
+  #   # "Mermaid Macros for Confluence", "Mermaid Charts & Diagrams for
+  #   # Confluence" — each registers its own macro name; check your app's
+  #   # docs for the exact value). A ```mermaid fence with no macro_name
+  #   # configured silently falls back to a plain code block rather than
+  #   # emitting a broken macro reference.
   #   mermaid_app:
   #     macro_name: mermaid-cloud
   #
-  #   # Only read when mode: plantuml-macro. Only applies to fences
-  #   # already written as ```plantuml — this does NOT convert
-  #   # ```mermaid content to PlantUML syntax (they're different
-  #   # diagram languages, not mechanically translatable). Note: apps
-  #   # like "PlantUML for Confluence" render by sending your diagram
-  #   # source to plantuml.com by default (an external network call) —
-  #   # if your org can't reach external services, a Confluence admin
-  #   # needs to point the app at a self-hosted PlantUML render server
-  #   # instead (Confluence Settings → Apps → PlantUML).
+  #   # Only applies to fences already written as ```plantuml — this does
+  #   # NOT convert ```mermaid content to PlantUML syntax (they're
+  #   # different diagram languages, not mechanically translatable). Note:
+  #   # apps like "PlantUML for Confluence" render by sending your diagram
+  #   # source to plantuml.com by default (an external network call) — if
+  #   # your org can't reach external services, a Confluence admin needs
+  #   # to point the app at a self-hosted PlantUML render server instead
+  #   # (Confluence Settings → Apps → PlantUML), or use local_svg above.
   #   plantuml_macro:
   #     macro_name: plantuml
   #
-  # Two more modes are planned but not yet available in this CLI:
-  #   local-svg      — render Mermaid to SVG locally (no Confluence app,
-  #                    no external network call at render time) and
-  #                    attach it as an image. Needs a rendering-tool
-  #                    evaluation before it ships.
-  #   markdown-macro — delegate the WHOLE page body to an installed
-  #                    whole-document Markdown-rendering app (which
-  #                    bundles Mermaid support). Needs verified testing
-  #                    against a real installed app first — these are
-  #                    Forge-based and use a different, less-guessable
-  #                    macro reference shape than mermaid_app/
-  #                    plantuml_macro above.
+  # A fourth mode, markdown-macro (delegate the WHOLE page body to an
+  # installed whole-document Markdown-rendering app), is planned but not
+  # yet available -- these are Forge-based and use a different,
+  # less-guessable macro reference shape than the modes above, and needs
+  # verified testing against a real installed app before it ships.
 
 
 # ── Document review gates ─────────────────────────────────────────────────────

@@ -108,9 +108,9 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
     # ── Push CR record to Confluence ─────────────────────────────────────────
     if cfg.confluence:
         cf_client = ConfluenceClient(session, prof.base_url)
-        body_html = md_to_storage(cr_text, cfg.confluence.diagrams)
+        body_html, attachments = md_to_storage(cr_text, cfg.confluence.diagrams)
         try:
-            from sdd.commands.confluence import resolve_feature_parent_id
+            from sdd.commands.confluence import resolve_feature_parent_id, upload_diagram_attachments
             parent_id = resolve_feature_parent_id(cf_client, cfg.confluence, project_name, feature_name)
             page, created = cf_client.upsert_page(
                 cfg.confluence.space_key,
@@ -118,6 +118,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
                 body_html,
                 parent_id,
             )
+            upload_diagram_attachments(cf_client, page["id"], attachments)
             action   = "[green]created[/green]" if created else "[dim]updated[/dim]"
             web_ui   = page.get("_links", {}).get("webui", "")
             page_url = f"{prof.base_url}/wiki{web_ui}" if web_ui else ""

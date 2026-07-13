@@ -1372,6 +1372,65 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.36"},
     },
+    {
+        "from":        "2.7.36",
+        "to":          "2.7.37",
+        "description": "Feature: Confluence local-svg diagram mode -- ```mermaid fences can now be rendered to SVG entirely offline (no browser, no Node.js, no network call, no Confluence app) and attached to the page as an image; no manifest schema changes",
+        "notes": [
+            "Completes the local-svg mode explicitly deferred in "
+            "2.7.36's migration notes -- that release shipped "
+            "mermaid-app/plantuml-macro (both require an installed "
+            "Confluence app); this release adds the offline option for "
+            "orgs that don't have or can't install one",
+            "Renderer choice was verified, not assumed: built an "
+            "isolated venv, confirmed two PyPI candidates actually "
+            "exist, extracted the real Mermaid diagram types SDD "
+            "templates generate (flowchart, sequenceDiagram, "
+            "classDiagram, erDiagram), and rendered each type through "
+            "each candidate. mermaidx/mmdc (JS-engine backend) failed "
+            "on flowchart stadium-shape nodes (Actor([\"User\"]), used "
+            "in every design/hld/arch template's Actor node) and on "
+            "classDiagram entirely. mmdr (Rust-based, ~18MB, zero "
+            "further Python dependencies) rendered all four correctly, "
+            "confirmed both textually and via visual PNG inspection",
+            "mmdr is an optional dependency, not a hard one -- new "
+            "[project.optional-dependencies].diagrams extra in "
+            "pyproject.toml, installed with pip install "
+            "\"sddflow[diagrams]\", imported lazily only when "
+            "diagrams.mode == local-svg is actually configured",
+            "New sdd/utils/mermaid_render.py wraps mmdr.render(...).svg() "
+            "and raises a clear MermaidRendererNotInstalled error naming "
+            "the exact install command if configured but missing, "
+            "instead of a bare ImportError traceback",
+            "New ConfluenceClient.upload_attachment() posts to "
+            "/content/{id}/child/attachment with the X-Atlassian-Token: "
+            "nocheck header multipart uploads require to bypass XSRF "
+            "protection -- Confluence auto-versions an existing "
+            "attachment with the same filename, so no separate update "
+            "path is needed",
+            "md_to_storage()'s return type changed from str to "
+            "tuple[str, list[Attachment]] -- attachments is always [] "
+            "except in local-svg mode, where each successfully-rendered "
+            "```mermaid fence contributes one (filename, svg_bytes, "
+            "media_type) entry the caller uploads after upsert_page(); "
+            "all 6 call sites across confluence.py, review.py, and "
+            "cr.py updated to unpack the tuple and call the new shared "
+            "upload_diagram_attachments() helper",
+            "Every failure mode falls back to something safe rather "
+            "than crashing the whole document push: missing dependency "
+            "or invalid diagram source -> plain code block for that one "
+            "diagram (page push continues); failed attachment upload -> "
+            "warning printed, page content (already saved) is "
+            "unaffected, remaining attachments still upload",
+            "17 new tests across 4 files: test_mermaid_render.py (3), "
+            "TestLocalSvgMode in test_md_to_cf.py (5), "
+            "test_confluence_client.py (5), TestUploadDiagramAttachments "
+            "in test_confluence_hierarchy.py (4)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.37"},
+    },
 ]
 
 

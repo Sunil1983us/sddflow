@@ -71,6 +71,22 @@ def resolve_doc_parent_id(client: ConfluenceClient, cf_cfg, project_name: str,
     return resolve_feature_parent_id(client, cf_cfg, project_name, feature_name)
 
 
+def upload_diagram_attachments(client: ConfluenceClient, page_id: str,
+                                attachments: list[tuple[str, bytes, str]]) -> None:
+    """Upload each locally-rendered diagram (diagrams.mode: local-svg) as
+    a page attachment, after the page itself has already been created/
+    updated with a body that references these filenames via
+    <ac:image><ri:attachment>. Never raises -- a failed upload leaves
+    that one diagram's image reference unresolved (a broken-image
+    placeholder in Confluence) rather than failing the whole document
+    push, since the document content itself already saved successfully."""
+    for filename, content, media_type in attachments:
+        try:
+            client.upload_attachment(page_id, filename, content, media_type)
+        except Exception as e:
+            console.print(f"  [yellow]!  {filename} — diagram attachment upload failed: {e}[/yellow]")
+
+
 def _resolve_page_title(doc: str, project_name: str, feature: str,
                          page_map: dict) -> str:
     """Build the Confluence page title for a doc key.
@@ -183,12 +199,13 @@ def confluence_push(profile, feature, doc, dry_run):
     client = ConfluenceClient(session, prof.base_url)
 
     for key, md_path, title in available:
-        body = md_to_storage(md_path.read_text(), cf_cfg.diagrams)
+        body, attachments = md_to_storage(md_path.read_text(), cf_cfg.diagrams)
         try:
             parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, key)
             page, created = client.upsert_page(
                 cf_cfg.space_key, title, body, parent_id
             )
+            upload_diagram_attachments(client, page["id"], attachments)
             action = "[green]created[/green]" if created else "[dim]updated[/dim]"
             console.print(f"  {action}  [cyan]{title}[/cyan]")
             if created:
@@ -273,13 +290,14 @@ def confluence_draft(doc, profile, feature, dry_run):
         raise SystemExit(1)
 
     client = ConfluenceClient(session, prof.base_url)
-    body = md_to_storage(doc_path.read_text(), cf_cfg.diagrams)
+    body, attachments = md_to_storage(doc_path.read_text(), cf_cfg.diagrams)
 
     try:
         parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, doc)
         page, created = client.upsert_page(
             cf_cfg.space_key, title, body, parent_id
         )
+        upload_diagram_attachments(client, page["id"], attachments)
     except Exception as e:
         console.print(f"  [red]✗  Confluence error: {e}[/red]")
         raise SystemExit(1)

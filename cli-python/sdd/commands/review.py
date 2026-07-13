@@ -144,12 +144,13 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> str | None:
     prof      = load_profile(cfg.profile)
     session   = build_session(prof)
     cf_client = ConfluenceClient(session, prof.base_url)
-    body_html = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
-    from sdd.commands.confluence import resolve_doc_parent_id
+    body_html, attachments = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
+    from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
     parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
-    cf_client.upsert_page(
+    page, _created = cf_client.upsert_page(
         cfg.confluence.space_key, title, body_html, parent_id,
     )
+    upload_diagram_attachments(cf_client, page["id"], attachments)
     return title
 
 
@@ -361,12 +362,13 @@ def review_submit(doc, profile, feature):
         raise SystemExit(1)
 
     page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
-    body_html  = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
-    from sdd.commands.confluence import resolve_doc_parent_id
+    body_html, attachments = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
+    from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
     parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
     page, created = cf_client.upsert_page(
         cfg.confluence.space_key, page_title, body_html, parent_id,
     )
+    upload_diagram_attachments(cf_client, page["id"], attachments)
     page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
     action   = "[green]created[/green]" if created else "[dim]updated[/dim]"
     console.print(f"  {action}  Confluence: [cyan]{page_title}[/cyan]")
@@ -650,12 +652,13 @@ def review_apply(doc, profile, feature):
     page_url     = ""
     if md_path.exists():
         page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
-        body_html  = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
-        from sdd.commands.confluence import resolve_doc_parent_id
+        body_html, attachments = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
+        from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
         parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
         page, _    = cf_client.upsert_page(
             cfg.confluence.space_key, page_title, body_html, parent_id,
         )
+        upload_diagram_attachments(cf_client, page["id"], attachments)
         page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
         console.print(f"  [green]✓[/green]  Confluence updated: [cyan]{page_title}[/cyan]")
     else:

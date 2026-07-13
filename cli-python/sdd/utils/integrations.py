@@ -95,18 +95,19 @@ class JiraConfig:
         return self.parent_field_by_level.get(level, self.parent_field)
 
 
-_DIAGRAM_MODES = ("none", "mermaid-app", "plantuml-macro")
-
-
 @dataclass
 class DiagramsConfig:
     """How ```mermaid / ```plantuml fenced code blocks are rendered when
     pushed to Confluence. "none" (default) leaves them as plain
     syntax-highlighted code -- Confluence has no native diagram
     renderer, so a fence's content shows as text, not a diagram, unless
-    one of the other modes routes it through an installed Confluence
-    app. "local-svg" and "markdown-macro" are planned but not yet
-    implemented -- see README.md."""
+    one of the other modes routes it through an installed Confluence app
+    or a local renderer. Valid modes: none | mermaid-app | plantuml-macro
+    | local-svg. "markdown-macro" is planned but not yet implemented --
+    see README.md. An unrecognized mode string behaves exactly like
+    "none" -- md_to_cf.py's dispatch only special-cases the four
+    recognized values, so a typo never crashes, it just silently
+    doesn't render diagrams."""
     mode: str = "none"
     # ac:name of the installed Mermaid-rendering app's macro. Only used
     # when mode == "mermaid-app"; a ```mermaid fence with no macro_name

@@ -1048,6 +1048,36 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.36',
+    to:   '2.7.37',
+    description: 'Feature: Confluence local-svg diagram mode (Python CLI) -- ```mermaid fences can now be rendered to SVG entirely offline (no browser, no Node.js, no network call, no Confluence app) and attached to the page as an image; no manifest schema changes',
+    notes: [
+      'Completes the local-svg mode deferred in 2.7.36 -- that release ' +
+      'shipped mermaid-app/plantuml-macro, both of which require an ' +
+      'installed Confluence app; this release adds the offline option ' +
+      'for orgs that don\'t have or can\'t install one',
+      'Backed by the optional mmdr package (Rust-based, ~18MB, zero ' +
+      'further Python dependencies), verified against the real Mermaid ' +
+      'diagram types SDD templates generate (flowchart, sequenceDiagram, ' +
+      'classDiagram, erDiagram) before being chosen over a JS-engine ' +
+      'candidate that failed on flowchart stadium-shape nodes and on ' +
+      'classDiagram entirely',
+      'Every failure mode (missing optional dependency, invalid diagram ' +
+      'source, failed attachment upload) falls back to something safe ' +
+      'rather than crashing the whole document push',
+      'This Node CLI does not implement any of these Jira/Confluence ' +
+      'commands -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.37';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

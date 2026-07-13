@@ -4,6 +4,51 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.37] — 2026-07-13 (Feature: Confluence local-svg diagram rendering)
+
+### Added
+
+- **`mode: local-svg`** — the third `confluence.diagrams:` mode, completing
+  the work deferred in 2.7.36. Renders ` ```mermaid ` fences to SVG entirely
+  offline — no browser, no Node.js, no network call at render time, no
+  installed Confluence app required — and attaches the result to the page as
+  an image via `<ac:image>`/`<ri:attachment>`.
+- **Renderer choice was verified, not assumed.** Built an isolated venv,
+  confirmed both PyPI candidates actually exist, extracted the real Mermaid
+  diagram types SDD templates generate (flowchart, sequenceDiagram,
+  classDiagram, erDiagram), and rendered each type through each candidate.
+  `mermaidx`/`mmdc` (JS-engine backend) failed on flowchart stadium-shape
+  nodes (`Actor(["User"])`, used in every design/hld/arch template's Actor
+  node) and on `classDiagram` entirely. `mmdr` (Rust-based, ~18MB, zero
+  further Python dependencies) rendered all four correctly — confirmed both
+  textually and via visual PNG inspection.
+- `mmdr` is an **optional dependency**, not a hard one — new
+  `[project.optional-dependencies].diagrams` extra in `pyproject.toml`,
+  installed with `pip install "sddflow[diagrams]"`, imported lazily only
+  when `diagrams.mode: local-svg` is actually configured. A clear
+  `MermaidRendererNotInstalled` error names the exact install command if
+  configured but missing — never a bare `ImportError` traceback.
+- New `ConfluenceClient.upload_attachment()` posts to
+  `/content/{id}/child/attachment` with the `X-Atlassian-Token: nocheck`
+  header multipart uploads require. Confluence auto-versions an existing
+  attachment with the same filename, so no separate update path is needed.
+- `md_to_storage()`'s return type changed from `str` to
+  `tuple[str, list[Attachment]]` — all 6 call sites across `confluence.py`,
+  `review.py`, and `cr.py` updated to unpack the tuple and upload queued
+  attachments via a new shared `upload_diagram_attachments()` helper, after
+  `upsert_page()`.
+- **Every failure mode falls back to something safe** rather than crashing
+  the whole document push: a missing dependency or invalid diagram source
+  falls back to a plain code block for that one diagram; a failed
+  attachment upload prints a warning but leaves the already-saved page
+  content and remaining attachments unaffected.
+- 17 new tests across `test_mermaid_render.py` (3),
+  `test_md_to_cf.py::TestLocalSvgMode` (5), `test_confluence_client.py` (5),
+  and `test_confluence_hierarchy.py::TestUploadDiagramAttachments` (4), full
+  regression clean (356 tests).
+
+---
+
 ## [2.7.36] — 2026-07-12 (Feature: Confluence diagram-macro rendering — mermaid-app, plantuml-macro)
 
 ### Added
