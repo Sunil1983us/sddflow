@@ -199,7 +199,7 @@ def confluence_push(profile, feature, doc, dry_run):
     client = ConfluenceClient(session, prof.base_url)
 
     for key, md_path, title in available:
-        body, attachments = md_to_storage(md_path.read_text(), cf_cfg.diagrams)
+        body, attachments, diagram_warnings = md_to_storage(md_path.read_text(), cf_cfg.diagrams)
         try:
             parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, key)
             page, created = client.upsert_page(
@@ -212,6 +212,8 @@ def confluence_push(profile, feature, doc, dry_run):
                 web_ui = page.get("_links", {}).get("webui", "")
                 if web_ui:
                     console.print(f"          {prof.base_url}/wiki{web_ui}")
+            for w in diagram_warnings:
+                console.print(f"          [yellow]!  {w}[/yellow]")
         except Exception as e:
             console.print(f"  [red]✗  {title} — {e}[/red]")
 
@@ -290,7 +292,7 @@ def confluence_draft(doc, profile, feature, dry_run):
         raise SystemExit(1)
 
     client = ConfluenceClient(session, prof.base_url)
-    body, attachments = md_to_storage(doc_path.read_text(), cf_cfg.diagrams)
+    body, attachments, diagram_warnings = md_to_storage(doc_path.read_text(), cf_cfg.diagrams)
 
     try:
         parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, doc)
@@ -315,6 +317,8 @@ def confluence_draft(doc, profile, feature, dry_run):
     console.print(f"  {action}  [bold]{title}[/bold]")
     if edit_url:
         console.print(f"  URL      : [underline cyan]{edit_url}[/underline cyan]")
+    for w in diagram_warnings:
+        console.print(f"  [yellow]!  {w}[/yellow]")
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print("  [bold green]Draft pushed![/bold green]  Open the URL above, fill in any")

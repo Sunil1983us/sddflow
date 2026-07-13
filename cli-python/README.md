@@ -925,6 +925,11 @@ confluence:
 | `mermaid_app` | A Mermaid-rendering Confluence app installed (10+ compete on the Atlassian Marketplace) + its macro name | Only affects ` ```mermaid ` fences; a fence with no `macro_name` configured falls back to plain text rather than a broken macro |
 | `plantuml_macro` | A PlantUML-rendering app (e.g. "PlantUML for Confluence") + its macro name | Only affects fences already written as ` ```plantuml ` — this does **not** convert Mermaid syntax to PlantUML, they're different diagram languages. Most of these apps render via the public `plantuml.com` server by default (an external network call); if your org can't reach external services, a Confluence admin needs to point the app at a self-hosted PlantUML server instead, or use `local-svg` above |
 
+If a diagram fence still shows as a plain code block after configuring one
+of these modes, the push command now prints a yellow warning naming the
+exact reason (e.g. the `pip install` command if `mmdr` isn't installed, or
+the actual renderer error for an invalid diagram) — it never fails silently.
+
 A fourth mode, **`markdown-macro`** (delegate the whole page to a
 whole-document Markdown-rendering app that bundles Mermaid support), is
 planned but not yet implemented — these are Forge-based and use a different,

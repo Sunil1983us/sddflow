@@ -1329,6 +1329,29 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.48',
+    to:   '2.7.49',
+    description: 'Fix: silent Confluence diagram-render failures now print a warning naming the reason (Python CLI) -- no manifest schema changes',
+    notes: [
+      "A ```mermaid fence whose diagrams.mode failed to render (missing " +
+      "mmdr package, invalid diagram source, or an app macro mode with " +
+      "no macro_name set) previously fell back to a plain code block " +
+      "with zero indication anything was wrong, indistinguishable from " +
+      "diagrams.mode not being configured at all -- now prints a " +
+      "warning naming the actual reason",
+      'This Node CLI does not implement sdd confluence push/sdd review ' +
+      'submit -- it stays scoped to init/upgrade scaffolding, per its ' +
+      'own README; this migration entry exists so both CLIs report the ' +
+      'same sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.49';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

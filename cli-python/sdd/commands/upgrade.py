@@ -1906,6 +1906,48 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.48"},
     },
+    {
+        "from":        "2.7.48",
+        "to":          "2.7.49",
+        "description": "Fix: a Confluence diagram fence whose *configured* rendering mode failed (missing mmdr package, invalid diagram source, or an app macro mode with no macro name set) silently fell back to a plain code block with zero indication anything was wrong -- now prints a warning naming the reason -- no manifest schema changes",
+        "notes": [
+            "User-reported: set diagrams.mode: local-svg in "
+            "integrations.yml, re-pushed a Use Cases page with a Mermaid "
+            "relationship diagram, and the diagram still showed as plain "
+            "text instead of an image -- with no error or warning "
+            "anywhere to explain why",
+            "Root cause: md_to_cf.py's _render_local_svg() caught every "
+            "renderer exception (including the common case -- `pip "
+            "install \"sddflow[diagrams]\"` never having been run, so "
+            "the optional mmdr package isn't installed) and discarded "
+            "the reason, falling back to a plain code block silently. A "
+            "real, fixable failure was indistinguishable from "
+            "diagrams.mode simply not being configured at all",
+            "md_to_storage()'s return type changed (again) from "
+            "tuple[str, list[Attachment]] to tuple[str, list[Attachment], "
+            "list[str]] -- the third element is one human-readable "
+            "warning per diagram fence whose *configured* mode failed to "
+            "render (never populated when diagrams.mode is \"none\", "
+            "since that's expected default behavior, not a failure)",
+            "Also fixed the same silent-fallback gap for mermaid-app/"
+            "plantuml-macro modes selected with no macro_name configured "
+            "-- previously indistinguishable from an unconfigured mode "
+            "too",
+            "All 6 call sites (confluence push, confluence draft, sdd "
+            "review submit, sdd review apply, review.py's internal "
+            "_push_doc_page, sdd cr submit) now print each warning in "
+            "yellow after a successful page push",
+            "9 new/updated tests in test_md_to_cf.py: missing macro_name "
+            "warnings for both mermaid-app and plantuml-macro, a "
+            "renderer-exception warning naming the actual error, a "
+            "dedicated MermaidRendererNotInstalled test asserting the "
+            "warning names the exact `pip install` fix, and confirming "
+            "mode: none / successful renders never produce warnings",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.49"},
+    },
 ]
 
 

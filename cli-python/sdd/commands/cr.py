@@ -108,7 +108,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
     # ── Push CR record to Confluence ─────────────────────────────────────────
     if cfg.confluence:
         cf_client = ConfluenceClient(session, prof.base_url)
-        body_html, attachments = md_to_storage(cr_text, cfg.confluence.diagrams)
+        body_html, attachments, diagram_warnings = md_to_storage(cr_text, cfg.confluence.diagrams)
         try:
             from sdd.commands.confluence import resolve_feature_parent_id, upload_diagram_attachments
             parent_id = resolve_feature_parent_id(cf_client, cfg.confluence, project_name, feature_name)
@@ -125,6 +125,8 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
             console.print(f"  {action}  Confluence: [cyan]{page_title}[/cyan]")
             if page_url:
                 console.print(f"          [underline cyan]{page_url}[/underline cyan]")
+            for w in diagram_warnings:
+                console.print(f"          [yellow]!  {w}[/yellow]")
         except Exception as e:
             console.print(f"  [yellow]⚠  Confluence error: {e} — continuing to Jira[/yellow]")
     else:

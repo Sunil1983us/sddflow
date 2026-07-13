@@ -16,18 +16,29 @@ from sdd.utils.integrations import DiagramsConfig
 Attachment = tuple[str, bytes, str]
 
 
-def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str, list[Attachment]]:
+def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str, list[Attachment], list[str]]:
     """Convert Markdown to Confluence storage-format XHTML.
 
-    Returns (html, attachments). attachments is always [] except in
-    diagrams.mode == "local-svg", where each successfully-rendered
+    Returns (html, attachments, warnings). attachments is always [] except
+    in diagrams.mode == "local-svg", where each successfully-rendered
     ```mermaid fence contributes one (filename, svg_bytes, media_type)
     entry the caller must upload as a page attachment after upsert_page()
     -- the returned html already references that filename via
     <ac:image><ri:attachment ri:filename="...">, but Confluence won't
-    resolve it to an actual image until the attachment exists."""
+    resolve it to an actual image until the attachment exists.
+
+    warnings is one human-readable string per diagram fence that a
+    *configured* diagram mode failed to render (missing mmdr package,
+    invalid diagram source, or diagrams.mode selects an app macro with no
+    macro name set) -- every such fence still falls back to a plain code
+    block so the push itself never fails, but silently swallowing the
+    reason left users unable to tell a real failure apart from having no
+    diagrams.mode configured at all. Callers should print these as
+    warnings after a successful push. Always [] when diagrams.mode is
+    "none" (the default) -- that's expected behaviour, not a failure."""
     diagrams = diagrams or DiagramsConfig()
     attachments: list[Attachment] = []
+    warnings: list[str] = []
     lines = md.splitlines()
     out: list[str] = []
     i = 0
@@ -62,7 +73,7 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
             while i < len(lines) and not lines[i].startswith("```"):
                 code_lines.append(lines[i])
                 i += 1
-            out.append(_render_fence(lang, "\n".join(code_lines), diagrams, attachments))
+            out.append(_render_fence(lang, "\n".join(code_lines), diagrams, attachments, warnings))
             i += 1
             continue
 
@@ -137,11 +148,11 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
 
     flush_para()
     flush_list()
-    return "\n".join(out), attachments
+    return "\n".join(out), attachments, warnings
 
 
 def _render_fence(lang: str, code: str, diagrams: DiagramsConfig,
-                   attachments: list[Attachment]) -> str:
+                   attachments: list[Attachment], warnings: list[str]) -> str:
     """Render one fenced code block. A ```mermaid or ```plantuml fence
     routes through the matching installed Confluence app's macro when
     diagrams.mode selects it and a macro name is configured, or through
@@ -151,13 +162,28 @@ def _render_fence(lang: str, code: str, diagrams: DiagramsConfig,
     configured -- falls back to Confluence's built-in "code" macro,
     which is a syntax-highlighted text block, not a rendered diagram.
     Confluence has no native diagram renderer, so without one of these
-    modes configured, a ```mermaid fence always shows as text."""
-    if lang == "mermaid" and diagrams.mode == "mermaid-app" and diagrams.mermaid_app_macro:
-        return _diagram_macro(diagrams.mermaid_app_macro, code)
-    if lang == "plantuml" and diagrams.mode == "plantuml-macro" and diagrams.plantuml_macro:
-        return _diagram_macro(diagrams.plantuml_macro, code)
+    modes configured, a ```mermaid fence always shows as text -- that's
+    expected when diagrams.mode is "none" (the default), so only a fence
+    whose *configured* mode actually applies to it, and still fails,
+    appends to `warnings`."""
+    if lang == "mermaid" and diagrams.mode == "mermaid-app":
+        if diagrams.mermaid_app_macro:
+            return _diagram_macro(diagrams.mermaid_app_macro, code)
+        warnings.append(
+            "diagrams.mode is mermaid-app but diagrams.mermaid_app_macro "
+            "is not set -- this ```mermaid fence was shown as plain code "
+            "instead of a diagram"
+        )
+    if lang == "plantuml" and diagrams.mode == "plantuml-macro":
+        if diagrams.plantuml_macro:
+            return _diagram_macro(diagrams.plantuml_macro, code)
+        warnings.append(
+            "diagrams.mode is plantuml-macro but diagrams.plantuml_macro "
+            "is not set -- this ```plantuml fence was shown as plain code "
+            "instead of a diagram"
+        )
     if lang == "mermaid" and diagrams.mode == "local-svg":
-        rendered = _render_local_svg(code, attachments)
+        rendered = _render_local_svg(code, attachments, warnings)
         if rendered is not None:
             return rendered
     escaped = html.escape(code)
@@ -169,16 +195,20 @@ def _render_fence(lang: str, code: str, diagrams: DiagramsConfig,
     )
 
 
-def _render_local_svg(code: str, attachments: list[Attachment]) -> str | None:
+def _render_local_svg(code: str, attachments: list[Attachment],
+                       warnings: list[str]) -> str | None:
     """Render Mermaid source to SVG locally and queue it as a page
     attachment. Returns None (never raises) on any failure -- a missing
     optional dependency, invalid diagram source, or renderer bug must
-    never fail the whole document push; the caller falls back to a
-    plain code block for this one diagram."""
+    never fail the whole document push; the caller falls back to a plain
+    code block for this one diagram, but the reason is appended to
+    `warnings` instead of being discarded, so a misconfigured/missing
+    renderer doesn't look identical to diagrams.mode not being set."""
     from sdd.utils.mermaid_render import render_mermaid_svg
     try:
         svg = render_mermaid_svg(code)
-    except Exception:
+    except Exception as e:
+        warnings.append(f"Diagram failed to render ({e}) -- shown as plain code instead")
         return None
     filename = f"diagram-{len(attachments) + 1}.svg"
     attachments.append((filename, svg.encode("utf-8"), "image/svg+xml"))
