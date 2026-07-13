@@ -527,9 +527,23 @@ def _local_base_url() -> str | None:
         return None
 
 
+def _jira_key_from(value) -> str | None:
+    """keys.yml's actual shape (written by jira.py's _save_keys_summary):
+    epic is a plain string, stories/tasks are {id: jira_key} dicts. Also
+    tolerate a {"jira_key": "..."} dict per entry, in case an older or
+    hand-edited keys.yml uses that shape — never assume either shape and
+    never crash on whichever one is actually on disk."""
+    if isinstance(value, str) and value:
+        return value
+    if isinstance(value, dict):
+        k = value.get("jira_key")
+        return k if isinstance(k, str) and k else None
+    return None
+
+
 def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
     """Jira Epic/Story/Task links already persisted by the progressive
-    export (docs/jira/{feature}/keys.yml, written by jira-push.py). No
+    export (docs/jira/{feature}/keys.yml, written by `sdd jira push`). No
     network call — review-gate ticket links (from `sdd review submit`)
     are never cached locally, see the live /api/review-links endpoint."""
     result: dict = {"epic": None, "stories": [], "tasks": []}
@@ -544,11 +558,15 @@ def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
     def _link(jira_key: str) -> dict:
         return {"key": jira_key, "url": f"{base_url}/browse/{jira_key}" if base_url else None}
 
-    epic = keys.get("epic") or {}
-    if epic.get("jira_key"):
-        result["epic"] = _link(epic["jira_key"])
-    result["stories"] = [_link(s["jira_key"]) for s in (keys.get("stories") or []) if s.get("jira_key")]
-    result["tasks"] = [_link(t["jira_key"]) for t in (keys.get("tasks") or []) if t.get("jira_key")]
+    def _collect(raw) -> list[dict]:
+        items = raw.values() if isinstance(raw, dict) else (raw or [])
+        return [_link(k) for k in (_jira_key_from(item) for item in items) if k]
+
+    epic_key = _jira_key_from(keys.get("epic"))
+    if epic_key:
+        result["epic"] = _link(epic_key)
+    result["stories"] = _collect(keys.get("stories"))
+    result["tasks"] = _collect(keys.get("tasks"))
     return result
 
 

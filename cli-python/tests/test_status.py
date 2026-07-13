@@ -303,11 +303,41 @@ def test_jira_keys_yield_no_links_without_keys_file(tmp_path, monkeypatch):
 
 
 def test_jira_keys_parsed_with_base_url(tmp_path, monkeypatch):
+    """Real keys.yml shape, as actually written by jira.py's
+    _save_keys_summary(): epic is a plain string, stories/tasks are
+    {sdd_id: jira_key} dicts -- NOT dicts/lists of {"jira_key": ...}."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
     _write_manifest(tmp_path)
     feature_dir = tmp_path / ".specify" / "features" / "payments"
     feature_dir.mkdir(parents=True)
+    jira_dir = tmp_path / "docs" / "jira" / "payments"
+    jira_dir.mkdir(parents=True)
+    (jira_dir / "keys.yml").write_text(
+        "epic: PROJ-1\n"
+        "stories:\n  STORY-001: PROJ-2\n  STORY-002: PROJ-3\n"
+        "tasks:\n  TASK-001: PROJ-4\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    jira = feat["local_links"]["jira"]
+    assert jira["epic"] == {"key": "PROJ-1", "url": "https://acme.atlassian.net/browse/PROJ-1"}
+    assert sorted(s["key"] for s in jira["stories"]) == ["PROJ-2", "PROJ-3"]
+    assert jira["tasks"][0]["url"] == "https://acme.atlassian.net/browse/PROJ-4"
+
+
+def test_jira_keys_legacy_dict_shape_still_parses(tmp_path, monkeypatch):
+    """Regression: a real user's dashboard crashed with AttributeError
+    ('str' object has no attribute 'get') because status.py's reader
+    assumed keys.yml's epic/stories/tasks were dicts/lists of dicts with a
+    'jira_key' field, while jira.py's actual writer produces a plain
+    string for epic and flat {id: key} dicts for stories/tasks. Verify the
+    real (current) shape parses AND the old {"jira_key": ...}-per-entry
+    shape (in case of a hand-edited or pre-migration keys.yml) doesn't
+    crash either -- both must resolve to the same links."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
     jira_dir = tmp_path / "docs" / "jira" / "payments"
     jira_dir.mkdir(parents=True)
     (jira_dir / "keys.yml").write_text(
@@ -318,8 +348,35 @@ def test_jira_keys_parsed_with_base_url(tmp_path, monkeypatch):
     feat = build_feature_status(tmp_path, "payments")
     jira = feat["local_links"]["jira"]
     assert jira["epic"] == {"key": "PROJ-1", "url": "https://acme.atlassian.net/browse/PROJ-1"}
-    assert [s["key"] for s in jira["stories"]] == ["PROJ-2", "PROJ-3"]
-    assert jira["tasks"][0]["url"] == "https://acme.atlassian.net/browse/PROJ-4"
+    assert sorted(s["key"] for s in jira["stories"]) == ["PROJ-2", "PROJ-3"]
+    assert jira["tasks"][0]["key"] == "PROJ-4"
+
+
+def test_jira_keys_round_trip_through_real_writer(tmp_path, monkeypatch):
+    """End-to-end: call jira.py's actual _save_keys_summary() (the real
+    writer of docs/jira/{feature}/keys.yml), then confirm status.py's
+    reader parses exactly what it wrote. Locks the writer/reader contract
+    together so a future change to either side that breaks the other
+    fails a test instead of only surfacing as a live dashboard crash."""
+    from sdd.commands.jira import _save_keys_summary
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
+
+    _save_keys_summary(
+        "payments", "PROJ-1",
+        {"STORY-001": "PROJ-2", "STORY-002": "PROJ-3"},
+        {"TASK-001": "PROJ-4"},
+        None, {},
+    )
+
+    feat = build_feature_status(tmp_path, "payments")
+    jira = feat["local_links"]["jira"]
+    assert jira["epic"] == {"key": "PROJ-1", "url": "https://acme.atlassian.net/browse/PROJ-1"}
+    assert sorted(s["key"] for s in jira["stories"]) == ["PROJ-2", "PROJ-3"]
+    assert jira["tasks"][0]["key"] == "PROJ-4"
 
 
 def test_jira_keys_scoped_to_own_feature(tmp_path, monkeypatch):
@@ -331,7 +388,7 @@ def test_jira_keys_scoped_to_own_feature(tmp_path, monkeypatch):
         (tmp_path / ".specify" / "features" / f).mkdir(parents=True)
     jira_dir = tmp_path / "docs" / "jira" / "dashboard"
     jira_dir.mkdir(parents=True)
-    (jira_dir / "keys.yml").write_text("epic:\n  jira_key: OTHER-1\n")
+    (jira_dir / "keys.yml").write_text("epic: OTHER-1\n")
     feat = build_feature_status(tmp_path, "payments")
     assert feat["local_links"]["jira"]["epic"] is None
 
@@ -343,7 +400,7 @@ def test_jira_keys_without_base_url_omit_url_but_keep_key(tmp_path, monkeypatch)
     (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
     jira_dir = tmp_path / "docs" / "jira" / "payments"
     jira_dir.mkdir(parents=True)
-    (jira_dir / "keys.yml").write_text("epic:\n  jira_key: PROJ-1\n")
+    (jira_dir / "keys.yml").write_text("epic: PROJ-1\n")
     feat = build_feature_status(tmp_path, "payments")
     assert feat["local_links"]["jira"]["epic"] == {"key": "PROJ-1", "url": None}
 

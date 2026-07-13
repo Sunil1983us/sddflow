@@ -455,9 +455,24 @@ function render() {
 }
 
 async function refresh() {
-  const res = await fetch('/api/status');
-  lastData = await res.json();
-  render();
+  // A failed poll (malformed file on disk, network hiccup) must not
+  // silently freeze the UI on stale data with no indication anything is
+  // wrong -- surface it, but keep the 5s setInterval polling regardless,
+  // so the dashboard self-heals the moment the underlying issue is fixed.
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    lastData = data;
+    render();
+  } catch (err) {
+    const root = document.getElementById('root');
+    if (root) {
+      root.innerHTML = `<div class="empty" style="color:var(--bad)">
+        Couldn't load status: ${escapeHtml(String(err.message || err))}
+        <br><span class="sub">Retrying in 5s…</span></div>`;
+    }
+  }
 }
 
 // Delegated 'input' listener: fires on every keystroke in a comment field
@@ -808,7 +823,15 @@ class _Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
         elif parsed.path == "/api/status":
-            self._send_json(build_project_status("."))
+            try:
+                self._send_json(build_project_status("."))
+            except Exception as e:
+                # A malformed file anywhere under .specify/ or docs/jira/
+                # (hand-edited, from an older CLI version, etc.) must not
+                # take down every future poll with a bare connection
+                # reset -- surface it as JSON so the frontend can show a
+                # visible error instead of silently going stale.
+                self._send_json({"error": f"{type(e).__name__}: {e}"}, status=500)
 
         elif parsed.path == "/api/doc":
             feature = (qs.get("feature") or [""])[0]

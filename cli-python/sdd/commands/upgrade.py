@@ -1758,6 +1758,44 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.44"},
     },
+    {
+        "from":        "2.7.44",
+        "to":          "2.7.45",
+        "description": "Fix: sdd dashboard crashed on every poll once a feature had a Jira progressive export (docs/jira/{feature}/keys.yml) -- no manifest schema changes",
+        "notes": [
+            "User-reported: AttributeError ('str' object has no attribute "
+            "'get') on every /api/status poll. status.py's "
+            "_local_jira_links() assumed keys.yml's epic field was a dict "
+            "and stories/tasks were lists of dicts, each with a jira_key "
+            "field -- but jira.py's actual writer (_save_keys_summary()) "
+            "writes epic as a plain string and stories/tasks as flat "
+            "{sdd_id: jira_key} dicts. This schema drifted apart when "
+            "jira.py was rewritten (Phase 1, replacing jira-push.py) "
+            "without updating the reader to match",
+            "The existing unit tests for _local_jira_links() were written "
+            "against the reader's (wrong) assumed shape, not the writer's "
+            "real output, so the drift went uncaught until a real user "
+            "hit it",
+            "New _jira_key_from() helper in status.py parses both the "
+            "real (string epic / flat-dict stories+tasks) shape and the "
+            "old assumed (dict-with-jira_key / list-of-dicts) shape -- "
+            "never crashes regardless of which is on disk",
+            "New round-trip test (test_jira_keys_round_trip_through_real_"
+            "writer) calls jira.py's actual _save_keys_summary() and "
+            "verifies status.py's reader parses exactly what it wrote, so "
+            "this writer/reader contract can't silently drift apart "
+            "again without failing a test",
+            "Hardening: /api/status now catches any exception and returns "
+            "a JSON {\"error\": ...} with status 500 instead of a bare "
+            "connection reset (which was crashing the whole request, not "
+            "just this endpoint); the frontend's 5s poll loop catches "
+            "fetch/parse failures and shows a visible error banner "
+            "instead of silently freezing on stale data",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.45"},
+    },
 ]
 
 

@@ -4,6 +4,33 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.45] — 2026-07-13 (Fix: dashboard crashed reading Jira export keys)
+
+### Fixed
+
+- **User-reported: `sdd dashboard` crashed every poll (`AttributeError:
+  'str' object has no attribute 'get'`) once a feature had a Jira
+  progressive export (`docs/jira/{feature}/keys.yml`).** `status.py`'s
+  `_local_jira_links()` assumed `epic` was a dict and `stories`/`tasks`
+  were lists of dicts, each with a `jira_key` field — but `jira.py`'s
+  actual writer (`_save_keys_summary()`) writes `epic` as a plain string
+  and `stories`/`tasks` as flat `{sdd_id: jira_key}` dicts. This schema
+  drifted apart when `jira.py` was rewritten (v2.7.x Phase 1) without the
+  reader being updated to match, and the existing unit tests were written
+  against the reader's (wrong) assumption rather than the writer's real
+  output, so nothing caught it. `_local_jira_links()` now parses both the
+  real (string/flat-dict) shape and the old assumed
+  (dict-with-jira_key/list-of-dicts) shape defensively, with a new
+  `_jira_key_from()` helper and a round-trip test that calls the real
+  writer and reader together so this can't silently drift apart again.
+- **Hardening**: a malformed file anywhere under `.specify/` or
+  `docs/jira/` no longer takes the whole dashboard down. `/api/status`
+  now catches any exception and returns a JSON `{"error": ...}` with
+  status 500 instead of a bare connection reset; the frontend's poll loop
+  catches fetch/parse failures and shows a visible "Couldn't load
+  status… Retrying in 5s" banner instead of silently freezing on stale
+  data forever.
+
 ## [2.7.44] — 2026-07-13 (Fix: dashboard showed Constitution done before /specify ran)
 
 ### Fixed

@@ -1243,6 +1243,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.44',
+    to:   '2.7.45',
+    description: "Fix: sdd dashboard crashed on every poll once a feature had a Jira progressive export (Python CLI) -- no manifest schema changes",
+    notes: [
+      "status.py's _local_jira_links() assumed keys.yml's epic/stories/" +
+      'tasks fields were dicts with a jira_key field, but jira.py\'s ' +
+      'actual writer produces a plain string for epic and flat ' +
+      '{id: jira_key} dicts for stories/tasks -- fixed to parse both ' +
+      'shapes defensively',
+      'This Node CLI does not implement sdd dashboard or sdd jira push -- ' +
+      'it stays scoped to init/upgrade scaffolding, per its own README; ' +
+      'this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.45';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
