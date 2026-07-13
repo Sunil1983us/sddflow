@@ -1423,6 +1423,33 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.52',
+    to:   '2.7.53',
+    description: "Feature: blocked documents (e.g. validate.md, on unresolved [NEEDS CLARIFICATION-NNN] markers) can collect reviewer answers via Jira/Confluence (Python CLI) -- no manifest schema changes",
+    notes: [
+      "[NEEDS CLARIFICATION] markers are now numbered locally per " +
+      "document -- [NEEDS CLARIFICATION-NNN: {question}] -- matching " +
+      "the [ASSUMPTION-NNN] convention already in use, giving every " +
+      "marker a stable, doc-qualified ID a reviewer's Jira/Confluence " +
+      "answer can cite exactly (e.g. 'brd:NC-002: 90 days')",
+      "New sdd review push-questions / sdd review pull-answers commands " +
+      "let a blocked document (e.g. validate.md, before it's ever " +
+      "submitted for formal review) route its open questions through " +
+      "Jira/Confluence and have answers patched back into brd.md/" +
+      "use-cases.md/srd.md automatically",
+      "This Node CLI does not implement sdd review push-questions/pull-" +
+      "answers -- it stays scoped to init/upgrade scaffolding, per its " +
+      "own README; this migration entry exists so both CLIs report the " +
+      "same sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.53';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

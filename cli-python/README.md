@@ -378,6 +378,44 @@ sdd review check --doc brd          # poll again after reviewer re-reviews
 
 ---
 
+### `sdd review push-questions` / `sdd review pull-answers`
+
+A document can be blocked before it's ever submitted for review — e.g.
+`validate.md`'s §3a scans `brd.md`/`use-cases.md`/`srd.md` for unresolved
+`[NEEDS CLARIFICATION-NNN: {question}]` markers (numbered locally per
+document, the same discipline `[ASSUMPTION-NNN]` already uses) and refuses
+to proceed while any remain. These two commands let a reviewer answer
+those markers via Jira/Confluence instead of only through direct chat/doc
+edits:
+
+```bash
+sdd review push-questions --doc validate    # push open questions to Jira + Confluence
+# reviewer replies as a comment, one line per item:
+#   brd:NC-002: 90 days, per data retention policy DR-014
+sdd review pull-answers --doc validate      # pull replies, patch the answered markers
+```
+
+`push-questions` reads the blocked document's `| ID | Locations | Question |`
+table (see the doc's own gate for the exact format) and creates/updates
+**one** Jira ticket — reusing `document_reviews.validate`'s
+`reviewer_jira_user`/`reviewer_role`, no separate config needed. It uses
+the *same* idempotency label `sdd review submit` looks for, so once every
+question is answered and the document unblocks, `sdd review submit --doc
+validate` finds and evolves this same ticket in place (a comment marks the
+transition) instead of creating a second one.
+
+`pull-answers` fetches every comment on that ticket, matches lines like
+`brd:NC-002: <answer>` against the open items, and replaces each answered
+`[NEEDS CLARIFICATION-NNN]` marker directly in its source document —
+bumping that document's `Version:` header and appending a `## Version
+History` row. A question asked in more than one document (the table's
+`Locations` column lists more than one ID, e.g. `brd:NC-003, srd:NC-001`)
+gets the same answer applied everywhere at once. Safe to call
+unconditionally (e.g. at the top of every `/validate` run) — it exits
+quietly whenever there's nothing to do.
+
+---
+
 ### `sdd review comments`
 
 Read or acknowledge dashboard-left comments directly, without going through

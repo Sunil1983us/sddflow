@@ -348,6 +348,17 @@ When `sdd review check` exits 1 (NEEDS REVISION): read reviewer comments, update
 the document, then run `sdd review apply` and ask reviewer to re-review.
 Configure reviewers in `.specify/integrations.yml` — see `integrations.yml.example`.
 
+**Blocked documents can still collect answers via Jira/Confluence.** A
+document like `validate.md` can be blocked on `[NEEDS CLARIFICATION-NNN]`
+markers in its source docs before it's ever submitted for review — see
+`validate.prompt.md`'s §3a. `sdd review push-questions --doc {doc}` pushes
+the open items to a Jira ticket + Confluence page (reusing the same
+reviewer/ticket `sdd review submit` will use once unblocked — the ticket
+evolves in place, no duplicate). `sdd review pull-answers --doc {doc}`
+reads reviewer replies (a comment starting with the item's ID, e.g.
+`brd:NC-002: 90 days`) and patches the answered marker directly into its
+source document, bumping that document's version.
+
 **Every review-driven edit bumps the version.** Whichever mode surfaced the
 feedback — a Jira comment, a dashboard comment, or direct chat feedback —
 increment the document's `Version:` header and append a row to its

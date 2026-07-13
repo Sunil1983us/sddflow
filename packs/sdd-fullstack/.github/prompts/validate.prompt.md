@@ -61,14 +61,43 @@ For each `[ASSUMPTION-NNN]` the owner marks as incorrect:
 4. Regenerate the document's `.summary.md` (max SUMMARY_MAX_LINES lines)
 
 3a. NEEDS CLARIFICATION SCAN (blocking)
-   Scan brd.md, use-cases.md, and srd.md for any `[NEEDS CLARIFICATION: ...]` markers.
-   If any found: list each with its location and question.
+   **Before scanning**: if `.specify/integrations.yml` has `document_reviews.validate`
+   configured, run `sdd review pull-answers --doc validate` first — this
+   applies any new Jira/Confluence comments to brd.md/use-cases.md/srd.md
+   (matching each comment's cited ID, e.g. "brd:NC-002: ..."; bumping the
+   affected doc's version + Version History per its own convention), so the
+   scan below only lists what's genuinely still unanswered. Skip silently
+   if not configured or the command fails.
+
+   Scan brd.md, use-cases.md, and srd.md for any `[NEEDS CLARIFICATION-NNN: ...]`
+   markers. If any found: list each as one row in a `| ID | Locations | Question |`
+   table. **ID** = this marker's doc-qualified ID, `{doc}:NC-{NNN}` (e.g.
+   `brd:NC-002` for marker 002 in brd.md). **Locations** = comma-separated
+   doc-qualified IDs for every place this SAME question's answer applies —
+   almost always just the ID itself again (e.g. `brd:NC-002`), but when one
+   question was asked in more than one document (a duplicate — same
+   question text, separate `[NEEDS CLARIFICATION-NNN]` marker in each doc),
+   list every one of them here (e.g. `brd:NC-003, srd:NC-001`) so one
+   answer can patch all of them at once. **Question** = the marker text,
+   copied verbatim.
    These are BLOCKING — business sign-off CANNOT proceed until every
-   [NEEDS CLARIFICATION] is answered and replaced with either a confirmed
-   value or an [ASSUMPTION-NNN] the business owner accepts.
-   State: "VALIDATE BLOCKED — {N} [NEEDS CLARIFICATION] items must be
-   answered first. Return to /specify, fill answers, regenerate affected
-   docs, then re-run /validate."
+   [NEEDS CLARIFICATION-NNN] is answered and replaced with either a
+   confirmed value or an [ASSUMPTION-NNN] the business owner accepts.
+   State: "VALIDATE BLOCKED — {N} [NEEDS CLARIFICATION-NNN] items must be
+   answered first."
+
+   If `document_reviews.validate` is configured, push these open questions
+   to Jira + Confluence now (reuses that entry's reviewer_jira_user/
+   reviewer_role — no separate config needed):
+   ```bash
+   sdd review push-questions --doc validate
+   ```
+   Tell the user: "Open questions pushed — {ticket link}. Reply as a Jira
+   or Confluence comment starting with the item's ID (e.g. 'brd:NC-002:
+   90 days'). Run /validate again once answered — I'll pull the answers,
+   patch the docs, and re-check automatically."
+   If the command fails or isn't configured, just present the table above
+   for the user/agent to resolve directly (unchanged fallback behavior).
 
 4. SCOPE CONFIRMATION
    List in-scope and out-of-scope items from brd.md for confirmation.

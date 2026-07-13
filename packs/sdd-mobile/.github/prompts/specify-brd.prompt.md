@@ -34,7 +34,11 @@ Generate `brd.md` for the current feature:
 - Every non-functional requirement: **NFR-NNN** — must include a measurable target (e.g. "< 200ms p99", "99.9% uptime")
 - Marker discipline:
   - `[ASSUMPTION-NNN: {what}]` — safe default applied; needs sign-off
-  - `[NEEDS CLARIFICATION: {question}]` — no safe default; human decision required before /validate
+  - `[NEEDS CLARIFICATION-NNN: {question}]` — no safe default; human decision
+    required before /validate. NNN is numbered locally within this document
+    (NC-001, NC-002, ... — continue the count on a later re-run/amendment,
+    never reuse a resolved ID) so a reviewer's answer (in Jira, Confluence,
+    or chat) can cite the exact marker unambiguously, e.g. "NC-002: 90 days".
   - Never leave a gap silently — always use one of the two markers
 - Save to: `.specify/features/{manifest.project.feature}/brd.md`
 - Write `.specify/features/{manifest.project.feature}/brd.summary.md` (max SUMMARY_MAX_LINES lines)
@@ -93,8 +97,11 @@ sdd confluence draft --doc {doc_key}
 
 When the user says **"done"**: run `sdd confluence pull --doc {doc_key}`
 automatically. If the pulled file contains a `## Confluence Comments`
-section, resolve each `[NEEDS CLARIFICATION]`/`[ASSUMPTION-NNN]` it
-answers, update the document, remove the comments section, and re-save
+section, match each comment against the marker ID it cites (e.g. a comment
+starting "NC-002: ..." answers `[NEEDS CLARIFICATION-002: ...]`; older
+comments with no cited ID fall back to matching by nearest question text),
+resolve the corresponding `[NEEDS CLARIFICATION-NNN]`/`[ASSUMPTION-NNN]`
+marker, update the document, remove the comments section, and re-save
 the document and its `.summary.md`. Then present it and ask for
 **'approved'**.
 
