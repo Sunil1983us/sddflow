@@ -2204,6 +2204,35 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.55"},
     },
+    {
+        "from":        "2.7.55",
+        "to":          "2.7.56",
+        "description": "Fix: sdd review pull-answers patched BRD/SRD/UC locally but never refreshed their existing Confluence pages, leaving them showing stale pre-answer [NEEDS CLARIFICATION] markers -- no manifest schema changes",
+        "notes": [
+            "User-reported: after /validate's push-questions/pull-answers "
+            "round-trip resolved every open question, brd.md/srd.md/"
+            "use-cases.md were updated on disk and their versions bumped, "
+            "but their Confluence pages (created back at their own "
+            "/specify-brd -> sdd review submit time) still showed the old "
+            "unresolved markers -- only validate.md's own page was ever "
+            "touched by push-questions/pull-answers",
+            "review_pull_answers now tracks the on-disk path of every doc "
+            "it successfully patches, and after the patch loop, re-pushes "
+            "each one's Confluence page via the same _push_doc_page() "
+            "helper sdd review approve already uses -- best-effort per "
+            "doc, so one page's failure never blocks the others or the "
+            "patching that already succeeded",
+            "Only runs when confluence: is configured in integrations.yml; "
+            "silently skipped otherwise, matching the rest of "
+            "pull-answers' safe-to-call-unconditionally contract",
+            "1 new test: push-questions -> answer -> pull-answers, "
+            "confirming both patched docs' Confluence pages are created/"
+            "updated with the expected page-map titles",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.56"},
+    },
 ]
 
 

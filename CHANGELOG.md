@@ -4,6 +4,32 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.56] — 2026-07-13 (Fix: sdd review pull-answers never refreshed BRD/SRD/UC's Confluence pages after patching them)
+
+### Fixed
+
+- **User-reported: after answering every open question and confirming
+  `pull-answers` correctly patched `brd.md`/`srd.md`/`use-cases.md` on
+  disk, those documents' Confluence pages still showed the old
+  `[NEEDS CLARIFICATION]` markers.**
+  - Root cause: `pull-answers` only ever pushed `validate.md`'s own
+    Confluence page (via `push-questions`) — the underlying documents it
+    patches were never re-pushed, even though they already had their own
+    Confluence pages from their original `/specify-brd` →
+    `sdd review submit` flow.
+  - `review_pull_answers` now tracks the on-disk path of every document it
+    successfully patches, and after the patch loop, re-pushes each one's
+    Confluence page via the same `_push_doc_page()` helper
+    `sdd review approve` already uses. Best-effort per document — one
+    page's failure never blocks the others or the patching that already
+    succeeded. Only runs when `confluence:` is configured; silently
+    skipped otherwise.
+  - 1 new test confirming both patched docs' Confluence pages are
+    created/updated with the expected page-map titles.
+  - No manifest schema changes.
+
+---
+
 ## [2.7.55] — 2026-07-13 (Fix: sdd review pull-answers never patched markers in projects that predate NEEDS CLARIFICATION-NNN numbering)
 
 ### Fixed

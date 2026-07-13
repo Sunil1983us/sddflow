@@ -1180,3 +1180,37 @@ class TestPushPullQuestionsCommands:
         assert "NEEDS CLARIFICATION" not in brd_text
         assert "409 Conflict." in uc_text
         assert "NEEDS CLARIFICATION" not in uc_text
+
+    def test_pull_answers_refreshes_confluence_pages_of_patched_docs(self, blocked_project, runner):
+        """BRD/SRD's Confluence pages (created back at their own
+        /specify-brd -> `sdd review submit` time) must not go stale once
+        pull-answers resolves their markers -- each patched doc's page
+        should be re-pushed automatically, not left showing the
+        pre-answer [NEEDS CLARIFICATION] text until someone remembers to
+        run `sdd confluence push --doc brd` by hand."""
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        fake_confluence = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=fake_confluence), \
+             patch("sdd.commands.confluence.ConfluenceClient", return_value=fake_confluence):
+            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+            issue_key = review._load_review_links()["validate"]["key"]
+            fake_jira.comments_by_key[issue_key] = [{
+                "body": "brd:NC-001: Demonstrates real-time settlement.\n"
+                        "brd:NC-002: 90 days per policy DR-014.",
+                "author": {"displayName": "PO"}, "created": "2026-01-02T00:00:00+00:00",
+            }]
+            result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+
+        assert result.exit_code == 0, result.output
+        # brd:NC-002's answer patches both brd.md and srd.md (multi-location
+        # row) -- both docs' pages must be refreshed, not just brd's.
+        # Titles come from integrations.py's _DEFAULT_PAGE_MAP, since this
+        # fixture's integrations.yml only configures document_reviews.validate.
+        assert "Demo — Business Requirements" in fake_confluence.pages_by_title
+        assert "Demo — System Requirements" in fake_confluence.pages_by_title
+        assert "Confluence page refreshed" in result.output

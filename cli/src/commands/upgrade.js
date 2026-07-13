@@ -1506,6 +1506,29 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.55',
+    to:   '2.7.56',
+    description: "Fix: sdd review pull-answers patched BRD/SRD/UC locally but never refreshed their existing Confluence pages (Python CLI) -- no manifest schema changes",
+    notes: [
+      "pull-answers now re-pushes each patched document's own Confluence " +
+      "page immediately after patching, using the same _push_doc_page() " +
+      "helper sdd review approve already uses -- previously only " +
+      "validate.md's own page was ever touched by push-questions/" +
+      "pull-answers, leaving BRD/SRD/UC's pages showing stale pre-answer " +
+      "markers",
+      "This Node CLI does not implement sdd review pull-answers -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.56';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

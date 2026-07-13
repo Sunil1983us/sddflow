@@ -348,7 +348,8 @@ reviewer/ticket `sdd review submit` will use once unblocked — the ticket
 evolves in place, no duplicate). `sdd review pull-answers --doc {doc}`
 reads reviewer replies (a comment starting with the item's ID, e.g.
 `brd:NC-002: 90 days`) and patches the answered marker directly into its
-source document, bumping that document's version.
+source document, bumping that document's version, and re-pushes that
+document's own Confluence page immediately so it never goes stale.
 
 **Every review-driven edit bumps the version.** Whichever mode surfaced the
 feedback — a Jira comment, a dashboard comment, or direct chat feedback —
