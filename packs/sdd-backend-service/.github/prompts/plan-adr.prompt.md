@@ -144,11 +144,18 @@ Tell the user:
 > above. Reply **'approved'** (or 'yes', 'LGTM', 'looks good') once it's
 > reviewed, or just check back with me any time — I'll poll Jira for you."
 
-If the command fails, say so briefly and fall back to the chat-mode
-prompt below instead.
+If the command fails (e.g. `'{doc_key}' not in document_reviews in
+integrations.yml` — the Jira review-story gate needs a reviewer assigned
+per doc, configured separately from `jira:`/`confluence:` themselves),
+say so briefly, **do not silently drop all the way to chat mode** — a
+`confluence:` section still means the document should land in
+Confluence. Fall through to the "Only `confluence:` configured" branch
+below instead (push a draft there); only fall all the way to chat mode
+if `confluence:` itself is absent too.
 
-**Only `confluence:` configured (no `jira:`)** — no formal Jira gate
-exists yet; push a draft for informal stakeholder comments instead:
+**Only `confluence:` configured (no `jira:`, or `jira:` present but
+`sdd review submit` failed above)** — no formal Jira gate exists (yet, or
+for this doc); push a draft for informal stakeholder comments instead:
 ```bash
 sdd confluence draft --doc {doc_key}
 ```
