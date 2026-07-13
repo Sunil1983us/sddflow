@@ -14,6 +14,7 @@ from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.manifest import read_manifest
 from sdd.utils.status import persona_for
 from sdd.utils.validate import resolve_doc_path, LIVING_SERVICE_DOCS
+from sdd.utils.dashboard_comments import unacknowledged, acknowledge
 
 console = Console()
 
@@ -176,6 +177,28 @@ def _extract_text(body) -> str:
 
 
 # ── Review status helpers ──────────────────────────────────────────────────────
+
+def _print_local_comments_if_any(doc: str, feature_name: str) -> bool:
+    """Pure-local-mode fallback for `sdd review check` when no jira: section
+    exists to poll: dashboard comments have no external ticket to check, so
+    print any not yet acknowledged (see dashboard_comments.py) in the same
+    shape as the Jira NEEDS_REVISION branch. Returns True if any were
+    printed (caller should exit 1), False otherwise (caller falls through
+    to its existing NOT SUBMITTED message)."""
+    comments = unacknowledged(feature_name, doc)
+    if not comments:
+        return False
+    console.print(f"  [yellow]✗  {doc.upper()} — NEEDS REVISION[/yellow]  [dim](local dashboard comments)[/dim]")
+    console.print()
+    console.print("  [bold]Review comments:[/bold]")
+    console.print()
+    for c in comments:
+        console.print(f"  [cyan]{c.get('by', 'Unknown')}[/cyan]  [dim]{c.get('at', '')[:10]}[/dim]")
+        for line in c.get("text", "").splitlines():
+            console.print(f"  {line}")
+        console.print()
+    return True
+
 
 def _get_review_status(
     doc_key: str,
@@ -473,12 +496,18 @@ def review_check(doc, profile, feature):
         console.print()
         raise SystemExit(0)
 
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+
     # ── Jira check ────────────────────────────────────────────────────────────
     try:
         cfg     = load_integrations()
         prof    = load_profile(profile or cfg.profile)
         session = build_session(prof)
     except Exception as e:
+        if _print_local_comments_if_any(doc, feature_name):
+            raise SystemExit(1)
         console.print(
             f"  [dim]·  {doc.upper()} — NOT SUBMITTED[/dim]\n"
             f"  [dim]   (Jira not configured; no local approval recorded)[/dim]\n"
@@ -487,15 +516,13 @@ def review_check(doc, profile, feature):
         raise SystemExit(3)
 
     if not cfg.jira:
+        if _print_local_comments_if_any(doc, feature_name):
+            raise SystemExit(1)
         console.print(
             f"  [dim]·  {doc.upper()} — NOT SUBMITTED[/dim]\n"
             f"  [dim]   No jira: section in integrations.yml and no local approval recorded.[/dim]"
         )
         raise SystemExit(3)
-
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
-    feature_name = feature or proj.get("feature", "")
 
     client  = JiraClient(session, prof.base_url)
     status, comments = _get_review_status(doc, client, cfg.jira.key_for("review"), cfg, feature_name)
@@ -533,6 +560,50 @@ def review_check(doc, profile, feature):
     console.print(f"     Run [cyan]sdd review submit --doc {doc}[/cyan] first.")
     console.print()
     raise SystemExit(3)
+
+
+# ── sdd review comments ─────────────────────────────────────────────────────────
+
+@review_command.command("comments")
+@click.option("--doc",     required=True)
+@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
+@click.option("--ack",     is_flag=True, default=False,
+              help="Mark every comment currently on this doc as addressed")
+def review_comments(doc, feature, ack):
+    """Read (or acknowledge) dashboard-left review comments directly --
+    the pure-local-mode path for feedback that has no Jira ticket to poll.
+    `sdd review check` already calls into this when jira: isn't configured;
+    this command exists for explicit/manual use and discoverability.
+
+    Exit codes: 0=no unacknowledged comments (or --ack succeeded), 1=some found.
+    """
+    console.print()
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+
+    if ack:
+        acknowledge(feature_name, doc)
+        console.print(f"  [green]✓[/green]  {doc.upper()} — comments acknowledged.")
+        console.print()
+        raise SystemExit(0)
+
+    comments = unacknowledged(feature_name, doc)
+    if not comments:
+        console.print(f"  [dim]·  {doc.upper()} — no unacknowledged comments[/dim]")
+        console.print()
+        raise SystemExit(0)
+
+    console.print(f"  [yellow]{len(comments)} unacknowledged comment(s) on {doc.upper()}[/yellow]")
+    console.print()
+    for c in comments:
+        console.print(f"  [cyan]{c.get('by', 'Unknown')}[/cyan]  [dim]{c.get('at', '')[:10]}[/dim]")
+        for line in c.get("text", "").splitlines():
+            console.print(f"  {line}")
+        console.print()
+    console.print(f"  [dim]After addressing them: sdd review comments --doc {doc} --ack[/dim]")
+    console.print()
+    raise SystemExit(1)
 
 
 # ── sdd review approve ─────────────────────────────────────────────────────────
@@ -617,15 +688,37 @@ def review_approve(doc, local, by, note, feature, no_confluence):
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_apply(doc, profile, feature):
-    """After updating a document, re-push to Confluence and notify the reviewer in Jira."""
+    """After updating a document, re-push to Confluence and notify the
+    reviewer in Jira -- or, in pure local mode (neither configured),
+    acknowledge dashboard comments as addressed."""
     console.print()
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+
     try:
         cfg     = load_integrations()
         prof    = load_profile(profile or cfg.profile)
         session = build_session(prof)
     except Exception as e:
-        console.print(f"  [red]✗  {e}[/red]")
-        raise SystemExit(1)
+        # No integrations.yml at all -- still acknowledge any local
+        # dashboard comments so `sdd review check` stops repeating them.
+        acknowledge(feature_name, doc)
+        console.print(
+            f"  [green]✓[/green]  {doc.upper()} updated — local review comments acknowledged.\n"
+            f"  [dim]   (No integrations.yml — nothing to push to Confluence/Jira.)[/dim]"
+        )
+        console.print()
+        return
+
+    if not cfg.jira and not cfg.confluence:
+        acknowledge(feature_name, doc)
+        console.print(
+            f"  [green]✓[/green]  {doc.upper()} updated — local review comments acknowledged.\n"
+            f"  [dim]   sdd review check will no longer repeat them for this round.[/dim]"
+        )
+        console.print()
+        return
 
     if not cfg.jira or not cfg.confluence:
         console.print("  [red]✗  Both jira: and confluence: required in integrations.yml[/red]")
@@ -636,10 +729,7 @@ def review_apply(doc, profile, feature):
         console.print(f"  [red]✗  '{doc}' not found in document_reviews[/red]")
         raise SystemExit(1)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
     project_name = proj.get("name", "Project")
-    feature_name = feature or proj.get("feature", "")
 
     jira_client = JiraClient(session, prof.base_url)
     cf_client   = ConfluenceClient(session, prof.base_url)

@@ -544,3 +544,64 @@ class TestReviewStatusPersonaHint:
         result = self._run(runner, fake_jira)
         assert result.exit_code == 0, result.output
         assert "ask Maya" in result.output
+
+
+class TestLocalDashboardCommentsFallback:
+    """`sdd review check` / `sdd review apply` / `sdd review comments` --
+    the pure-local-mode path for reviewer feedback with no Jira ticket to
+    poll (a dashboard comment, with no integrations.yml at all)."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    def _write_comment(self, project, feature, doc, by, text, at):
+        import json
+        path = project / ".specify" / ".dashboard-comments.json"
+        data = json.loads(path.read_text()) if path.exists() else {}
+        data.setdefault(f"{feature}/{doc}", []).append({"by": by, "text": text, "at": at})
+        path.write_text(json.dumps(data))
+
+    def test_check_falls_back_to_local_comments_when_no_integrations_yml(self, project, runner):
+        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+        result = runner.invoke(review.review_command, ["check", "--doc", "brd"])
+        assert result.exit_code == 1
+        assert "please clarify" in result.output
+        assert "NEEDS REVISION" in result.output
+
+    def test_check_reports_not_submitted_when_no_comments_and_no_config(self, project, runner):
+        result = runner.invoke(review.review_command, ["check", "--doc", "brd"])
+        assert result.exit_code == 3
+        assert "NOT SUBMITTED" in result.output
+
+    def test_apply_acknowledges_local_comments_with_no_config(self, project, runner):
+        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+        assert runner.invoke(review.review_command, ["check", "--doc", "brd"]).exit_code == 1
+
+        apply_result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+        assert apply_result.exit_code == 0
+        assert "acknowledged" in apply_result.output
+
+        # Re-checking must not repeat the same already-addressed comment
+        assert runner.invoke(review.review_command, ["check", "--doc", "brd"]).exit_code == 3
+
+    def test_comments_command_lists_unacknowledged(self, project, runner):
+        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+        result = runner.invoke(review.review_command, ["comments", "--doc", "brd"])
+        assert result.exit_code == 1
+        assert "please clarify" in result.output
+
+    def test_comments_command_no_comments_exits_zero(self, project, runner):
+        result = runner.invoke(review.review_command, ["comments", "--doc", "brd"])
+        assert result.exit_code == 0
+        assert "no unacknowledged" in result.output
+
+    def test_comments_command_ack_flag_clears_them(self, project, runner):
+        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+        ack_result = runner.invoke(review.review_command, ["comments", "--doc", "brd", "--ack"])
+        assert ack_result.exit_code == 0
+
+        result = runner.invoke(review.review_command, ["comments", "--doc", "brd"])
+        assert result.exit_code == 0
+        assert "no unacknowledged" in result.output

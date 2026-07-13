@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.41] — 2026-07-13 (Feature: local-mode dashboard comment discovery)
+
+### Added
+
+- **`sdd review check`/`sdd review apply` now work in pure local mode** (no
+  `jira:` section configured at all). Previously a dashboard-left comment in
+  that setup landed only in `.specify/.dashboard-comments.json`, with no way
+  for the agent to discover it except the user manually relaying it in
+  chat — `sdd review check` always reported "not submitted," and
+  `sdd review apply` hard-required both `jira:` and `confluence:` just to
+  run.
+- `sdd review check` now falls back to reading unacknowledged dashboard
+  comments when Jira isn't configured, printing them and exiting `1` —
+  same shape as the Jira NEEDS REVISION path, so the agent's existing
+  "run `sdd review check`, follow the exit code" workflow needs no changes
+  to pick this up.
+- `sdd review apply` now acknowledges those comments (instead of erroring)
+  when neither `jira:` nor `confluence:` is configured, so
+  `sdd review check` stops repeating them on the next poll.
+- New **`sdd review comments --doc {doc} [--ack]`** command for
+  explicit/manual use outside the check/apply cycle — lists unacknowledged
+  comments, or marks them all addressed with `--ack`.
+- New `.specify/.dashboard-comments-ack.json` tracks, per feature/doc, the
+  timestamp cutoff below which comments are considered handled — the
+  comments file itself is an append-only log with no per-entry "handled"
+  flag.
+- When Jira *is* configured, dashboard comments already mirror to the doc's
+  Jira review ticket (unchanged) — this fallback only ever triggers when
+  there's no Jira to mirror to.
+- 14 new tests; verified end-to-end against a live `sdd dashboard` instance
+  and the real `sdd` CLI (not just pytest mocks) — posted a comment through
+  the dashboard's actual API, confirmed `sdd review check` picked it up,
+  and confirmed `sdd review apply` correctly silenced it afterward.
+
+---
+
 ## [2.7.40] — 2026-07-13 (Fix: review-driven document edits now bump Version + log Version History)
 
 ### Fixed

@@ -345,12 +345,24 @@ sdd review check --doc srd --profile on-prem
 a keyword from `approved_keywords` (default: `approved`, `lgtm`, `looks good`,
 `go ahead`, `confirmed`).
 
+**No `jira:` section configured?** `sdd review check` falls back to
+dashboard-left comments (`.specify/.dashboard-comments.json`, written by
+`sdd dashboard`'s comment box) instead of returning "not submitted" outright —
+any not-yet-acknowledged comment for that doc is printed and the command
+exits `1`, exactly like the Jira NEEDS REVISION path. This is the only way
+review feedback reaches the agent in pure local mode: a dashboard comment has
+no Jira ticket to poll, and (unlike Confluence-configured setups where it
+mirrors to Jira automatically) there's nothing else watching for it.
+
 ---
 
 ### `sdd review apply`
 
 After the agent addresses reviewer comments, re-push the updated document to
-Confluence and notify the reviewer in Jira with a comment.
+Confluence and notify the reviewer in Jira with a comment — or, in pure local
+mode (neither `jira:` nor `confluence:` configured), acknowledge the
+dashboard comments that triggered the edit so `sdd review check` stops
+repeating them.
 
 ```bash
 sdd review apply --doc brd
@@ -360,8 +372,22 @@ Typical agent workflow:
 ```
 sdd review check --doc brd          # exit 1: NEEDS_REVISION
 # (agent edits .specify/features/{feature}/brd.md)
-sdd review apply --doc brd          # re-push + notify reviewer
+sdd review apply --doc brd          # re-push + notify reviewer (or: ack local comments)
 sdd review check --doc brd          # poll again after reviewer re-reviews
+```
+
+---
+
+### `sdd review comments`
+
+Read or acknowledge dashboard-left comments directly, without going through
+the full check/apply cycle. `sdd review check`/`sdd review apply` already
+call into this in pure local mode (see above) — this command exists for
+explicit/manual use.
+
+```bash
+sdd review comments --doc brd              # list unacknowledged comments (exit 1 if any, 0 if none)
+sdd review comments --doc brd --ack        # mark every current comment as addressed
 ```
 
 ---

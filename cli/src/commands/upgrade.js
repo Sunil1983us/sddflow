@@ -1153,6 +1153,31 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.40',
+    to:   '2.7.41',
+    description: 'Feature: sdd review check/apply now discover and acknowledge dashboard-left review comments in pure local mode (Python CLI); new sdd review comments command -- no manifest schema changes',
+    notes: [
+      'In pure local mode (no jira: configured), a dashboard comment used ' +
+      'to land only in .dashboard-comments.json with no way for the agent ' +
+      'to discover it except the user manually relaying it in chat -- ' +
+      'sdd review check now falls back to reading that file directly, and ' +
+      'sdd review apply acknowledges it instead of hard-requiring Jira/' +
+      'Confluence to even run',
+      'New sdd review comments --doc {doc} [--ack] command for explicit ' +
+      'use outside the check/apply cycle',
+      'This Node CLI does not implement any document-review commands -- ' +
+      'it stays scoped to init/upgrade scaffolding, per its own README; ' +
+      'this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain for a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.41';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

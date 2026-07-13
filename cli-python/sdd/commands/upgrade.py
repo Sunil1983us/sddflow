@@ -1575,6 +1575,61 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.40"},
     },
+    {
+        "from":        "2.7.40",
+        "to":          "2.7.41",
+        "description": "Feature: sdd review check/apply now discover and acknowledge dashboard-left review comments in pure local mode (no jira: configured) -- new sdd review comments command too; no manifest schema changes",
+        "notes": [
+            "User-reported gap, found while shipping 2.7.40's version-bump "
+            "fix: in pure local mode (no jira: section at all), a dashboard "
+            "comment landed only in .dashboard-comments.json with no way "
+            "for the agent to discover it except the user manually relaying "
+            "it in chat -- sdd review check always returned NOT SUBMITTED "
+            "in that case, and sdd review apply hard-required both jira: "
+            "and confluence: to even run",
+            "New sdd/utils/dashboard_comments.py: unacknowledged(feature, "
+            "doc) reads .dashboard-comments.json and filters out anything "
+            "already handled; acknowledge(feature, doc) records the current "
+            "moment in a new .specify/.dashboard-comments-ack.json (an "
+            "append-only comments log has no per-entry 'handled' flag, so "
+            "acknowledgement is tracked separately as a per-feature/doc "
+            "timestamp cutoff)",
+            "sdd review check: when no jira: is configured, falls back to "
+            "unacknowledged() before giving up with NOT SUBMITTED -- prints "
+            "any found in the same shape as the Jira NEEDS_REVISION branch "
+            "and exits 1, so the existing review-decision-step.md prompt "
+            "instructions ('run sdd review check ... follow exit code') "
+            "work unchanged in pure local mode, no prompt edits needed",
+            "sdd review apply: when neither jira: nor confluence: is "
+            "configured (including no integrations.yml at all), "
+            "acknowledges local comments instead of hard-erroring -- the "
+            "existing 'then run sdd review apply' prompt instruction now "
+            "also works unchanged in pure local mode",
+            "New sdd review comments --doc {doc} [--ack] command for "
+            "explicit/manual use and discoverability outside the "
+            "check/apply cycle -- lists unacknowledged comments (exit "
+            "1 if any, 0 if none) or, with --ack, marks them all addressed",
+            "When Jira IS configured, dashboard comments already mirror to "
+            "the doc's Jira review ticket (existing behavior, unchanged) "
+            "-- the new fallback only ever triggers in the jira: absent "
+            "branches, so nothing here affects Jira-configured projects",
+            "14 new tests: 8 in test_dashboard_comments.py (all_comments, "
+            "unacknowledged, acknowledge -- including that acknowledging "
+            "doesn't hide comments left afterward), 6 in "
+            "test_review_helpers.py (check/apply/comments CLI behavior end "
+            "to end via CliRunner, no mocking)",
+            "Verified end-to-end against the real sdd CLI (not just pytest "
+            "mocks): ran a live sdd dashboard instance, posted a comment "
+            "through its actual /api/comment endpoint exactly as the "
+            "browser UI would, confirmed sdd review check picked it up "
+            "(exit 1, comment text printed), edited the doc, ran sdd "
+            "review apply (acknowledged), then confirmed sdd review check "
+            "and sdd review comments both correctly stopped reporting it",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.41"},
+    },
 ]
 
 
