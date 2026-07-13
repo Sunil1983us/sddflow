@@ -33,8 +33,11 @@ sdd confluence draft --doc {doc_key}
 
 When the user says **"done"**: run `sdd confluence pull --doc {doc_key}`
 automatically. If the pulled file contains a `## Confluence Comments`
-section, resolve each `[NEEDS CLARIFICATION]`/`[ASSUMPTION-NNN]` it
-answers, update the document, remove the comments section, and re-save
+section, match each comment against the marker ID it cites (e.g. a comment
+starting "NC-002: ..." answers `[NEEDS CLARIFICATION-002: ...]`; older
+comments with no cited ID fall back to matching by nearest question text),
+resolve the corresponding `[NEEDS CLARIFICATION-NNN]`/`[ASSUMPTION-NNN]`
+marker, update the document, remove the comments section, and re-save
 the document and its `.summary.md`. Then present it and ask for
 **'approved'**.
 

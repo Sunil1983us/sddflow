@@ -700,3 +700,284 @@ class TestLocalDashboardCommentsFallback:
         result = runner.invoke(review.review_command, ["comments", "--doc", "brd"])
         assert result.exit_code == 0
         assert "no unacknowledged" in result.output
+
+
+# ── Open-questions push/pull (blocked-doc Jira Q&A) ────────────────────────────
+
+class TestParseOpenQuestions:
+    def test_parses_single_location_row(self):
+        text = (
+            "| ID | Locations | Question |\n"
+            "|---|---|---|\n"
+            "| brd:NC-002 | brd:NC-002 | What business problem does this pilot address? |\n"
+        )
+        items = review._parse_open_questions(text)
+        assert len(items) == 1
+        assert items[0]["id"] == "brd:NC-002"
+        assert items[0]["locations"] == ["brd:NC-002"]
+        assert items[0]["question"] == "What business problem does this pilot address?"
+
+    def test_parses_multi_location_row(self):
+        """A question asked in more than one document (a duplicate) must
+        list every doc-qualified ID so one answer patches all of them."""
+        text = "| brd:NC-003 | brd:NC-003, srd:NC-001 | How long must records be retained? |\n"
+        items = review._parse_open_questions(text)
+        assert items[0]["locations"] == ["brd:NC-003", "srd:NC-001"]
+
+    def test_ignores_non_matching_table_rows(self):
+        text = (
+            "| Role | Status |\n"
+            "|---|---|\n"
+            "| Product Owner | Pending |\n"
+            "| brd:NC-001 | brd:NC-001 | A real question |\n"
+        )
+        items = review._parse_open_questions(text)
+        assert len(items) == 1
+        assert items[0]["id"] == "brd:NC-001"
+
+    def test_no_matching_rows_returns_empty_list(self):
+        assert review._parse_open_questions("nothing here\n") == []
+
+    def test_tolerant_of_extra_whitespace(self):
+        text = "|   brd:NC-005   |   brd:NC-005  ,  srd:NC-002   |   Padded question?   |\n"
+        items = review._parse_open_questions(text)
+        assert items[0]["id"] == "brd:NC-005"
+        assert items[0]["locations"] == ["brd:NC-005", "srd:NC-002"]
+        assert items[0]["question"] == "Padded question?"
+
+
+class TestParseAnswers:
+    def _comment(self, text, created="2026-01-01T00:00:00+00:00"):
+        return {"body": text, "author": {"displayName": "PO"}, "created": created}
+
+    def test_parses_single_answer_line(self):
+        answers = review._parse_answers([self._comment("brd:NC-002: 90 days")])
+        assert answers == {"brd:NC-002": "90 days"}
+
+    def test_parses_multiple_lines_in_one_comment(self):
+        answers = review._parse_answers([self._comment(
+            "brd:NC-001: Some answer here\nsrd:NC-002: Another answer"
+        )])
+        assert answers["brd:NC-001"] == "Some answer here"
+        assert answers["srd:NC-002"] == "Another answer"
+
+    def test_later_comment_overrides_earlier_answer(self):
+        answers = review._parse_answers([
+            self._comment("brd:NC-002: first answer", created="2026-01-01T00:00:00+00:00"),
+            self._comment("brd:NC-002: corrected answer", created="2026-01-02T00:00:00+00:00"),
+        ])
+        assert answers["brd:NC-002"] == "corrected answer"
+
+    def test_is_case_insensitive_on_doc_key(self):
+        answers = review._parse_answers([self._comment("BRD:NC-002: value")])
+        assert answers == {"brd:NC-002": "value"}
+
+    def test_ignores_comments_with_no_id(self):
+        answers = review._parse_answers([self._comment("just a general comment, no ID here")])
+        assert answers == {}
+
+    def test_handles_adf_body(self):
+        adf_body = {
+            "type": "doc", "version": 1,
+            "content": [{"type": "paragraph", "content": [
+                {"type": "text", "text": "brd:NC-002: 90 days"}
+            ]}],
+        }
+        answers = review._parse_answers([self._comment(adf_body)])
+        assert answers == {"brd:NC-002": "90 days"}
+
+
+class TestPatchMarker:
+    def _doc(self, project, name, body):
+        p = project / ".specify" / "features" / "auth" / f"{name}.md"
+        p.write_text(body)
+        return p
+
+    def test_replaces_marker_with_answer_text(self, project):
+        p = self._doc(project, "brd", (
+            "# BRD\n> Version: 1.0 | Status: Draft\n\n"
+            "§4 [NEEDS CLARIFICATION-002: What problem does this solve?]\n"
+        ))
+        assert review._patch_marker(p, "002", "Real-time settlement demo.") is True
+        text = p.read_text()
+        assert "Real-time settlement demo." in text
+        assert "NEEDS CLARIFICATION-002" not in text
+
+    def test_bumps_version_header(self, project):
+        p = self._doc(project, "brd", (
+            "# BRD\n> Version: 1.0 | Status: Draft\n\n"
+            "[NEEDS CLARIFICATION-002: q?]\n"
+        ))
+        review._patch_marker(p, "002", "answer")
+        assert "Version: 1.1" in p.read_text()
+
+    def test_appends_version_history_row(self, project):
+        p = self._doc(project, "brd", (
+            "# BRD\n> Version: 1.0\n\n"
+            "[NEEDS CLARIFICATION-002: q?]\n\n"
+            "## Version History\n\n"
+            "| Version | Date | Changed By | Summary | CHG-NNN |\n"
+            "|---|---|---|---|---|\n"
+            "| 1.0 | 2026-01-01 | init | Initial draft | — |\n"
+        ))
+        review._patch_marker(p, "002", "answer")
+        text = p.read_text()
+        assert "NC-002 resolved via Jira/Confluence comment" in text
+        assert text.index("| 1.1 |") < text.index("| 1.0 |")  # new row inserted first
+
+    def test_missing_marker_id_returns_false_and_leaves_file_untouched(self, project):
+        p = self._doc(project, "brd", (
+            "# BRD\n> Version: 1.0\n\n[NEEDS CLARIFICATION-002: q?]\n"
+        ))
+        before = p.read_text()
+        assert review._patch_marker(p, "999", "answer") is False
+        assert p.read_text() == before
+
+    def test_nonexistent_file_returns_false(self, project):
+        p = project / ".specify" / "features" / "auth" / "does-not-exist.md"
+        assert review._patch_marker(p, "001", "answer") is False
+
+    def test_no_version_history_section_still_patches_marker(self, project):
+        """Best-effort: missing Version History table must not block the
+        marker replacement itself, only skip that bonus bookkeeping."""
+        p = self._doc(project, "brd", (
+            "# BRD\n> Version: 1.0\n\n[NEEDS CLARIFICATION-002: q?]\n"
+        ))
+        assert review._patch_marker(p, "002", "answer") is True
+        assert "answer" in p.read_text()
+
+
+class TestPushPullQuestionsCommands:
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    @pytest.fixture()
+    def blocked_project(self, project):
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n> Version: 1.0 | Status: Draft\n\n"
+            "§4 [NEEDS CLARIFICATION-001: What business problem does this solve?]\n\n"
+            "§5 [NEEDS CLARIFICATION-002: How long must records be retained?]\n\n"
+            "## Version History\n\n| Version | Date | Changed By | Summary | CHG-NNN |\n"
+            "|---|---|---|---|---|\n| 1.0 | 2026-01-01 | init | Initial draft | — |\n"
+        )
+        (project / ".specify" / "features" / "auth" / "srd.md").write_text(
+            "# SRD\n> Version: 1.0 | Status: Draft\n\n"
+            "§3 [NEEDS CLARIFICATION-001: How long must records be retained?]\n\n"
+            "## Version History\n\n| Version | Date | Changed By | Summary | CHG-NNN |\n"
+            "|---|---|---|---|---|\n| 1.0 | 2026-01-01 | init | Initial draft | — |\n"
+        )
+        (project / ".specify" / "features" / "auth" / "validate.md").write_text(
+            "# Validation Report\n> Version: 1.0 | Status: BLOCKED\n\n"
+            "| ID | Locations | Question |\n|---|---|---|\n"
+            "| brd:NC-001 | brd:NC-001 | What business problem does this solve? |\n"
+            "| brd:NC-002 | brd:NC-002, srd:NC-001 | How long must records be retained? |\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  validate:\n"
+            "    reviewer_jira_user: '712020:abc'\n"
+            "    reviewer_role: 'Business Analyst'\n"
+            "    phase: specify\n"
+            "    sequence: 4\n"
+            "    confluence_page: '{feature} — Validation'\n"
+        )
+        return project
+
+    def test_push_questions_creates_ticket_with_open_questions_label(self, blocked_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            result = runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+
+        assert result.exit_code == 0, result.output
+        issue = next(f for f in fake_jira.created if "sdd-open-questions" in f.get("labels", []))
+        assert "sdd-doc:auth:validate" in issue["labels"]
+        assert "brd:NC-001" in issue["description"]["content"][0]["content"][0]["text"]
+        links = review._load_review_links()
+        assert links["validate"]["key"].startswith("PROJ-")
+
+    def test_push_questions_uses_same_idempotency_label_as_submit(self, blocked_project, runner):
+        """The whole point of reusing sdd-doc:{feature}:{doc} as the label
+        is that `sdd review submit --doc validate` later finds this exact
+        ticket via find_by_label and updates it in place, rather than
+        creating a second one -- verified here by calling submit right
+        after push-questions and checking only one ticket key exists."""
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+            result = runner.invoke(review.review_command, ["submit", "--doc", "validate"])
+
+        assert result.exit_code == 0, result.output
+        # push-questions creates 2 issues (the Epic + the open-questions
+        # ticket); submit must find both by label and update, not create
+        # a second Epic or a second review ticket. submit's own epic-ensure
+        # step refreshes the existing Epic's content too, so 2 updates
+        # total (Epic + the review ticket), not a 3rd/4th create.
+        assert len(fake_jira.created) == 2
+        assert len(fake_jira.updated) == 2
+        open_questions_key = fake_jira.by_label["sdd-doc:auth:validate"]["key"]
+        assert open_questions_key in [key for key, _ in fake_jira.updated]
+
+    def test_submit_posts_transition_comment_when_reusing_open_questions_ticket(self, blocked_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+            runner.invoke(review.review_command, ["submit", "--doc", "validate"])
+
+        assert len(fake_jira.added_comments) == 1
+        issue_key, text = fake_jira.added_comments[0]
+        assert "ready for full review" in text
+
+    def test_pull_answers_patches_both_docs_and_multi_location_question(self, blocked_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+            issue_key = review._load_review_links()["validate"]["key"]
+            fake_jira.comments_by_key[issue_key] = [{
+                "body": "brd:NC-001: Demonstrates real-time settlement.\n"
+                        "brd:NC-002: 90 days per policy DR-014.",
+                "author": {"displayName": "PO"}, "created": "2026-01-02T00:00:00+00:00",
+            }]
+            result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+
+        assert result.exit_code == 0, result.output
+        brd_text = (blocked_project / ".specify" / "features" / "auth" / "brd.md").read_text()
+        srd_text = (blocked_project / ".specify" / "features" / "auth" / "srd.md").read_text()
+        assert "Demonstrates real-time settlement." in brd_text
+        assert "NEEDS CLARIFICATION-001" not in brd_text
+        # brd:NC-002's answer must also patch srd:NC-001 (multi-location row)
+        assert "90 days per policy DR-014." in brd_text
+        assert "90 days per policy DR-014." in srd_text
+        assert "NEEDS CLARIFICATION-001" not in srd_text
+
+    def test_pull_answers_exits_quietly_when_no_ticket_recorded_yet(self, blocked_project, runner):
+        result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+        assert result.exit_code == 0
+
+    def test_pull_answers_exits_quietly_when_not_configured(self, project, runner):
+        result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+        assert result.exit_code == 0

@@ -298,6 +298,100 @@ def _record_review_link(doc: str, issue_key: str) -> None:
     _save_review_links(links)
 
 
+# ── Open-questions push/pull (blocked-doc Jira Q&A) ────────────────────────────
+# When a document like validate.md is blocked on [NEEDS CLARIFICATION-NNN]
+# markers in its source docs, `sdd review push-questions` lets a reviewer
+# answer them via Jira/Confluence comments instead of waiting for direct
+# chat/doc edits -- `sdd review pull-answers` reads those comments back and
+# patches the answered markers directly into brd.md/use-cases.md/srd.md.
+
+_OPEN_QUESTION_ROW_RE = re.compile(
+    r'^\|\s*([a-zA-Z0-9_.-]+:NC-\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$',
+    re.MULTILINE,
+)
+_ANSWER_LINE_RE = re.compile(
+    r'^\s*([a-zA-Z0-9_.-]+):NC-(\d+)\s*:\s*(.+?)\s*$',
+    re.MULTILINE | re.IGNORECASE,
+)
+
+
+def _parse_open_questions(doc_text: str) -> list[dict]:
+    """Parse a blocked document's `| ID | Locations | Question |` table
+    (see validate.prompt.md's §3a-BLOCKING format) into structured items.
+    Tolerant of table-formatting drift across LLM runs -- anchors on the
+    `{doc}:NC-{NNN}` ID pattern itself, not exact column headers.
+
+    Each item's "locations" is every doc-qualified ID (e.g. "brd:NC-003")
+    that a single answer should be applied to -- almost always just its
+    own ID, but more than one when the same question was asked in more
+    than one document."""
+    items: list[dict] = []
+    for m in _OPEN_QUESTION_ROW_RE.finditer(doc_text):
+        primary_id, locations_raw, question = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
+        locations = [loc.strip() for loc in locations_raw.split(",") if loc.strip()]
+        if primary_id not in locations:
+            locations.append(primary_id)
+        items.append({"id": primary_id, "locations": locations, "question": question})
+    return items
+
+
+def _parse_answers(comments: list[dict]) -> dict[str, str]:
+    """Parse every Jira comment for lines like 'brd:NC-002: <answer>'.
+    A later comment's answer for the same ID overrides an earlier one
+    (a reviewer correcting themselves)."""
+    answers: dict[str, str] = {}
+    for c in comments:
+        text = _extract_text(c.get("body", ""))
+        for m in _ANSWER_LINE_RE.finditer(text):
+            doc_key, nnn, answer = m.group(1).lower(), m.group(2), m.group(3)
+            answers[f"{doc_key}:NC-{nnn}"] = answer
+    return answers
+
+
+def _bump_version_and_log(text: str, note: str) -> str:
+    """Bump the `Version: X.Y` header to X.(Y+1) and append a row to
+    `## Version History`, matching the same discipline every review-driven
+    edit in this codebase uses (see specify-brd.prompt.md's Revision
+    Logging). Best-effort: if either the Version header or a recognizable
+    `## Version History` table isn't found, the text is returned unchanged
+    rather than raising -- the marker replacement itself is what matters;
+    this bookkeeping is a bonus that shouldn't block on template drift."""
+    version_match = re.search(r'Version:\s*(\d+)\.(\d+)', text)
+    if not version_match:
+        return text
+    major, minor = version_match.group(1), int(version_match.group(2)) + 1
+    new_version = f"{major}.{minor}"
+    text = text[:version_match.start()] + f"Version: {new_version}" + text[version_match.end():]
+
+    heading = re.search(r'^## Version History\s*$', text, flags=re.IGNORECASE | re.MULTILINE)
+    if not heading:
+        return text
+    after = text[heading.end():]
+    sep_match = re.search(r'\n\|[-| ]+\|\s*\n', after)
+    if not sep_match:
+        return text
+    insert_at = heading.end() + sep_match.end()
+    row = f"| {new_version} | {date.today()} | Jira/Confluence | {note} | — |\n"
+    return text[:insert_at] + row + text[insert_at:]
+
+
+def _patch_marker(md_path: Path, nnn: str, answer: str) -> bool:
+    """Replace `[NEEDS CLARIFICATION-{nnn}: ...]` with the answer text in
+    md_path, bumping its version + Version History. Returns True if a
+    matching marker was found and patched, False otherwise (already
+    resolved, or nnn doesn't exist in this file)."""
+    if not md_path.exists():
+        return False
+    text = md_path.read_text()
+    pattern = re.compile(r'\[NEEDS CLARIFICATION-' + re.escape(nnn) + r':\s*[^\]]*\]')
+    if not pattern.search(text):
+        return False
+    new_text = pattern.sub(lambda _m: answer, text, count=1)
+    new_text = _bump_version_and_log(new_text, f"NC-{nnn} resolved via Jira/Confluence comment")
+    md_path.write_text(new_text)
+    return True
+
+
 def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | None:
     """Create the Feature/Epic container if it doesn't already exist yet,
     using the same content and idempotency label `sdd jira push` uses — so a
@@ -486,9 +580,27 @@ def review_submit(doc, profile, feature):
     _apply_team_field(fields, cfg.jira, "review")
 
     if existing:
+        # If this ticket started life as an `sdd review push-questions`
+        # "open questions" ticket (same idempotency label -- see that
+        # command), the fields update above already retitles/redescribes
+        # it into a normal review request. Post a comment marking the
+        # transition explicitly so the reviewer's ticket history shows
+        # why the ticket suddenly changed shape, rather than reusing it
+        # silently -- the "same ticket evolves in place" behavior a user
+        # asked for, without ever creating a second ticket for one doc.
+        was_open_questions = "sdd-open-questions" in (existing.get("fields", {}).get("labels") or [])
         jira_client.update_issue(existing["key"], fields)
         story_key = existing["key"]
         console.print(f"  [dim]·[/dim]   Jira review story updated: [cyan]{story_key}[/cyan]")
+        if was_open_questions:
+            try:
+                jira_client.add_comment(
+                    story_key,
+                    f"All open questions resolved — {doc.upper()} has been updated "
+                    f"and is now ready for full review.",
+                )
+            except Exception:
+                pass  # best-effort notification only; the ticket update above already succeeded
     else:
         result    = jira_client.create_issue(fields)
         story_key = result["key"]
@@ -509,6 +621,241 @@ def review_submit(doc, profile, feature):
                   f"Run [cyan]sdd review check --doc {doc}[/cyan] to poll the outcome.")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
+
+
+# ── sdd review push-questions ───────────────────────────────────────────────────
+
+@review_command.command("push-questions")
+@click.option("--doc",     required=True,
+              help="Document key whose blocking gate produced open questions, e.g. validate")
+@click.option("--profile", default=None)
+@click.option("--feature", default=None)
+def review_push_questions(doc, profile, feature):
+    """Push a blocked document's open [NEEDS CLARIFICATION-NNN] questions to
+    Jira + Confluence, so a reviewer can answer them without waiting for
+    the doc's own gate to clear first. Uses the same idempotency label
+    `sdd review submit` looks for -- once every question is answered and
+    the doc unblocks, `sdd review submit --doc {doc}` finds and evolves
+    this same ticket in place instead of creating a second one."""
+    console.print()
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print(f"  [bold cyan]Push Open Questions[/bold cyan] — {doc.upper()}")
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print()
+
+    try:
+        cfg = load_integrations()
+    except FileNotFoundError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
+
+    if doc not in cfg.document_reviews:
+        console.print(
+            f"  [red]✗  '{doc}' not in document_reviews in integrations.yml[/red]\n"
+            f"     Available: {', '.join(cfg.document_reviews)}"
+        )
+        raise SystemExit(1)
+    if not cfg.jira:
+        console.print("  [red]✗  jira: section required in integrations.yml[/red]")
+        raise SystemExit(1)
+
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    project_name = proj.get("name", "Project")
+    feature_name = feature or proj.get("feature", "")
+
+    try:
+        md_path = resolve_doc_path(doc, feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
+    if not md_path.exists():
+        console.print(f"  [red]✗  {md_path} not found[/red]")
+        raise SystemExit(1)
+
+    items = _parse_open_questions(md_path.read_text())
+    if not items:
+        console.print(
+            f"  [dim]No open [NEEDS CLARIFICATION-NNN] items found in {md_path.name} — nothing to push.[/dim]"
+        )
+        raise SystemExit(0)
+
+    try:
+        prof    = load_profile(profile or cfg.profile)
+        session = build_session(prof)
+    except Exception as e:
+        console.print(f"  [red]✗  Auth error: {e}[/red]")
+        raise SystemExit(1)
+
+    jira_client = JiraClient(session, prof.base_url)
+    doc_cfg     = cfg.document_reviews[doc]
+
+    # ── Also push the (blocked) doc to Confluence, so reviewers can comment there too ──
+    page_title = None
+    if cfg.confluence:
+        try:
+            page_title = _push_doc_page(doc, md_path, feature_name)
+        except Exception as e:
+            console.print(f"  [yellow]!  Confluence push failed: {e}[/yellow]")
+
+    # ── Ensure a Feature/Epic exists (same as review_submit) ──────────────────
+    epic_key = _ensure_epic(jira_client, cfg.jira, feature_name)
+
+    # ── Create / update the SAME ticket review_submit will later find ─────────
+    # Same idempotency_label as review_submit uses for --doc {doc} -- this
+    # is what makes the ticket "evolve in place" later, with zero extra
+    # bookkeeping: review_submit's own find-by-label lookup will discover
+    # this ticket and update its fields, rather than creating a second one.
+    idempotency_label  = f"sdd-doc:{feature_name}:{doc}"
+    review_project_key = cfg.jira.key_for("review")
+    existing            = jira_client.find_by_label(review_project_key, idempotency_label)
+
+    table_lines = "\n".join(f"{it['id']}: {it['question']}" for it in items)
+    desc_text = (
+        f"{doc.upper()} is blocked on {len(items)} open question(s) before it can "
+        f"go to full review.\n\n"
+        f"Answer each item as a comment on THIS ticket, one line per item, "
+        f"starting with its ID:\n\n{table_lines}\n\n"
+        f"Example: \"{items[0]['id']}: <your answer>\"\n\n"
+        f"Once every item is answered, re-run /validate — it pulls the answers "
+        f"automatically, updates the spec, and re-checks."
+    )
+    fields: dict = {
+        "project":     {"key": review_project_key},
+        "issuetype":   {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
+        "summary":     f"Open Questions: {project_name} — {doc.upper()}",
+        "labels":      cfg.jira.labels + ["sdd-review", "sdd-open-questions", idempotency_label],
+        "description": {
+            "type": "doc", "version": 1,
+            "content": [{"type": "paragraph", "content": [
+                {"type": "text", "text": desc_text}
+            ]}],
+        },
+    }
+    if doc_cfg.reviewer_jira_user:
+        fields["assignee"] = {"accountId": doc_cfg.reviewer_jira_user}
+    from sdd.commands.jira import _apply_team_field
+    _apply_team_field(fields, cfg.jira, "review")
+
+    if existing:
+        jira_client.update_issue(existing["key"], fields)
+        issue_key = existing["key"]
+        console.print(f"  [dim]·[/dim]   Jira ticket updated: [cyan]{issue_key}[/cyan]")
+    else:
+        result    = jira_client.create_issue(fields)
+        issue_key = result["key"]
+        console.print(f"  [green]✓[/green]  Jira ticket created: [cyan]{issue_key}[/cyan]")
+
+    _record_review_link(doc, issue_key)
+    if epic_key:
+        _link_review_story_to_epic(jira_client, issue_key, epic_key, cfg.jira)
+
+    issue_url = f"{prof.base_url}/browse/{issue_key}"
+    console.print(f"          {issue_url}")
+    if page_title:
+        console.print(f"          Also on Confluence: [cyan]{page_title}[/cyan]")
+    console.print(
+        f"          Assigned to: [cyan]{doc_cfg.reviewer_role}[/cyan]"
+        f"  [dim]({doc_cfg.reviewer_jira_user})[/dim]"
+    )
+    console.print()
+    console.print(f"  [bold]{len(items)} open question(s)[/bold] pushed. Reviewer replies as a comment")
+    console.print(f"  starting with the item's ID, e.g. \"{items[0]['id']}: <answer>\".")
+    console.print(f"  Run [cyan]sdd review pull-answers --doc {doc}[/cyan] (or just re-run /validate) once answered.")
+    console.print()
+
+
+# ── sdd review pull-answers ──────────────────────────────────────────────────────
+
+@review_command.command("pull-answers")
+@click.option("--doc",     required=True)
+@click.option("--profile", default=None)
+@click.option("--feature", default=None)
+def review_pull_answers(doc, profile, feature):
+    """Pull Jira comments answering a blocked document's open
+    [NEEDS CLARIFICATION-NNN] questions and patch them directly into the
+    source docs (e.g. brd.md/use-cases.md/srd.md for --doc validate).
+    Safe to call unconditionally before re-scanning -- exits 0 quietly
+    whenever there's nothing to do (not configured, no ticket yet, no new
+    answers)."""
+    console.print()
+
+    try:
+        cfg = load_integrations()
+    except FileNotFoundError:
+        raise SystemExit(0)
+
+    if doc not in cfg.document_reviews or not cfg.jira:
+        raise SystemExit(0)
+
+    manifest     = read_manifest() or {}
+    proj         = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+
+    try:
+        md_path = resolve_doc_path(doc, feature_name)
+    except ValueError:
+        raise SystemExit(0)
+    if not md_path.exists():
+        raise SystemExit(0)
+
+    items = _parse_open_questions(md_path.read_text())
+    if not items:
+        raise SystemExit(0)
+
+    links     = _load_review_links()
+    issue_key = (links.get(doc) or {}).get("key")
+    if not issue_key:
+        console.print(
+            f"  [dim]·  No Jira ticket recorded for {doc} yet — "
+            f"run `sdd review push-questions --doc {doc}` first.[/dim]"
+        )
+        raise SystemExit(0)
+
+    try:
+        prof    = load_profile(profile or cfg.profile)
+        session = build_session(prof)
+    except Exception:
+        raise SystemExit(0)
+
+    jira_client = JiraClient(session, prof.base_url)
+    try:
+        comments = jira_client.get_comments(issue_key)
+    except Exception as e:
+        console.print(f"  [yellow]!  Could not fetch comments from {issue_key}: {e}[/yellow]")
+        raise SystemExit(0)
+
+    answers = _parse_answers(comments)
+    if not answers:
+        raise SystemExit(0)
+
+    patched_docs: dict[str, int] = {}
+    for item in items:
+        # The reviewer only ever cites the row's primary ID (item["id"]) --
+        # that single answer must propagate to every location listed for
+        # this question, not just the one the reviewer happened to name
+        # (a multi-location row exists specifically so one answer can
+        # resolve a question duplicated across several docs at once).
+        if item["id"] not in answers:
+            continue
+        answer_text = answers[item["id"]]
+        for loc_id in item["locations"]:
+            doc_key, nnn = loc_id.split(":NC-")
+            try:
+                loc_path = resolve_doc_path(doc_key, feature_name)
+            except ValueError:
+                continue
+            if _patch_marker(loc_path, nnn, answer_text):
+                patched_docs[doc_key] = patched_docs.get(doc_key, 0) + 1
+                console.print(f"  [green]✓[/green]  {loc_id} resolved in {loc_path.name}")
+
+    if patched_docs:
+        total = sum(patched_docs.values())
+        console.print(
+            f"  [bold]{total} item(s) resolved[/bold] across "
+            f"{len(patched_docs)} document(s): {', '.join(patched_docs)}"
+        )
+        console.print()
 
 
 # ── sdd review check ───────────────────────────────────────────────────────────

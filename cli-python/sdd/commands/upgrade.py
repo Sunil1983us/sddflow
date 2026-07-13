@@ -2064,6 +2064,59 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.52"},
     },
+    {
+        "from":        "2.7.52",
+        "to":          "2.7.53",
+        "description": "Feature: blocked documents (e.g. validate.md, on unresolved [NEEDS CLARIFICATION-NNN] markers) can now collect reviewer answers via Jira/Confluence instead of only direct chat/doc edits -- no manifest schema changes",
+        "notes": [
+            "User-requested: a document like validate.md can be blocked "
+            "before it's ever submitted for formal review (brd.md/"
+            "use-cases.md/srd.md still have unresolved [NEEDS "
+            "CLARIFICATION] markers) -- previously there was no way to "
+            "route those specific open questions through Jira/Confluence "
+            "the way an already-submitted document's reviewer comments "
+            "already could",
+            "[NEEDS CLARIFICATION] markers are now numbered locally per "
+            "document -- [NEEDS CLARIFICATION-NNN: {question}] -- "
+            "matching the [ASSUMPTION-NNN] convention already in use. "
+            "This gives every marker a stable, doc-qualified ID "
+            "({doc}:NC-{NNN}, e.g. brd:NC-002) that a reviewer's answer "
+            "can cite exactly, instead of matching by paraphrased "
+            "question text",
+            "New sdd review push-questions --doc {doc}: parses a blocked "
+            "document's | ID | Locations | Question | table (see "
+            "validate.prompt.md's §3a-BLOCKING) and creates/updates one "
+            "Jira ticket + Confluence page. Uses the SAME idempotency "
+            "label sdd review submit looks for, so once every question "
+            "is answered and the document unblocks, sdd review submit "
+            "finds and evolves this same ticket in place (posting a "
+            "transition comment) instead of creating a second one",
+            "New sdd review pull-answers --doc {doc}: fetches comments "
+            "from that ticket, matches lines like 'brd:NC-002: <answer>' "
+            "against the open items, and patches each answered "
+            "[NEEDS CLARIFICATION-NNN] marker directly into its source "
+            "document -- bumping that document's Version header and "
+            "appending a Version History row. A question asked in more "
+            "than one document (a Locations column listing more than one "
+            "ID) gets the same answer applied to every one of them from "
+            "a single reviewer reply",
+            "validate.prompt.md (all 5 packs, not a shared file) updated: "
+            "§3a-BLOCKING now calls pull-answers before re-scanning and "
+            "push-questions after detecting a block, and its table cites "
+            "doc-qualified marker IDs instead of an ad-hoc Q1..Q7 scheme",
+            "specify-brd/specify-uc/specify-srd/specify-doc.prompt.md "
+            "(shared) and the submit-for-review-step block updated for "
+            "the new marker numbering and ID-based comment matching",
+            "23 new tests in test_review_helpers.py: table/answer "
+            "parsing, marker patching (version bump + Version History, "
+            "multi-location propagation, legacy/missing-marker "
+            "tolerance), and the push-questions -> submit same-ticket "
+            "transition end-to-end",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.53"},
+    },
 ]
 
 
