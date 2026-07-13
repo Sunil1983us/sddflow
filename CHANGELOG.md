@@ -4,6 +4,34 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.48] — 2026-07-13 (Feature: dashboard surfaces `sdd review check --doc` status/comments)
+
+### Added
+
+- **User-requested: a dashboard equivalent of `sdd review check --doc`**
+  to check review status and reviewer comments without leaving the
+  browser. The dashboard already had a live, on-demand, button-triggered
+  Jira/Confluence lookup (`"🔄 Check Jira/Confluence review links"` →
+  `_fetch_review_links()`) architecturally separate from the passive,
+  network-free 5-second `/api/status` poll — this extends that existing
+  path rather than adding a new one.
+  - `_fetch_review_links()` now calls `review.py`'s own
+    `_get_review_status()` for each document, reusing the exact
+    `APPROVED` / `NEEDS_REVISION` / `PENDING` classification `sdd review
+    check` uses instead of re-deriving it, and fetches reviewer comments
+    via `JiraClient.get_comments()`.
+  - Frontend: a color-coded review-status badge (new `'review'` kind on
+    the existing `badge()` renderer) appears next to each document's Jira
+    pill; Jira review comments are shown in the existing per-document
+    comments panel (💬), labeled separately from local dashboard
+    comments so the two sources are never confused.
+  - Same requirement as `sdd review check` itself — only works where
+    `document_reviews` is configured in `integrations.yml`; no new gap.
+  - 4 new tests in `test_dashboard.py`: real classification wiring for
+    both `NEEDS_REVISION` (comment present, no approved status/keyword)
+    and `APPROVED` (status in `approved_statuses`), plus two source-level
+    page guards for the new badge/comments markup.
+
 ## [2.7.47] — 2026-07-13 (Feature: cross-project Jira parent-link fallback)
 
 ### Added

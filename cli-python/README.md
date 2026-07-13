@@ -517,6 +517,13 @@ out of scope for this command).
   This one call uses your existing `~/.sdd/config.yml` profile and
   `.specify/integrations.yml` — same credentials as `sdd review status`,
   and only fires when you click the button, never on the automatic poll.
+  The same check also surfaces each document's review status — a
+  color-coded **APPROVED / NEEDS REVISION / PENDING** badge next to its
+  Jira pill, using the exact same classification `sdd review check --doc`
+  uses — and, if the reviewer left any, their Jira comments show up in
+  that document's comments panel (💬), labeled separately from local
+  dashboard comments. Needs `document_reviews` configured in
+  `integrations.yml`, same as `sdd review check` itself.
 
 **Approve a document, or leave a review comment** — right from the
 Documents card, no need to open a CLI or Jira/Confluence yourself:

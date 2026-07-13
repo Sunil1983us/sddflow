@@ -157,7 +157,8 @@ _PAGE = """<!doctype html>
   <div id="root"></div>
   <div class="refresh-note">Snapshot of <code>.specify/</code> — refreshes every 5s. Task/PR status reflects tasks.md, not live PR state.
     "View" reads the raw .md file from disk. Jira/Confluence pills next to a document are from local cache (progressive export /
-    <code>sdd confluence push</code>) — "Check Jira/Confluence review links" additionally queries live for <code>sdd review submit</code> tickets.
+    <code>sdd confluence push</code>) — "Check Jira/Confluence review links" additionally queries live for <code>sdd review submit</code> tickets,
+    the same APPROVED/NEEDS REVISION/PENDING classification as <code>sdd review check --doc</code>, plus reviewer comments (shown under 💬).
     "Approve" and comments update the local Status header (same as <code>sdd review approve --local</code>), mirror to Confluence if configured,
     and post a best-effort Jira comment.</div>
 
@@ -186,6 +187,12 @@ function badge(status, kind) {
   } else if (kind === 'gate1') {
     if (s === 'passed') cls = 'b-ok';
     else cls = 'b-warn';
+  } else if (kind === 'review') {
+    const r = s.replace(/_/g, ' ');
+    if (r === 'approved') cls = 'b-ok';
+    else if (r === 'needs revision') cls = 'b-bad';
+    else if (r === 'pending') cls = 'b-warn';
+    return `<span class="badge ${cls}">${r}</span>`;
   }
   return `<span class="badge ${cls}">${status}</span>`;
 }
@@ -240,20 +247,30 @@ function linkPill(kind, link) {
     : `<span class="pill pill-${kind === 'Jira' ? 'jira' : 'cf'}" title="No Atlassian base_url configured — run sdd config init">${label}</span>`;
 }
 
-function renderCommentsPanel(d, feature) {
+function renderCommentsPanel(d, feature, reviewJira) {
   const comments = d.comments || [];
+  const jiraComments = (reviewJira && reviewJira.comments) || [];
   const key = feature + '|' + d.key;
   const draft = state.commentDrafts[key] || { by: '', text: '' };
+  const jiraList = jiraComments.length
+    ? `<div class="sub" style="margin-bottom:.3rem">Jira review comments</div>` +
+      jiraComments.map(c => `
+        <div class="comment">
+          <strong>${escapeHtml(c.author)}</strong> <span class="sub">${escapeHtml(c.created)}</span>
+          <div>${escapeHtml(c.text)}</div>
+        </div>`).join('')
+    : '';
   const list = comments.length
     ? comments.map(c => `
         <div class="comment">
           <strong>${escapeHtml(c.by)}</strong> <span class="sub">${escapeHtml(c.at)}</span>
           <div>${escapeHtml(c.text)}</div>
         </div>`).join('')
-    : '<div class="sub">No comments yet.</div>';
+    : '<div class="sub">No dashboard comments yet.</div>';
   return `
     <tr class="doc-detail-row"><td colspan="3">
       <div class="comments-box">
+        ${jiraList}
         ${list}
         <div class="comment-form">
           <input type="text" class="comment-by" data-feature="${feature}" data-doc="${d.key}"
@@ -273,6 +290,7 @@ function renderDocRow(d, feature, localConfluence, reviewEntry) {
   const localCf = (localConfluence || {})[d.key];
   const reviewJira = reviewEntry && reviewEntry.docs ? reviewEntry.docs[d.key]?.jira : null;
   const reviewCf   = reviewEntry && reviewEntry.docs ? reviewEntry.docs[d.key]?.confluence : null;
+  const reviewStatusBadge = reviewJira && reviewJira.review_status ? badge(reviewJira.review_status, 'review') : '';
   const links = [
     linkPill('Jira', reviewJira),
     linkPill('Confluence', localCf || reviewCf),
@@ -289,13 +307,13 @@ function renderDocRow(d, feature, localConfluence, reviewEntry) {
       <td class="links-cell">
         <button class="link-btn" data-action="view-doc" data-feature="${feature}" data-doc="${d.key}">${expanded ? 'Hide' : 'View'}</button>
         ${approveControl}
-        ${commentBtn}${links}
+        ${commentBtn}${links}${reviewStatusBadge}
       </td>
     </tr>`;
   const detail = expanded
     ? `<tr class="doc-detail-row"><td colspan="3"><pre class="doc-detail">${escapeHtml(state.docContents[key] ?? 'Loading…')}</pre></td></tr>`
     : '';
-  const commentsPanel = commentsOpen ? renderCommentsPanel(d, feature) : '';
+  const commentsPanel = commentsOpen ? renderCommentsPanel(d, feature, reviewJira) : '';
   return row + detail + commentsPanel;
 }
 
@@ -620,11 +638,17 @@ def _fetch_review_links(feature: str) -> dict:
     the label `sdd review submit` writes; Confluence page titles only
     support {project} today, matching `sdd review status`'s own behavior,
     so the Confluence half is still shared across features on one project.
+
+    Also surfaces the same APPROVED/NEEDS_REVISION/PENDING classification
+    and reviewer comments that `sdd review check --doc` prints, by reusing
+    review.py's own classification helper rather than re-deriving it here
+    (keeps the two in lockstep instead of drifting).
     """
     from sdd.utils.integrations import load_integrations
     from sdd.utils.atlassian_auth import load_profile, build_session
     from sdd.utils.jira_client import JiraClient
     from sdd.utils.confluence_client import ConfluenceClient
+    from sdd.commands.review import _get_review_status, _extract_text
 
     try:
         cfg = load_integrations()
@@ -653,10 +677,22 @@ def _fetch_review_links(feature: str) -> dict:
             try:
                 issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc_key}")
                 if issue:
+                    review_status, comments = _get_review_status(
+                        doc_key, jira_client, cfg.jira.key_for("review"), cfg, feature,
+                    )
                     entry["jira"] = {
                         "key": issue["key"],
                         "url": f"{prof.base_url}/browse/{issue['key']}",
                         "status": issue.get("fields", {}).get("status", {}).get("name"),
+                        "review_status": review_status,
+                        "comments": [
+                            {
+                                "author": (c.get("author") or {}).get("displayName", "Unknown"),
+                                "created": c.get("created", "")[:10],
+                                "text": _extract_text(c.get("body", "")),
+                            }
+                            for c in comments
+                        ],
                     }
             except Exception as e:
                 entry["jira"] = {"error": str(e)}
