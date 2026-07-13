@@ -157,6 +157,65 @@ def _scope_at_least(scope: str | None, minimum: str) -> bool:
     return _SCOPE_ORDER.get(scope or "pilot", 0) >= _SCOPE_ORDER[minimum]
 
 
+# Virtual Team roster (see each pack's CLAUDE.md "Virtual Team — Address by
+# Name" table) -- name -> role, for the persona hint shown in the tooltip
+# and next-action box. sdd-micro has no Virtual Team at all (its steps use
+# id "task", not "tasks", and are never looked up here since callers pass
+# scope=None for micro).
+_PERSONA_ROLE = {
+    "Maya":  "Business Analyst",
+    "Rex":   "Requirements Engineer",
+    "Ava":   "Software Architect",
+    "Leo":   "Lead Developer",
+    "Kai":   "Engineering Manager",
+    "Quinn": "QA Lead",
+    "Riley": "Release Manager",
+}
+
+# Pipeline step id -> (persona name, natural-language ask with a {feature}
+# placeholder). Addressing a persona by name (e.g. "Ava, design checkout")
+# works identically to running that step's slash command -- see each
+# pack's CLAUDE.md "Virtual Team" routing rule. Steps with no clear owner
+# (specify/gate1 -- run before any persona takes over; runbook -- a
+# byproduct of /implement, not something you ask for directly) are
+# intentionally absent from this map.
+_STEP_PERSONA = {
+    "brd":            ("Maya",  "create the BRD for {feature}"),
+    "use-cases":      ("Maya",  "write the use cases for {feature}"),
+    "srd":            ("Rex",   "write the SRD for {feature}"),
+    "extended-specs": ("Ava",   "write the data model and security design for {feature}"),
+    "checklist":      ("Quinn", "run the spec quality checklist for {feature}"),
+    "validate":       ("Maya",  "validate {feature}"),
+    "analyze":        ("Ava",   "run the cross-doc analysis on {feature}"),
+    "clarify":        ("Rex",   "clarify the open questions on {feature}"),
+    "design":         ("Ava",   "design {feature}"),
+    "arch":           ("Ava",   "design the architecture for {feature}"),
+    "hld":            ("Ava",   "write the high-level design for {feature}"),
+    "adr":            ("Ava",   "record the architecture decisions for {feature}"),
+    "lld":            ("Leo",   "write the low-level design for {feature}"),
+    "stories":        ("Kai",   "break {feature} into stories"),
+    "tasks":          ("Kai",   "break {feature} into tasks"),
+    "smoke-tests":    ("Kai",   "write smoke tests for {feature}"),
+    "qa-testcases":   ("Kai",   "write QA test cases for {feature}"),
+    "implement":      ("Leo",   "implement the next task for {feature}"),
+    "release":        ("Riley", "plan the release for {feature}"),
+}
+
+
+def _persona_hint(step_id: str, feature: str, scope: str | None) -> dict | None:
+    """Which Virtual Team member owns this step, plus an example
+    natural-language ask the user can type instead of memorizing the slash
+    command. None for sdd-micro (scope is None) and for steps with no
+    persona owner (see _STEP_PERSONA's docstring)."""
+    if scope is None:
+        return None
+    entry = _STEP_PERSONA.get(step_id)
+    if not entry:
+        return None
+    name, template = entry
+    return {"name": name, "role": _PERSONA_ROLE[name], "ask": template.format(feature=feature)}
+
+
 def _standard_pipeline_steps(scope: str | None, plan_mode: str) -> list[dict]:
     """The full command sequence for every pack except sdd-micro (backend,
     frontend-spa, mobile, fullstack, universal all share this exact
@@ -262,7 +321,8 @@ def _next_action_sentence(step: dict, state: str, tasks: dict) -> str:
 
 
 def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_docs_exist: bool,
-                    plan_mode: str = "unified", scope: str | None = "pilot") -> dict:
+                    plan_mode: str = "unified", scope: str | None = "pilot",
+                    feature: str = "this feature") -> dict:
     """The full command sequence for this feature (every step this scope/
     plan_mode can ever produce, including skipped ones with a reason),
     each resolved to done/current/upcoming from what's actually on disk —
@@ -275,20 +335,24 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
     resolved: list[dict] = []
     next_action: str | None = None
     next_step_id: str | None = None
+    next_persona: dict | None = None
     for step in steps:
+        persona = _persona_hint(step["id"], feature, scope)
         if step.get("skip"):
-            resolved.append({**step, "state": "skipped"})
+            resolved.append({**step, "state": "skipped", "persona": persona})
             continue
         state = _step_state(step, docs_by_key, tasks, constitution, service_docs_exist)
-        resolved.append({**step, "state": state})
+        resolved.append({**step, "state": state, "persona": persona})
         if state != "done" and next_action is None:
             next_action = _next_action_sentence(step, state, tasks)
             next_step_id = step["id"]
+            next_persona = persona
 
     return {
         "steps": resolved,
         "next_step_id": next_step_id,
         "next_action": next_action or "All pipeline steps complete for this feature.",
+        "next_persona": next_persona,
     }
 
 
@@ -490,7 +554,7 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
         },
         "pipeline": build_pipeline(
             docs, tasks, constitution or _constitution_status(root),
-            _service_docs_exist(root), plan_mode, scope,
+            _service_docs_exist(root), plan_mode, scope, feature=feature,
         ),
     }
 

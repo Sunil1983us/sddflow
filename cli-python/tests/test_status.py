@@ -525,6 +525,44 @@ def test_pipeline_micro_scope_none_uses_3_command_flow():
     assert [s["id"] for s in p["steps"]] == ["specify", "gate1", "task", "implement"]
 
 
+# ── Persona Hints (Virtual Team) ─────────────────────────────────────────
+
+def test_pipeline_next_persona_names_the_owning_team_member():
+    docs = [{"key": "brd", "status": "Approved"}]
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot", feature="payments")
+    assert p["next_step_id"] == "use-cases"
+    assert p["next_persona"]["name"] == "Maya"
+    assert p["next_persona"]["role"] == "Business Analyst"
+    assert "payments" in p["next_persona"]["ask"]
+
+
+def test_step_persona_present_on_every_resolved_step_with_an_owner():
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot", feature="payments")
+    assert _step(p, "srd")["persona"]["name"] == "Rex"
+    assert _step(p, "design")["persona"]["name"] == "Ava"
+    assert _step(p, "release")["persona"]["name"] == "Riley"
+
+
+def test_specify_and_gate1_have_no_persona_owner():
+    """Run before any Virtual Team member takes over -- see _STEP_PERSONA's
+    docstring in status.py."""
+    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs_exist=False,
+                        plan_mode="unified", scope="pilot")
+    assert _step(p, "specify")["persona"] is None
+    assert _step(p, "gate1")["persona"] is None
+
+
+def test_micro_scope_never_gets_a_persona_hint():
+    """sdd-micro has no Virtual Team at all (see its own CLAUDE.md)."""
+    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs_exist=False,
+                        plan_mode="unified", scope=None)
+    for step in p["steps"]:
+        assert step["persona"] is None
+    assert p["next_persona"] is None
+
+
 def test_build_feature_status_includes_pipeline(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
@@ -537,3 +575,4 @@ def test_build_feature_status_includes_pipeline(tmp_path, monkeypatch):
     feat = build_feature_status(tmp_path, "payments", scope="pilot")
     assert "pipeline" in feat
     assert feat["pipeline"]["next_step_id"] == "brd"
+    assert "payments" in feat["pipeline"]["next_persona"]["ask"]

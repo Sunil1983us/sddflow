@@ -1078,6 +1078,30 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.37',
+    to:   '2.7.38',
+    description: 'Feature: Virtual Team persona hints on the sdd dashboard Full Pipeline stepper (Python CLI) -- each step owned by a named team member (Maya, Rex, Ava, Leo, Kai, Quinn, Riley) shows a name badge and a ready-to-type natural-language ask; no manifest schema changes',
+    notes: [
+      'The dashboard Full Pipeline stepper showed only raw slash ' +
+      'commands -- this adds a link back to the CLAUDE.md "Virtual Team ' +
+      '— Address by Name" convention, where addressing a team member by ' +
+      'name (e.g. "Ava, design checkout") works identically to running ' +
+      'the underlying slash command',
+      'sdd-micro has no Virtual Team at all, so it never gets a persona ' +
+      'hint',
+      'This Node CLI does not implement the dashboard -- it stays scoped ' +
+      'to init/upgrade scaffolding, per its own README; this migration ' +
+      'entry exists so both CLIs report the same sdd_version chain for ' +
+      'a given manifest.yml',
+      'This migration only bumps sdd_version — no manifest.yml field ' +
+      'changes for any pack',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.38';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

@@ -1431,6 +1431,53 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.37"},
     },
+    {
+        "from":        "2.7.37",
+        "to":          "2.7.38",
+        "description": "Feature: Virtual Team persona hints on the sdd dashboard's Full Pipeline stepper -- each step owned by a named team member (Maya, Rex, Ava, Leo, Kai, Quinn, Riley) shows a name badge and a ready-to-type natural-language ask; no manifest schema changes",
+        "notes": [
+            "User-requested: the dashboard's Full Pipeline stepper showed "
+            "only raw slash commands (e.g. 'Run /plan-design to generate "
+            "the Design') -- no link back to the CLAUDE.md 'Virtual Team "
+            "— Address by Name' convention already documented and used "
+            "throughout every pack, where addressing a team member by "
+            "name (e.g. 'Ava, design checkout') works identically to "
+            "running the underlying slash command",
+            "New _STEP_PERSONA map in status.py maps each pipeline step "
+            "id to (persona name, natural-language ask template with a "
+            "{feature} placeholder) -- e.g. brd -> (Maya, 'create the BRD "
+            "for {feature}'). Steps with no clear single owner are "
+            "intentionally absent: /specify and GATE-1 run before any "
+            "persona takes over; the runbook is a byproduct of "
+            "/implement, not something you ask for directly",
+            "build_pipeline() gained a feature: str parameter (interpolated "
+            "into each persona's ask) and now attaches a persona dict "
+            "(name, role, ask) to every resolved step plus a next_persona "
+            "field alongside the existing next_action sentence",
+            "sdd-micro has no Virtual Team at all (see its own CLAUDE.md) "
+            "-- _persona_hint() returns None unconditionally when scope "
+            "is None (the signal build_pipeline already uses to select "
+            "sdd-micro's 3-command pipeline over the standard one), so "
+            "the hint never appears there",
+            "dashboard.py: each pstep badge shows the persona's name "
+            "before its label and the full name/role/ask in its hover "
+            "tooltip; the Next box gained a second line -- e.g. "
+            "'Or just say: \"Maya, write the use cases for checkout\" "
+            "(Maya — Business Analyst)' -- rendered only when the next "
+            "step has a persona owner",
+            "Verified end-to-end against a real temp project through a "
+            "running sdd dashboard instance (not just unit tests) -- "
+            "confirmed via headless-browser screenshot in both light and "
+            "dark mode that the persona badge and Next-box ask line "
+            "render correctly",
+            "4 new tests in test_status.py covering: next_persona names "
+            "the right owner, every step with an owner carries a persona "
+            "dict, specify/gate1 have none, sdd-micro never gets a hint",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.38"},
+    },
 ]
 
 
