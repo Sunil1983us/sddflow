@@ -1450,6 +1450,33 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.53',
+    to:   '2.7.54',
+    description: "Fix: multi-line sdd review pull-answers replies were silently collapsed into one garbled line, so only the first item ever got parsed (Python CLI) -- no manifest schema changes",
+    notes: [
+      "Jira's rich-text comment editor stores each line a user types as " +
+      "a separate paragraph node, not one paragraph with embedded " +
+      "newlines -- _extract_text() previously joined every text run in " +
+      "the whole comment with a single space, collapsing a real " +
+      "multi-line reply (one 'brd:NC-NNN: answer' per line) into one " +
+      "run-on line before the per-line answer parser ever saw it",
+      "_extract_text() rewritten to preserve paragraph/heading/listItem " +
+      "boundaries as newlines; also fixes review_check's printed " +
+      "reviewer-comment display and the dashboard's Jira-comment view, " +
+      "which both used the same helper",
+      "This Node CLI does not implement sdd review pull-answers -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.54';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

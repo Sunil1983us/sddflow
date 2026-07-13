@@ -746,6 +746,62 @@ class TestParseOpenQuestions:
         assert items[0]["question"] == "Padded question?"
 
 
+class TestExtractTextPreservesLineBoundaries:
+    """Regression: user-reported. Jira's rich-text comment editor stores
+    each line a reviewer types as a SEPARATE paragraph node in the ADF
+    tree, not one paragraph with embedded newlines. _extract_text() used
+    to join every text run in the whole comment with a single space,
+    collapsing a real multi-line reply (one "{doc}:NC-{NNN}: {answer}"
+    item per line) into a single run-on line -- _ANSWER_LINE_RE's
+    per-line matching then only ever found the first item, with every
+    other item's text swallowed into its answer."""
+
+    def _multi_paragraph_adf(self, *lines):
+        return {
+            "type": "doc", "version": 1,
+            "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": line}]}
+                for line in lines
+            ],
+        }
+
+    def test_separate_paragraphs_become_separate_lines(self):
+        body = self._multi_paragraph_adf("brd:NC-001: first", "brd:NC-002: second")
+        assert review._extract_text(body) == "brd:NC-001: first\nbrd:NC-002: second"
+
+    def test_plain_string_body_unchanged(self):
+        assert review._extract_text("brd:NC-001: 90 days") == "brd:NC-001: 90 days"
+
+    def test_hard_break_within_one_paragraph_becomes_newline(self):
+        body = {
+            "type": "doc", "version": 1,
+            "content": [{"type": "paragraph", "content": [
+                {"type": "text", "text": "brd:NC-001: first"},
+                {"type": "hardBreak"},
+                {"type": "text", "text": "brd:NC-002: second"},
+            ]}],
+        }
+        assert review._extract_text(body) == "brd:NC-001: first\nbrd:NC-002: second"
+
+    def test_pull_answers_parses_all_seven_items_from_real_world_multi_line_reply(self):
+        """The exact shape of the bug report: 7 distinct answers, each its
+        own paragraph, all previously collapsing into one answer for the
+        first item only."""
+        body = self._multi_paragraph_adf(
+            "brd:NC-001:<answer one>",
+            "brd:NC-002: <answer two>",
+            "brd:NC-003: <answer three>",
+            "srd:NC-001: <answer four>",
+            "srd:NC-002: <answer five>",
+            "srd:NC-003: <answer six>",
+            "srd:NC-005: <answer seven>",
+        )
+        answers = review._parse_answers([{"body": body, "author": {}, "created": "x"}])
+        assert len(answers) == 7
+        assert answers["brd:NC-001"] == "<answer one>"
+        assert answers["srd:NC-005"] == "<answer seven>"
+
+
 class TestParseAnswers:
     def _comment(self, text, created="2026-01-01T00:00:00+00:00"):
         return {"body": text, "author": {"displayName": "PO"}, "created": created}
