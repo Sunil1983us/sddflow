@@ -683,6 +683,8 @@ sdd confluence push --all        # push all documents listed in integrations.yml
 ```
 Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page.
 
+`page_map` covers every generated doc type by default, not just the phase-gated ones — `qa-testcases`, `tasks`, `checklist`, and the living/service-level docs (`data-model`, `security-design`, `api-spec`, `component-library`) all have an entry, so `sdd confluence push --doc qa-testcases` (for example) works out of the box even though QA test cases have no Jira review gate.
+
 **On a multi-feature project — living docs get ONE page, per-feature docs get one page each.** Living/service-level documents (`data-model`, `security-design`, `api-spec`, `component-library`) always resolve to a single shared page regardless of which feature is active — that's correct, since the underlying document itself is shared. Per-feature documents (`brd`, `use-cases`, `srd`, `design`/`arch`/`hld`/`adr`, `lld`, `validate`, `analyze`, `clarify`, `release`) need `{feature}` in their `page_map` title template to get a separate page per feature — the shipped `integrations.yml.example` already includes it. If your `integrations.yml` predates this and its titles don't have `{feature}`, every feature pushing the same doc type will silently overwrite the same page — add `{feature}` to those entries to fix it.
 
 ---
@@ -709,6 +711,8 @@ sdd review check  --doc brd      # poll: exit 0=APPROVED  1=NEEDS_REVISION  2=PE
 sdd review apply  --doc brd      # re-push after addressing reviewer comments
 sdd review status                # dashboard: all documents + their current review state
 ```
+
+**The Confluence page shows the Jira link + status too.** `submit`/`check`/`apply` prepend a small panel to the top of the page — the ticket key (linked), its live status (Pending review / Needs Revision / Approved), and the assigned reviewer role — refreshed every time one of those commands runs, so a reviewer never has to leave Confluence to see where a document stands. Only shown for docs with a `document_reviews` entry; a doc pushed via `page_map` alone (no Jira gate) gets a plain page.
 
 **`sdd review status` needs Jira configured.** For a status view that works
 in **every** review mode (chat, local, or jira), run `sdd dashboard`

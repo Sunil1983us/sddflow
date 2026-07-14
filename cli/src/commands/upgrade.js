@@ -1580,6 +1580,32 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.58',
+    to:   '2.7.59',
+    description: "Feature: Confluence pages for documents under Jira review now show a live Jira link + status banner, and page_map covers every generated doc type (Python CLI) -- no manifest schema changes",
+    notes: [
+      "sdd review submit/check/apply (Python CLI) now prepend an info/" +
+      "success/warning panel to the document's Confluence page showing " +
+      "the Jira ticket link and live status, refreshed on every command " +
+      "that touches that document's review state",
+      "page_map in integrations.yml.example gained entries for " +
+      "qa-testcases, tasks, checklist, and the living/service-level docs " +
+      "(data-model, security-design, api-spec, component-library), so " +
+      "every generated doc type has a Confluence page available even " +
+      "without a Jira review gate configured for it",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.59';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
