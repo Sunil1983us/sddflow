@@ -355,7 +355,7 @@ class TestGetReviewStatusFeatureQualified:
             "key": "PROJ-1",
             "fields": {"status": {"name": "Done"}},
         }
-        status, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "auth")
+        status, _, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "auth")
         assert status == "APPROVED"
 
     def test_unqualified_label_is_not_found(self, project):
@@ -367,7 +367,7 @@ class TestGetReviewStatusFeatureQualified:
             "key": "PROJ-1",
             "fields": {"status": {"name": "Done"}},
         }
-        status, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "auth")
+        status, _, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "auth")
         assert status == "NOT_SUBMITTED"
 
     def test_different_features_do_not_collide(self, project):
@@ -376,7 +376,7 @@ class TestGetReviewStatusFeatureQualified:
             "key": "PROJ-1",
             "fields": {"status": {"name": "Done"}},
         }
-        status, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "billing")
+        status, _, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "billing")
         assert status == "NOT_SUBMITTED"
 
 
@@ -392,6 +392,7 @@ class TestGetReviewStatusFeatureQualified:
 class FakeConfluenceClient:
     def __init__(self, session=None, base_url=None):
         self.pages_by_title: dict[str, dict] = {}
+        self.body_by_title: dict[str, str] = {}
         self._next_id = 1
 
     def get_page_by_title(self, space_key, title):
@@ -401,11 +402,13 @@ class FakeConfluenceClient:
         page = {"id": str(self._next_id), "_links": {"webui": f"/pages/{self._next_id}"}}
         self._next_id += 1
         self.pages_by_title[title] = page
+        self.body_by_title[title] = body_html
         return page
 
     def upsert_page(self, space_key, title, body_html, parent_id=None):
         existing = self.get_page_by_title(space_key, title)
         if existing:
+            self.body_by_title[title] = body_html
             return existing, False
         return self.create_page(space_key, title, body_html, parent_id), True
 
@@ -684,6 +687,124 @@ class TestValidatePhaseDocKeys:
         clarify_text = (validate_phase_project / ".specify" / "features" / "auth" / "clarify.md").read_text()
         assert "Status: Approved" in clarify_text
         assert "Status: Draft" not in clarify_text
+
+
+class TestJiraStatusBanner:
+    """The Confluence page for a document under Jira review should show the
+    ticket's link + live status directly on the page, so a reviewer never
+    has to leave Confluence to see where things stand."""
+
+    def test_banner_for_pending_status(self):
+        html = review._jira_status_banner("PROJ-1", "https://x/browse/PROJ-1", "PENDING", "Product Owner")
+        assert 'ac:name="info"' in html
+        assert "PROJ-1" in html
+        assert "https://x/browse/PROJ-1" in html
+        assert "Pending review" in html
+        assert "Product Owner" in html
+
+    def test_banner_for_approved_status(self):
+        html = review._jira_status_banner("PROJ-1", "https://x/browse/PROJ-1", "APPROVED", "Architect")
+        assert 'ac:name="success"' in html
+        assert "Approved" in html
+
+    def test_banner_for_needs_revision_status(self):
+        html = review._jira_status_banner("PROJ-1", "https://x/browse/PROJ-1", "NEEDS_REVISION", "Tech Lead")
+        assert 'ac:name="warning"' in html
+        assert "Needs Revision" in html
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    @pytest.fixture()
+    def banner_project(self, project):
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nBO-001 Reduce login friction.\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{project} — BRD'\n"
+        )
+        return project
+
+    def test_submit_stamps_pending_banner_on_confluence_page(self, banner_project, runner):
+        """The first push (before the ticket exists) can't include a
+        banner -- review_submit must re-push once the ticket is created so
+        the page picks it up."""
+        from sdd.utils.atlassian_auth import Profile
+        cf_client = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+            result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        body = cf_client.body_by_title["Demo — BRD"]
+        assert "Jira review" in body
+        assert "Pending review" in body
+        assert "PROJ-" in body
+
+    def test_check_refreshes_banner_to_approved(self, banner_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-7", "fields": {"status": {"name": "Done"}},
+        }
+        cf_client = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+            result = runner.invoke(review.review_command, ["check", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        body = cf_client.body_by_title["Demo — BRD"]
+        assert "PROJ-7" in body
+        assert "Approved" in body
+
+    def test_push_doc_page_omits_banner_when_doc_not_under_jira_review(self, project, runner):
+        """qa-testcases.md (and any doc key not in document_reviews) can
+        still get a Confluence page via the page_map fallback -- it just
+        never carries a Jira banner since there's no review ticket for it."""
+        (project / ".specify" / "features" / "auth" / "qa-testcases.md").write_text(
+            "# QA Test Cases\n\nTC-001 ...\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "confluence:\n"
+            "  space_key: ENG\n"
+            "  page_map:\n"
+            "    qa-testcases: '{feature} — QA Test Cases'\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+        cf_client = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+            result = review._push_doc_page(
+                "qa-testcases",
+                project / ".specify" / "features" / "auth" / "qa-testcases.md",
+                "auth",
+            )
+
+        assert result is not None
+        title, url = result
+        assert title == "auth — QA Test Cases"
+        assert url.startswith("https://x.atlassian.net/wiki/pages/")
+        assert "Jira review" not in cf_client.body_by_title["auth — QA Test Cases"]
 
 
 class TestReviewStatusPersonaHint:

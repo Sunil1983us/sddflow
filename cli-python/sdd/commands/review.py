@@ -115,13 +115,40 @@ def _mark_md_approved(md_path: Path) -> bool:
     return True
 
 
-def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> str | None:
-    """Upsert the document's Confluence page so it reflects the approved .md.
+def _jira_status_banner(issue_key: str, issue_url: str, status: str, role: str) -> str:
+    """Confluence storage-format panel summarizing the Jira review ticket's
+    link and current status, prepended to the page body on every push so a
+    reviewer can see review state without leaving Confluence."""
+    macro_type = {"APPROVED": "success", "NEEDS_REVISION": "warning"}.get(status, "info")
+    label = {
+        "APPROVED":       "Approved",
+        "NEEDS_REVISION": "Needs Revision",
+        "PENDING":        "Pending review",
+    }.get(status, status)
+    return (
+        f'<ac:structured-macro ac:name="{macro_type}">'
+        f'<ac:rich-text-body><p>'
+        f'<strong>Jira review:</strong> '
+        f'<a href="{issue_url}">{issue_key}</a> — <strong>{label}</strong>'
+        f' (assigned: {role})'
+        f'</p></ac:rich-text-body>'
+        f'</ac:structured-macro>'
+    )
 
-    Returns the page title on success, or None when Confluence is not
-    configured. Raises on push errors — callers decide how fatal that is.
-    Page title resolution matches `sdd review submit`: document_reviews entry
-    first, then the confluence page_map, then a sensible default."""
+
+def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> tuple[str, str] | None:
+    """Upsert the document's Confluence page so it reflects the current .md.
+
+    Returns (page_title, page_url) on success, or None when Confluence is
+    not configured. Raises on push errors — callers decide how fatal that
+    is. Page title resolution matches `sdd review submit`: document_reviews
+    entry first, then the confluence page_map, then a sensible default.
+
+    When a Jira review ticket already exists for this doc (jira: configured
+    and document_reviews has an entry for it), a status banner linking to
+    that ticket is prepended to the page body -- this is what lets a
+    reviewer see the Jira link + current status directly on Confluence
+    instead of having to check Jira separately."""
     try:
         cfg = load_integrations()
     except FileNotFoundError:
@@ -147,16 +174,33 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> str | None:
     prof      = load_profile(cfg.profile)
     session   = build_session(prof)
     cf_client = ConfluenceClient(session, prof.base_url)
+
+    banner = ""
+    if cfg.jira and doc in cfg.document_reviews:
+        try:
+            jira_client = JiraClient(session, prof.base_url)
+            status, _, issue = _get_review_status(
+                doc, jira_client, cfg.jira.key_for("review"), cfg, feature_name,
+            )
+            if issue:
+                issue_url = f"{prof.base_url}/browse/{issue['key']}"
+                banner = _jira_status_banner(
+                    issue["key"], issue_url, status, cfg.document_reviews[doc].reviewer_role,
+                )
+        except Exception:
+            pass  # banner is a best-effort addition -- never blocks the page push itself
+
     body_html, attachments, diagram_warnings = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
     from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
     parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
     page, _created = cf_client.upsert_page(
-        cfg.confluence.space_key, title, body_html, parent_id,
+        cfg.confluence.space_key, title, banner + body_html, parent_id,
     )
     upload_diagram_attachments(cf_client, page["id"], attachments)
     for w in diagram_warnings:
         console.print(f"  [yellow]!  {w}[/yellow]")
-    return title
+    page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
+    return title, page_url
 
 
 # ── Text extraction ────────────────────────────────────────────────────────────
@@ -231,29 +275,32 @@ def _get_review_status(
     project_key: str,
     cfg: IntegrationsConfig,
     feature_name: str,
-) -> tuple[str, list[dict]]:
-    """Return (status, comments).
+) -> tuple[str, list[dict], dict | None]:
+    """Return (status, comments, issue).
     status: APPROVED | NEEDS_REVISION | PENDING | NOT_SUBMITTED
+    issue is the raw Jira issue dict (or None if never submitted) -- callers
+    that also need the issue key/link (e.g. the Confluence status banner)
+    reuse this instead of a second find_by_label lookup.
 
     Label is feature-qualified — must match the label `review_submit` writes,
     or a submitted review would never be found again.
     """
     issue = client.find_by_label(project_key, f"sdd-doc:{feature_name}:{doc_key}")
     if not issue:
-        return "NOT_SUBMITTED", []
+        return "NOT_SUBMITTED", [], None
 
     jira_status = issue.get("fields", {}).get("status", {}).get("name", "")
     comments    = client.get_comments(issue["key"])
 
     if jira_status in cfg.approved_statuses:
-        return "APPROVED", comments
+        return "APPROVED", comments, issue
 
     for c in comments:
         text = _extract_text(c.get("body", "")).lower()
         if any(kw in text for kw in cfg.approved_keywords):
-            return "APPROVED", comments
+            return "APPROVED", comments, issue
 
-    return ("NEEDS_REVISION" if comments else "PENDING"), comments
+    return ("NEEDS_REVISION" if comments else "PENDING"), comments, issue
 
 
 def _check_predecessor(
@@ -275,7 +322,7 @@ def _check_predecessor(
     if not preds:
         return True, None
     pred_key = preds[0]
-    status, _ = _get_review_status(pred_key, client, cfg.jira.key_for("review"), cfg, feature_name)
+    status, _, _ = _get_review_status(pred_key, client, cfg.jira.key_for("review"), cfg, feature_name)
     return (status == "APPROVED"), (None if status == "APPROVED" else pred_key)
 
 
@@ -688,6 +735,16 @@ def review_submit(doc, profile, feature):
 
     _record_review_link(doc, story_key)
 
+    # ── Re-push Confluence with the now-existing Jira link/status banner ──────
+    # The first push above (before the ticket existed) couldn't include this --
+    # _push_doc_page's own find-by-label lookup will now find the ticket just
+    # created/updated and prepend a banner showing its link + live status, so
+    # a reviewer sees Jira state without leaving Confluence.
+    try:
+        _push_doc_page(doc, md_path, feature_name)
+    except Exception as e:
+        console.print(f"  [yellow]!  Could not stamp Jira status onto Confluence: {e}[/yellow]")
+
     if epic_key:
         _link_review_story_to_epic(jira_client, story_key, epic_key, cfg.jira)
 
@@ -774,7 +831,9 @@ def review_push_questions(doc, profile, feature):
     page_title = None
     if cfg.confluence:
         try:
-            page_title = _push_doc_page(doc, md_path, feature_name)
+            pushed = _push_doc_page(doc, md_path, feature_name)
+            if pushed:
+                page_title, _page_url = pushed
         except Exception as e:
             console.print(f"  [yellow]!  Confluence push failed: {e}[/yellow]")
 
@@ -973,8 +1032,9 @@ def review_pull_answers(doc, profile, feature):
         if cfg.confluence:
             for doc_key, loc_path in patched_paths.items():
                 try:
-                    title = _push_doc_page(doc_key, loc_path, feature_name)
-                    if title:
+                    pushed = _push_doc_page(doc_key, loc_path, feature_name)
+                    if pushed:
+                        title, _page_url = pushed
                         console.print(f"  [green]✓[/green]  Confluence page refreshed: [cyan]{title}[/cyan]")
                 except Exception as e:
                     console.print(f"  [yellow]!  Could not refresh Confluence page for {doc_key}: {e}[/yellow]")
@@ -1030,9 +1090,21 @@ def review_check(doc, profile, feature):
         raise SystemExit(3)
 
     client  = JiraClient(session, prof.base_url)
-    status, comments = _get_review_status(doc, client, cfg.jira.key_for("review"), cfg, feature_name)
+    status, comments, _ = _get_review_status(doc, client, cfg.jira.key_for("review"), cfg, feature_name)
     doc_cfg = cfg.document_reviews.get(doc)
     role    = doc_cfg.reviewer_role if doc_cfg else "reviewer"
+
+    # ── Refresh the Confluence status banner to match what we just polled ─────
+    # Best-effort: a reviewer who only looks at Confluence (never Jira
+    # directly) should see the same status this command just printed, without
+    # having to wait for the next `sdd review submit`/`apply`/`approve`.
+    if cfg.confluence:
+        try:
+            md_path = resolve_doc_path(doc, feature_name)
+            if md_path.exists():
+                _push_doc_page(doc, md_path, feature_name)
+        except Exception:
+            pass
 
     if status == "APPROVED":
         console.print(f"  [green]✓  {doc.upper()} — APPROVED[/green]")
@@ -1164,8 +1236,9 @@ def review_approve(doc, local, by, note, feature, no_confluence):
             try:
                 manifest     = read_manifest() or {}
                 feature_name = feature or (manifest.get("project") or {}).get("feature", "")
-                title = _push_doc_page(doc, md_path, feature_name)
-                if title:
+                pushed = _push_doc_page(doc, md_path, feature_name)
+                if pushed:
+                    title, _page_url = pushed
                     console.print(f"  [green]✓[/green]  Confluence page updated: [cyan]{title}[/cyan]")
                 else:
                     console.print("  [dim]·  Confluence not configured — page not updated[/dim]")
@@ -1234,31 +1307,21 @@ def review_apply(doc, profile, feature):
         console.print(f"  [red]✗  '{doc}' not found in document_reviews[/red]")
         raise SystemExit(1)
 
-    project_name = proj.get("name", "Project")
-
     jira_client = JiraClient(session, prof.base_url)
-    cf_client   = ConfluenceClient(session, prof.base_url)
 
-    # Re-push updated doc
+    # Re-push updated doc (picks up the Jira link/status banner automatically,
+    # since the review ticket from the original `sdd review submit` already exists)
     try:
         md_path = resolve_doc_path(doc, feature_name)
     except ValueError as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
-    page_url     = ""
+    page_url = ""
     if md_path.exists():
-        page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
-        body_html, attachments, diagram_warnings = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
-        from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
-        parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
-        page, _    = cf_client.upsert_page(
-            cfg.confluence.space_key, page_title, body_html, parent_id,
-        )
-        upload_diagram_attachments(cf_client, page["id"], attachments)
-        page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
-        console.print(f"  [green]✓[/green]  Confluence updated: [cyan]{page_title}[/cyan]")
-        for w in diagram_warnings:
-            console.print(f"  [yellow]!  {w}[/yellow]")
+        pushed = _push_doc_page(doc, md_path, feature_name)
+        if pushed:
+            page_title, page_url = pushed
+            console.print(f"  [green]✓[/green]  Confluence updated: [cyan]{page_title}[/cyan]")
     else:
         console.print(f"  [dim]·[/dim]  {md_path} not found — skipping Confluence update")
 
@@ -1338,7 +1401,7 @@ def review_status(profile, feature):
                 icon, label, style = "🔒", "Blocked", "dim"
                 all_statuses[key] = "BLOCKED"
             else:
-                st, _ = _get_review_status(key, client, cfg.jira.key_for("review"), cfg, feature_name)
+                st, _, _ = _get_review_status(key, client, cfg.jira.key_for("review"), cfg, feature_name)
                 all_statuses[key] = st
                 if st == "APPROVED":
                     icon, label, style = "✓ ", "Approved",       "green"

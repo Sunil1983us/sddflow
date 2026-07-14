@@ -198,6 +198,13 @@ confluence:
     validate:  "{feature} — Validation Report"
     analyze:   "{feature} — Analysis Report"
     clarify:   "{feature} — Clarifications"
+    tasks:     "{feature} — Tasks"
+    checklist: "{feature} — QA Checklist"
+    qa-testcases: "{feature} — QA Test Cases"
+    data-model:        "Data Model"          # living — no {feature}, nests under {project}
+    security-design:   "Security Design"     # living — no {feature}, nests under {project}
+    api-spec:          "API Specification"   # living — no {feature}, nests under {project}
+    component-library: "Component Library"   # living — no {feature}, nests under {project}
     # release:  "{feature} — Release Notes"
 
   # Diagram rendering: Confluence has NO native Mermaid or PlantUML

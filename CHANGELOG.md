@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.59] — 2026-07-14 (Feature: Confluence pages now show a live Jira link + status banner; page_map covers every generated doc type)
+
+### Added
+
+- **User asked why a document pushed to Jira for review didn't also get its
+  Confluence page updated with the Jira link and status, so a reviewer could
+  check progress without leaving Confluence — the two pushes previously
+  happened in unrelated code paths, so the Confluence page only ever
+  mirrored the `.md` content, never the Jira ticket's state.**
+  - `sdd review submit` / `check` / `apply` now prepend a small info /
+    success / warning panel to the top of the document's Confluence page:
+    the Jira ticket key (linked), its live status (Pending review / Needs
+    Revision / Approved), and the assigned reviewer role.
+  - The banner is refreshed every time the CLI touches that document's
+    review state — `submit` re-pushes once the ticket exists (the first
+    push, before the ticket exists, can't include it yet), `check`
+    refreshes it to match whatever status was just polled, and `apply`
+    picks it up automatically as part of its existing re-push.
+  - Only applies to doc keys with a `document_reviews` entry (i.e. actually
+    under Jira review) — a doc pushed via the `page_map` fallback alone (no
+    Jira gate configured for it) still gets a plain page, unchanged.
+- **User also asked for a Confluence page for "QA test case etc — whatever
+  there in local md file" — not every generated document had a `page_map`
+  entry at all.**
+  - `integrations.yml.example`'s `page_map` now also covers `qa-testcases`,
+    `tasks`, `checklist`, and the 4 living/service-level docs (`data-model`,
+    `security-design`, `api-spec`, `component-library`) — `sdd confluence
+    push --doc <key>` (or the auto-push on approval) now works for all of
+    them, not just the phase-gated documents.
+  - These new entries are `page_map`-only (no `document_reviews`) unless a
+    team adds their own reviewer config — a Confluence page doesn't require
+    a Jira review gate.
+- 6 new tests covering the banner HTML per status, `submit` stamping a
+  Pending banner once the ticket exists, `check` refreshing an existing
+  page to Approved, and the `page_map`-fallback path (no Jira gate) omitting
+  the banner entirely.
+
+---
+
 ## [2.7.58] — 2026-07-13 (Feature: analyze.md and clarify.md can now go through the same Jira/Confluence review gate as brd/srd/etc)
 
 ### Added

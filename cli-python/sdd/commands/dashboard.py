@@ -682,7 +682,7 @@ def _fetch_review_links(feature: str) -> dict:
             try:
                 issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc_key}")
                 if issue:
-                    review_status, comments = _get_review_status(
+                    review_status, comments, _ = _get_review_status(
                         doc_key, jira_client, cfg.jira.key_for("review"), cfg, feature,
                     )
                     entry["jira"] = {

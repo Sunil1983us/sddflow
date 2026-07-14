@@ -43,10 +43,16 @@ def test_shipped_example_parses_and_agrees_with_defaults():
     # it also documents the optional "validate" phase (validate/analyze/
     # clarify), which "sdd config init" deliberately leaves out since it
     # needs reviewer info the wizard doesn't collect (see review-gates.md:
-    # "each optional individually").
+    # "each optional individually"), plus page_map entries for doc keys
+    # that don't have a Jira review gate at all (qa-testcases, tasks,
+    # checklist, and the living/service-level docs) -- those only need a
+    # Confluence page, which page_map alone is enough to provide.
     assert set(EXPECTED_DOC_KEYS) <= set(data["confluence"]["page_map"])
-    assert set(data["confluence"]["page_map"]) - set(EXPECTED_DOC_KEYS) == \
-        {"validate", "analyze", "clarify"}
+    assert set(data["confluence"]["page_map"]) - set(EXPECTED_DOC_KEYS) == {
+        "validate", "analyze", "clarify",
+        "tasks", "checklist", "qa-testcases",
+        "data-model", "security-design", "api-spec", "component-library",
+    }
     # active document_reviews ships in unified mode: design yes, arch/hld/adr commented
     reviews = data["document_reviews"]
     assert "use-cases" in reviews and "design" in reviews

@@ -2306,6 +2306,42 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.58"},
     },
+    {
+        "from":        "2.7.58",
+        "to":          "2.7.59",
+        "description": "Feature: Confluence pages for documents under Jira review now show a live Jira link + status banner, and page_map covers every generated doc type (qa-testcases, tasks, checklist, and the living/service docs) -- no manifest schema changes",
+        "notes": [
+            "User asked why a doc pushed to Jira for review didn't also "
+            "get its Confluence page stamped with the ticket link/status "
+            "so a reviewer could see it without leaving Confluence -- the "
+            "page only ever mirrored the .md content, never the Jira "
+            "state, since the two pushes happened in unrelated code paths",
+            "sdd review submit/check/apply now prepend a small info/"
+            "success/warning panel (via the new _push_doc_page banner) "
+            "showing the ticket key, link, and live status (Pending/"
+            "Needs Revision/Approved) -- refreshed every time the CLI "
+            "touches that document's review state, so it never goes "
+            "stale between submit and the reviewer's eventual decision",
+            "Only applies to doc keys with a document_reviews entry (i.e. "
+            "actually under Jira review) -- docs pushed via the page_map "
+            "fallback alone (no Jira gate configured) get a plain page, "
+            "same as before",
+            "User also asked for a Confluence page for 'QA test case etc "
+            "-- whatever there in local md file' -- page_map in "
+            "integrations.yml.example now also covers qa-testcases, "
+            "tasks, checklist, and the 4 living/service-level docs "
+            "(data-model, security-design, api-spec, component-library), "
+            "so `sdd confluence push --doc <key>` works for all of them, "
+            "not just the phase-gated documents",
+            "6 new tests: banner HTML per status, submit stamps a Pending "
+            "banner once the ticket exists, check refreshes an existing "
+            "page to Approved, and the page_map fallback path (no Jira "
+            "gate) omits the banner entirely",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.59"},
+    },
 ]
 
 
