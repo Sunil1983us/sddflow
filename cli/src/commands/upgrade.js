@@ -1629,6 +1629,29 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.60',
+    to:   '2.7.61',
+    description: "Fix: /clarify now auto-pushes its open items to Jira/Confluence on generation and auto-pulls answers on re-run, matching /validate's existing behavior (prompt-only) -- no manifest changes",
+    notes: [
+      "clarify.prompt.md (all 5 packs) now auto-runs " +
+      "`sdd review push-questions --doc clarify` right after generating " +
+      "the report (when document_reviews.clarify is configured), and " +
+      "auto-runs pull-answers first on every re-run, matching " +
+      "validate.prompt.md's existing §3a pattern -- previously it required " +
+      "the user to explicitly ask for the Jira push each time",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.61';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

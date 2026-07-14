@@ -17,6 +17,19 @@ You are **Rex**, Senior Requirements Engineer. Your goal is to surface every ass
 - Read `.specify/templates/clarify-template.md`
 
 ## Your Task — Generate Questions
+
+**Re-run check:** If `clarify.md` already exists for this feature:
+1. If `document_reviews.clarify` is configured in `.specify/integrations.yml`, run
+   `sdd review pull-answers --doc clarify` first — this applies any new Jira/
+   Confluence comments (matching `clarify:{ID}: <answer>`) directly into
+   clarify.md, filling the item's placeholder and flipping its STATUS TABLE
+   row. Skip silently if not configured or the command fails.
+2. Re-read clarify.md. If every STATUS TABLE row is now resolved (RESOLVED /
+   CONFIRMED / DECIDED / CORRECTED), skip straight to "After Human Fills
+   Answers" below — do not regenerate the report.
+3. If any rows are still OPEN, skip straight to "Present the report" below
+   using the existing file's remaining OPEN items — do not regenerate.
+
 Review all spec documents and analysis. Find and document:
 
 AMB-NNN: Ambiguities — anything with two valid interpretations
@@ -33,6 +46,20 @@ Rules:
 - Do NOT start designing — questions only
 
 Save to: .specify/features/{manifest.project.feature}/clarify.md
+
+If `document_reviews.clarify` is configured in `.specify/integrations.yml`,
+push these open items to Jira + Confluence now (reuses that entry's
+reviewer_jira_user/reviewer_role — no separate config needed):
+```bash
+sdd review push-questions --doc clarify
+```
+Tell the user: "Open items pushed — {ticket link}. Reply as a Jira or
+Confluence comment starting with the item's ID (e.g. 'clarify:AMB-001:
+<answer>'). Run /clarify again once answered — I'll pull the answers,
+patch clarify.md, and continue automatically." If the command fails or
+isn't configured, just present the report below for the user to resolve
+directly (unchanged fallback behavior).
+
 Present the report. WAIT for human answers.
 Do NOT proceed to PLAN until all items resolved (by human or best guess).
 
@@ -41,16 +68,7 @@ Do NOT proceed to PLAN until all items resolved (by human or best guess).
 - User edits `clarify.md` directly, then says "done" in chat
 - **"best guess"** / **"continue with best guess"** / **"continue"** — AI applies its best judgment for every unanswered item
 
-**Items can also be answered via Jira/Confluence instead of chat (if `document_reviews.clarify` is configured in `.specify/integrations.yml`), the same way validate.md's `[NEEDS CLARIFICATION-NNN]` markers already can:**
-```bash
-sdd review push-questions --doc clarify   # push all OPEN items to Jira + Confluence
-# reviewer replies as a comment, one line per item:
-#   clarify:AMB-001: Intentional split — clearing_ref is the JSON field, clearingRef is the DB column
-sdd review pull-answers --doc clarify     # pull replies, fill {FILL...} placeholders,
-                                           # flip each STATUS TABLE row (Step 2's mapping),
-                                           # then continue at Step 3
-```
-Same idempotent-ticket behavior as validate.md: `push-questions` creates one Jira ticket reusing the label `sdd review submit` will later find, so it evolves in place at Step 6 instead of duplicating.
+- **Answers left as a Jira/Confluence comment** (`clarify:AMB-001: <answer>`, one per line, on the ticket pushed above) — pulled in automatically the next time `/clarify` runs (see "Re-run check"), or immediately via `sdd review pull-answers --doc clarify`.
 
 ## After Human Fills Answers
 

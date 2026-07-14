@@ -2380,6 +2380,33 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.60"},
     },
+    {
+        "from":        "2.7.60",
+        "to":          "2.7.61",
+        "description": "Fix: /clarify now auto-pushes its open items to Jira/Confluence on generation and auto-pulls answers on re-run, matching /validate's existing behavior -- prompt-only, no CLI or manifest changes",
+        "notes": [
+            "The 2.7.60 clarify Jira-answers feature only wired the CLI "
+            "(push-questions/pull-answers) to understand clarify.md's STATUS "
+            "TABLE -- it left clarify.prompt.md requiring the user to "
+            "explicitly ask for the Jira push each time, unlike "
+            "validate.prompt.md's §3a, which pushes automatically the "
+            "moment it detects open items and pulls automatically at the "
+            "start of every re-run",
+            "clarify.prompt.md (all 5 packs) now: (1) at the top of 'Your "
+            "Task', if clarify.md already exists, runs pull-answers first "
+            "and skips regeneration if everything is now resolved; (2) "
+            "right after saving a freshly generated clarify.md, "
+            "auto-runs `sdd review push-questions --doc clarify` when "
+            "document_reviews.clarify is configured, before presenting "
+            "the report to the user",
+            "'Accepted reply forms' simplified accordingly -- Jira/"
+            "Confluence answers are now just another accepted reply form "
+            "(pulled in automatically), not a separate manual opt-in step",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.61"},
+    },
 ]
 
 

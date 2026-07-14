@@ -4,6 +4,28 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.61] — 2026-07-14 (Fix: /clarify auto-pushes to Jira/Confluence on generation, auto-pulls on re-run — matching /validate)
+
+### Fixed
+
+- **The 2.7.60 clarify Jira-answers feature only wired the CLI
+  (`push-questions`/`pull-answers`) to understand `clarify.md`'s STATUS
+  TABLE — it left `clarify.prompt.md` requiring the user to explicitly ask
+  for the Jira push every time, unlike `validate.prompt.md`'s §3a, which
+  pushes automatically the moment it detects open items and pulls
+  automatically at the start of every re-run.**
+  - `clarify.prompt.md` (all 5 packs) now: at the top of "Your Task", if
+    `clarify.md` already exists, runs `pull-answers` first and skips
+    straight to "After Human Fills Answers" if everything is now resolved;
+    and right after saving a freshly generated `clarify.md`, auto-runs
+    `sdd review push-questions --doc clarify` when
+    `document_reviews.clarify` is configured, before presenting the report.
+  - "Accepted reply forms" simplified accordingly — Jira/Confluence
+    answers are now just another accepted reply form (pulled in
+    automatically), not a separate manual opt-in step.
+
+---
+
 ## [2.7.60] — 2026-07-14 (Feature: clarify.md's own open items can be answered via Jira/Confluence, same as validate.md)
 
 ### Added
