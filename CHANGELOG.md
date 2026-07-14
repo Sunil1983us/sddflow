@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.62] — 2026-07-14 (Fix: clarify.md re-syncs affected documents to Confluence/Jira; sdd review apply no longer requires both integrations; new confluence push --summary)
+
+### Fixed
+
+- **User found that when `/clarify` applies an answer to another spec
+  document (brd/srd/use-cases, Step 4), that document was updated locally
+  and its `.summary.md` regenerated, but the change never reached
+  Confluence or notified that document's own Jira reviewer — only
+  `clarify.md` itself was ever kept in sync.**
+  - `clarify.prompt.md` (all 5 packs) Step 4 now runs
+    `sdd review apply --doc {doc}` for each affected document right after
+    bumping its version — this re-pushes the updated content to that
+    document's **own** Confluence page and posts a "please re-review"
+    comment on its **own** Jira ticket, independent of `clarify.md`'s
+    ticket. Skips silently if not configured.
+  - `sdd review apply` no longer hard-requires both `jira:` and
+    `confluence:` sections (it previously errored out entirely on a
+    confluence-only or jira-only project) — it now does whichever half is
+    actually configured, matching the rest of the framework's
+    confluence-is-independently-optional design.
+
+### Added
+
+- **User also asked to push `.summary.md` files to Confluence under their
+  own document, not just the full `.md`.**
+  - New `sdd confluence push --doc {doc} --summary` pushes `{doc}.summary.md`
+    (if it exists) to a separate page titled "… — Summary", leaving the
+    full document's own page untouched.
+  - `clarify.prompt.md` Step 5 now auto-runs this for `clarify.summary.md`
+    when `confluence:` is configured.
+- 10 new tests: confluence-only and jira-only `review apply` paths, and 4
+  covering the `--summary` flag (push, full-doc-unaffected, missing-file
+  skip, dry-run).
+
+---
+
 ## [2.7.61] — 2026-07-14 (Fix: /clarify auto-pushes to Jira/Confluence on generation, auto-pulls on re-run — matching /validate)
 
 ### Fixed

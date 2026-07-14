@@ -103,10 +103,28 @@ For each spec document with content affected by a resolved item:
 4. Append to the document's `## Version History`:
    `| {new version} | {today} | /clarify | {ID} resolved: {1-sentence summary} | — |`
 5. Regenerate the document's `.summary.md` (max SUMMARY_MAX_LINES lines)
+6. Re-sync that document everywhere it's tracked — the edits above only
+   touched the local file, so Confluence and the reviewer would otherwise
+   go stale:
+   ```bash
+   sdd review apply --doc {doc}
+   ```
+   This re-pushes the updated content to that document's own Confluence
+   page (if `confluence:` is configured) and posts a "please re-review"
+   comment on its own Jira review ticket (if `jira:` is configured and a
+   ticket exists) — independent of clarify.md's own ticket. Skip silently
+   if the command fails or neither integration is configured.
 
 ### Step 5 — Regenerate clarify.summary.md
 
 Write `.specify/features/{manifest.project.feature}/clarify.summary.md` — confirm all items RESOLVED. If any items were resolved by best guess, list them so the Plan-Design reviewer is aware.
+
+If `confluence:` is configured in `.specify/integrations.yml`, also push this
+summary to its own Confluence page:
+```bash
+sdd confluence push --doc clarify --summary
+```
+Skip silently if the command fails or Confluence isn't configured.
 
 ### Step 6 — Stakeholder Review and Approval
 

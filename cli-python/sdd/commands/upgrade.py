@@ -2407,6 +2407,43 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.61"},
     },
+    {
+        "from":        "2.7.61",
+        "to":          "2.7.62",
+        "description": "Fix: clarify.md's Step 4 now re-syncs affected documents to Confluence/Jira after applying an answer, sdd review apply no longer requires both jira: and confluence:; new sdd confluence push --summary pushes a doc's .summary.md to its own page -- no manifest schema changes",
+        "notes": [
+            "User found 3 issues with the clarify Jira-answers flow: (1) "
+            "when an answer got applied to brd/srd/use-cases (Step 4), "
+            "those documents were updated locally and their .summary.md "
+            "regenerated, but the change never reached Confluence or "
+            "notified that document's own Jira reviewer; (2) same root "
+            "cause, described as 'status not updating, only summary is "
+            "created'; (3) enhancement request -- push .summary.md files "
+            "to their own Confluence page too",
+            "clarify.prompt.md (all 5 packs) Step 4 now runs `sdd review "
+            "apply --doc {doc}` for each affected document right after "
+            "bumping its version -- this re-pushes the updated content to "
+            "that document's OWN Confluence page and posts a 'please "
+            "re-review' comment on its OWN Jira ticket, independent of "
+            "clarify.md's ticket. Skips silently if not configured",
+            "review_apply no longer hard-requires both jira: and "
+            "confluence: sections (previously errored out entirely on a "
+            "confluence-only or jira-only project) -- it now does "
+            "whichever half is actually configured, matching the rest of "
+            "the framework's confluence-is-independently-optional design",
+            "New `sdd confluence push --doc {doc} --summary` pushes "
+            "{doc}.summary.md (if it exists) to a separate page titled "
+            "'... — Summary', leaving the full doc's own page untouched. "
+            "clarify.prompt.md Step 5 now auto-runs this for "
+            "clarify.summary.md when confluence: is configured",
+            "10 new tests: confluence-only and jira-only review_apply "
+            "paths, and 4 covering the --summary flag (push, full-doc-"
+            "unaffected, missing-summary-file skip, dry-run)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.62"},
+    },
 ]
 
 

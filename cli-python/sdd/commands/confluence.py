@@ -126,8 +126,11 @@ def confluence_command():
 @click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
 @click.option("--doc",     default=None,
               help="Push a single doc only (e.g. hld, brd, arch, runbook)")
+@click.option("--summary", is_flag=True, default=False,
+              help="Push each doc's .summary.md to its own page (title suffixed "
+                   "' — Summary') instead of the full .md")
 @click.option("--dry-run", is_flag=True, help="Print page titles without calling the API")
-def confluence_push(profile, feature, doc, dry_run):
+def confluence_push(profile, feature, doc, summary, dry_run):
     """Publish SDD documents to Confluence pages (create or update)."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
@@ -167,10 +170,14 @@ def confluence_push(profile, feature, doc, dry_run):
         except ValueError as e:
             console.print(f"  [red]✗  {e}[/red]")
             raise SystemExit(1)
+        if summary:
+            md_path = md_path.parent / f"{md_path.stem}.summary.md"
         if not md_path.exists():
-            console.print(f"  [dim]·[/dim]  {key}.md not found — skipped")
+            console.print(f"  [dim]·[/dim]  {md_path.name} not found — skipped")
             continue
         title = _resolve_page_title(key, project_name, feature_name, page_map)
+        if summary:
+            title = f"{title} — Summary"
         available.append((key, md_path, title))
 
     if not available:

@@ -676,8 +676,9 @@ After generating a spec document:
 sdd confluence push --doc brd    # push BRD to Confluence as a formatted page
 sdd confluence push --doc srd    # push SRD
 sdd confluence push --all        # push all documents listed in integrations.yml page_map
+sdd confluence push --doc brd --summary   # push brd.summary.md to its own "... — Summary" page
 ```
-Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page.
+Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page. `--summary` pushes the shorter `.summary.md` (if one exists) to a separate page — the full doc's own page is untouched, so you get both a detailed page and a quick-read one in Confluence.
 
 `page_map` covers every generated doc type by default, not just the phase-gated ones — `qa-testcases`, `tasks`, `checklist`, and the living/service-level docs (`data-model`, `security-design`, `api-spec`, `component-library`) all have an entry, so `sdd confluence push --doc qa-testcases` (for example) works out of the box even though QA test cases have no Jira review gate.
 
@@ -724,6 +725,8 @@ usage per feature, plus Approve/comment buttons that update the same
 2. Run `/address-review --doc brd` — agent reads comments, proposes updates, you approve
 3. `sdd review apply --doc brd` — re-pushes the updated page to Confluence
 4. Reviewer re-approves → `sdd review check --doc brd` exits 0 (APPROVED)
+
+**`sdd review apply` works with just one integration configured too** — Confluence-only (no `jira:` section) still re-pushes the page; Jira-only (no `confluence:` section) still posts the "please re-review" comment. It no longer hard-requires both.
 
 Configure reviewers (Jira accountId per document) in `.specify/integrations.yml`. Run `sdd config init` to generate this file interactively, or copy `.specify/integrations.yml.example` and edit it.
 

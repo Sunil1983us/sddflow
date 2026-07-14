@@ -1652,6 +1652,31 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.61',
+    to:   '2.7.62',
+    description: "Fix: clarify.md's Step 4 re-syncs affected documents to Confluence/Jira; sdd review apply no longer requires both jira: and confluence:; new sdd confluence push --summary (Python CLI) -- no manifest changes",
+    notes: [
+      "clarify.prompt.md (all 5 packs) Step 4 now runs " +
+      "`sdd review apply --doc {doc}` for each spec document an answer " +
+      "was applied to, so the change reaches that document's own " +
+      "Confluence page and Jira reviewer, not just the local file",
+      "sdd review apply (Python CLI) no longer requires both jira: and " +
+      "confluence: configured -- it does whichever half is actually set up",
+      "New sdd confluence push --doc {doc} --summary (Python CLI) pushes " +
+      "a doc's .summary.md to its own Confluence page",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.62';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
