@@ -156,6 +156,19 @@ When the user replies with any approval signal — **'approved'**, **'approve'**
      version (a pure approval doesn't bump it — only an assumption
      correction in §3 above does):
      `| {current version} | {today} | {jira or chat} | Approved | — |`
+   - **Never** use this document-level approval signal to also check any
+     of the per-item confirmation checkboxes in §1 (Reviewer Confirms),
+     §2 (BA Confirms / PO Confirms), §3 (Correct?), §3a (Business
+     Scenario Correct?), or §4 (Scope Confirmation). Those require the
+     named reviewer to have actually addressed that *specific* item —
+     a blanket "approved" reply, a Jira status flip to Done/Closed, or a
+     comment thread that only answered NEEDS CLARIFICATION questions is
+     not itemized evidence for them. If any of those boxes are still
+     `[ ]` when the header flips to Approved, leave them `[ ]` and add a
+     note under §5: "Approved as a whole document; items in §1–§4 were
+     not itemized during review." Only check a specific box when you can
+     point to the actual reviewer statement that confirmed that exact
+     item.
 3. Re-save `validate.md` and regenerate `validate.summary.md`.
 4. Ask once: "Recording the approval — approver name/role and an optional comment?"
    (defaults: the accountable role for this gate in roles.yml; "approved in chat")

@@ -577,6 +577,115 @@ class TestReviewApplyRecordsLink:
         assert review._load_review_links() == {}
 
 
+class TestValidatePhaseDocKeys:
+    """analyze.md and clarify.md are just as generic to the review-gate
+    CLI as brd/srd/etc -- resolve_doc_path/review_submit/review_approve
+    have no doc-key allowlist, so wiring them up is purely a matter of
+    integrations.yml document_reviews entries (phase: validate,
+    sequence 1/2/3 for validate/analyze/clarify) plus the prompt-side
+    Step B/C sections. These tests guard against a future regression
+    where someone hard-codes a doc-key allowlist into the CLI and
+    silently breaks this."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    @pytest.fixture()
+    def validate_phase_project(self, project):
+        (project / ".specify" / "features" / "auth" / "validate.md").write_text(
+            "# Validation Report\n> Version: 1.0 | Status: Draft\n\nBody.\n"
+        )
+        (project / ".specify" / "features" / "auth" / "analyze.md").write_text(
+            "# Analysis Report\n> Version: 1.0 | Status: Draft\n\nBody.\n"
+        )
+        (project / ".specify" / "features" / "auth" / "clarify.md").write_text(
+            "# Clarification Report\n> Version: 1.0 | Status: Draft\n\nBody.\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  validate:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: validate\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{feature} — Validation Report'\n"
+            "  analyze:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Tech Lead'\n"
+            "    phase: validate\n"
+            "    sequence: 2\n"
+            "    confluence_page: '{feature} — Analysis Report'\n"
+            "  clarify:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Architect'\n"
+            "    phase: validate\n"
+            "    sequence: 3\n"
+            "    confluence_page: '{feature} — Clarifications'\n"
+        )
+        return project
+
+    def test_submit_works_for_analyze_and_clarify_doc_keys(self, validate_phase_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        # Satisfy the sequence gate for both: validate approved before
+        # analyze submits, analyze approved before clarify submits.
+        fake_jira.by_label["sdd-doc:auth:validate"] = {
+            "key": "PROJ-1", "fields": {"status": {"name": "Done"}},
+        }
+        fake_jira.by_label["sdd-doc:auth:analyze"] = {
+            "key": "PROJ-2", "fields": {"status": {"name": "Done"}},
+        }
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            r_analyze = runner.invoke(review.review_command, ["submit", "--doc", "analyze"])
+            r_clarify = runner.invoke(review.review_command, ["submit", "--doc", "clarify"])
+
+        assert r_analyze.exit_code == 0, r_analyze.output
+        assert r_clarify.exit_code == 0, r_clarify.output
+        links = review._load_review_links()
+        assert links["analyze"]["key"].startswith("PROJ-")
+        assert links["clarify"]["key"].startswith("PROJ-")
+
+    def test_analyze_submission_blocked_until_validate_approved(self, validate_phase_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:validate"] = {
+            "key": "PROJ-1", "fields": {"status": {"name": "In Review"}},
+        }
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            result = runner.invoke(review.review_command, ["submit", "--doc", "analyze"])
+
+        assert result.exit_code == 1
+        assert "VALIDATE is not yet approved" in result.output
+
+    def test_review_approve_local_flips_clarify_status_header(self, validate_phase_project, runner):
+        """Regression: clarify-template.md's header used to say
+        'Status: OPEN' instead of 'Status: Draft' -- _mark_md_approved's
+        regex only recognizes Draft/Proposed, so the header would have
+        silently never flipped to Approved. Confirms the template fix
+        (OPEN -> Draft) makes the standard approval flow work for
+        clarify.md exactly like every other document."""
+        result = runner.invoke(review.review_command, [
+            "approve", "--doc", "clarify", "--local", "--by", "Architect", "--no-confluence",
+        ])
+        assert result.exit_code == 0, result.output
+        clarify_text = (validate_phase_project / ".specify" / "features" / "auth" / "clarify.md").read_text()
+        assert "Status: Approved" in clarify_text
+        assert "Status: Draft" not in clarify_text
+
+
 class TestReviewStatusPersonaHint:
     """`sdd review status` -- same Virtual Team persona hint the dashboard
     shows, added next to each non-approved/non-blocked row so the terminal
@@ -1180,3 +1289,37 @@ class TestPushPullQuestionsCommands:
         assert "NEEDS CLARIFICATION" not in brd_text
         assert "409 Conflict." in uc_text
         assert "NEEDS CLARIFICATION" not in uc_text
+
+    def test_pull_answers_refreshes_confluence_pages_of_patched_docs(self, blocked_project, runner):
+        """BRD/SRD's Confluence pages (created back at their own
+        /specify-brd -> `sdd review submit` time) must not go stale once
+        pull-answers resolves their markers -- each patched doc's page
+        should be re-pushed automatically, not left showing the
+        pre-answer [NEEDS CLARIFICATION] text until someone remembers to
+        run `sdd confluence push --doc brd` by hand."""
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        fake_confluence = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=fake_confluence), \
+             patch("sdd.commands.confluence.ConfluenceClient", return_value=fake_confluence):
+            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+            issue_key = review._load_review_links()["validate"]["key"]
+            fake_jira.comments_by_key[issue_key] = [{
+                "body": "brd:NC-001: Demonstrates real-time settlement.\n"
+                        "brd:NC-002: 90 days per policy DR-014.",
+                "author": {"displayName": "PO"}, "created": "2026-01-02T00:00:00+00:00",
+            }]
+            result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+
+        assert result.exit_code == 0, result.output
+        # brd:NC-002's answer patches both brd.md and srd.md (multi-location
+        # row) -- both docs' pages must be refreshed, not just brd's.
+        # Titles come from integrations.py's _DEFAULT_PAGE_MAP, since this
+        # fixture's integrations.yml only configures document_reviews.validate.
+        assert "Demo — Business Requirements" in fake_confluence.pages_by_title
+        assert "Demo — System Requirements" in fake_confluence.pages_by_title
+        assert "Confluence page refreshed" in result.output

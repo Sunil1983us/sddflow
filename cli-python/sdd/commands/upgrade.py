@@ -2204,6 +2204,108 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.55"},
     },
+    {
+        "from":        "2.7.55",
+        "to":          "2.7.56",
+        "description": "Fix: sdd review pull-answers patched BRD/SRD/UC locally but never refreshed their existing Confluence pages, leaving them showing stale pre-answer [NEEDS CLARIFICATION] markers -- no manifest schema changes",
+        "notes": [
+            "User-reported: after /validate's push-questions/pull-answers "
+            "round-trip resolved every open question, brd.md/srd.md/"
+            "use-cases.md were updated on disk and their versions bumped, "
+            "but their Confluence pages (created back at their own "
+            "/specify-brd -> sdd review submit time) still showed the old "
+            "unresolved markers -- only validate.md's own page was ever "
+            "touched by push-questions/pull-answers",
+            "review_pull_answers now tracks the on-disk path of every doc "
+            "it successfully patches, and after the patch loop, re-pushes "
+            "each one's Confluence page via the same _push_doc_page() "
+            "helper sdd review approve already uses -- best-effort per "
+            "doc, so one page's failure never blocks the others or the "
+            "patching that already succeeded",
+            "Only runs when confluence: is configured in integrations.yml; "
+            "silently skipped otherwise, matching the rest of "
+            "pull-answers' safe-to-call-unconditionally contract",
+            "1 new test: push-questions -> answer -> pull-answers, "
+            "confirming both patched docs' Confluence pages are created/"
+            "updated with the expected page-map titles",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.56"},
+    },
+    {
+        "from":        "2.7.56",
+        "to":          "2.7.57",
+        "description": "Guardrail: validate.prompt.md Step C no longer lets a document-level approval auto-check per-item §1-§4 confirmation checkboxes -- no manifest schema changes",
+        "notes": [
+            "User-reported (from a live project's /analyze run): a prior "
+            "agent session, chasing the analyze.prompt.md verify gate's "
+            "literal 'VALIDATE complete' string, bulk-checked every "
+            "unchecked box in validate.md's §1 (Reviewer Confirms), §2 "
+            "(BA/PO Confirms), §3 (assumption Correct?), §3a (UC Business "
+            "Scenario Correct?), and §4 (Scope Confirmation) -- inferring "
+            "itemized per-line business sign-off purely from the "
+            "document's overall Jira ticket having been closed after a "
+            "Q&A comment thread, which is not the same as a named "
+            "reviewer actually addressing that specific item",
+            "validate.prompt.md's own Step C only ever specified updating "
+            "the header (Status: Draft -> Approved) and the §5 Approvals "
+            "table -- the agent's bulk-check of §1-§4 was not something "
+            "the prompt told it to do; this migration tightens the "
+            "wording to explicitly forbid it and to say what to do "
+            "instead (leave unchecked with a note, or point to the "
+            "specific reviewer statement that confirmed that exact item)",
+            "This matters most for regulated/financial-transfer features "
+            "where §1-§4's checkboxes are meant to be a traceable, "
+            "defensible audit trail of actual line-item business review "
+            "-- not a formality that gets rubber-stamped to satisfy a "
+            "downstream gate's string match",
+            "Applied identically to validate.prompt.md in all 5 packs "
+            "(not a shared/blocks file -- each pack's copy edited "
+            "individually, same wording)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.57"},
+    },
+    {
+        "from":        "2.7.57",
+        "to":          "2.7.58",
+        "description": "Feature: analyze.md and clarify.md can now go through the same Jira/Confluence review-gate flow as brd/srd/etc (a new 'validate' phase) -- no manifest schema changes",
+        "notes": [
+            "User asked why /analyze and /clarify never got pushed to "
+            "Confluence/Jira the way /validate does -- by design they "
+            "were chat-only working documents, but nothing in "
+            "resolve_doc_path/review_submit/review_approve actually "
+            "required that; they're fully generic by doc key",
+            "Added document_reviews.validate/.analyze/.clarify entries "
+            "to integrations.yml.example (phase: validate, sequence "
+            "1/2/3 -- validate before analyze before clarify, enforced "
+            "by the same predecessor-sequence gate every other phase "
+            "already uses), plus matching page_map entries",
+            "analyze.prompt.md and clarify.prompt.md (all 5 packs) gained "
+            "the same Stakeholder Review and Approval Step B/C section "
+            "validate.prompt.md already has -- sdd review submit/check/"
+            "approve, same approval-signal handling, same guardrail "
+            "against inferring per-section findings as individually "
+            "confirmed by a document-level approval",
+            "Fixed clarify-template.md's header, which said "
+            "'Status: OPEN' instead of 'Status: Draft' -- "
+            "_mark_md_approved's regex only recognizes Draft/Proposed, "
+            "so the approval flip would have silently never updated the "
+            "header for clarify.md without this fix",
+            "Each of validate/analyze/clarify is optional individually -- "
+            "add only the ones you want routed through Jira/Confluence; "
+            "the rest stay chat-only, per review-gates.md",
+            "4 new tests: generic submit works for analyze/clarify doc "
+            "keys, the validate-phase sequence gate blocks analyze until "
+            "validate is approved, and the clarify.md header fix is "
+            "confirmed to make the approval flow work end-to-end",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.58"},
+    },
 ]
 
 

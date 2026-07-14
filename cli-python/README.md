@@ -412,7 +412,12 @@ History` row. A question asked in more than one document (the table's
 `Locations` column lists more than one ID, e.g. `brd:NC-003, srd:NC-001`)
 gets the same answer applied everywhere at once. Safe to call
 unconditionally (e.g. at the top of every `/validate` run) — it exits
-quietly whenever there's nothing to do.
+quietly whenever there's nothing to do. If a document predates
+`[NEEDS CLARIFICATION-NNN]` numbering and still has the old unnumbered
+`[NEEDS CLARIFICATION: ...]` form, `pull-answers` retroactively numbers it
+first, in order of appearance, before patching. Each patched document's
+own Confluence page (when `confluence:` is configured) is also re-pushed
+immediately, so it never goes stale relative to the answered `.md`.
 
 ---
 

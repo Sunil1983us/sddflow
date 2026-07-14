@@ -1506,6 +1506,80 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.55',
+    to:   '2.7.56',
+    description: "Fix: sdd review pull-answers patched BRD/SRD/UC locally but never refreshed their existing Confluence pages (Python CLI) -- no manifest schema changes",
+    notes: [
+      "pull-answers now re-pushes each patched document's own Confluence " +
+      "page immediately after patching, using the same _push_doc_page() " +
+      "helper sdd review approve already uses -- previously only " +
+      "validate.md's own page was ever touched by push-questions/" +
+      "pull-answers, leaving BRD/SRD/UC's pages showing stale pre-answer " +
+      "markers",
+      "This Node CLI does not implement sdd review pull-answers -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.56';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.56',
+    to:   '2.7.57',
+    description: "Guardrail: validate.prompt.md Step C no longer lets a document-level approval auto-check per-item §1-§4 confirmation checkboxes -- no manifest schema changes",
+    notes: [
+      "A prior agent session, chasing the analyze.prompt.md verify " +
+      "gate's literal 'VALIDATE complete' string, bulk-checked every " +
+      "unchecked confirmation box in validate.md's §1-§4 purely because " +
+      "the document's Jira ticket was closed -- not because a named " +
+      "reviewer actually addressed each specific item",
+      "validate.prompt.md's Step C only ever specified updating the " +
+      "header and the §5 Approvals table on approval; this migration " +
+      "tightens the wording across all 5 packs to explicitly forbid " +
+      "inferring §1-§4 item-level confirmations from a document-level " +
+      "approval signal, and says what to do instead",
+      "This Node CLI does not implement /validate itself (prompt-only " +
+      "change, no code) -- this migration entry exists so both CLIs " +
+      "report the same sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.57';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.57',
+    to:   '2.7.58',
+    description: "Feature: analyze.md and clarify.md can now go through the same Jira/Confluence review-gate flow as brd/srd/etc, a new 'validate' phase (Python CLI) -- no manifest schema changes",
+    notes: [
+      "Added document_reviews.validate/.analyze/.clarify entries to " +
+      "integrations.yml.example (phase: validate, sequence 1/2/3), plus " +
+      "matching page_map entries and Stakeholder Review and Approval " +
+      "sections in analyze.prompt.md/clarify.prompt.md (all 5 packs) -- " +
+      "each of the three is optional individually",
+      "Fixed clarify-template.md's header (Status: OPEN -> Draft) so " +
+      "the standard approval flip works for clarify.md the same way it " +
+      "does for every other document",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.58';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

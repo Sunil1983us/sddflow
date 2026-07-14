@@ -4,6 +4,101 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.58] — 2026-07-13 (Feature: analyze.md and clarify.md can now go through the same Jira/Confluence review gate as brd/srd/etc)
+
+### Added
+
+- **User asked why `/analyze` and `/clarify` never got pushed to Confluence
+  or tracked in Jira the way `/validate` does — by design they were
+  chat-only working documents, but nothing in `resolve_doc_path`/
+  `review_submit`/`review_approve` actually required that; every doc key
+  is handled generically.**
+  - Added `document_reviews.validate` / `.analyze` / `.clarify` entries to
+    `integrations.yml.example`, in a new `validate` phase
+    (Validate → Analyze → Clarify, `sequence: 1/2/3`) — enforced by the
+    same predecessor-sequence gate every other phase already uses, plus
+    matching `page_map` titles.
+  - `analyze.prompt.md` and `clarify.prompt.md` (all 5 packs) gained the
+    same **Stakeholder Review and Approval** Step B/C section
+    `validate.prompt.md` already has: `sdd review submit`/`check`/
+    `approve`, the same approval-signal handling, and the same guardrail
+    against inferring per-section findings as individually confirmed by
+    a document-level approval (mirroring the 2.7.57 fix).
+  - Each of `validate`/`analyze`/`clarify` is **optional individually** —
+    add only the ones you want routed through Jira/Confluence; the rest
+    stay chat-only, per `review-gates.md`.
+  - Fixed `clarify-template.md`'s header, which said `Status: OPEN`
+    instead of `Status: Draft` — `_mark_md_approved`'s regex only
+    recognizes `Draft`/`Proposed`, so the approval flip would have
+    silently never updated the header for `clarify.md` without this fix.
+  - 4 new tests: generic `submit` works for `analyze`/`clarify` doc keys,
+    the validate-phase sequence gate blocks `analyze` until `validate` is
+    approved, and the `clarify.md` header fix is confirmed to make the
+    approval flow work end-to-end.
+  - No manifest schema changes.
+
+---
+
+## [2.7.57] — 2026-07-13 (Guardrail: validate.md approval no longer auto-checks §1–§4 per-item confirmation checkboxes)
+
+### Changed
+
+- **User-reported (from a live project's `/analyze` run):** a prior agent
+  session, chasing `analyze.prompt.md`'s verify gate's literal
+  `"VALIDATE complete"` string, bulk-checked every unchecked box in
+  `validate.md`'s §1 (Reviewer Confirms), §2 (BA/PO Confirms), §3
+  (assumption Correct?), §3a (UC Business Scenario Correct?), and §4
+  (Scope Confirmation) — inferring itemized per-line business sign-off
+  purely from the document's Jira ticket having been closed after a Q&A
+  comment thread, which is not the same as a named reviewer actually
+  addressing that specific item.
+  - `validate.prompt.md`'s own Step C only ever specified updating the
+    header (`Status: Draft → Approved`) and the §5 Approvals table — the
+    §1–§4 bulk-check was never something the prompt instructed.
+  - Tightened Step C across all 5 packs to explicitly forbid inferring
+    §1–§4 item-level confirmations from a document-level approval signal
+    (a blanket "approved" reply, a Jira status flip, or a comment thread
+    that only answered `[NEEDS CLARIFICATION]` items is not itemized
+    evidence), and to say what to do instead: leave the box `[ ]` with a
+    note ("Approved as a whole document; items in §1–§4 were not
+    itemized during review"), or check it only when pointing to the
+    actual reviewer statement that confirmed that exact item.
+  - Matters most for regulated/financial-transfer features, where
+    §1–§4's checkboxes exist to be a traceable, defensible audit trail
+    of actual line-item business review — not a formality rubber-stamped
+    to satisfy a downstream gate's string match.
+  - `validate.prompt.md` is not a shared/blocks file — edited
+    individually in all 5 packs with identical wording.
+  - No manifest schema changes.
+
+---
+
+## [2.7.56] — 2026-07-13 (Fix: sdd review pull-answers never refreshed BRD/SRD/UC's Confluence pages after patching them)
+
+### Fixed
+
+- **User-reported: after answering every open question and confirming
+  `pull-answers` correctly patched `brd.md`/`srd.md`/`use-cases.md` on
+  disk, those documents' Confluence pages still showed the old
+  `[NEEDS CLARIFICATION]` markers.**
+  - Root cause: `pull-answers` only ever pushed `validate.md`'s own
+    Confluence page (via `push-questions`) — the underlying documents it
+    patches were never re-pushed, even though they already had their own
+    Confluence pages from their original `/specify-brd` →
+    `sdd review submit` flow.
+  - `review_pull_answers` now tracks the on-disk path of every document it
+    successfully patches, and after the patch loop, re-pushes each one's
+    Confluence page via the same `_push_doc_page()` helper
+    `sdd review approve` already uses. Best-effort per document — one
+    page's failure never blocks the others or the patching that already
+    succeeded. Only runs when `confluence:` is configured; silently
+    skipped otherwise.
+  - 1 new test confirming both patched docs' Confluence pages are
+    created/updated with the expected page-map titles.
+  - No manifest schema changes.
+
+---
+
 ## [2.7.55] — 2026-07-13 (Fix: sdd review pull-answers never patched markers in projects that predate NEEDS CLARIFICATION-NNN numbering)
 
 ### Fixed

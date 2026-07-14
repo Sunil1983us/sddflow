@@ -527,7 +527,7 @@ def review_command():
 
 @review_command.command("submit")
 @click.option("--doc",     required=True,
-              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), lld, tasks, runbook, release")
+              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), validate, analyze, clarify, lld, tasks, runbook, release")
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_submit(doc, profile, feature):
@@ -932,6 +932,7 @@ def review_pull_answers(doc, profile, feature):
         raise SystemExit(0)
 
     patched_docs: dict[str, int] = {}
+    patched_paths: dict[str, Path] = {}
     for item in items:
         # The reviewer only ever cites the row's primary ID (item["id"]) --
         # that single answer must propagate to every location listed for
@@ -950,6 +951,7 @@ def review_pull_answers(doc, profile, feature):
                 continue
             if _patch_marker(loc_path, nnn, answer_text):
                 patched_docs[doc_key] = patched_docs.get(doc_key, 0) + 1
+                patched_paths[doc_key] = loc_path
                 console.print(f"  [green]✓[/green]  {loc_id} resolved in {loc_path.name}")
 
     if patched_docs:
@@ -959,6 +961,24 @@ def review_pull_answers(doc, profile, feature):
             f"{len(patched_docs)} document(s): {', '.join(patched_docs)}"
         )
         console.print()
+
+        # Re-push each patched doc's own Confluence page so it doesn't go
+        # stale relative to the .md file we just edited. Until now,
+        # pull-answers only ever wrote the local file -- BRD/SRD/UC's
+        # Confluence pages (created back at their own /specify-brd ->
+        # `sdd review submit` time) kept showing the pre-answer
+        # [NEEDS CLARIFICATION] markers even after every question was
+        # resolved here. Best-effort per doc: one page's failure doesn't
+        # block the others or the patching that already succeeded.
+        if cfg.confluence:
+            for doc_key, loc_path in patched_paths.items():
+                try:
+                    title = _push_doc_page(doc_key, loc_path, feature_name)
+                    if title:
+                        console.print(f"  [green]✓[/green]  Confluence page refreshed: [cyan]{title}[/cyan]")
+                except Exception as e:
+                    console.print(f"  [yellow]!  Could not refresh Confluence page for {doc_key}: {e}[/yellow]")
+            console.print()
 
 
 # ── sdd review check ───────────────────────────────────────────────────────────
@@ -1095,7 +1115,7 @@ def review_comments(doc, feature, ack):
 
 @review_command.command("approve")
 @click.option("--doc",      required=True,
-              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), lld, ...")
+              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), validate, analyze, clarify, lld, ...")
 @click.option("--local",    is_flag=True, required=True,
               help="Write a local approval record (fallback when Jira is not configured)")
 @click.option("--by",       default="chat",
