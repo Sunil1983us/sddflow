@@ -584,7 +584,11 @@ Produce:
      business owner to confirm or reject.
   3a. NEEDS CLARIFICATION SCAN — scan brd.md, use-cases.md, and srd.md
       for [NEEDS CLARIFICATION] markers; these are BLOCKING — must be
-      resolved before sign-off.
+      resolved before sign-off. If document_reviews.validate is
+      configured: run `sdd review pull-answers --doc validate` first
+      (patches new Jira/Confluence replies into the source docs), then
+      `sdd review push-questions --doc validate` for whatever's still
+      open.
   4. SCOPE CONFIRMATION — in-scope / out-of-scope items from brd.md.
   4a. SECURITY DESIGN SIGN-OFF (mvp+ only) — check for a Security
       Officer sign-off marker in security-design.md; if pending, block
@@ -594,6 +598,9 @@ Produce:
      Approved / Changes Requested.
 
 Save: validate.md + validate.summary.md
+Stakeholder review (Confluence/Jira submit if document_reviews.validate
+configured, else chat approval → Status: Approved + Approvals table +
+Version History).
 Present report. WAIT for sign-off.
 
 If approved:
@@ -647,6 +654,8 @@ Produce:
     Tasks likely needing SPLIT
 
 Save: analyze.md + analyze.summary.md
+Stakeholder review (Confluence/Jira submit if document_reviews.analyze
+configured, else chat approval — same Confluence/Jira/chat flow as BRD).
 Wait for review before /clarify.
 ```
 
@@ -689,6 +698,8 @@ Read clarify.md with answers
 Update affected spec docs → mark: <!-- Clarified: {ID} -->
 Regenerate .summary.md for each updated doc
 Write clarify.summary.md — all items RESOLVED
+Stakeholder review (Confluence/Jira submit if document_reviews.clarify
+configured, else chat approval — same Confluence/Jira/chat flow as BRD).
 State: "CLARIFY complete — ready for PLAN"
 ```
 

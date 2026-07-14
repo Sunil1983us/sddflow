@@ -357,6 +357,8 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 **Reviewer:** Product Owner + Business Analyst
 
+**Jira/Confluence:** optional — see "Document Review Workflow" below (also covers `push-questions`/`pull-answers` for collecting answers to blocking `[NEEDS CLARIFICATION-NNN]` items before the document is even submitted for review).
+
 ---
 
 ### Phase 3 — ANALYZE
@@ -383,6 +385,8 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 **Reviewer:** Tech Lead (accountable), Architect + Security Officer (consulted)
 
+**Jira/Confluence:** optional — see "Document Review Workflow" below.
+
 ---
 
 ### Phase 4 — CLARIFY
@@ -408,6 +412,8 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 **You do next:** Confirm all items show RESOLVED. Ensure no `[ASSUMPTION-NNN]` markers remain in any spec doc (AI-8 gate). Then `/plan-design` can run.
 
 **Reviewer:** Product Owner (accountable), Business Analyst (consulted)
+
+**Jira/Confluence:** optional — see "Document Review Workflow" below.
 
 ---
 
@@ -677,7 +683,7 @@ sdd confluence push --all        # push all documents listed in integrations.yml
 ```
 Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page.
 
-**On a multi-feature project — living docs get ONE page, per-feature docs get one page each.** Living/service-level documents (`data-model`, `security-design`, `api-spec`, `component-library`) always resolve to a single shared page regardless of which feature is active — that's correct, since the underlying document itself is shared. Per-feature documents (`brd`, `use-cases`, `srd`, `design`/`arch`/`hld`/`adr`, `lld`, `validate`, `release`) need `{feature}` in their `page_map` title template to get a separate page per feature — the shipped `integrations.yml.example` already includes it. If your `integrations.yml` predates this and its titles don't have `{feature}`, every feature pushing the same doc type will silently overwrite the same page — add `{feature}` to those entries to fix it.
+**On a multi-feature project — living docs get ONE page, per-feature docs get one page each.** Living/service-level documents (`data-model`, `security-design`, `api-spec`, `component-library`) always resolve to a single shared page regardless of which feature is active — that's correct, since the underlying document itself is shared. Per-feature documents (`brd`, `use-cases`, `srd`, `design`/`arch`/`hld`/`adr`, `lld`, `validate`, `analyze`, `clarify`, `release`) need `{feature}` in their `page_map` title template to get a separate page per feature — the shipped `integrations.yml.example` already includes it. If your `integrations.yml` predates this and its titles don't have `{feature}`, every feature pushing the same doc type will silently overwrite the same page — add `{feature}` to those entries to fix it.
 
 ---
 
@@ -720,6 +726,36 @@ usage per feature, plus Approve/comment buttons that update the same
 4. Reviewer re-approves → `sdd review check --doc brd` exits 0 (APPROVED)
 
 Configure reviewers (Jira accountId per document) in `.specify/integrations.yml`. Run `sdd config init` to generate this file interactively, or copy `.specify/integrations.yml.example` and edit it.
+
+**`/validate`, `/analyze`, and `/clarify` can go through this same jira-mode
+flow — each is optional individually.** Add `document_reviews.validate`
+(and/or `.analyze`, `.clarify`) to `integrations.yml` for whichever of the
+three you want routed through Jira/Confluence — they form their own
+`validate` phase (Validate → Analyze → Clarify), sequence-gated the same
+way BRD → Use Cases → SRD is. Leave any of the three out and it stays
+chat-only, no config change needed elsewhere.
+
+**A document can collect answers via Jira/Confluence before it's even
+submitted for review.** `validate.md` (and any doc with the same
+`[NEEDS CLARIFICATION-NNN]` marker pattern) can be *blocked* on open
+questions in its source docs — `/validate`'s own scan lists them. Rather
+than waiting for a formal review round, push those specific questions out
+now:
+```bash
+sdd review push-questions --doc validate   # push open items to Jira + Confluence
+# reviewer replies as a comment, one line per item:
+#   brd:NC-002: 90 days, per data retention policy DR-014
+sdd review pull-answers --doc validate     # pull replies, patch the answered markers
+```
+`push-questions` creates (or updates, if one already exists) **one** Jira
+ticket — reusing the same reviewer/ticket `sdd review submit` will use
+once the document unblocks, so it evolves in place rather than duplicating.
+`pull-answers` reads back replies matching `{doc}:NC-{NNN}: {answer}`,
+patches each answered marker directly into its source document (bumping
+that document's version), and — if `confluence:` is configured — re-pushes
+that document's own Confluence page immediately so it never goes stale.
+Safe to call `pull-answers` unconditionally (e.g. every time you re-run
+`/validate`) — it's a no-op when there's nothing new.
 
 ---
 
