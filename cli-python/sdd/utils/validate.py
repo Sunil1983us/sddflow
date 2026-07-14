@@ -48,10 +48,15 @@ LIVING_SERVICE_DOCS = {"data-model", "security-design", "api-spec", "component-l
 def resolve_doc_path(doc: str, feature_name: str) -> Path:
     """Resolve the on-disk path for a doc key.
 
+    - "constitution" -> .specify/memory/constitution.md (project-wide, no
+      feature_name needed -- Part 1 is universal, Part 2 is amended in
+      place across every feature, never regenerated per feature)
     - Living/service-level docs (LIVING_SERVICE_DOCS) -> .specify/service/{doc}.md
     - "context" -> .specify/contexts/{feature}.md
     - Everything else -> .specify/features/{feature}/{doc}.md (traversal-checked)
     """
+    if doc == "constitution":
+        return Path(".specify") / "memory" / "constitution.md"
     if doc in LIVING_SERVICE_DOCS:
         return Path(".specify") / "service" / f"{doc}.md"
     if doc == "context":

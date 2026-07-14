@@ -50,8 +50,9 @@ def test_shipped_example_parses_and_agrees_with_defaults():
     assert set(EXPECTED_DOC_KEYS) <= set(data["confluence"]["page_map"])
     assert set(data["confluence"]["page_map"]) - set(EXPECTED_DOC_KEYS) == {
         "validate", "analyze", "clarify",
-        "tasks", "checklist", "qa-testcases",
+        "stories", "tasks", "checklist", "qa-testcases", "smoke-tests",
         "data-model", "security-design", "api-spec", "component-library",
+        "constitution",
     }
     # active document_reviews ships in unified mode: design yes, arch/hld/adr commented
     reviews = data["document_reviews"]

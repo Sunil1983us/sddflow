@@ -151,11 +151,11 @@ to at least one UC-NNN so the business flow is fully covered.
 ---
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| Product Owner (accountable — stories + scope approved) | Pending | |
-| Tech Lead (responsible — task accuracy + dependency review) | Pending | |
-| QA Lead (consulted — test case mapping confirmed, mvp+) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Product Owner (accountable — stories + scope approved) | | Pending | |
+| Tech Lead (responsible — task accuracy + dependency review) | | Pending | |
+| QA Lead (consulted — test case mapping confirmed, mvp+) | | Pending | |
 
 ## Version History
 

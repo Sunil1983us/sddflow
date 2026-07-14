@@ -309,8 +309,12 @@ approvals never leave Confluence stale. Manual re-push at any time:
 `sdd confluence push --doc {doc}` (needs only the `confluence:` section, no Jira).
 
 **Who approves** is defined per gate in `.specify/memory/roles.yml` (RACI —
-the accountable role). When recording an approval, the agent asks once for the
-approver name/role and an optional comment.
+the accountable role). When recording an approval, the agent resolves the
+approver's name from `roles.yml`'s `roles:` map first (filled in once per
+project) and only asks the user directly if that name is still empty —
+either way, the resolved name is written into the document's own
+`## Approvals` table (`Approver` column), not just the role label, so it's
+visible who actually approved it without cross-referencing roles.yml.
 
 **Governance guidance by scope:** chat mode is fine for `pilot`. For `mvp` use
 local mode (named approver + audit file). For `full` scope prefer jira mode —

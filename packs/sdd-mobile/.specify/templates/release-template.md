@@ -110,9 +110,9 @@ rollback, store-listing rollback / emergency hotfix path}
 
 ## Approvals
 
-| Role | Status | Date |
-|---|---|---|
-| QA Lead (responsible — UAT sign-off) | Pending | |
-| Product Owner (accountable — go-live decision) | Pending | |
-| Tech Lead (consulted — technical readiness) | Pending | |
-| DevOps/SRE (consulted — deployment readiness) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| QA Lead (responsible — UAT sign-off) | | Pending | |
+| Product Owner (accountable — go-live decision) | | Pending | |
+| Tech Lead (consulted — technical readiness) | | Pending | |
+| DevOps/SRE (consulted — deployment readiness) | | Pending | |

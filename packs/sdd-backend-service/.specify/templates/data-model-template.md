@@ -106,9 +106,9 @@ Any column marked PII = Yes must:
 
 ## Approvals
 
-| Role | Status | Date |
-|---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |
 
 ## Version History
 

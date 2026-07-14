@@ -253,6 +253,23 @@ class TestLocalSvgMode:
         assert len(warnings) == 1
         assert "bad diagram" in warnings[0]
 
+    def test_empty_or_non_svg_render_output_falls_back_to_code_block(self):
+        """mmdr can return without raising but still produce output that
+        isn't actually SVG (observed for some sequenceDiagram sources) --
+        queueing that for upload sends malformed bytes to Confluence's
+        attachment API, which rejects them with an opaque 400 Bad
+        Request. Catching it here, where the diagram source is still in
+        scope, produces a diagnosable warning instead."""
+        md = "```mermaid\nsequenceDiagram\nA->>B: hi\n```"
+        diagrams = DiagramsConfig(mode="local-svg")
+        with patch("sdd.utils.mermaid_render.render_mermaid_svg",
+                   return_value=""):
+            html, attachments, warnings = md_to_storage(md, diagrams)
+        assert '<ac:structured-macro ac:name="code">' in html
+        assert attachments == []
+        assert len(warnings) == 1
+        assert "not valid SVG" in warnings[0]
+
     def test_missing_mmdr_dependency_warning_names_install_command(self):
         """The single most likely real-world cause: diagrams.mode is set
         to local-svg but `pip install "sddflow[diagrams]"` was never

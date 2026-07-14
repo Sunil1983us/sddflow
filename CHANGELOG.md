@@ -4,6 +4,83 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.65] — 2026-07-14 (Fix: /task never pushed to Jira/Confluence; diagram 400s hid the reason; constitution.md pushable; Approver names in Approvals)
+
+### Fixed
+
+- **`/task`'s entire Jira/Confluence sync was broken.** User reported 4
+  issues: (1) the placeholder Jira Story created at `/specify-uc` time
+  never got finalized/updated, (2) Tasks were never created in Jira or
+  linked to their Story, (3) no Confluence page (with Jira link + status)
+  was ever created for `tasks.md`, (4) no `/task` document reached
+  Confluence at all. Root cause: `task.prompt.md`'s Section 4 only
+  generated an offline CSV export and told the user to manually run a
+  retired `/jira-push` slash command — it never called the `sdd` CLI at
+  all, unlike every other command in this pipeline.
+  - `task.prompt.md` (all 5 packs) rewritten: new Section 4 auto-runs
+    `sdd jira push --level story` then `--level task` — finalizes
+    UC-derived draft Stories in place, creates real Tasks linked to their
+    parent Story. New Section 5 pushes `stories.md`/`qa-testcases.md`
+    directly to Confluence and routes `tasks.md` through the same
+    Submit-for-Review + review-decision discipline every other reviewed
+    document uses (`tasks.md` has a real `document_reviews` gate,
+    reviewed by the Scrum Master). The old CSV export is kept as an
+    explicitly-labelled offline fallback (Section 6).
+  - Added missing `stories`/`smoke-tests` `page_map` entries (same
+    cross-feature collision risk as an earlier fix) and fixed
+    `document_reviews.tasks.confluence_page` ("Task Breakdown")
+    diverging from `page_map.tasks` ("Tasks") — they must agree, or
+    `review submit`/`apply` and a direct `confluence push` land on two
+    different pages for the same document.
+- **Diagram attachment 400 errors hid the actual reason.** `sdd review
+  check --doc design` failing on a sequence diagram only ever showed a
+  bare `400 Client Error: Bad Request for url: ...` — Confluence's real
+  error message lives in the response body, which was never surfaced.
+  `upload_diagram_attachments` now parses it out. `_render_local_svg`
+  also now guards against the renderer returning non-SVG output for
+  certain diagrams without raising, which previously reached Confluence
+  as malformed bytes and produced an opaque 400.
+- **Audited `plan-arch`/`plan-hld`/`plan-adr`/`plan-lld`** for the same
+  "document updated locally but never re-published" bug fixed for
+  api-spec.md and `/change` in 2.7.63 — confirmed they're already wired
+  correctly via the shared `submit-for-review-step`/`review-decision-step`
+  blocks; no bug found there.
+
+### Added
+
+- **`constitution.md` can now be pushed to Confluence** — the one
+  document that had no way to reach it at all. `resolve_doc_path`,
+  `_resolve_page_title`, `resolve_doc_parent_id`, and `_push_doc_page`
+  now special-case `"constitution"` as a project-wide page (like a
+  living doc, but at `.specify/memory/` rather than `.specify/service/`).
+  `specify.prompt.md` (all 5 packs) auto-pushes it right after GATE-1
+  finalizes, and again after any later confirmed amendment.
+- **Approver name in every document's Approvals table.** Previously only
+  the accountable *role* was recorded (`| Role | Status | Date |`) — the
+  actual approver was only ever asked about in chat, with nowhere to
+  record it. Every template's `## Approvals` table (132 files across
+  `_shared/` and all 5 packs) gained an `Approver` column. The
+  `review-decision-step` shared block now resolves the approver's name
+  from `roles.yml`'s `roles:` map (filled in once per project) first,
+  asking the user directly only if that entry is still empty — either
+  way the resolved name is written into the document itself.
+
+### Changed
+
+- `token-usage-template.md`'s notes section now explains specifically
+  *why* the estimate reads far lower than a provider's real usage/billing
+  dashboard (it's scoped only to the SDD documents a command
+  intentionally read or wrote — it excludes system prompt, tool
+  definitions, and prior conversation turns, which are frequently the
+  majority of a turn's real cost) and points to the AI tool's own native
+  usage reporting (e.g. Claude Code's `/cost`, the Anthropic Console, or
+  GitHub Copilot's usage dashboard) as the authoritative source. There is
+  no API a prompt-driven framework can call to get a real number from
+  inside a session — this is a platform limitation, not something a
+  better formula can fix.
+
+---
+
 ## [2.7.64] — 2026-07-14 (Fix: local-svg diagrams render too small in Confluence — set ac:width)
 
 ### Fixed

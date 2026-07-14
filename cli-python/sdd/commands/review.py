@@ -52,10 +52,10 @@ def _is_locally_approved(doc: str) -> bool:
 def _doc_md_path(doc: str, feature: str | None) -> Path | None:
     """Resolve the on-disk path for a doc key, or None if unresolvable.
 
-    Living/service-level docs (data-model, security-design, api-spec) resolve
-    to .specify/service/{doc}.md regardless of feature. Everything else
-    resolves to .specify/features/{feature}/{doc}.md."""
-    if doc in LIVING_SERVICE_DOCS:
+    "constitution" and living/service-level docs (data-model,
+    security-design, api-spec) resolve to a fixed path regardless of
+    feature. Everything else resolves to .specify/features/{feature}/{doc}.md."""
+    if doc == "constitution" or doc in LIVING_SERVICE_DOCS:
         return resolve_doc_path(doc, "")
     manifest     = read_manifest() or {}
     proj         = manifest.get("project") or {}
@@ -160,7 +160,14 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> tuple[str, str
     proj         = manifest.get("project") or {}
     project_name = proj.get("name", "Project")
 
-    if doc in cfg.document_reviews:
+    if doc == "constitution":
+        # Project-wide, no document_reviews entry (amended via GATE-1, not
+        # a Jira review ticket) -- must match confluence.py's
+        # _resolve_page_title exactly, or `sdd review apply --doc
+        # constitution` and `sdd confluence push --doc constitution` would
+        # land on two different pages for the same document.
+        title = "{project} — Constitution"
+    elif doc in cfg.document_reviews:
         title = cfg.document_reviews[doc].confluence_page
     else:
         title = cfg.confluence.page_map.get(doc, f"{{project}} — {doc.upper()}")

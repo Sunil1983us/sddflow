@@ -2501,6 +2501,70 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.64"},
     },
+    {
+        "from":        "2.7.64",
+        "to":          "2.7.65",
+        "description": "Fix: /task never pushed stories/tasks to Jira or Confluence, diagram attachment 400s hid the real reason, constitution.md is now pushable; adds Approver name column to every Approvals table",
+        "notes": [
+            "User reported 4 real gaps after running /task: (1) the "
+            "placeholder Jira Story created at /specify-uc time never got "
+            "updated/finalized, (2) Tasks were never created in Jira nor "
+            "linked to their Story, (3) no Confluence page (with Jira "
+            "link + status) was ever created for tasks.md, (4) no /task "
+            "document reached Confluence at all -- root cause: "
+            "task.prompt.md's old Section 4 only generated an offline CSV "
+            "export and told the user to manually run a retired /jira-push "
+            "slash command; it never called the sdd CLI",
+            "task.prompt.md (all 5 packs) rewritten: new Section 4 "
+            "auto-runs `sdd jira push --level story` then `--level task` "
+            "(finalizes UC-draft Stories in place, creates real Tasks "
+            "linked to their parent Story); new Section 5 pushes "
+            "stories.md/qa-testcases.md directly to Confluence and runs "
+            "tasks.md through the same Submit-for-Review + review-decision "
+            "discipline every other document uses (tasks.md has a real "
+            "document_reviews gate, reviewed by the Scrum Master); the old "
+            "CSV export is kept as Section 6, relabelled as an offline "
+            "fallback",
+            "Added missing `stories`/`smoke-tests` page_map entries "
+            "(collision risk across features without them, same bug "
+            "class as an earlier fix); fixed document_reviews.tasks."
+            "confluence_page ('Task Breakdown') diverging from page_map."
+            "tasks ('Tasks') -- they must agree or review submit/apply "
+            "and a direct confluence push land on two different pages",
+            "Diagram attachment 400 errors (e.g. a sequence diagram during "
+            "`sdd review check --doc design`) only ever showed a bare "
+            "'400 Client Error: Bad Request for url: ...' with no reason "
+            "-- upload_diagram_attachments now parses the actual "
+            "Confluence error body (message/errors) into the warning. "
+            "_render_local_svg also now guards against mmdr returning "
+            "non-SVG output for certain diagrams without raising, which "
+            "previously reached Confluence as malformed bytes",
+            "constitution.md was the one document with no way to reach "
+            "Confluence at all -- resolve_doc_path/_resolve_page_title/"
+            "resolve_doc_parent_id/_push_doc_page now special-case "
+            "'constitution' as a project-wide page (like living docs, "
+            "but at .specify/memory/ not .specify/service/); "
+            "specify.prompt.md (all 5 packs) auto-pushes it right after "
+            "GATE-1 finalizes or a later amendment is confirmed",
+            "Every document template's `## Approvals` table gained an "
+            "`Approver` column between Role and Status (132 template "
+            "files across _shared + all 5 packs) -- the review-decision-"
+            "step shared block now resolves the approver's actual name "
+            "from roles.yml's `roles:` map (filled in once per project) "
+            "before falling back to asking, and writes it into that "
+            "column, so approvals show who, not just which role",
+            "token-usage-template.md's own notes section now explains "
+            "specifically why the estimate reads far lower than a "
+            "provider's real usage dashboard (scoped to doc I/O only, "
+            "excludes system prompt/tool defs/conversation history) and "
+            "points to the AI tool's own native usage reporting as the "
+            "authoritative source -- there is no API this framework can "
+            "call to get a real number from inside a prompt",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.65"},
+    },
 ]
 
 

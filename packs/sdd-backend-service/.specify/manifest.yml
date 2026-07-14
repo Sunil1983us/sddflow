@@ -43,5 +43,5 @@ testing_style: "paired"
 # If using sdd-universal instead, set project_type: "backend-service" in its manifest.yml
 # project_type: "backend-service"
 
-sdd_version: "2.7.64"   # set by sdd init; used by sdd upgrade
+sdd_version: "2.7.65"   # set by sdd init; used by sdd upgrade
 ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other

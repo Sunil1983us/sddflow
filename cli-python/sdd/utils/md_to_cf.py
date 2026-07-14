@@ -215,6 +215,21 @@ def _render_local_svg(code: str, width: int, attachments: list[Attachment],
     except Exception as e:
         warnings.append(f"Diagram failed to render ({e}) -- shown as plain code instead")
         return None
+    # mmdr has occasionally been observed to return a well-formed-looking
+    # but empty or truncated result for certain diagram shapes (long
+    # sequenceDiagram message chains in particular) without raising --
+    # uploading that to Confluence produces an opaque 400 Bad Request
+    # with no useful reason in the exception itself. Catching it here,
+    # where the actual diagram source is still available for the warning,
+    # is far more useful than letting a malformed attachment reach the
+    # Confluence API and fail there.
+    stripped = svg.strip()
+    if not stripped.startswith("<"):
+        warnings.append(
+            "Diagram rendered but output was not valid SVG (did not start "
+            "with '<') -- shown as plain code instead"
+        )
+        return None
     filename = f"diagram-{len(attachments) + 1}.svg"
     attachments.append((filename, svg.encode("utf-8"), "image/svg+xml"))
     return (

@@ -65,6 +65,13 @@ Review and finalize every row (GATE-1) before /validate."
 Do NOT proceed to Action 2 in the same turn as a first-time generation
 unless the user has already reviewed Part 2. If the user says
 "Constitution Part 2 finalized" (now or in a later session), proceed.
+
+If `.specify/integrations.yml` has a `confluence:` section, also push it
+now — no manual trigger, no formal Jira review gate (finalization is
+GATE-1's own manual review, not a Jira ticket): `sdd confluence push --doc
+constitution`. Skip silently if not configured or the command fails.
+Re-push the same way after any later confirmed amendment.
+
 A later /specify re-run on an already-finalized Part 2 must propose
 changes for review — never silently overwrite finalized rows.
 

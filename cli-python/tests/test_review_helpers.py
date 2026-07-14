@@ -872,6 +872,34 @@ class TestJiraStatusBanner:
         assert url.startswith("https://x.atlassian.net/wiki/pages/")
         assert "Jira review" not in cf_client.body_by_title["auth — QA Test Cases"]
 
+    def test_constitution_pushes_to_project_wide_page(self, project, runner):
+        """constitution.md has no document_reviews entry (amended via
+        GATE-1, not a Jira review ticket) and no per-feature title -- it
+        must resolve to the fixed "{project} — Constitution" page,
+        matching confluence.py's _resolve_page_title exactly so `sdd
+        review apply --doc constitution` and `sdd confluence push --doc
+        constitution` never diverge onto two different pages."""
+        constitution = project / ".specify" / "memory" / "constitution.md"
+        constitution.parent.mkdir(parents=True, exist_ok=True)
+        constitution.write_text("# Constitution\n\nPart 1 ...\n")
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "confluence:\n"
+            "  space_key: ENG\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+        cf_client = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+            result = review._push_doc_page("constitution", constitution, "auth")
+
+        assert result is not None
+        title, url = result
+        assert title == "Demo — Constitution"
+        assert "Jira review" not in cf_client.body_by_title["Demo — Constitution"]
+
 
 class TestReviewStatusPersonaHint:
     """`sdd review status` -- same Virtual Team persona hint the dashboard

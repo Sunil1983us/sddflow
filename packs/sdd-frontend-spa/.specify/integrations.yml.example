@@ -198,13 +198,19 @@ confluence:
     validate:  "{feature} — Validation Report"
     analyze:   "{feature} — Analysis Report"
     clarify:   "{feature} — Clarifications"
+    stories:   "{feature} — Stories"
     tasks:     "{feature} — Tasks"
     checklist: "{feature} — QA Checklist"
     qa-testcases: "{feature} — QA Test Cases"
+    smoke-tests:  "{feature} — Smoke Tests"  # pilot scope only (replaces qa-testcases)
     data-model:        "Data Model"          # living — no {feature}, nests under {project}
     security-design:   "Security Design"     # living — no {feature}, nests under {project}
     api-spec:          "API Specification"   # living — no {feature}, nests under {project}
     component-library: "Component Library"   # living — no {feature}, nests under {project}
+    constitution:      "Constitution"        # project-wide, no {feature} — the value here
+                             # is actually ignored (title is always "{project} — Constitution"),
+                             # this key only controls whether a bare `sdd confluence push`
+                             # (no --doc) includes it; remove the line to opt out
     # release:  "{feature} — Release Notes"
 
   # Diagram rendering: Confluence has NO native Mermaid or PlantUML
@@ -398,7 +404,12 @@ document_reviews:
     reviewer_role:      Scrum Master
     phase:              tasks
     sequence:           1
-    confluence_page:    "{feature} — Task Breakdown"
+    confluence_page:    "{feature} — Tasks"   # must match page_map.tasks above --
+                             # document_reviews.confluence_page wins when both
+                             # exist (see _push_doc_page), so a mismatch here
+                             # would mean review submit/apply and a direct
+                             # `sdd confluence push --doc tasks` land on two
+                             # different pages for the same document
 
   # ── release phase (Runbook → Release) ───────────────────────────────────
   runbook:

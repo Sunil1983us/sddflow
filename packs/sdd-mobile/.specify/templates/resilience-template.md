@@ -124,6 +124,6 @@ See investigation.md (Full scope) for SDK integration details and triage.
 ---
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |

@@ -1728,6 +1728,44 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.64',
+    to:   '2.7.65',
+    description: "Fix: /task never pushed stories/tasks to Jira or Confluence, diagram attachment 400s hid the real reason, constitution.md is now pushable; adds Approver name column to every Approvals table (Python CLI features; prompt/template changes apply to both CLIs' shared assets)",
+    notes: [
+      "task.prompt.md (all 5 packs) rewritten: auto-runs `sdd jira push " +
+      "--level story` then `--level task` (finalizes UC-draft Stories in " +
+      "place, creates real Tasks linked to their parent Story), pushes " +
+      "stories.md/qa-testcases.md directly to Confluence, and routes " +
+      "tasks.md through the same Submit-for-Review + review-decision " +
+      "discipline every other reviewed document uses -- previously it " +
+      "only generated an offline CSV and pointed at a retired manual " +
+      "slash command",
+      "Added missing stories/smoke-tests page_map entries and fixed a " +
+      "title mismatch between document_reviews.tasks.confluence_page and " +
+      "page_map.tasks that could have landed pushes on two different " +
+      "Confluence pages for the same document",
+      "Diagram attachment 400 errors now surface Confluence's actual " +
+      "error body instead of a bare status code; malformed non-SVG " +
+      "renderer output is now caught before reaching the upload call",
+      "constitution.md can now be pushed to Confluence (a project-wide " +
+      "page, like living docs) -- auto-pushed at GATE-1 finalization and " +
+      "after confirmed amendments (Python CLI feature)",
+      "Every document template gained an Approver column in its " +
+      "## Approvals table (132 template files); approvals now resolve " +
+      "the approver's name from roles.yml first, asking only if empty",
+      "This Node CLI does not implement sdd review/jira/confluence " +
+      "commands -- it stays scoped to init/upgrade scaffolding, per its " +
+      "own README; this migration entry exists so both CLIs report the " +
+      "same sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.65';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

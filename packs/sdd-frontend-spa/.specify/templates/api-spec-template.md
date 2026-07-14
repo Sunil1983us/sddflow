@@ -161,6 +161,6 @@ Full detail (Full scope) in resilience.md §2-3.
 ---
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |

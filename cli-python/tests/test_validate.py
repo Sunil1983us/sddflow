@@ -72,6 +72,18 @@ def test_resolve_doc_path_routes_living_docs_to_service_dir(tmp_path, monkeypatc
             assert resolve_doc_path(doc, feature) == Path(".specify") / "service" / f"{doc}.md"
 
 
+def test_resolve_doc_path_routes_constitution_to_memory_dir(tmp_path, monkeypatch):
+    """constitution.md lives at .specify/memory/constitution.md -- outside
+    both .specify/features/ and .specify/service/ -- regardless of which
+    feature is active, since it's project-wide (Part 1 universal, Part 2
+    amended in place across every feature)."""
+    monkeypatch.chdir(tmp_path)
+    for feature in ("instant-payment", "payment-dashboard", ""):
+        assert resolve_doc_path("constitution", feature) == (
+            Path(".specify") / "memory" / "constitution.md"
+        )
+
+
 def test_resolve_doc_path_keeps_other_docs_per_feature(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert resolve_doc_path("design", "payment-dashboard") == (
