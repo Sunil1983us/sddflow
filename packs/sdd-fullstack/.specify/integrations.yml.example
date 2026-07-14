@@ -225,7 +225,15 @@ confluence:
   #   # A missing dependency, or any single diagram that fails to render,
   #   # falls back to a plain code block for that one diagram rather than
   #   # failing the whole document push.
-  #   local_svg: {}   # no options today -- placeholder for future ones
+  #   local_svg:
+  #     width: 900   # pixel width Confluence displays the diagram at
+  #       # (default 900 if this whole section is omitted). Without it,
+  #       # Confluence shows the SVG at its own intrinsic size -- often
+  #       # just a few hundred pixels, since that's what Mermaid's
+  #       # renderer naturally produces -- forcing the reader to open and
+  #       # zoom to read it. Confluence scales height to match, preserving
+  #       # aspect ratio. Lower this if 900px is too wide for your space's
+  #       # page-content column.
   #
   #   # Routes ```mermaid fences through the named macro of a
   #   # Mermaid-rendering Confluence app you already have installed

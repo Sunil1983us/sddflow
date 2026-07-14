@@ -1701,6 +1701,33 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.63',
+    to:   '2.7.64',
+    description: "Fix: local-svg diagrams pushed to Confluence now render at a readable width (ac:width=900 by default, configurable via diagrams.local_svg.width in the Python CLI) instead of the SVG's own tiny intrinsic size -- no manifest changes",
+    notes: [
+      "Root cause: the Python CLI's _render_local_svg() emitted " +
+      "<ac:image> with no ac:width attribute, so Confluence displayed " +
+      "the diagram at the SVG's own intrinsic size (Mermaid's renderer " +
+      "typically emits a few hundred pixels), forcing the reader to " +
+      "open and zoom",
+      "New DiagramsConfig.local_svg_width field (default 900), " +
+      "configured via diagrams.local_svg.width in integrations.yml -- " +
+      "Confluence scales height to match, preserving aspect ratio",
+      "integrations.yml.example (all 5 packs) documents the new " +
+      "local_svg.width option in place of the old placeholder comment",
+      "This Node CLI does not implement diagram rendering or Confluence " +
+      "push -- it stays scoped to init/upgrade scaffolding, per its own " +
+      "README; this migration entry exists so both CLIs report the " +
+      "same sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.64';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

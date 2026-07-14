@@ -2474,6 +2474,33 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.63"},
     },
+    {
+        "from":        "2.7.63",
+        "to":          "2.7.64",
+        "description": "Fix: local-svg diagrams pushed to Confluence now render at a readable width (ac:width=900 by default, configurable via diagrams.local_svg.width) instead of the SVG's own tiny intrinsic size -- no manifest schema changes",
+        "notes": [
+            "User reported that Mermaid diagrams rendered via "
+            "diagrams.mode: local-svg showed up very small on the "
+            "Confluence page, forcing the reader to open and zoom -- "
+            "root cause: _render_local_svg() emitted <ac:image> with no "
+            "ac:width attribute, so Confluence displayed the image at "
+            "the SVG's own intrinsic size (Mermaid's renderer typically "
+            "emits a few hundred pixels)",
+            "New DiagramsConfig.local_svg_width field (default 900), "
+            "configured via a nested diagrams.local_svg.width key in "
+            "integrations.yml, matching the existing mermaid_app/"
+            "plantuml_macro nested-dict convention",
+            "_render_local_svg() now emits <ac:image ac:width=\"{width}\">"
+            " -- Confluence scales height to match, preserving aspect "
+            "ratio",
+            "integrations.yml.example (all 5 packs) documents the new "
+            "local_svg.width option in place of the old placeholder "
+            "'no options today' comment",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.64"},
+    },
 ]
 
 

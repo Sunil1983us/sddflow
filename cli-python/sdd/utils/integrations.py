@@ -118,6 +118,15 @@ class DiagramsConfig:
     # convert ```mermaid content to PlantUML syntax (they're different
     # diagram languages, not mechanically translatable).
     plantuml_macro: str | None = None
+    # Pixel width Confluence renders a local-svg diagram at (via the
+    # <ac:image ac:width="..."> attribute). Mermaid's own renderer emits
+    # SVGs sized to the diagram's natural content -- often a few hundred
+    # pixels -- which Confluence then displays at that literal size with
+    # no attribute override, forcing the reader to open and zoom. Setting
+    # ac:width forces a readable display size regardless of the SVG's
+    # intrinsic dimensions; Confluence scales height to match, preserving
+    # aspect ratio. Only applies when mode == "local-svg".
+    local_svg_width: int = 900
 
 
 @dataclass
@@ -212,6 +221,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
                 mode=diagrams_raw.get("mode", "none"),
                 mermaid_app_macro=(diagrams_raw.get("mermaid_app") or {}).get("macro_name"),
                 plantuml_macro=(diagrams_raw.get("plantuml_macro") or {}).get("macro_name"),
+                local_svg_width=(diagrams_raw.get("local_svg") or {}).get("width", 900),
             ),
         )
 

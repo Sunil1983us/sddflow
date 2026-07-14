@@ -86,6 +86,31 @@ def test_load_integrations_confluence_only(tmp_path, monkeypatch):
     assert cfg.confluence.page_map == _DEFAULT_PAGE_MAP
 
 
+def test_load_integrations_local_svg_width_defaults_to_900(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "confluence:\n  space_key: ENG\n  diagrams:\n    mode: local-svg\n"
+    )
+    cfg = load_integrations()
+    assert cfg.confluence.diagrams.local_svg_width == 900
+
+
+def test_load_integrations_local_svg_width_override(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "confluence:\n"
+        "  space_key: ENG\n"
+        "  diagrams:\n"
+        "    mode: local-svg\n"
+        "    local_svg:\n"
+        "      width: 600\n"
+    )
+    cfg = load_integrations()
+    assert cfg.confluence.diagrams.local_svg_width == 600
+
+
 def test_jira_project_keys_default_to_empty_dict(tmp_path, monkeypatch):
     """No project_keys: block -- every level falls back to project_key."""
     monkeypatch.chdir(tmp_path)

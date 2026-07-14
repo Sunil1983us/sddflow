@@ -4,6 +4,28 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.64] — 2026-07-14 (Fix: local-svg diagrams render too small in Confluence — set ac:width)
+
+### Fixed
+
+- **User reported that Mermaid diagrams pushed via `diagrams.mode:
+  local-svg` showed up very small on the Confluence page, requiring the
+  reader to open and zoom.**
+  - Root cause: `_render_local_svg()` in `md_to_cf.py` emitted
+    `<ac:image>` with no `ac:width` attribute, so Confluence displayed the
+    image at the SVG's own intrinsic size — Mermaid's renderer typically
+    emits a few hundred pixels.
+  - New `DiagramsConfig.local_svg_width` field (default `900`), configured
+    via a nested `diagrams.local_svg.width` key in `integrations.yml`,
+    matching the existing `mermaid_app`/`plantuml_macro` nested-dict
+    convention.
+  - `_render_local_svg()` now emits `<ac:image ac:width="{width}">` —
+    Confluence scales height to match, preserving aspect ratio.
+  - `integrations.yml.example` (all 5 packs) documents the new option in
+    place of the old "no options today" placeholder comment.
+
+---
+
 ## [2.7.63] — 2026-07-14 (Fix: plan-design's api-spec.md merge and change.prompt.md's full document walk re-sync to Confluence/Jira)
 
 ### Fixed
