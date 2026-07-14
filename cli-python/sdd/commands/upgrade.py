@@ -2342,6 +2342,44 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.59"},
     },
+    {
+        "from":        "2.7.59",
+        "to":          "2.7.60",
+        "description": "Feature: clarify.md's own open items (AMB/GAP/CON/ASM/OQ/R) can now be pushed to Jira/Confluence for answers via sdd review push-questions/pull-answers, the same way validate.md's [NEEDS CLARIFICATION-NNN] markers already could -- no manifest schema changes",
+        "notes": [
+            "User pointed out that /validate's open questions could already "
+            "be answered via Jira (push-questions/pull-answers), but /clarify's "
+            "8-item report had no such path -- push-questions silently found "
+            "nothing to push because it only ever recognized the "
+            "'{doc}:NC-{NNN}' bracketed-marker scheme, not clarify.md's own "
+            "STATUS TABLE (AMB/GAP/CON/ASM/OQ/R rows)",
+            "Added a parallel parse/patch path scoped to --doc clarify: "
+            "_parse_clarify_open_items reads OPEN STATUS TABLE rows (posting "
+            "each item's full section as the Jira question text), "
+            "_parse_clarify_answers reads 'clarify:AMB-001: <answer>'-style "
+            "replies, and _patch_clarify_item fills the item's {FILL...} "
+            "placeholder and flips its STATUS TABLE row to the terminal "
+            "status for its type (RESOLVED for AMB/GAP/R, CORRECTED for CON, "
+            "DECIDED for OQ, CONFIRMED/CORRECTED for ASM depending on "
+            "whether the answer starts with 'yes')",
+            "review_push_questions/review_pull_answers now branch on "
+            "doc == 'clarify' for parsing/patching only -- the surrounding "
+            "Jira ticket creation, idempotency-label reuse, and Confluence "
+            "re-push logic is unchanged and fully shared with the existing "
+            "NC-NNN path",
+            "clarify.prompt.md (all 5 packs) documents this under 'Accepted "
+            "reply forms'; review-gates.md's shared block gained a matching "
+            "paragraph, synced into every pack's CLAUDE.md",
+            "16 new tests: STATUS TABLE parsing (including skipping already-"
+            "resolved rows), answer-line parsing, placeholder fill + "
+            "per-type status flip (all 5 terminal statuses, including both "
+            "ASM branches), and end-to-end push-questions/pull-answers CLI "
+            "coverage including the Confluence re-push",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.60"},
+    },
 ]
 
 

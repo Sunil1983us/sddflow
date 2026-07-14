@@ -41,6 +41,17 @@ Do NOT proceed to PLAN until all items resolved (by human or best guess).
 - User edits `clarify.md` directly, then says "done" in chat
 - **"best guess"** / **"continue with best guess"** / **"continue"** — AI applies its best judgment for every unanswered item
 
+**Items can also be answered via Jira/Confluence instead of chat (if `document_reviews.clarify` is configured in `.specify/integrations.yml`), the same way validate.md's `[NEEDS CLARIFICATION-NNN]` markers already can:**
+```bash
+sdd review push-questions --doc clarify   # push all OPEN items to Jira + Confluence
+# reviewer replies as a comment, one line per item:
+#   clarify:AMB-001: Intentional split — clearing_ref is the JSON field, clearingRef is the DB column
+sdd review pull-answers --doc clarify     # pull replies, fill {FILL...} placeholders,
+                                           # flip each STATUS TABLE row (Step 2's mapping),
+                                           # then continue at Step 3
+```
+Same idempotent-ticket behavior as validate.md: `push-questions` creates one Jira ticket reusing the label `sdd review submit` will later find, so it evolves in place at Step 6 instead of duplicating.
+
 ## After Human Fills Answers
 
 ### Step 1 — Read the FULL clarify.md

@@ -1201,6 +1201,195 @@ class TestNormalizeDocKey:
         assert review._normalize_doc_key("srd") == "srd"
 
 
+class TestClarifyOpenItemsAndAnswers:
+    """clarify.md's own items (AMB/GAP/CON/ASM/OQ/R) use a STATUS TABLE, not
+    a bracketed [NEEDS CLARIFICATION-NNN] marker -- push-questions/
+    pull-answers only ever understood the latter, so clarify.md could never
+    be pushed to Jira for answers the way validate.md already could. These
+    tests cover the parallel _parse_clarify_*/_patch_clarify_item path that
+    fixes that gap."""
+
+    def _clarify_md(self, extra_amb_line: str = "") -> str:
+        return (
+            "# Clarification Report — Demo\n"
+            "> Version: 1.0 | Status: Draft | Date: 2026-01-01 | Author: Rex\n\n"
+            "## AMBIGUITIES — AMB-NNN\n\n"
+            "### AMB-001: clearing_ref vs clearingRef naming\n"
+            "**Found in:** brd.md §2, srd.md §3\n"
+            "**The ambiguity:** BRD uses clearing_ref, SRD uses clearingRef.\n"
+            "**Option A:** intentional JSON-field vs DB-column split\n"
+            "**Option B:** unintentional drift\n"
+            f"**Your answer:** {{FILL THIS}}{extra_amb_line}\n\n"
+            "---\n\n"
+            "## ASSUMPTIONS — ASM-NNN\n\n"
+            "### ASM-001: 99% availability is a real pilot target\n"
+            "**Assumption:** single-instance Docker Compose has no redundancy\n"
+            "**Found in:** srd.md §5 NFR-003\n"
+            "**Basis:** inherited service-baseline default\n"
+            "**Correct?** {FILL: Yes / No — if No: correct version}\n\n"
+            "---\n\n"
+            "## STATUS TABLE\n\n"
+            "| ID | Type | Item | Status |\n"
+            "|---|---|---|---|\n"
+            "| AMB-001 | Ambiguity | clearing_ref naming | OPEN |\n"
+            "| ASM-001 | Assumption | 99% availability target | OPEN |\n\n"
+            "## Version History\n\n"
+            "| Version | Date | Changed By | Summary of Changes | CHG-NNN |\n"
+            "|---|---|---|---|---|\n"
+            "| 1.0 | 2026-01-01 | Rex | Initial draft | — |\n"
+        )
+
+    def test_parse_open_items_finds_both_open_rows(self):
+        items = review._parse_clarify_open_items(self._clarify_md())
+        ids = [it["id"] for it in items]
+        assert ids == ["clarify:AMB-001", "clarify:ASM-001"]
+        assert all(it["locations"] == [it["id"]] for it in items)
+
+    def test_parse_open_items_skips_resolved_rows(self):
+        text = self._clarify_md().replace(
+            "| ASM-001 | Assumption | 99% availability target | OPEN |",
+            "| ASM-001 | Assumption | 99% availability target | CONFIRMED |",
+        )
+        items = review._parse_clarify_open_items(text)
+        assert [it["id"] for it in items] == ["clarify:AMB-001"]
+
+    def test_question_text_includes_full_item_block(self):
+        items = review._parse_clarify_open_items(self._clarify_md())
+        amb = next(it for it in items if it["id"] == "clarify:AMB-001")
+        assert "Option A" in amb["question"]
+        assert "Option B" in amb["question"]
+
+    def test_parse_answers_extracts_clarify_prefixed_lines(self):
+        comments = [{"body": "clarify:AMB-001: Intentional split — keep both."}]
+        answers = review._parse_clarify_answers(comments)
+        assert answers == {"clarify:AMB-001": "Intentional split — keep both."}
+
+    def test_parse_answers_is_case_insensitive_and_normalizes_code_case(self):
+        comments = [{"body": "Clarify:amb-001: some answer"}]
+        answers = review._parse_clarify_answers(comments)
+        assert answers == {"clarify:AMB-001": "some answer"}
+
+    def test_patch_fills_placeholder_and_sets_resolved_for_ambiguity(self, project):
+        p = project / ".specify" / "features" / "auth" / "clarify.md"
+        p.write_text(self._clarify_md())
+        assert review._patch_clarify_item(p, "AMB-001", "Intentional split.") is True
+        text = p.read_text()
+        assert "**Your answer:** Intentional split." in text
+        assert "{FILL THIS}" not in text.split("## ASSUMPTIONS")[0]  # AMB block only
+        assert "| AMB-001 | Ambiguity | clearing_ref naming | RESOLVED |" in text
+
+    def test_patch_sets_confirmed_for_assumption_answered_yes(self, project):
+        p = project / ".specify" / "features" / "auth" / "clarify.md"
+        p.write_text(self._clarify_md())
+        assert review._patch_clarify_item(p, "ASM-001", "Yes, keep as monitored target.") is True
+        text = p.read_text()
+        assert "**Correct?** Yes, keep as monitored target." in text
+        assert "| ASM-001 | Assumption | 99% availability target | CONFIRMED |" in text
+
+    def test_patch_sets_corrected_for_assumption_answered_no(self, project):
+        p = project / ".specify" / "features" / "auth" / "clarify.md"
+        p.write_text(self._clarify_md())
+        assert review._patch_clarify_item(p, "ASM-001", "No, defer to mvp+.") is True
+        text = p.read_text()
+        assert "| ASM-001 | Assumption | 99% availability target | CORRECTED |" in text
+
+    def test_patch_bumps_version_and_logs(self, project):
+        p = project / ".specify" / "features" / "auth" / "clarify.md"
+        p.write_text(self._clarify_md())
+        review._patch_clarify_item(p, "AMB-001", "answer")
+        text = p.read_text()
+        assert "Version: 1.1" in text
+        assert "AMB-001 resolved via Jira/Confluence comment" in text
+
+    def test_patch_already_answered_item_returns_false(self, project):
+        """No {FILL...} left in the block -- already resolved, don't
+        silently re-flip an already-terminal STATUS TABLE row."""
+        p = project / ".specify" / "features" / "auth" / "clarify.md"
+        text = self._clarify_md().replace("{FILL THIS}", "Already answered.")
+        p.write_text(text)
+        assert review._patch_clarify_item(p, "AMB-001", "new answer") is False
+
+    def test_patch_unknown_code_returns_false(self, project):
+        p = project / ".specify" / "features" / "auth" / "clarify.md"
+        p.write_text(self._clarify_md())
+        assert review._patch_clarify_item(p, "GAP-999", "answer") is False
+
+    def test_patch_nonexistent_file_returns_false(self, project):
+        p = project / ".specify" / "features" / "auth" / "clarify.md"
+        assert review._patch_clarify_item(p, "AMB-001", "answer") is False
+
+
+class TestClarifyPushPullCommands:
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+        return CliRunner()
+
+    @pytest.fixture()
+    def clarify_project(self, project):
+        (project / ".specify" / "features" / "auth" / "clarify.md").write_text(
+            TestClarifyOpenItemsAndAnswers()._clarify_md()
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  clarify:\n"
+            "    reviewer_jira_user: '712020:abc'\n"
+            "    reviewer_role: 'Architect'\n"
+            "    phase: specify\n"
+            "    sequence: 6\n"
+            "    confluence_page: '{feature} — Clarifications'\n"
+        )
+        return project
+
+    def test_push_questions_creates_ticket_with_clarify_items(self, clarify_project, runner):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+            result = runner.invoke(review.review_command, ["push-questions", "--doc", "clarify"])
+
+        assert result.exit_code == 0, result.output
+        issue = next(f for f in fake_jira.created if "sdd-open-questions" in f.get("labels", []))
+        desc_text = issue["description"]["content"][0]["content"][0]["text"]
+        assert "clarify:AMB-001" in desc_text
+        assert "clarify:ASM-001" in desc_text
+        assert "re-run /clarify" in desc_text
+
+    def test_pull_answers_patches_clarify_md_and_refreshes_its_confluence_page(
+        self, clarify_project, runner
+    ):
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        fake_confluence = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=fake_confluence):
+            runner.invoke(review.review_command, ["push-questions", "--doc", "clarify"])
+            issue_key = review._load_review_links()["clarify"]["key"]
+            fake_jira.comments_by_key[issue_key] = [{
+                "body": "clarify:AMB-001: Intentional split.\n"
+                        "clarify:ASM-001: Yes, keep as monitored target.",
+                "author": {"displayName": "Architect"}, "created": "2026-01-02T00:00:00+00:00",
+            }]
+            result = runner.invoke(review.review_command, ["pull-answers", "--doc", "clarify"])
+
+        assert result.exit_code == 0, result.output
+        text = (clarify_project / ".specify" / "features" / "auth" / "clarify.md").read_text()
+        assert "Intentional split." in text
+        assert "| AMB-001 | Ambiguity | clearing_ref naming | RESOLVED |" in text
+        assert "| ASM-001 | Assumption | 99% availability target | CONFIRMED |" in text
+        assert "{FILL" not in text
+        assert "auth — Clarifications" in fake_confluence.pages_by_title
+
+
 class TestPushPullQuestionsCommands:
     @pytest.fixture()
     def runner(self):

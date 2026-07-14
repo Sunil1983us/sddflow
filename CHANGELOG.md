@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.60] — 2026-07-14 (Feature: clarify.md's own open items can be answered via Jira/Confluence, same as validate.md)
+
+### Added
+
+- **User pointed out that `/validate`'s open questions could already be
+  answered via Jira (`push-questions`/`pull-answers`), but `/clarify`'s
+  8-item report (AMB/GAP/CON/ASM/OQ/R) had no such path — `push-questions`
+  silently found nothing to push, since it only ever recognized the
+  `{doc}:NC-{NNN}` bracketed-marker scheme used by brd/srd/use-cases/
+  validate, not clarify.md's own STATUS TABLE.**
+  - Added a parallel parse/patch path scoped to `--doc clarify`:
+    `_parse_clarify_open_items` reads OPEN STATUS TABLE rows (posting each
+    item's full section — Found in / Option A / Option B / etc — as the
+    Jira question text), `_parse_clarify_answers` reads
+    `clarify:AMB-001: <answer>`-style replies, and `_patch_clarify_item`
+    fills the item's `{FILL...}` placeholder and flips its STATUS TABLE
+    row to the terminal status for its type: `RESOLVED` for AMB/GAP/R,
+    `CORRECTED` for CON, `DECIDED` for OQ, and `CONFIRMED`/`CORRECTED` for
+    ASM depending on whether the answer starts with "yes".
+  - `sdd review push-questions`/`pull-answers` branch on `doc == "clarify"`
+    for parsing/patching only — Jira ticket creation, idempotency-label
+    reuse (same ticket `sdd review submit` will later find), and the
+    Confluence re-push are unchanged and fully shared with the existing
+    NC-NNN path.
+  - `clarify.prompt.md` (all 5 packs) documents this under "Accepted reply
+    forms"; `review-gates.md`'s shared block gained a matching paragraph,
+    synced into every pack's `CLAUDE.md`.
+- 16 new tests: STATUS TABLE parsing (including skipping already-resolved
+  rows), answer-line parsing, placeholder fill + per-type status flip (all
+  5 terminal statuses, including both ASM branches), and end-to-end
+  push-questions/pull-answers CLI coverage including the Confluence
+  re-push.
+
+---
+
 ## [2.7.59] — 2026-07-14 (Feature: Confluence pages now show a live Jira link + status banner; page_map covers every generated doc type)
 
 ### Added

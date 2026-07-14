@@ -770,6 +770,16 @@ that document's own Confluence page immediately so it never goes stale.
 Safe to call `pull-answers` unconditionally (e.g. every time you re-run
 `/validate`) — it's a no-op when there's nothing new.
 
+`clarify.md`'s own open items (AMB/GAP/CON/ASM/OQ/R) work the same way, even though they're tracked by a STATUS TABLE row instead of a `[NEEDS CLARIFICATION-NNN]` marker:
+```bash
+sdd review push-questions --doc clarify   # push all OPEN items to Jira + Confluence
+# reviewer replies as a comment, one line per item:
+#   clarify:AMB-001: Intentional split — keep both fields
+sdd review pull-answers --doc clarify     # fills {FILL...}, flips each STATUS
+                                           # TABLE row (RESOLVED/CONFIRMED/DECIDED/
+                                           # CORRECTED per item type), re-pushes Confluence
+```
+
 ---
 
 ## Scope Presets

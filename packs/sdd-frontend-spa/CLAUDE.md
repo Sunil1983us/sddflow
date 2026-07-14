@@ -360,6 +360,15 @@ reads reviewer replies (a comment starting with the item's ID, e.g.
 source document, bumping that document's version, and re-pushes that
 document's own Confluence page immediately so it never goes stale.
 
+**`clarify.md`'s own items (AMB/GAP/CON/ASM/OQ/R) work the same way**, via
+the same two commands and the same doc key (`--doc clarify`) — even though
+they're tracked by a STATUS TABLE row rather than a bracketed marker.
+Reviewer replies as `clarify:AMB-001: <answer>`; pulling answers fills the
+item's `{FILL...}` placeholder and flips its STATUS TABLE row to the
+correct terminal status for its type (RESOLVED / CONFIRMED / DECIDED /
+CORRECTED), then re-pushes clarify.md's own Confluence page. See
+`clarify.prompt.md`'s "Accepted reply forms."
+
 **Every review-driven edit bumps the version.** Whichever mode surfaced the
 feedback — a Jira comment, a dashboard comment, or direct chat feedback —
 increment the document's `Version:` header and append a row to its
