@@ -913,10 +913,10 @@ Tell agent: "Summary rules updated — re-read summary-rules.md"
 
 ---
 
-## Token Usage Logging (optional, self-estimated)
+## Token Usage Logging (optional — real when available, estimated otherwise)
 
-**What:** A per-feature running log of estimated token usage and cost,
-one row appended after every command. Off by default.
+**What:** A per-feature running log of token usage and cost, one row
+appended after every command. Off by default.
 
 **Enable it:** `cp .specify/memory/token-pricing.yml.example .specify/memory/token-pricing.yml`,
 then fill in current $/million-token rates from your provider's own
@@ -925,17 +925,43 @@ live pricing). From the next command onward, the agent creates
 `.specify/features/{feature}/token-usage.md` (from
 `token-usage-template.md`) and appends a row each time.
 
-**What each row contains:** command name, model, estimated input tokens,
-estimated output tokens, estimated cost, timestamp — plus a running-total
-table at the top of the file.
+**Real usage under Claude Code.** If you're running this pack in Claude
+Code, `sdd token-log --command {name}` reads Claude Code's own local
+session transcript (`~/.claude/projects/...` — real per-turn usage the
+Anthropic API actually reported, not an approximation) and writes the
+row itself, including creating the file and updating Running Totals.
+Exit codes tell the agent what happened, so you'll never see a raw
+traceback for the normal cases:
+- `0` — logged successfully (or nothing new since the last log — also
+  exit 0, no row added)
+- `2` — `token-pricing.yml` doesn't exist yet (logging is off)
+- `3` — no Claude Code session transcript found (not running under
+  Claude Code, or this project hasn't been touched by one yet) — the
+  agent falls back to the estimate below, silently
+
+**Estimated fallback (every other AI tool, or if `sdd token-log` isn't
+available):** the agent computes each row itself — command name, model,
+estimated input tokens, estimated output tokens, estimated cost,
+`Source: Estimated`, timestamp — plus updating the running-total table
+at the top of the file itself.
+
+**What each row contains:** command name, model, input tokens, output
+tokens, cost, `Source` (`Real (Claude Code)` or `Estimated` — check this
+before comparing two rows to each other), timestamp.
 
 **Important limits — read before trusting the numbers:**
-- **Estimated, not measured.** No AI tool this framework supports (Claude
-  Code, Copilot, Cursor, Windsurf, or copy-paste "any AI") exposes an API
-  for an agent to introspect its own exact token consumption. Every
-  number is approximated as `characters ÷ 4`, which ignores
-  prompt-caching, tool overhead, and model-specific tokenization — real
-  usage is typically higher.
+- **`Estimated` rows are not measured.** No AI tool this framework
+  supports (Claude Code, Copilot, Cursor, Windsurf, or copy-paste "any
+  AI") exposes an API for an agent to introspect its own exact token
+  consumption from inside a prompt — this is what the estimate falls
+  back to. Every number is approximated as `characters ÷ 4`, which
+  ignores prompt-caching, tool overhead, and model-specific
+  tokenization — real usage is typically higher.
+- **Even `Real` rows aren't a substitute for your provider's own
+  usage/billing dashboard** (e.g. Claude Code's `/cost` command or the
+  Anthropic Console) — cache-creation and cache-read tokens are billed
+  at their own rates this file's schema doesn't split out, folded into
+  Input Tokens as one approximation.
 - **Cost is only as current as your pricing file.** If a model has no row,
   or the row still has `null` rates, the cost column shows
   `token-pricing.yml`'s `unknown_model_fallback` text instead of a number.

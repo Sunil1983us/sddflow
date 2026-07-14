@@ -2565,6 +2565,55 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.65"},
     },
+    {
+        "from":        "2.7.65",
+        "to":          "2.7.66",
+        "description": "Add: sdd token-log reads Claude Code's own local session transcript for REAL token usage (not the char/4 estimate) -- new CLI command + token-usage-template.md Source column; every other AI tool keeps the existing estimate",
+        "notes": [
+            "The user asked whether anything more could be done about "
+            "the token-usage estimate reading much lower than a real "
+            "usage dashboard. Verified: Claude Code writes a local "
+            "session transcript (~/.claude/projects/{project}/"
+            "{session-id}.jsonl, plus one file per spawned subagent "
+            "under {session-id}/subagents/) where every assistant turn "
+            "carries the REAL usage object the Anthropic API actually "
+            "returned -- input_tokens, output_tokens, "
+            "cache_creation_input_tokens, cache_read_input_tokens. Not "
+            "an estimate",
+            "New sdd/utils/claude_code_transcript.py locates the current "
+            "session's transcript (and its subagent transcripts) and "
+            "sums real usage per model since a given timestamp",
+            "New `sdd token-log --command {name}` CLI command: resolves "
+            "the window to sum (since the last logged row's timestamp, "
+            "or the whole session for the first command logged), writes/"
+            "creates token-usage.md from the template, appends one row "
+            "per model, and updates Running Totals -- all without agent "
+            "hand-arithmetic. Exit codes let a calling prompt distinguish "
+            "success (0), the opt-in gate being off (2, token-pricing.yml "
+            "missing), and no transcript found (3, not Claude Code or no "
+            "session has touched this project -- fall back to the "
+            "estimate) from an actual error (1)",
+            "This is Claude Code-only by nature -- the transcript path/"
+            "format is undocumented and reverse-engineered, not a "
+            "published API, and has no equivalent under any other AI "
+            "tool this framework supports. token-usage-logging.md (the "
+            "shared CLAUDE.md block) now tries `sdd token-log` first and "
+            "falls back to the existing char/4 estimate whenever it's "
+            "unavailable or exits non-zero -- every other AI tool "
+            "(Copilot, Cursor, Windsurf, copy-paste 'any AI') is "
+            "completely unaffected, still estimate-only",
+            "token-usage-template.md's Per-Command Log table gained a "
+            "Source column (Real (Claude Code) | Estimated) so the two "
+            "measurement kinds are never silently compared to each "
+            "other. A pre-existing token-usage.md from before this "
+            "column existed (7-column rows) is never rewritten -- new "
+            "rows are only ever appended, old ones parsed generically "
+            "for the Running Totals sum but left byte-for-byte untouched",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.66"},
+    },
 ]
 
 

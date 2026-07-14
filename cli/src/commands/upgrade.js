@@ -1766,6 +1766,37 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.65',
+    to:   '2.7.66',
+    description: "Add: sdd token-log (Python CLI) reads Claude Code's own local session transcript for REAL token usage instead of the char/4 estimate; every other AI tool keeps the existing estimate",
+    notes: [
+      "Claude Code writes a local session transcript " +
+      "(~/.claude/projects/{project}/{session-id}.jsonl, plus one file " +
+      "per spawned subagent) where every assistant turn carries the " +
+      "REAL usage object the Anthropic API actually returned -- not an " +
+      "estimate. New `sdd token-log --command {name}` (Python CLI) " +
+      "reads it and writes an authoritative row to token-usage.md",
+      "This is Claude Code-only by nature -- undocumented, reverse-" +
+      "engineered file layout, no equivalent under any other AI tool. " +
+      "The shared token-usage-logging.md CLAUDE.md block tries it first " +
+      "and falls back to the existing char/4 estimate on any non-zero " +
+      "exit code; every other AI tool is unaffected",
+      "token-usage-template.md's Per-Command Log table gained a Source " +
+      "column (Real (Claude Code) | Estimated) so the two measurement " +
+      "kinds are never silently compared to each other",
+      "This Node CLI does not implement sdd token-log -- it stays " +
+      "scoped to init/upgrade scaffolding, per its own README; this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.66';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

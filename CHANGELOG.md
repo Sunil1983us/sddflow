@@ -4,6 +4,49 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.66] — 2026-07-14 (Add: real Claude Code token usage via `sdd token-log`, instead of the char/4 estimate)
+
+### Added
+
+- **`sdd token-log` — real, measured token usage, not an estimate, when
+  running under Claude Code.** Following up on 2.7.65's explanation of
+  why the estimate reads low, the user asked if anything more could be
+  done. Verified: Claude Code writes a local session transcript
+  (`~/.claude/projects/{project}/{session-id}.jsonl`, plus one file per
+  spawned subagent under `{session-id}/subagents/`) where every
+  assistant turn carries the actual `usage` object the Anthropic API
+  returned — real `input_tokens`, `output_tokens`,
+  `cache_creation_input_tokens`, `cache_read_input_tokens`.
+  - New `sdd/utils/claude_code_transcript.py` locates the current
+    session's transcript (and its subagent transcripts) and sums real
+    usage per model since a given timestamp.
+  - New `sdd token-log --command {name}` CLI command: resolves the
+    window to sum (since the last logged row's timestamp, or the whole
+    session for the first command logged for a feature), creates
+    `token-usage.md` from the template if needed, appends one row per
+    model, and updates Running Totals — no agent hand-arithmetic. Exit
+    codes distinguish success (`0`), the opt-in gate being off (`2`,
+    `token-pricing.yml` missing), and no transcript found (`3`, not
+    Claude Code or no session has touched this project yet — the normal
+    fall-back case) from an actual error (`1`).
+  - This is **Claude Code-only** by nature — the transcript path/format
+    is undocumented and reverse-engineered, not a published API, with no
+    equivalent under any other AI tool this framework supports. The
+    shared `token-usage-logging.md` CLAUDE.md block now tries `sdd
+    token-log` first and falls back to the existing char/4 estimate
+    whenever it's unavailable or exits non-zero — GitHub Copilot,
+    Cursor, Windsurf, and copy-paste "any AI" are completely unaffected,
+    still estimate-only.
+  - `token-usage-template.md`'s Per-Command Log table gained a `Source`
+    column (`Real (Claude Code)` | `Estimated`) so the two measurement
+    kinds are never silently compared to each other. A pre-existing
+    `token-usage.md` from before this column existed (7-column rows) is
+    never rewritten — new rows are only ever appended; old rows are
+    parsed generically for the Running Totals sum but left
+    byte-for-byte untouched.
+
+---
+
 ## [2.7.65] — 2026-07-14 (Fix: /task never pushed to Jira/Confluence; diagram 400s hid the reason; constitution.md pushable; Approver names in Approvals)
 
 ### Fixed
