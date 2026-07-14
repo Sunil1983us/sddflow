@@ -166,6 +166,14 @@ Walk documents in this exact order (skip any not in scope per Step 4 pre-classif
 
 **Order:** context.md → constitution.md → brd.md → use-cases.md → srd.md → security-design.md → api-spec.md → data-model.md → validate.md → analyze.md → clarify.md → design.md → lld.md → qa-testcases.md → tasks.md
 
+**Doc-key convention for the re-sync steps below:** the CLI doc key is the
+filename without `.md` (e.g. `use-cases.md` → `use-cases`,
+`security-design.md` → `security-design`). `constitution.md` has no CLI
+doc key — it lives at `.specify/memory/constitution.md`, outside
+`.specify/features/`/`.specify/service/`, and is never pushed to
+Confluence/Jira — skip the re-sync step for it. Every other document in
+the walk order resolves fine.
+
 ---
 
 ### For each document — follow this decision tree:
@@ -194,6 +202,7 @@ Then assess: "Given this CR type and description, does this specific document ne
 → State: `{document}: ANNOTATED — approved document unchanged; CR reference added to Approvals.`
 → Record in changeset §2.
 → **Regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines) to include the annotation.
+→ **Re-sync to Confluence/Jira** (skip for constitution.md): `sdd review apply --doc {doc-key}`
 → Move to next document. No user input needed.
 
 **UPDATE NEEDED** (specific sections require change):
@@ -234,9 +243,14 @@ On any approval signal — **'approved'**, **'approve'**, **'yes'**, **'LGTM'**,
      `| {new version} | {today's date} | CR-{NNN} | {1-sentence summary of what changed} | CR-{NNN} |`
   3. Record before/after in changeset §3
   4. **Regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines)
-  5. Move to next document.
-On **'modify: {text}'**: apply the user's text instead, perform the same version bump + Version History + summary steps, then move to next.
-On **'skip'**: record as SKIP (user decision), move to next. Do NOT touch version, history, or summary.
+  5. **Re-sync to Confluence/Jira** (skip for constitution.md): `sdd review apply --doc {doc-key}` —
+     pushes the updated content to that document's own Confluence page and
+     posts a "please re-review" comment on its own Jira ticket, independent
+     of this CR's own Confluence/Jira record (Step 7). Skip silently if the
+     command fails or neither integration is configured.
+  6. Move to next document.
+On **'modify: {text}'**: apply the user's text instead, perform the same version bump + Version History + summary + re-sync steps, then move to next.
+On **'skip'**: record as SKIP (user decision), move to next. Do NOT touch version, history, summary, or Confluence/Jira.
 On **'stop'**: save current changeset progress, state which documents remain, stop.
 
 **RERUN NEEDED** (targeted section edit is insufficient — e.g., a new actor changes every UC, or a tech stack change affects the full design):
@@ -260,7 +274,8 @@ On 'rerun': save backup, regenerate document with CR incorporated, then:
   2. Append a row to the document's `## Version History` table:
      `| {new version} | {today's date} | CR-{NNN} | Full regeneration — {1-sentence reason} | CR-{NNN} |`
   3. **Regenerate `{document}.summary.md`** (max SUMMARY_MAX_LINES lines)
-  4. Record in changeset §2.
+  4. **Re-sync to Confluence/Jira** (skip for constitution.md): `sdd review apply --doc {doc-key}`
+  5. Record in changeset §2.
 On 'update': switch to UPDATE mode for this document, show section diff.
 
 ---

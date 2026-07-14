@@ -1677,6 +1677,30 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.62',
+    to:   '2.7.63',
+    description: "Fix: plan-design's api-spec.md merge and change.prompt.md's full document walk now re-sync to Confluence/Jira after each local update (prompt-only) -- no manifest changes",
+    notes: [
+      "Same root cause as 2.7.62's clarify fix, found in two more places: " +
+      "plan-design.prompt.md §3 (api-spec.md living-doc merge) and " +
+      "change.prompt.md's Step 5 document walk (any of 14 document types, " +
+      "UPDATE/RERUN/ANNOTATE branches) -- both now run `sdd review apply " +
+      "--doc {doc}` after each local update, reusing the same relaxed " +
+      "review apply from 2.7.62 (works with confluence-only, jira-only, " +
+      "or both configured)",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.63';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

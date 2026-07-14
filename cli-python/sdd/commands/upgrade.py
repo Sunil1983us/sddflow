@@ -2444,6 +2444,36 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.62"},
     },
+    {
+        "from":        "2.7.62",
+        "to":          "2.7.63",
+        "description": "Fix: plan-design.prompt.md's api-spec.md merge and change.prompt.md's entire document walk (UPDATE/RERUN/ANNOTATE) now re-sync to Confluence/Jira after each local update -- prompt-only, no CLI or manifest changes",
+        "notes": [
+            "Same root cause as 2.7.62's clarify fix, found in two more "
+            "places: plan-design.prompt.md §3 merges endpoint changes into "
+            "the living .specify/service/api-spec.md (bump version, "
+            "Version History, regenerate summary) but never re-pushed it; "
+            "change.prompt.md's Step 5 document walk can UPDATE, RERUN, or "
+            "ANNOTATE any of 14 document types in the full pipeline chain "
+            "(brd through tasks) with the identical local-only pattern",
+            "plan-design.prompt.md (all 5 packs) now runs `sdd review apply "
+            "--doc api-spec` immediately after merging into api-spec.md, "
+            "before design.md §3's own summary text",
+            "change.prompt.md (all 5 packs) now runs `sdd review apply "
+            "--doc {doc-key}` at the end of all three action branches "
+            "(ANNOTATE, UPDATE incl. 'modify', RERUN) for every document in "
+            "the walk order except constitution.md (not resolvable via "
+            "resolve_doc_path -- it lives outside .specify/features/ and "
+            ".specify/service/, never pushed). A doc-key convention note "
+            "(filename minus .md) was added once near the walk order line",
+            "No CLI changes needed -- this reuses sdd review apply exactly "
+            "as fixed/relaxed in 2.7.62 (works with confluence-only, "
+            "jira-only, or both; skips silently if neither is configured)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.63"},
+    },
 ]
 
 

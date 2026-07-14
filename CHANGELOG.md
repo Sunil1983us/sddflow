@@ -4,6 +4,32 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.63] — 2026-07-14 (Fix: plan-design's api-spec.md merge and change.prompt.md's full document walk re-sync to Confluence/Jira)
+
+### Fixed
+
+- **Same root cause as 2.7.62's clarify fix, found in two more places
+  during a follow-up check the user asked for.**
+  - `plan-design.prompt.md` §3 merges endpoint changes into the living
+    `.specify/service/api-spec.md` (bump version, Version History,
+    regenerate summary) but never re-pushed it to Confluence or notified
+    its Jira reviewer — now runs `sdd review apply --doc api-spec`
+    immediately after the merge, before `design.md` §3's own summary text.
+  - `change.prompt.md`'s Step 5 document walk can UPDATE, RERUN, or
+    ANNOTATE **any** of the 14 document types in the pipeline (brd through
+    tasks) with the identical local-only pattern — the biggest instance of
+    this gap, since `/change` can touch every document type. All three
+    action branches (ANNOTATE, UPDATE including 'modify', RERUN) now run
+    `sdd review apply --doc {doc-key}` as their last step, for every
+    document except `constitution.md` (not resolvable via
+    `resolve_doc_path` — it lives outside `.specify/features/`/
+    `.specify/service/` and is never pushed). A doc-key convention note
+    (filename minus `.md`) was added once near the walk order line.
+  - No CLI changes needed — both reuse `sdd review apply` exactly as
+    fixed/relaxed in 2.7.62.
+
+---
+
 ## [2.7.62] — 2026-07-14 (Fix: clarify.md re-syncs affected documents to Confluence/Jira; sdd review apply no longer requires both integrations; new confluence push --summary)
 
 ### Fixed
