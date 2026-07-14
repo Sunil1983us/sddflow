@@ -473,6 +473,129 @@ def _patch_marker(md_path: Path, nnn: str, answer: str) -> bool:
     return True
 
 
+# ── clarify.md's own open items (AMB/GAP/CON/ASM/OQ/R) ─────────────────────────
+# Unlike validate.md's [NEEDS CLARIFICATION-NNN] markers -- which cite OTHER
+# documents (brd/srd/use-cases) via a `{doc}:NC-{NNN}` ID -- clarify.md's own
+# ambiguities/gaps/conflicts/assumptions/open-questions/risks live entirely in
+# clarify.md itself, tracked by its STATUS TABLE (see clarify-template.md)
+# rather than an inline bracketed marker. push-questions/pull-answers only
+# ever understood the NC-NNN scheme, so clarify.md could never be pushed to
+# Jira for answers the way validate.md already could -- this second, parallel
+# parse/patch pair gives it the same workflow.
+
+_CLARIFY_ITEM_CODE = r'(?:AMB|GAP|CON|ASM|OQ|R)-\d+'
+_CLARIFY_STATUS_ROW_RE = re.compile(
+    r'^\|\s*(' + _CLARIFY_ITEM_CODE + r')\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*OPEN\s*\|\s*$',
+    re.MULTILINE | re.IGNORECASE,
+)
+_CLARIFY_ANSWER_LINE_RE = re.compile(
+    r'^\s*clarify:(' + _CLARIFY_ITEM_CODE + r')\s*:\s*(.+?)\s*$',
+    re.MULTILINE | re.IGNORECASE,
+)
+_CLARIFY_FILL_RE = re.compile(r'\{FILL[^}]*\}')
+
+# Terminal STATUS TABLE value per item-type prefix, matching the mapping
+# clarify.prompt.md's own Step 2 uses ("match the item type"). ASM is not
+# listed here -- it's CONFIRMED or CORRECTED depending on the answer itself
+# (the template's own "Correct? Yes / No" framing), handled in
+# _patch_clarify_item rather than a fixed lookup.
+_CLARIFY_TERMINAL_STATUS = {
+    "AMB": "RESOLVED",
+    "GAP": "RESOLVED",
+    "CON": "CORRECTED",
+    "OQ":  "DECIDED",
+    "R":   "RESOLVED",
+}
+
+
+def _clarify_item_block_text(doc_text: str, code: str) -> str | None:
+    """Return the full body of a clarify.md item's own section (from its
+    `### {code}: {Topic}` heading up to the next section break -- either a
+    `---` divider between type-sections or the next `### ` item heading for
+    consecutive same-type items), for posting as the Jira question text.
+    Returns the whole block (Found in / Option A / Option B / etc, not just
+    one field) since the 5 item types each label their key line
+    differently and the reviewer needs full context regardless. None if no
+    such heading exists in doc_text."""
+    heading = re.search(r'^### ' + re.escape(code) + r':.*$', doc_text, re.MULTILINE)
+    if not heading:
+        return None
+    rest = doc_text[heading.end():]
+    end_match = re.search(r'\n---\s*\n|\n### ', rest)
+    body = rest[:end_match.start()] if end_match else rest
+    return (heading.group(0) + "\n" + body).strip()
+
+
+def _parse_clarify_open_items(doc_text: str) -> list[dict]:
+    """Parse clarify.md's STATUS TABLE for OPEN rows into the same
+    {id, locations, question} shape _parse_open_questions returns, so
+    push-questions/pull-answers can handle both marker schemes through the
+    same downstream Jira/Confluence code. Every clarify item lives in
+    clarify.md itself -- "locations" is always just the item's own ID,
+    prefixed "clarify:" to match the {doc}:NC-{NNN} convention every
+    answer-parsing/console-message call site already expects (e.g. the
+    reviewer replies "clarify:AMB-001: <answer>", not "brd:NC-001: ...")."""
+    items: list[dict] = []
+    for m in _CLARIFY_STATUS_ROW_RE.finditer(doc_text):
+        code = m.group(1).strip().upper()
+        full_id = f"clarify:{code}"
+        question = _clarify_item_block_text(doc_text, code) or f"{m.group(2).strip()}: {m.group(3).strip()}"
+        items.append({"id": full_id, "locations": [full_id], "question": question})
+    return items
+
+
+def _parse_clarify_answers(comments: list[dict]) -> dict[str, str]:
+    """Parse every Jira comment for lines like 'clarify:AMB-001: <answer>'.
+    A later comment's answer for the same ID overrides an earlier one."""
+    answers: dict[str, str] = {}
+    for c in comments:
+        text = _extract_text(c.get("body", ""))
+        for m in _CLARIFY_ANSWER_LINE_RE.finditer(text):
+            code, answer = m.group(1).upper(), m.group(2)
+            answers[f"clarify:{code}"] = answer
+    return answers
+
+
+def _patch_clarify_item(md_path: Path, code: str, answer: str) -> bool:
+    """Fill a clarify.md item's `{FILL...}` placeholder with the reviewer's
+    answer and flip its STATUS TABLE row from OPEN to the terminal status
+    for its type. Returns True if the item was found and patched, False
+    otherwise (already resolved, or code doesn't exist in this file)."""
+    if not md_path.exists():
+        return False
+    text = md_path.read_text()
+
+    heading = re.search(r'^### ' + re.escape(code) + r':.*$', text, re.MULTILINE)
+    if not heading:
+        return False
+    rest = text[heading.end():]
+    end_match = re.search(r'\n---\s*\n|\n### ', rest)
+    block_end = heading.end() + (end_match.start() if end_match else len(rest))
+    fill_match = _CLARIFY_FILL_RE.search(text, heading.end(), block_end)
+    if not fill_match:
+        return False  # already answered
+
+    prefix = code.split("-")[0]
+    if prefix == "ASM":
+        status = "CONFIRMED" if answer.strip().lower().startswith("yes") else "CORRECTED"
+    else:
+        status = _CLARIFY_TERMINAL_STATUS.get(prefix, "RESOLVED")
+
+    new_text = text[:fill_match.start()] + answer + text[fill_match.end():]
+
+    status_row_re = re.compile(
+        r'(^\|\s*' + re.escape(code) + r'\s*\|[^|]*\|[^|]*\|)\s*OPEN\s*(\|\s*$)',
+        re.MULTILINE | re.IGNORECASE,
+    )
+    new_text, n = status_row_re.subn(r'\1 ' + status + r' \2', new_text, count=1)
+    if n == 0:
+        return False  # STATUS TABLE row missing/already flipped -- don't half-patch
+
+    new_text = _bump_version_and_log(new_text, f"{code} resolved via Jira/Confluence comment")
+    md_path.write_text(new_text)
+    return True
+
+
 _LEGACY_MARKER_RE = re.compile(r'\[NEEDS CLARIFICATION:\s*')
 
 
@@ -810,11 +933,14 @@ def review_push_questions(doc, profile, feature):
         console.print(f"  [red]✗  {md_path} not found[/red]")
         raise SystemExit(1)
 
-    items = _parse_open_questions(md_path.read_text())
+    if doc == "clarify":
+        items = _parse_clarify_open_items(md_path.read_text())
+        not_found_msg = "No OPEN items found in clarify.md's STATUS TABLE — nothing to push."
+    else:
+        items = _parse_open_questions(md_path.read_text())
+        not_found_msg = f"No open [NEEDS CLARIFICATION-NNN] items found in {md_path.name} — nothing to push."
     if not items:
-        console.print(
-            f"  [dim]No open [NEEDS CLARIFICATION-NNN] items found in {md_path.name} — nothing to push.[/dim]"
-        )
+        console.print(f"  [dim]{not_found_msg}[/dim]")
         raise SystemExit(0)
 
     try:
@@ -856,7 +982,7 @@ def review_push_questions(doc, profile, feature):
         f"Answer each item as a comment on THIS ticket, one line per item, "
         f"starting with its ID:\n\n{table_lines}\n\n"
         f"Example: \"{items[0]['id']}: <your answer>\"\n\n"
-        f"Once every item is answered, re-run /validate — it pulls the answers "
+        f"Once every item is answered, re-run /{doc} — it pulls the answers "
         f"automatically, updates the spec, and re-checks."
     )
     fields: dict = {
@@ -900,7 +1026,7 @@ def review_push_questions(doc, profile, feature):
     console.print()
     console.print(f"  [bold]{len(items)} open question(s)[/bold] pushed. Reviewer replies as a comment")
     console.print(f"  starting with the item's ID, e.g. \"{items[0]['id']}: <answer>\".")
-    console.print(f"  Run [cyan]sdd review pull-answers --doc {doc}[/cyan] (or just re-run /validate) once answered.")
+    console.print(f"  Run [cyan]sdd review pull-answers --doc {doc}[/cyan] (or just re-run /{doc}) once answered.")
     console.print()
 
 
@@ -938,31 +1064,38 @@ def review_pull_answers(doc, profile, feature):
     if not md_path.exists():
         raise SystemExit(0)
 
-    items = _parse_open_questions(md_path.read_text())
+    is_clarify = (doc == "clarify")
+    if is_clarify:
+        items = _parse_clarify_open_items(md_path.read_text())
+    else:
+        items = _parse_open_questions(md_path.read_text())
     if not items:
         raise SystemExit(0)
 
-    # Retrofit: a doc that predates NEEDS CLARIFICATION-NNN numbering
-    # still has the old unnumbered [NEEDS CLARIFICATION: ...] form, even
-    # though validate.md's table above already displays synthesized
-    # brd:NC-001-style IDs for it (order-of-appearance, same rule) --
-    # number the source file's markers to match before attempting any
-    # patch, or the exact-ID search below would never find them.
-    referenced_docs = {
-        _normalize_doc_key(loc_id.split(":NC-")[0])
-        for item in items for loc_id in item["locations"]
-    }
-    for doc_key in referenced_docs:
-        try:
-            loc_path = resolve_doc_path(doc_key, feature_name)
-        except ValueError:
-            continue
-        renumbered = _number_legacy_markers(loc_path)
-        if renumbered:
-            console.print(
-                f"  [dim]·  Numbered {renumbered} legacy marker(s) in "
-                f"{loc_path.name} to match validate.md's IDs[/dim]"
-            )
+    if not is_clarify:
+        # Retrofit: a doc that predates NEEDS CLARIFICATION-NNN numbering
+        # still has the old unnumbered [NEEDS CLARIFICATION: ...] form, even
+        # though validate.md's table above already displays synthesized
+        # brd:NC-001-style IDs for it (order-of-appearance, same rule) --
+        # number the source file's markers to match before attempting any
+        # patch, or the exact-ID search below would never find them.
+        # clarify.md's own items have no such legacy/numbering concern --
+        # they're tracked by a STATUS TABLE row, not a bracketed marker.
+        referenced_docs = {
+            _normalize_doc_key(loc_id.split(":NC-")[0])
+            for item in items for loc_id in item["locations"]
+        }
+        for doc_key in referenced_docs:
+            try:
+                loc_path = resolve_doc_path(doc_key, feature_name)
+            except ValueError:
+                continue
+            renumbered = _number_legacy_markers(loc_path)
+            if renumbered:
+                console.print(
+                    f"  [dim]·  Numbered {renumbered} legacy marker(s) in "
+                    f"{loc_path.name} to match validate.md's IDs[/dim]"
+                )
 
     links     = _load_review_links()
     issue_key = (links.get(doc) or {}).get("key")
@@ -986,7 +1119,7 @@ def review_pull_answers(doc, profile, feature):
         console.print(f"  [yellow]!  Could not fetch comments from {issue_key}: {e}[/yellow]")
         raise SystemExit(0)
 
-    answers = _parse_answers(comments)
+    answers = _parse_clarify_answers(comments) if is_clarify else _parse_answers(comments)
     if not answers:
         raise SystemExit(0)
 
@@ -1001,6 +1134,13 @@ def review_pull_answers(doc, profile, feature):
         if item["id"] not in answers:
             continue
         answer_text = answers[item["id"]]
+        if is_clarify:
+            code = item["id"].split("clarify:", 1)[1]
+            if _patch_clarify_item(md_path, code, answer_text):
+                patched_docs["clarify"] = patched_docs.get("clarify", 0) + 1
+                patched_paths["clarify"] = md_path
+                console.print(f"  [green]✓[/green]  {item['id']} resolved in {md_path.name}")
+            continue
         for loc_id in item["locations"]:
             doc_key, nnn = loc_id.split(":NC-")
             doc_key = _normalize_doc_key(doc_key)

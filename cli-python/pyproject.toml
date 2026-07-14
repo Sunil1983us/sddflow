@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sddflow"
-version = "2.7.59"
+version = "2.7.60"
 description = "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs"
 readme = "README.md"
 requires-python = ">=3.9"

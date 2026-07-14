@@ -1606,6 +1606,29 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.59',
+    to:   '2.7.60',
+    description: "Feature: clarify.md's own open items (AMB/GAP/CON/ASM/OQ/R) can now be pushed to Jira/Confluence for answers, the same way validate.md's markers already could (Python CLI) -- no manifest schema changes",
+    notes: [
+      "sdd review push-questions/pull-answers (Python CLI) now handle " +
+      "clarify.md's STATUS TABLE (AMB/GAP/CON/ASM/OQ/R rows) in addition to " +
+      "the existing [NEEDS CLARIFICATION-NNN] bracketed-marker scheme -- " +
+      "reviewer replies as 'clarify:AMB-001: <answer>', which fills the " +
+      "item's placeholder and flips its STATUS TABLE row to the correct " +
+      "terminal status for its type",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.60';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
