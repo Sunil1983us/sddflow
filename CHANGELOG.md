@@ -4,6 +4,31 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.72] — 2026-07-15 (Fix: dashboard badge color bug + stale "View" copy, found in a second UX review pass)
+
+### Fixed
+
+- **Constitution and Token Usage status badges silently lost their
+  color.** A second dashboard UX review (the user asked for another full
+  pass after the Details-panel consolidation) turned up two verified
+  regressions, confirmed with a live headless-browser check of computed
+  CSS/DOM before and after each fix:
+  - `.kv span:first-child { color: var(--muted) }` used a descendant
+    combinator, so it also matched a badge/pill nested inside a `.kv`
+    row's value column whenever that badge was the value span's only
+    child — a badge counts as `:first-child` of its own parent too. This
+    silently forced the Constitution card's gate-1 badge and the Token
+    Usage card's Real/Est "Source mix" badges to plain gray instead of
+    their intended green, losing the color cue exactly where it
+    mattered. Fixed with a child combinator (`.kv > span:first-child`),
+    which only ever matches the row's own direct label span.
+  - The info box's "Where this data comes from" text still said `"View"
+    reads the raw .md file from disk` — a leftover from before the
+    View/Approvals/Comments toggles were consolidated into one Details
+    panel with tabs (2.7.71). Updated to reference the Content tab.
+
+---
+
 ## [2.7.71] — 2026-07-15 (Enhance: dashboard Documents row consolidated into a tabbed Details panel)
 
 ### Changed

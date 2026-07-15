@@ -2777,6 +2777,38 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.71"},
     },
+    {
+        "from":        "2.7.71",
+        "to":          "2.7.72",
+        "description": "Fix: sdd dashboard's Constitution/Token-Usage status badges silently lost their green/amber color, and the info box referenced a 'View' button that no longer exists",
+        "notes": [
+            "A second UX review pass (user asked to review the whole "
+            "dashboard again after the Details-panel consolidation) "
+            "found two real, verified regressions rather than just "
+            "opinion -- confirmed each with a live headless-browser "
+            "check of computed CSS/DOM before and after the fix",
+            "CSS bug: '.kv span:first-child { color: var(--muted) }' "
+            "used a descendant combinator, so it also matched a badge/"
+            "pill span nested inside a .kv row's value column whenever "
+            "that badge was the value span's only child -- a badge IS "
+            "':first-child' of ITS OWN parent too. This silently forced "
+            "the Constitution card's gate-1 badge and the Token Usage "
+            "card's Real/Est 'Source mix' badges to plain gray instead "
+            "of their intended green, losing the color cue exactly "
+            "where it mattered. Fixed with a child combinator "
+            "('.kv > span:first-child'), which only ever matches the "
+            "row's own direct label span",
+            "Stale copy: the info box's 'Where this data comes from' "
+            "text still said '\"View\" reads the raw .md file from "
+            "disk' -- a leftover from before the View/Approvals/"
+            "Comments toggles were consolidated into one Details panel "
+            "with tabs (2.7.71). Updated to reference the Details "
+            "button's Content tab instead",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.72"},
+    },
 ]
 
 

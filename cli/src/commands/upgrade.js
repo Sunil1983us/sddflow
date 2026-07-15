@@ -1907,6 +1907,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.71',
+    to:   '2.7.72',
+    description: "Fix: sdd dashboard's (Python CLI) Constitution/Token-Usage status badges silently lost their color, and stale 'View' button copy",
+    notes: [
+      "A CSS descendant-combinator bug ('.kv span:first-child') was " +
+      "unintentionally overriding badge colors nested inside a .kv row " +
+      "to plain gray -- fixed with a child combinator so only the row's " +
+      "own label span is affected",
+      "The info box referenced a 'View' button that no longer exists " +
+      "after the Details-panel consolidation (2.7.71) -- updated to " +
+      "reference the Content tab",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.72';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

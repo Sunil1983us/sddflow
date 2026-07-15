@@ -86,7 +86,13 @@ _PAGE = """<!doctype html>
     padding: 1rem 1.2rem;
   }
   .kv { display: flex; justify-content: space-between; padding: .3rem 0; font-size: .9rem; }
-  .kv span:first-child { color: var(--muted); }
+  /* Child combinator, not descendant -- ".kv span:first-child" (space)
+     also matched a badge/pill nested inside the value span whenever it
+     was that span's only child (a badge IS ":first-child" of ITS own
+     parent), silently overriding the badge's semantic color (green/red/
+     amber) to plain gray. Hit the Constitution card's gate-1 badge and
+     the Token Usage "Source mix" badges. */
+  .kv > span:first-child { color: var(--muted); }
   .badge {
     display: inline-block; padding: .1rem .55rem; border-radius: 999px;
     font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .02em;
@@ -220,7 +226,7 @@ _PAGE = """<!doctype html>
     <div class="info-content">
       Everything below is a snapshot of local files under <code>.specify/</code> and <code>docs/jira/</code> — refreshed
       every 5s, no network calls. Task status reflects <code>tasks.md</code>, not live PR state.
-      "View" reads the raw .md file from disk. Jira/Confluence pills next to a document come from a local cache written
+      "Details" → Content reads the raw .md file from disk. Jira/Confluence pills next to a document come from a local cache written
       the last time you ran <code>sdd jira push</code> / <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code> —
       they can go stale if the ticket changed since then. Click <strong>"Check Jira/Confluence review links"</strong> to make a
       live call that refreshes both pills and adds the same APPROVED/NEEDS REVISION/PENDING classification as
