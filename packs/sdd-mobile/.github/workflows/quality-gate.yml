@@ -98,11 +98,28 @@ jobs:
 
       - name: Enforce coverage gate
         run: |
-          # Coverage Gate value comes from constitution.md Part 2 — Tech
-          # Stack table. Configure jest's coverageThreshold (or
-          # flutter test --coverage + lcov check) to fail the build below
-          # that threshold.
-          echo "Coverage gate enforced via jest coverageThreshold in package.json/jest.config.js"
+          # This does NOT itself compute or check a coverage percentage --
+          # it verifies that a coverage threshold is actually configured
+          # (jest "coverageThreshold" in jest.config.* or package.json),
+          # which is what makes the test run above fail below the value
+          # from constitution.md Part 2 Coverage Gate row. Without this
+          # check, an unconfigured jest config lets "npm test --
+          # --coverage" pass with zero coverage enforcement while this
+          # job still shows green. Flutter projects: replace this with an
+          # equivalent check against `flutter test --coverage`'s
+          # lcov.info (e.g. `lcov --summary` + a minimum-percentage grep).
+          CONFIG_FILE=""
+          for f in jest.config.ts jest.config.js jest.config.cjs package.json; do
+            if [ -f "$f" ] && grep -q "coverageThreshold" "$f"; then
+              CONFIG_FILE="$f"
+              break
+            fi
+          done
+          if [ -z "$CONFIG_FILE" ]; then
+            echo "::error::Coverage gate NOT enforced -- no coverageThreshold config found in jest.config.*/package.json. Add one (threshold: constitution.md Part 2 Coverage Gate row) before this check can pass."
+            exit 1
+          fi
+          echo "coverageThreshold config found in $CONFIG_FILE -- coverage was enforced by the test run above."
 
   secret-scan:
     name: Secret scan (security-design.md §2)

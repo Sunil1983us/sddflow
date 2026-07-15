@@ -4,6 +4,52 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.77] — 2026-07-15 (Fix: self-approval risk undocumented, coverage gate was a bare echo, no test caught either)
+
+### Fixed
+
+- **Verified an external review with grep instead of accepting it (or my
+  own prior response to it) on faith.** An external agent reviewed the
+  sdd_parser.py and release.md/runbook fixes above and raised several
+  concerns. Re-checked every claim against the actual repo: some held up
+  (self-approval risk, the fake coverage gate), some didn't (a cited
+  "245 tests" figure was stale — actual count was 592; the two-CLI and
+  onboarding-path concerns turned out to already be addressed in the
+  README/`CATALOG.md`). Three confirmed, real gaps were fixed:
+  - **Self-approval risk was undocumented.** `review-gates.md` now
+    explicitly states that nothing in chat mode stops the same
+    conversation that drafted a document from also being the one that
+    approves it — there is no independent reviewer identity check, only
+    the human typing the word "approved". Previously this was only
+    implicit in the scope-based mode guidance (pilot → chat, mvp →
+    local, full → jira).
+  - **The coverage gate was a bare `echo`, not a real check.** Reading
+    the actual `quality-gate.yml` in every pack confirmed the "Enforce
+    coverage gate" CI step always printed a success-sounding message
+    regardless of whether coverage was configured at all — worse than
+    "inert template," since it looked like a real pass. Replaced with a
+    genuine tripwire: the step now greps `pom.xml` for
+    `jacoco-maven-plugin`'s `<rules>` block (Java packs) or
+    `vitest.config`/`jest.config`/`package.json` for
+    `coverageThreshold`/`thresholds` (Node packs), and fails the CI job
+    with actionable guidance if that configuration is missing — across
+    all 5 packs, including `sdd-fullstack`'s separate backend and
+    frontend jobs.
+  - **No test would have caught the release.md/runbook gap that just
+    shipped.** New `test_prompt_review_coverage.py`: for every doc key
+    with an active `document_reviews` entry in the shipped
+    `integrations.yml.example`, asserts the owning `.prompt.md` file
+    actually contains a `sdd review submit --doc {key}` call, across all
+    5 packs (56 cases). This is the buildable version of "run the
+    pipeline against a mocked Jira/Confluence" — prompts are AI
+    instructions, not executable code, so a structural presence check is
+    what's actually feasible in CI. Verified the test has teeth by
+    temporarily reverting `release.prompt.md` to its pre-fix state and
+    confirming it fails exactly where the real bug was, then passes
+    again once restored.
+
+---
+
 ## [2.7.76] — 2026-07-15 (Fix: /release and /implement's runbook never went through Jira/Confluence review)
 
 ### Fixed

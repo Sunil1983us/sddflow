@@ -337,6 +337,19 @@ visible who actually approved it without cross-referencing roles.yml.
 local mode (named approver + audit file). For `full` scope prefer jira mode —
 independent tracking of who approved what, when.
 
+**Self-approval risk (chat mode).** Nothing in chat mode stops the same
+conversation that drafted a document from also being the one that replies
+"approved" to it — there is no independent reviewer identity check, only
+the human typing the word. This is why the scope guidance above escalates:
+`local` mode at least records a named approver in an audit file, and
+`jira` mode requires the actual accountable person (from `roles.yml`) to
+act in Jira, outside the drafting conversation entirely. If chat mode is
+used past `pilot`, treat approvals as informal and know that the
+mechanism doesn't verify who is typing "approved" — for a genuinely
+independent gate, have a *different* conversation/session (or a human
+outside the AI tool altogether) perform the approval, not the same
+session that generated the document.
+
 ### jira mode commands
 
 Sequences follow `plan_mode` (manifest.yml). Doc keys match the `.md`

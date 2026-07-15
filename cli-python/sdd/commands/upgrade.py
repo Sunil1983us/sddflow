@@ -2961,6 +2961,52 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.76"},
     },
+    {
+        "from":        "2.7.76",
+        "to":          "2.7.77",
+        "description": "Fix: self-approval risk undocumented, coverage gate was a bare echo, no test caught either -- verified all three with grep before fixing, per external review of the sdd_parser.py/release.md audit",
+        "notes": [
+            "An external agent reviewed the two prior fixes (sdd_parser.py, "
+            "release.md/runbook wiring) and raised several concerns. "
+            "Re-checked every claim with grep/read against the actual "
+            "repo instead of accepting either the review's or this "
+            "agent's own prior assessment on faith -- some held up, some "
+            "didn't (e.g. the review's '245 tests' figure was stale; "
+            "actual count was 592 at the time). Three confirmed, real "
+            "gaps were fixed",
+            "review-gates.md now explicitly states the self-approval "
+            "risk in chat mode: nothing stops the same conversation that "
+            "drafted a document from also being the one that approves "
+            "it -- no independent reviewer identity check exists. This "
+            "was previously only implicit in the scope-based mode "
+            "guidance",
+            "quality-gate.yml's 'Enforce coverage gate' step was a bare "
+            "`echo` in every pack (confirmed by reading the actual "
+            "workflow file) -- it always printed a success-sounding "
+            "message regardless of whether coverage was configured at "
+            "all. Replaced with a real tripwire: the step now greps "
+            "pom.xml for jacoco-maven-plugin's <rules> block (Java packs) "
+            "or vitest/jest config for coverageThreshold/thresholds (Node "
+            "packs), and fails the CI job with actionable guidance if "
+            "the configuration is missing -- across all 5 packs, "
+            "including fullstack's separate backend+frontend jobs",
+            "New test_prompt_review_coverage.py: for every doc key with "
+            "an active document_reviews entry in the shipped "
+            "integrations.yml.example, asserts the owning .prompt.md "
+            "file actually contains a 'sdd review submit --doc {key}' "
+            "call, across all 5 packs (56 cases). This is the cheap, "
+            "buildable version of 'run the pipeline against a mocked "
+            "Jira/Confluence' -- prompts are AI instructions, not "
+            "executable code, so a structural presence check is what's "
+            "actually feasible in CI. Verified by temporarily reverting "
+            "release.prompt.md to its pre-fix state and confirming the "
+            "new test fails exactly where the real bug was, then passes "
+            "again once restored",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.77"},
+    },
 ]
 
 
