@@ -52,7 +52,7 @@ def test_shipped_example_parses_and_agrees_with_defaults():
         "validate", "analyze", "clarify",
         "stories", "tasks", "checklist", "qa-testcases", "smoke-tests",
         "data-model", "security-design", "api-spec", "component-library",
-        "constitution",
+        "constitution", "release",
     }
     # active document_reviews ships in unified mode: design yes, arch/hld/adr commented
     reviews = data["document_reviews"]

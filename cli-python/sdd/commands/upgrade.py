@@ -2880,6 +2880,87 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.74"},
     },
+    {
+        "from":        "2.7.74",
+        "to":          "2.7.75",
+        "description": "Fix: sdd_parser.py never matched the actual shipped stories.md/tasks.md templates -- sdd jira push and sdd pr create --task silently found zero stories/tasks for every real generated feature",
+        "notes": [
+            "Found while helping a user debug why 'sdd jira push' created "
+            "nothing even after fixing Jira/Confluence credentials -- "
+            "traced it to sdd_parser.py's regexes expecting a heading/"
+            "field format ('### STORY-NNN — Title' em-dash, "
+            "'**As a**'/'**Satisfies:**' bold fields, '## TASK-NNN' H2) "
+            "that the shipped feature-story-template.md/tasks-template.md "
+            "have not used for some time (they use '### STORY-NNN: "
+            "Title' colon, '**As**'/'**Linked FRs:**' for stories, and "
+            "'### TASK-NNN' H3 with entirely plain/unbolded fields for "
+            "tasks) -- parse_stories()/parse_tasks() returned an empty "
+            "list for every correctly-generated document",
+            "This silently broke 'sdd jira push --level story/task' "
+            "(reported 'No stories or tasks found') and 'sdd pr create "
+            "--task TASK-NNN' (reported 'TASK-NNN not found in "
+            "tasks.md') for every project using the current templates "
+            "-- both are on the framework's golden path",
+            "sdd_parser.py rewritten to match the current templates "
+            "while still accepting the older em-dash/bold-field style "
+            "found in this repo's own worked examples, so already-"
+            "generated docs in either style parse correctly",
+            "Also fixed: _normalize_moscow() required an exact 'must "
+            "have' string match, but the shipped template's bucket "
+            "headers are 'Must Have Stories' (trailing word) -- every "
+            "story silently fell through to the could-have default, "
+            "mapping every Jira Story to Low priority regardless of "
+            "its actual MoSCoW bucket",
+            "New golden-template tests parse the actual shipped "
+            "feature-story-template.md/tasks-template.md files directly "
+            "(not just hand-written fixtures) so a future template edit "
+            "that breaks the parser fails CI instead of shipping silently "
+            "broken again",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.75"},
+    },
+    {
+        "from":        "2.7.75",
+        "to":          "2.7.76",
+        "description": "Fix: /release and /implement's runbook never went through Jira/Confluence review despite document_reviews.runbook/.release being fully documented and configurable",
+        "notes": [
+            "Prompted by a user asking for a full audit of every pipeline "
+            "step's Jira/Confluence coverage, after the sdd_parser.py fix "
+            "above -- release.prompt.md had ZERO Jira/Confluence wiring "
+            "for release.md (only an informal chat sign-off), and "
+            "implement.prompt.md never submitted the runbook "
+            "(docs/runbook/local-setup.md) for review at all -- not even "
+            "chat-mode approval -- despite CLAUDE.md's own Jira-mode "
+            "sequence table documenting 'release phase: Runbook -> "
+            "Release, reviewer: DevOps -> Release Manager' and the "
+            "shipped integrations.yml.example already configuring both "
+            "document_reviews.runbook and .release with sequence numbers",
+            "Backend bug found in the same sweep: resolve_doc_path() had "
+            "no case for 'runbook' -- 'sdd review submit --doc runbook' "
+            "would have resolved to the nonexistent "
+            ".specify/features/{feature}/runbook.md instead of the real "
+            "docs/runbook/local-setup.md, and confluence.py's page-"
+            "nesting/title logic didn't treat 'runbook' as project-"
+            "scoped (living) the way data-model/security-design/api-spec/"
+            "constitution already are -- new PROJECT_SCOPED_DOCS constant "
+            "in validate.py fixes both",
+            "release.prompt.md and implement.prompt.md now submit "
+            "release.md/runbook.md through the same Submit-for-Review + "
+            "review-decision-step flow every other document uses, across "
+            "all 5 packs",
+            "integrations.yml.example's page_map.release entry was also "
+            "commented out by default even though document_reviews.release "
+            "was already active -- a user copying the example as-is would "
+            "have hit a missing-page_map-entry error the first time this "
+            "new wiring ran; uncommented to match runbook's existing "
+            "active entry",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.76"},
+    },
 ]
 
 

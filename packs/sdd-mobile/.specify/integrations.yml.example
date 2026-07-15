@@ -211,7 +211,7 @@ confluence:
                              # is actually ignored (title is always "{project} — Constitution"),
                              # this key only controls whether a bare `sdd confluence push`
                              # (no --doc) includes it; remove the line to opt out
-    # release:  "{feature} — Release Notes"
+    release:   "{feature} — Release Notes"
 
   # Diagram rendering: Confluence has NO native Mermaid or PlantUML
   # renderer. By default (mode: none, or this whole section omitted), a
