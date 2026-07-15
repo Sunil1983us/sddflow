@@ -1819,6 +1819,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.67',
+    to:   '2.7.68',
+    description: "Enhance: sdd dashboard (Python CLI) gets a manual Light/Dark/Auto theme toggle plus a discoverable data-sourcing explainer and clearer empty states",
+    notes: [
+      "The dashboard only ever followed the browser's prefers-color-" +
+      "scheme media query, which some browsers/embedded webviews never " +
+      "report reliably -- users saw dark/light mode 'not working'. " +
+      "Fixed with an explicit Light/Dark/Auto toggle persisted to " +
+      "localStorage, verified with Playwright across all theme states",
+      "Added a collapsible 'Where this data comes from' explainer near " +
+      "the top of the page, and a more actionable empty-features state",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.68';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

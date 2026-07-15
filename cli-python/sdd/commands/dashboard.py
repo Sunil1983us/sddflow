@@ -45,12 +45,29 @@ _PAGE = """<!doctype html>
     --border: #e2e2e6; --accent: #2563eb;
     --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --dim: #9ca3af;
   }
+  /* Auto (default): follows the OS/browser signal. */
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme]) {
       --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa0a6; --card: #1a1d24;
       --border: #2a2d35; --accent: #60a5fa;
       --ok: #4ade80; --warn: #facc15; --bad: #f87171; --dim: #6b7280;
     }
+  }
+  /* Explicit Light/Dark picks from the toggle below always win over the
+     OS signal above, since some browsers/embedded webviews never report
+     prefers-color-scheme reliably -- this is the actual fix, not just a
+     nicety. Persisted to localStorage by the script at the bottom. */
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --card: #f5f5f7;
+    --border: #e2e2e6; --accent: #2563eb;
+    --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --dim: #9ca3af;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa0a6; --card: #1a1d24;
+    --border: #2a2d35; --accent: #60a5fa;
+    --ok: #4ade80; --warn: #facc15; --bad: #f87171; --dim: #6b7280;
   }
   * { box-sizing: border-box; }
   body {
@@ -149,20 +166,91 @@ _PAGE = """<!doctype html>
   .next-persona-role { color: var(--dim); font-size: .8rem; }
   .doc-next-ask { color: var(--dim); }
   .doc-next-ask em { color: var(--fg); font-style: normal; font-weight: 600; }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .theme-toggle {
+    display: inline-flex; gap: .15rem; background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: .2rem; flex-shrink: 0;
+  }
+  .theme-toggle button {
+    background: transparent; border: none; color: var(--muted); font: inherit; font-size: .78rem;
+    padding: .3rem .65rem; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  }
+  .theme-toggle button:hover { color: var(--fg); }
+  .theme-toggle button.active { background: var(--accent); color: #fff; }
+  .info-box {
+    margin: .5rem 0 1.5rem; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--card); font-size: .82rem; color: var(--muted);
+  }
+  .info-box summary {
+    cursor: pointer; padding: .5rem .8rem; font-weight: 600; color: var(--fg);
+    list-style: none; display: flex; align-items: center; gap: .4rem;
+  }
+  .info-box summary::-webkit-details-marker { display: none; }
+  .info-box summary::before { content: "▸"; color: var(--dim); transition: transform .15s; }
+  .info-box[open] summary::before { transform: rotate(90deg); }
+  .info-box .info-content { padding: 0 .8rem .8rem; line-height: 1.6; }
+  .info-box code { background: var(--bg); border-radius: 4px; padding: .05rem .35rem; font-size: .9em; }
 </style>
 </head>
 <body>
-  <h1>SDD Dashboard</h1>
-  <div class="sub" id="generated-at">loading…</div>
+  <div class="topbar">
+    <div>
+      <h1>SDD Dashboard</h1>
+      <div class="sub" id="generated-at">loading…</div>
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button type="button" data-theme-choice="light" title="Always use light theme">☀️ Light</button>
+      <button type="button" data-theme-choice="dark" title="Always use dark theme">🌙 Dark</button>
+      <button type="button" data-theme-choice="auto" title="Match your OS/browser setting">🖥️ Auto</button>
+    </div>
+  </div>
+  <details class="info-box">
+    <summary>ℹ️ Where this data comes from</summary>
+    <div class="info-content">
+      Everything below is a snapshot of local files under <code>.specify/</code> and <code>docs/jira/</code> — refreshed
+      every 5s, no network calls. Task status reflects <code>tasks.md</code>, not live PR state.
+      "View" reads the raw .md file from disk. Jira/Confluence pills next to a document come from a local cache written
+      the last time you ran <code>sdd jira push</code> / <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code> —
+      they can go stale if the ticket changed since then. Click <strong>"Check Jira/Confluence review links"</strong> to make a
+      live call that refreshes both pills and adds the same APPROVED/NEEDS REVISION/PENDING classification as
+      <code>sdd review check --doc</code>, plus reviewer comments (shown under 💬). That button is the only thing on this
+      page that talks to Jira/Confluence — everything else is local-file-only.
+      <strong>Approve</strong> and comments update the local Status header (same as <code>sdd review approve --local</code>),
+      mirror to Confluence if configured, and post a best-effort Jira comment.
+    </div>
+  </details>
   <div id="root"></div>
-  <div class="refresh-note">Snapshot of <code>.specify/</code> — refreshes every 5s. Task/PR status reflects tasks.md, not live PR state.
-    "View" reads the raw .md file from disk. Jira/Confluence pills next to a document are from local cache (progressive export /
-    <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code>) — "Check Jira/Confluence review links" additionally
-    queries live, refreshing both pills and adding the same APPROVED/NEEDS REVISION/PENDING classification as <code>sdd review check --doc</code>,
-    plus reviewer comments (shown under 💬).
-    "Approve" and comments update the local Status header (same as <code>sdd review approve --local</code>), mirror to Confluence if configured,
-    and post a best-effort Jira comment.</div>
 
+<script>
+// Theme: defaults to Auto (follows OS/browser prefers-color-scheme via the
+// CSS media query). An explicit Light/Dark pick sets data-theme on <html>,
+// which the CSS above gives higher specificity than the media query, and
+// persists to localStorage so it survives reloads and doesn't depend on
+// the OS signal reaching this page correctly.
+const THEME_KEY = 'sdd-dashboard-theme';
+
+function applyTheme(theme) {
+  if (theme === 'light' || theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', theme);
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  document.querySelectorAll('[data-theme-choice]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.themeChoice === theme);
+  });
+}
+
+(function initTheme() {
+  applyTheme(localStorage.getItem(THEME_KEY) || 'auto');
+  document.querySelectorAll('[data-theme-choice]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.themeChoice;
+      localStorage.setItem(THEME_KEY, theme);
+      applyTheme(theme);
+    });
+  });
+})();
+</script>
 <script>
 // Client-side only — never re-fetched from /api/status, so it survives
 // the 5s poll: which doc panels are expanded, their fetched content, and
@@ -439,7 +527,7 @@ function render() {
   document.getElementById('generated-at').textContent = 'Generated ' + data.generated_at;
   const features = data.features.length
     ? data.features.map(f => renderFeature(f, data.project)).join('')
-    : '<div class="empty">No features under .specify/features/ yet.</div>';
+    : '<div class="empty">No features under .specify/features/ yet — run <code>/specify</code> (or <code>sdd specify</code>) to create your first one.</div>';
 
   // Rebuilding #root wholesale (below) would otherwise steal focus and reset
   // the caret out from under anyone actively typing in a comment field —

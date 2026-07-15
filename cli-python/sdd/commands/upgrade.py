@@ -2638,6 +2638,37 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.67"},
     },
+    {
+        "from":        "2.7.67",
+        "to":          "2.7.68",
+        "description": "Enhance: sdd dashboard gets a manual Light/Dark/Auto theme toggle (fixes theme not switching for users whose browser doesn't report prefers-color-scheme reliably) plus a discoverable data-sourcing explainer and clearer empty states",
+        "notes": [
+            "The user reported dark/light mode 'not working' on the "
+            "dashboard. The dashboard only ever followed the browser's "
+            "prefers-color-scheme media query -- some browsers/embedded "
+            "webviews never report that signal reliably, so the page was "
+            "stuck on one theme regardless of OS setting. Fixed by adding "
+            "an explicit Light / Dark / Auto toggle (top right) that sets "
+            "data-theme on <html>, which CSS gives higher specificity "
+            "than the media query, and persists the choice to "
+            "localStorage so it survives reloads",
+            "Verified with Playwright across all 3 states (OS=dark + "
+            "auto, forced light while OS=dark, forced dark, back to "
+            "auto, OS=light + auto) plus reload-persistence -- each "
+            "produced the expected --bg value",
+            "Added a collapsible 'Where this data comes from' info box "
+            "near the top of the page (was previously a long paragraph "
+            "buried at the bottom, easy to miss) explaining which cards "
+            "are local-file-only vs. the one on-demand live Jira/"
+            "Confluence check",
+            "The 'no features yet' empty state now names the actual "
+            "next command (/specify or sdd specify) instead of just "
+            "stating the absence",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.68"},
+    },
 ]
 
 

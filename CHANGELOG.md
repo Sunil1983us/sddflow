@@ -4,6 +4,35 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.68] — 2026-07-15 (Enhance: dashboard theme toggle + usability)
+
+### Fixed / Added
+
+- **`sdd dashboard` dark/light mode "not working".** The dashboard only
+  ever followed the browser's `prefers-color-scheme` media query — some
+  browsers/embedded webviews never report that signal reliably, so the
+  page could get stuck on one theme regardless of the OS setting.
+  - Added an explicit **☀️ Light / 🌙 Dark / 🖥️ Auto** toggle (top right).
+    Light/Dark set `data-theme` on `<html>`, which CSS gives higher
+    specificity than the `prefers-color-scheme` media query, so a manual
+    pick always wins; Auto returns to following the OS/browser signal.
+    The choice is saved to `localStorage` and survives reloads.
+  - Verified with Playwright across all states: OS=dark + Auto, forced
+    Light while OS=dark, forced Dark, back to Auto, OS=light + Auto, and
+    reload-persistence — each produced the expected background color.
+- **Usability pass**, prompted by a user question about where dashboard
+  data comes from:
+  - Added a collapsible **"ℹ️ Where this data comes from"** box near the
+    top of the page — previously this explanation was one long paragraph
+    buried at the bottom, easy to miss. It now clearly distinguishes the
+    local-file-only cards (everything, on every 5s poll) from the single
+    on-demand live network call (the "Check Jira/Confluence review
+    links" button).
+  - The "no features yet" empty state now names the actual next command
+    (`/specify` or `sdd specify`) instead of just stating the absence.
+
+---
+
 ## [2.7.67] — 2026-07-15 (Fix: dashboard Token Usage card broken by the 2.7.66 label rename)
 
 ### Fixed
