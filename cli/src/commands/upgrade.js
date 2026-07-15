@@ -2034,6 +2034,42 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.76',
+    to:   '2.7.77',
+    description: "Fix: self-approval risk undocumented, coverage gate was a bare echo, no test caught either -- verified with grep before fixing, per external review",
+    notes: [
+      "An external agent reviewed the two prior fixes and raised " +
+      "several concerns. Re-checked every claim against the actual " +
+      "repo with grep/read instead of accepting either the review's or " +
+      "this agent's own prior assessment on faith -- some held up, " +
+      "some didn't (e.g. a cited '245 tests' figure was stale; actual " +
+      "count was 592). Three confirmed, real gaps were fixed",
+      "review-gates.md now explicitly states the self-approval risk in " +
+      "chat mode: nothing stops the same conversation that drafted a " +
+      "document from also being the one that approves it",
+      "quality-gate.yml's (Python CLI packs) 'Enforce coverage gate' " +
+      "step was a bare echo in every pack -- confirmed by reading the " +
+      "actual workflow file. Replaced with a real tripwire that greps " +
+      "for jacoco-maven-plugin's <rules> block (Java) or " +
+      "coverageThreshold/thresholds config (Node) and fails the CI job " +
+      "if missing, across all 5 packs",
+      "New test_prompt_review_coverage.py (Python CLI) checks every " +
+      "active document_reviews key against its owning .prompt.md file " +
+      "for a real 'sdd review submit' call -- verified by reverting " +
+      "release.prompt.md to its pre-fix state and confirming the test " +
+      "fails exactly where the real bug was",
+      "This Node CLI does not implement these prompts/CI templates -- " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.77';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

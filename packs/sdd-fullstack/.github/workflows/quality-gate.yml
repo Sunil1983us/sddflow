@@ -86,10 +86,22 @@ jobs:
 
       - name: Enforce coverage gate
         run: |
-          # Coverage Gate value comes from constitution.md Part 2 — Tech Stack
-          # table. Configure jacoco-maven-plugin's <rules> to fail the build
-          # below that threshold (recommended), or check the report here.
-          echo "Coverage gate enforced via jacoco-maven-plugin <rules> in pom.xml"
+          # This does NOT itself compute or check a coverage percentage --
+          # it verifies that jacoco-maven-plugin's <rules> block actually
+          # exists in pom.xml (which is what makes `mvn -B verify` above
+          # fail the build below the threshold from constitution.md Part 2
+          # Coverage Gate row). Without this check, an unconfigured
+          # pom.xml lets `mvn -B verify` pass with zero coverage
+          # enforcement while this job still shows green.
+          if ! grep -q "jacoco-maven-plugin" pom.xml 2>/dev/null; then
+            echo "::error::Coverage gate NOT enforced -- jacoco-maven-plugin not found in pom.xml. Add it with a <rules> block bound to the verify phase (threshold: constitution.md Part 2 Coverage Gate row) before this check can pass."
+            exit 1
+          fi
+          if ! grep -q "<rules>" pom.xml 2>/dev/null; then
+            echo "::error::Coverage gate NOT enforced -- jacoco-maven-plugin is present in pom.xml but has no <rules> block, so 'mvn -B verify' never actually checks coverage. Add a <rule><element>BUNDLE</element><limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>{threshold}</minimum></limit></limits></rule> block (threshold: constitution.md Part 2 Coverage Gate row)."
+            exit 1
+          fi
+          echo "jacoco-maven-plugin <rules> block found in pom.xml -- coverage was enforced by 'mvn -B verify' above."
 
   frontend-build-test-coverage:
     name: Frontend — build, test, lint, coverage gate
@@ -117,10 +129,26 @@ jobs:
 
       - name: Enforce coverage gate
         run: |
-          # Coverage Gate value comes from constitution.md Part 2 — Tech Stack
-          # table. Configure your test runner's coverage thresholds (e.g.
-          # vitest/jest "coverageThreshold") to fail below that value.
-          echo "Coverage gate enforced via test runner coverageThreshold config"
+          # This does NOT itself compute or check a coverage percentage --
+          # it verifies that a coverage threshold is actually configured
+          # (vitest.config/jest.config "coverageThreshold"/"thresholds",
+          # or package.json), which is what makes the test run above fail
+          # below the value from constitution.md Part 2 Coverage Gate row.
+          # Without this check, an unconfigured test runner lets "npm
+          # test -- --coverage" pass with zero coverage enforcement while
+          # this job still shows green.
+          CONFIG_FILE=""
+          for f in vitest.config.ts vitest.config.js vitest.config.mts jest.config.ts jest.config.js jest.config.cjs package.json; do
+            if [ -f "$f" ] && grep -qE "coverageThreshold|thresholds" "$f"; then
+              CONFIG_FILE="$f"
+              break
+            fi
+          done
+          if [ -z "$CONFIG_FILE" ]; then
+            echo "::error::Coverage gate NOT enforced -- no coverageThreshold/thresholds config found in vitest.config.*/jest.config.*/package.json. Add one (threshold: constitution.md Part 2 Coverage Gate row) before this check can pass."
+            exit 1
+          fi
+          echo "Coverage threshold config found in $CONFIG_FILE -- coverage was enforced by the test run above."
 
   secret-scan:
     name: Secret scan (security-design.md §2)

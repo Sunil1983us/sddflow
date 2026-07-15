@@ -96,10 +96,26 @@ jobs:
 
       - name: Enforce coverage gate
         run: |
-          # Coverage Gate value comes from constitution.md Part 2 — Tech
-          # Stack table. Configure Vitest/Jest's coverage.thresholds (or
-          # coverageThreshold) to fail the build below that threshold.
-          echo "Coverage gate enforced via coverage.thresholds in vitest.config.ts / jest.config.js"
+          # This does NOT itself compute or check a coverage percentage --
+          # it verifies that a coverage threshold is actually configured
+          # (vitest.config/jest.config "coverageThreshold"/"thresholds",
+          # or package.json), which is what makes the test run above fail
+          # below the value from constitution.md Part 2 Coverage Gate row.
+          # Without this check, an unconfigured test runner lets "npm
+          # test -- --coverage" pass with zero coverage enforcement while
+          # this job still shows green.
+          CONFIG_FILE=""
+          for f in vitest.config.ts vitest.config.js vitest.config.mts jest.config.ts jest.config.js jest.config.cjs package.json; do
+            if [ -f "$f" ] && grep -qE "coverageThreshold|thresholds" "$f"; then
+              CONFIG_FILE="$f"
+              break
+            fi
+          done
+          if [ -z "$CONFIG_FILE" ]; then
+            echo "::error::Coverage gate NOT enforced -- no coverageThreshold/thresholds config found in vitest.config.*/jest.config.*/package.json. Add one (threshold: constitution.md Part 2 Coverage Gate row) before this check can pass."
+            exit 1
+          fi
+          echo "Coverage threshold config found in $CONFIG_FILE -- coverage was enforced by the test run above."
 
       - name: Build production bundle
         run: npm run build
