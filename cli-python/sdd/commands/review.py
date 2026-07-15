@@ -14,7 +14,7 @@ from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.manifest import read_manifest
 from sdd.utils.status import persona_for
-from sdd.utils.validate import resolve_doc_path, LIVING_SERVICE_DOCS
+from sdd.utils.validate import resolve_doc_path, PROJECT_SCOPED_DOCS
 from sdd.utils.dashboard_comments import unacknowledged, acknowledge
 
 console = Console()
@@ -52,10 +52,10 @@ def _is_locally_approved(doc: str) -> bool:
 def _doc_md_path(doc: str, feature: str | None) -> Path | None:
     """Resolve the on-disk path for a doc key, or None if unresolvable.
 
-    "constitution" and living/service-level docs (data-model,
+    "constitution", "runbook", and living/service-level docs (data-model,
     security-design, api-spec) resolve to a fixed path regardless of
     feature. Everything else resolves to .specify/features/{feature}/{doc}.md."""
-    if doc == "constitution" or doc in LIVING_SERVICE_DOCS:
+    if doc in PROJECT_SCOPED_DOCS:
         return resolve_doc_path(doc, "")
     manifest     = read_manifest() or {}
     proj         = manifest.get("project") or {}

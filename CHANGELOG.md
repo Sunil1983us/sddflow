@@ -4,6 +4,43 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.76] — 2026-07-15 (Fix: /release and /implement's runbook never went through Jira/Confluence review)
+
+### Fixed
+
+- **A full pipeline audit** (requested after the sdd_parser.py fix
+  below — "in each step we should have jira and confluence") checked
+  every command that's supposed to push to Jira/Confluence against what
+  it actually does, and found two real gaps:
+  - **`release.md` had zero Jira/Confluence wiring.** `release.prompt.md`
+    only ever asked for an informal chat sign-off — regardless of
+    `integrations.yml` — even though CLAUDE.md's own Jira-mode sequence
+    table documents `release phase: Runbook → Release, reviewer: DevOps
+    → Release Manager`, and the shipped `integrations.yml.example`
+    already configures both `document_reviews.runbook` and `.release`
+    with sequence numbers.
+  - **The runbook (`docs/runbook/local-setup.md`) was never submitted
+    for review at all** — not even chat-mode approval —
+    `implement.prompt.md` generated/updated it and just left it there.
+  - Both now go through the same Submit-for-Review + review-decision
+    flow every other document in the pipeline uses, across all 5 packs.
+  - **Backend bug found in the same sweep:** `resolve_doc_path()` had no
+    case for `"runbook"` — `sdd review submit --doc runbook` would have
+    resolved to the nonexistent `.specify/features/{feature}/runbook.md`
+    instead of the real `docs/runbook/local-setup.md`. Confluence page
+    nesting/title logic also didn't treat `runbook` as project-scoped
+    (living) the way `data-model`/`security-design`/`api-spec`/
+    `constitution` already are. New `PROJECT_SCOPED_DOCS` constant in
+    `validate.py` fixes both, with regression tests locking in the
+    correct path, page nesting, and page title behavior.
+  - `integrations.yml.example`'s `page_map.release` entry was also
+    commented out by default even though `document_reviews.release` was
+    already active — a user copying the example as-is would have hit a
+    missing-page_map-entry error the first time this new wiring ran.
+    Uncommented to match `runbook`'s existing active entry.
+
+---
+
 ## [2.7.75] — 2026-07-15 (Fix: sdd jira push and sdd pr create --task silently found zero stories/tasks)
 
 ### Fixed

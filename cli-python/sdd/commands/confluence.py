@@ -10,7 +10,7 @@ from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.cf_to_md import cf_to_md
 from sdd.utils.manifest import read_manifest
-from sdd.utils.validate import resolve_doc_path, LIVING_SERVICE_DOCS
+from sdd.utils.validate import resolve_doc_path, LIVING_SERVICE_DOCS, PROJECT_SCOPED_DOCS
 
 console = Console()
 
@@ -63,11 +63,11 @@ def resolve_feature_parent_id(client: ConfluenceClient, cf_cfg, project_name: st
 
 def resolve_doc_parent_id(client: ConfluenceClient, cf_cfg, project_name: str,
                            feature_name: str, doc: str) -> str:
-    """Like resolve_feature_parent_id(), except living/service-level docs
-    (LIVING_SERVICE_DOCS) and "constitution" nest directly under the
-    Project page instead of a Feature page, since they're shared across
-    every feature, not per-feature."""
-    if doc in LIVING_SERVICE_DOCS or doc == "constitution":
+    """Like resolve_feature_parent_id(), except living/service-level docs,
+    "constitution", and "runbook" (PROJECT_SCOPED_DOCS) nest directly
+    under the Project page instead of a Feature page, since they're
+    shared across every feature, not per-feature."""
+    if doc in PROJECT_SCOPED_DOCS:
         return _ensure_container_page(client, cf_cfg.space_key, project_name, cf_cfg.parent_page_id)
     return resolve_feature_parent_id(client, cf_cfg, project_name, feature_name)
 
@@ -122,10 +122,11 @@ def _resolve_page_title(doc: str, project_name: str, feature: str,
                          page_map: dict) -> str:
     """Build the Confluence page title for a doc key.
 
-    Living/service-level docs (LIVING_SERVICE_DOCS) always resolve to ONE
-    page for the whole project — {feature} is stripped even if present in
-    the template, since these documents are shared across every feature,
-    never per-feature.
+    Living/service-level docs and "runbook" (PROJECT_SCOPED_DOCS, minus
+    "constitution" which is handled separately above) always resolve to
+    ONE page for the whole project — {feature} is stripped even if
+    present in the template, since these documents are shared across
+    every feature, never per-feature.
 
     Per-feature docs substitute {feature} into the title ONLY if the
     user's own page_map template contains that placeholder. This is
@@ -143,7 +144,7 @@ def _resolve_page_title(doc: str, project_name: str, feature: str,
         return _CONSTITUTION_PAGE_TITLE.replace("{project}", project_name)
     template = page_map.get(doc, f"{{project}} — {doc.upper()}")
     title = template.replace("{project}", project_name)
-    if doc in LIVING_SERVICE_DOCS:
+    if doc in LIVING_SERVICE_DOCS or doc == "runbook":
         title = title.replace(" — {feature}", "").replace("{feature}", "")
         return title.strip().rstrip("—").strip()
     return title.replace("{feature}", feature)

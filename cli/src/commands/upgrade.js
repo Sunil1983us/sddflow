@@ -2005,6 +2005,35 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.75',
+    to:   '2.7.76',
+    description: "Fix: /release and /implement's runbook (Python CLI prompts) never went through Jira/Confluence review despite document_reviews.runbook/.release being fully documented and configurable",
+    notes: [
+      "release.prompt.md had zero Jira/Confluence wiring for release.md " +
+      "(only an informal chat sign-off), and implement.prompt.md never " +
+      "submitted the runbook (docs/runbook/local-setup.md) for review " +
+      "at all -- despite CLAUDE.md's own Jira-mode sequence table " +
+      "documenting 'release phase: Runbook -> Release' and the shipped " +
+      "integrations.yml.example already configuring both reviewers",
+      "Backend bug in the same sweep: resolve_doc_path() had no case " +
+      "for 'runbook' -- it would have resolved to a nonexistent path " +
+      "instead of the real docs/runbook/local-setup.md; new " +
+      "PROJECT_SCOPED_DOCS constant fixes path resolution and " +
+      "Confluence page nesting/titling for it",
+      "integrations.yml.example's page_map.release entry was also " +
+      "commented out by default even though document_reviews.release " +
+      "was already active -- uncommented to match runbook's entry",
+      "This Node CLI does not implement these prompts -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.76';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
