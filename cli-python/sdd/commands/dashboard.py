@@ -366,16 +366,30 @@ function linkPill(kind, link) {
 // every mode -- these helpers prefer the mode-specific record when it
 // exists (it carries a note/mode label the table alone doesn't) and fall
 // back to the table's Approver column otherwise.
+//
+// Both gate on the doc's live Status: header first -- the same
+// authoritative-source check badge(d.status, 'doc') already uses (see
+// CLAUDE.md "Document Review Gates": the Status: header is the
+// authoritative gate in every mode). Without this, a document that was
+// locally approved and later regenerated back to Draft would still show
+// the old approver's checkmark pill -- .local-approvals.yml isn't
+// cleared just because the doc content changed, so d.local_approval can
+// outlive the approval it recorded.
 const _APPROVAL_MODE_LABEL = { local: 'Local (dashboard/CLI)', jira: 'Jira', chat: 'Chat only — no audit file' };
 
+function _statusSaysApproved(d) {
+  return (d.status || '').toLowerCase().includes('approved');
+}
+
 function approvalMode(d, reviewJira) {
+  if (!_statusSaysApproved(d)) return null;
   if (d.local_approval) return 'local';
   if (reviewJira && reviewJira.review_status === 'approved') return 'jira';
-  if ((d.status || '').toLowerCase().includes('approved')) return 'chat';
-  return null;
+  return 'chat';
 }
 
 function approvedRowInfo(d) {
+  if (!_statusSaysApproved(d)) return null;
   if (d.local_approval) {
     return { name: d.local_approval.approved_by || 'Approved', note: d.local_approval.note || '' };
   }

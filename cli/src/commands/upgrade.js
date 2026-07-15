@@ -1929,6 +1929,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.72',
+    to:   '2.7.73',
+    description: "Fix: sdd dashboard's (Python CLI) Approve pill could keep showing a stale approver's name after a document was regenerated back to Draft",
+    notes: [
+      "approvalMode()/approvedRowInfo() previously trusted " +
+      "d.local_approval unconditionally, so a doc regenerated back to " +
+      "Draft could still show the old approver's checkmark -- " +
+      ".local-approvals.yml isn't cleared just because doc content " +
+      "changed. Both now check the document's live Status: header " +
+      "first, the same authoritative-source rule the status badge " +
+      "itself already follows",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.73';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

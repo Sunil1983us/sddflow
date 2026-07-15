@@ -4,6 +4,28 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.73] — 2026-07-15 (Fix: dashboard stale approver name after a document reverts to Draft)
+
+### Fixed
+
+- **The Approve pill could keep showing a stale approver's name.**
+  Flagged as a known, pre-existing edge case during the previous review;
+  the user then asked how to fix it, so it's fixed now. `approvalMode()`
+  and `approvedRowInfo()` (`dashboard.py`) previously trusted
+  `d.local_approval` unconditionally — once a document had been approved
+  once, its Approve pill kept showing that approver's name even after the
+  document was regenerated back to `Draft`, since `.local-approvals.yml`
+  isn't cleared just because a doc's content changed. Both functions now
+  check the document's live `Status:` header first — the same
+  authoritative-source rule the status badge itself already follows (see
+  CLAUDE.md "Document Review Gates") — and only consult
+  `local_approval`/the Jira review status/the doc's own Approvals table
+  once the header actually says `Approved`. Verified live: a doc with a
+  stale local-approval record but `Status: Draft` now correctly shows the
+  **Approve** button and its Approvals tab says "Not yet approved."
+
+---
+
 ## [2.7.72] — 2026-07-15 (Fix: dashboard badge color bug + stale "View" copy, found in a second UX review pass)
 
 ### Fixed

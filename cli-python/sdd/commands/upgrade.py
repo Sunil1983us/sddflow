@@ -2809,6 +2809,39 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.72"},
     },
+    {
+        "from":        "2.7.72",
+        "to":          "2.7.73",
+        "description": "Fix: sdd dashboard's Approve pill could keep showing a stale approver's name after a document was regenerated back to Draft",
+        "notes": [
+            "Flagged during the previous UX review as a known, pre-"
+            "existing (not introduced that round) edge case, then the "
+            "user asked how to fix it -- so it's fixed now",
+            "approvalMode() and approvedRowInfo() (dashboard.py) "
+            "previously trusted d.local_approval unconditionally: once "
+            "`sdd review approve --local` (or the dashboard's own "
+            "Approve button) wrote a record for a doc key, the Approve "
+            "pill kept showing that approver's name even after the "
+            "document was regenerated back to Draft -- "
+            ".local-approvals.yml isn't cleared just because a doc's "
+            "content changed, so the record can outlive the approval it "
+            "recorded",
+            "Both functions now check the document's live Status: "
+            "header first -- the same authoritative-source rule "
+            "badge(d.status, 'doc') already follows, and the same one "
+            "CLAUDE.md documents as the gate in every review mode. Only "
+            "once the header actually says Approved do they consult "
+            "local_approval / the Jira review status / the doc's own "
+            "Approvals table to find out who",
+            "Verified live: a doc with a stale local_approval record but "
+            "Status: Draft now shows the Approve button (not the old "
+            "checkmark), and its Approvals tab correctly says 'Not yet "
+            "approved' instead of 'Recorded via: Local'",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.73"},
+    },
 ]
 
 
