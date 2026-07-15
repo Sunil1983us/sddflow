@@ -2880,6 +2880,47 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.74"},
     },
+    {
+        "from":        "2.7.74",
+        "to":          "2.7.75",
+        "description": "Fix: sdd_parser.py never matched the actual shipped stories.md/tasks.md templates -- sdd jira push and sdd pr create --task silently found zero stories/tasks for every real generated feature",
+        "notes": [
+            "Found while helping a user debug why 'sdd jira push' created "
+            "nothing even after fixing Jira/Confluence credentials -- "
+            "traced it to sdd_parser.py's regexes expecting a heading/"
+            "field format ('### STORY-NNN — Title' em-dash, "
+            "'**As a**'/'**Satisfies:**' bold fields, '## TASK-NNN' H2) "
+            "that the shipped feature-story-template.md/tasks-template.md "
+            "have not used for some time (they use '### STORY-NNN: "
+            "Title' colon, '**As**'/'**Linked FRs:**' for stories, and "
+            "'### TASK-NNN' H3 with entirely plain/unbolded fields for "
+            "tasks) -- parse_stories()/parse_tasks() returned an empty "
+            "list for every correctly-generated document",
+            "This silently broke 'sdd jira push --level story/task' "
+            "(reported 'No stories or tasks found') and 'sdd pr create "
+            "--task TASK-NNN' (reported 'TASK-NNN not found in "
+            "tasks.md') for every project using the current templates "
+            "-- both are on the framework's golden path",
+            "sdd_parser.py rewritten to match the current templates "
+            "while still accepting the older em-dash/bold-field style "
+            "found in this repo's own worked examples, so already-"
+            "generated docs in either style parse correctly",
+            "Also fixed: _normalize_moscow() required an exact 'must "
+            "have' string match, but the shipped template's bucket "
+            "headers are 'Must Have Stories' (trailing word) -- every "
+            "story silently fell through to the could-have default, "
+            "mapping every Jira Story to Low priority regardless of "
+            "its actual MoSCoW bucket",
+            "New golden-template tests parse the actual shipped "
+            "feature-story-template.md/tasks-template.md files directly "
+            "(not just hand-written fixtures) so a future template edit "
+            "that breaks the parser fails CI instead of shipping silently "
+            "broken again",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.75"},
+    },
 ]
 
 

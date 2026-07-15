@@ -4,6 +4,43 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.75] — 2026-07-15 (Fix: sdd jira push and sdd pr create --task silently found zero stories/tasks)
+
+### Fixed
+
+- **`sdd_parser.py` never matched the actual shipped templates.** Found
+  while helping a user debug why `sdd jira push` created nothing in Jira
+  even after fixing their Jira/Confluence credentials — traced it to
+  `sdd_parser.py`'s regexes expecting a heading/field format
+  (`### STORY-NNN — Title` with an em-dash, `**As a**`/`**Satisfies:**`
+  bold fields, `## TASK-NNN` at H2) that the shipped
+  `feature-story-template.md`/`tasks-template.md` have not used for some
+  time — they generate `### STORY-NNN: Title` (colon), `**As**`/
+  `**Linked FRs:**` for stories, and `### TASK-NNN` (H3) with entirely
+  plain, unbolded fields for tasks. `parse_stories()`/`parse_tasks()`
+  returned an **empty list** for every correctly-generated document.
+  - This silently broke `sdd jira push --level story/task` (reported
+    "No stories or tasks found") and `sdd pr create --task TASK-NNN`
+    (reported "TASK-NNN not found in tasks.md") — both on the
+    framework's golden path, for every project using the current
+    templates.
+  - `sdd_parser.py` rewritten to match the current templates while
+    still accepting the older em-dash/bold-field style found in this
+    repo's own worked examples, so already-generated docs in either
+    style parse correctly.
+  - Also fixed: `_normalize_moscow()` required an exact `"must have"`
+    string match, but the shipped template's bucket headers are
+    `"Must Have Stories"` (trailing word) — every story silently fell
+    through to the `could-have` default, mapping every pushed Jira
+    Story to Low priority regardless of its actual MoSCoW bucket.
+  - New golden-template tests parse the actual shipped
+    `feature-story-template.md`/`tasks-template.md` files directly
+    (not just hand-written fixtures), so a future template edit that
+    breaks the parser fails CI instead of shipping silently broken
+    again.
+
+---
+
 ## [2.7.74] — 2026-07-15 (Enhance: dashboard shows live Jira ticket status for review-gate and Export tickets)
 
 ### Added

@@ -1977,6 +1977,34 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.74',
+    to:   '2.7.75',
+    description: "Fix: sdd_parser.py (Python CLI) never matched the actual shipped stories.md/tasks.md templates -- sdd jira push and sdd pr create --task silently found zero stories/tasks for every real generated feature",
+    notes: [
+      "sdd_parser.py's regexes expected a heading/field format the " +
+      "shipped feature-story-template.md/tasks-template.md have not " +
+      "used for some time -- parse_stories()/parse_tasks() returned an " +
+      "empty list for every correctly-generated document, silently " +
+      "breaking 'sdd jira push' and 'sdd pr create --task' on the " +
+      "framework's golden path",
+      "Rewritten to match the current templates while still accepting " +
+      "the older heading/field style found in already-generated docs",
+      "Also fixed: MoSCoW bucket normalization required an exact string " +
+      "match against 'must have', but the shipped template's headers " +
+      "are 'Must Have Stories' -- every story silently fell through to " +
+      "the could-have default, mapping every pushed Jira Story to Low " +
+      "priority regardless of its actual bucket",
+      "This Node CLI does not implement sdd_parser.py -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.75';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
