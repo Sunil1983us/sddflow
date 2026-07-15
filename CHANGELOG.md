@@ -4,6 +4,47 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.74] — 2026-07-15 (Enhance: dashboard shows live Jira ticket status for review-gate and Export tickets)
+
+### Added
+
+- **Live Jira ticket status, not just links.** The user asked directly:
+  "do we show the Jira status also?" Investigation found the raw Jira
+  status was already fetched but unused for review-gate tickets, and
+  never fetched at all for Jira Export (Epic/Story/Task) tickets. Both
+  gaps are now closed:
+  - **Review-gate tickets**: each Jira pill now shows the ticket's raw
+    Jira workflow status (e.g. `(In Review)`) as a suffix, alongside —
+    not merged with — SDD's own `APPROVED`/`PENDING`/`NEEDS_REVISION`
+    `review_status` badge. The two are legitimately different concepts
+    (SDD's approval classification vs. the ticket's actual Jira
+    workflow state) and are shown side by side.
+  - **Jira Export tickets**: a new `_fetch_export_ticket_statuses()`
+    (`dashboard.py`) reads the Epic/Story/Task keys from
+    `docs/jira/{feature}/keys.yml` and resolves their live status with
+    a single batched JQL `key in (...)` query, instead of one lookup
+    per ticket. Keys are validated against `_JIRA_KEY_RE` before being
+    interpolated into the JQL string — keys normally come from Jira's
+    own API, but `keys.yml` is a plain file a user could hand-edit, and
+    JQL has no parameterized-query binding.
+  - `_fetch_review_links()`'s guard relaxed: previously required
+    `document_reviews` to be configured before running at all, which
+    would have blocked the new export-status fetch for a project using
+    Jira only for progressive export (no review gates). Now requires
+    only `jira:` or `confluence:` to be configured.
+  - The dashboard's "🔄 Check Jira/Confluence review links" button is
+    renamed to "🔄 Check Jira/Confluence status", since it now
+    refreshes ticket status too — reusing the existing on-demand +
+    5-minute auto-refresh mechanism rather than adding a second
+    control.
+  - Verified live (simulated API response, no live Jira instance in the
+    sandbox): a review-gate pill correctly showed `Jira PROJ-9 (In
+    Review)` next to its separate `PENDING` badge, and the Jira Export
+    card correctly showed each Epic/Story/Task with its live status,
+    e.g. `PROJ-2 (Done)`, `PROJ-3 (To Do)`.
+
+---
+
 ## [2.7.73] — 2026-07-15 (Fix: dashboard stale approver name after a document reverts to Draft)
 
 ### Fixed

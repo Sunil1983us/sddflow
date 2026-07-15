@@ -2842,6 +2842,44 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.73"},
     },
+    {
+        "from":        "2.7.73",
+        "to":          "2.7.74",
+        "description": "Enhance: sdd dashboard now shows live Jira ticket status (not just links) for both review-gate tickets and Jira Export Epic/Story/Task tickets",
+        "notes": [
+            "User asked directly: 'do we show the Jira status also?' -- "
+            "investigation found the raw Jira status was already fetched "
+            "but unused for review-gate tickets, and never fetched at "
+            "all for Export tickets. User chose to close both gaps",
+            "linkPill() now shows the review-gate ticket's raw Jira "
+            "workflow status (e.g. 'In Review') as a suffix next to the "
+            "pill, alongside (not merged with) SDD's own APPROVED/"
+            "PENDING/NEEDS_REVISION review_status badge -- the two are "
+            "legitimately different concepts shown side by side",
+            "New _fetch_export_ticket_statuses() reads Epic/Story/Task "
+            "keys from docs/jira/{feature}/keys.yml and resolves their "
+            "live status with a single batched JQL 'key in (...)' query "
+            "instead of one lookup per ticket",
+            "Jira keys from keys.yml are validated against "
+            "_JIRA_KEY_RE before being interpolated into the JQL string "
+            "-- keys normally come from Jira's own API but the file is "
+            "user-editable on disk, and JQL has no parameterized-query "
+            "binding",
+            "_fetch_review_links()'s guard relaxed from requiring "
+            "document_reviews to be configured to requiring only jira: "
+            "or confluence: -- a project using Jira solely for "
+            "progressive export (no document review gates) can now "
+            "still use the status check",
+            "The '\U0001f504 Check Jira/Confluence review links' button "
+            "renamed to '\U0001f504 Check Jira/Confluence status' since "
+            "it now refreshes ticket status too, reusing the existing "
+            "on-demand + 5-minute auto-refresh mechanism rather than "
+            "adding a second control",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.74"},
+    },
 ]
 
 

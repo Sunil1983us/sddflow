@@ -228,11 +228,12 @@ _PAGE = """<!doctype html>
       every 5s, no network calls. Task status reflects <code>tasks.md</code>, not live PR state.
       "Details" → Content reads the raw .md file from disk. Jira/Confluence pills next to a document come from a local cache written
       the last time you ran <code>sdd jira push</code> / <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code> —
-      they can go stale if the ticket changed since then. Click <strong>"Check Jira/Confluence review links"</strong> to make a
+      they can go stale if the ticket changed since then. Click <strong>"Check Jira/Confluence status"</strong> to make a
       live call that refreshes both pills and adds the same APPROVED/NEEDS REVISION/PENDING classification as
-      <code>sdd review check --doc</code>, plus reviewer comments (shown under 💬). That's the only thing on this page that
-      talks to Jira/Confluence — everything else is local-file-only — and once you've clicked it for a feature, it quietly
-      re-checks every 5 minutes so the pills stay fresh without you clicking again.
+      <code>sdd review check --doc</code>, plus reviewer comments (shown under 💬) — and, in the same call, the live Jira
+      workflow status (e.g. "In Review", "Done") for both the review-gate tickets and the Jira Export card's Epic/Story/Task
+      tickets. That's the only thing on this page that talks to Jira/Confluence — everything else is local-file-only — and
+      once you've clicked it for a feature, it quietly re-checks every 5 minutes so it all stays fresh without you clicking again.
       <strong>Approve</strong> and comments update the local Status header (same as <code>sdd review approve --local</code>),
       mirror to Confluence if configured, and post a best-effort Jira comment.
     </div>
@@ -353,9 +354,18 @@ function linkPill(kind, link) {
   if (!link) return '';
   if (link.error) return `<span class="pill pill-bad" title="${escapeHtml(link.error)}">${kind} ⚠</span>`;
   const label = kind === 'Jira' ? `Jira ${link.key}` : 'Confluence';
-  return link.url
+  // link.status is the raw Jira workflow status (e.g. "In Review",
+  // "Done") -- only present once the live check has run (reviewJira,
+  // not the local-cache fallback), and distinct from review_status
+  // (our own APPROVED/NEEDS REVISION/PENDING classification, shown as
+  // its own badge) -- a ticket can be "Done" in the team's board while
+  // still PENDING our classification, or vice versa.
+  const statusSuffix = (kind === 'Jira' && link.status)
+    ? ` <span class="sub">(${escapeHtml(link.status)})</span>` : '';
+  return (link.url
     ? `<a class="pill pill-${kind === 'Jira' ? 'jira' : 'cf'}" href="${link.url}" target="_blank" rel="noopener">${label}</a>`
-    : `<span class="pill pill-${kind === 'Jira' ? 'jira' : 'cf'}" title="No Atlassian base_url configured — run sdd config init">${label}</span>`;
+    : `<span class="pill pill-${kind === 'Jira' ? 'jira' : 'cf'}" title="No Atlassian base_url configured — run sdd config init">${label}</span>`
+  ) + statusSuffix;
 }
 
 // "Who approved this, and how" needs one answer that works the same way
@@ -542,14 +552,25 @@ function renderDocs(docs, stage, feature, localConfluence, localJiraReview) {
   return `<table><thead><tr><th>Document</th><th>Status</th><th>Links</th></tr></thead><tbody>${rows}</tbody></table>${next}`;
 }
 
-function renderJiraExport(jira) {
+// exportEntry is state.reviewLinks[feature].export -- live ticket status
+// for the Epic/Story/Task tickets, fetched by the same "Check Jira/
+// Confluence status" click/auto-refresh as the review-gate tickets (see
+// _fetch_export_ticket_statuses). null/undefined until that's run once.
+function renderJiraExport(jira, exportEntry) {
   if (!jira || (!jira.epic && jira.stories.length === 0 && jira.tasks.length === 0)) {
     return '<div class="empty">No progressive Jira export yet (run /jira-push or sdd jira push).</div>';
   }
-  const list = arr => arr.length
-    ? arr.map(x => x.url ? `<a href="${x.url}" target="_blank" rel="noopener">${x.key}</a>` : x.key).join(', ')
-    : '—';
+  const statuses = (exportEntry && exportEntry.statuses) || null;
+  const itemLabel = x => {
+    const label = x.url ? `<a href="${x.url}" target="_blank" rel="noopener">${x.key}</a>` : x.key;
+    const status = statuses && statuses[x.key];
+    return status ? `${label} <span class="sub">(${escapeHtml(status)})</span>` : label;
+  };
+  const list = arr => arr.length ? arr.map(itemLabel).join(', ') : '—';
+  const errLine = exportEntry && exportEntry.error
+    ? `<div class="sub" style="color:var(--bad)">${escapeHtml(exportEntry.error)}</div>` : '';
   return `
+    ${errLine}
     <div class="kv"><span>Epic</span><span>${jira.epic ? list([jira.epic]) : '—'}</span></div>
     <div class="kv"><span>Stories (${jira.stories.length})</span><span>${list(jira.stories)}</span></div>
     <div class="kv"><span>Tasks (${jira.tasks.length})</span><span>${list(jira.tasks)}</span></div>
@@ -564,7 +585,7 @@ function renderReviewLinksControl(feature) {
   else if (entry && entry.checked_at) status = `<span class="sub">Checked ${entry.checked_at} — auto-refreshes every 5 min</span>`;
   return `
     <div class="check-links-row">
-      <button class="link-btn" data-action="check-review-links" data-feature="${feature}">🔄 Check Jira/Confluence review links</button>
+      <button class="link-btn" data-action="check-review-links" data-feature="${feature}">🔄 Check Jira/Confluence status</button>
       ${status}
     </div>`;
 }
@@ -643,6 +664,8 @@ function featureAnchorId(name) {
 
 function renderFeature(f, project) {
   const local = f.local_links || { jira: null, confluence: {}, jira_review: {} };
+  const reviewEntry = state.reviewLinks[f.name];
+  const exportEntry = (reviewEntry && typeof reviewEntry === 'object') ? reviewEntry.export : null;
   return `
   <div class="feature-block" id="${featureAnchorId(f.name)}">
     <div class="feature-title">${f.name}</div>
@@ -652,7 +675,7 @@ function renderFeature(f, project) {
       <div class="card card-wide"><h2>Documents</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence, local.jira_review)}</div>
       <div class="card"><h2>Tasks</h2>${renderTasks(f.tasks)}</div>
       <div class="card"><h2>Token Usage</h2>${renderTokenUsage(f.token_usage)}</div>
-      <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira)}</div>
+      <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira, exportEntry)}</div>
     </div>
   </div>`;
 }
@@ -870,7 +893,7 @@ document.getElementById('root').addEventListener('click', async (e) => {
 });
 
 // Opt-in only: this never fires for a feature the user hasn't manually
-// checked at least once via the "Check Jira/Confluence review links"
+// checked at least once via the "Check Jira/Confluence status"
 // button -- the dashboard's one live-network-call path stays something
 // the user explicitly triggered, it just doesn't require re-clicking
 // every 5 minutes to stay fresh after that. Silently keeps the last good
@@ -923,9 +946,54 @@ def _fetch_doc_content(feature: str, doc: str) -> dict | None:
     return {"path": str(path), "content": path.read_text(errors="replace")}
 
 
+_JIRA_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]*-\d+$")
+
+
+def _fetch_export_ticket_statuses(feature: str, jira_client) -> dict:
+    """Live Jira status for the Epic/Story/Task tickets from the
+    progressive export (docs/jira/{feature}/keys.yml, written by `sdd
+    jira push`) -- unlike the review-gate tickets above, status.py's
+    local_links.jira only ever has cached key+url, never a live status,
+    since nothing previously fetched one. One batched 'key in (...)' JQL
+    query covers the whole Epic+Stories+Tasks set in a single API call.
+    Folded into _fetch_review_links' response so there's still only one
+    "Check Jira/Confluence status" action per feature, not two buttons.
+
+    Keys are re-validated against Jira's own KEY-123 format before being
+    inlined into the JQL string -- they normally come straight from
+    Jira's own issue-creation response (via `sdd jira push`), but
+    keys.yml is a plain file on disk a user could hand-edit, and JQL has
+    no query-parameter binding to lean on the way SQL does.
+    """
+    if jira_client is None:
+        return {}
+    from sdd.utils.status import _local_jira_links
+
+    local = _local_jira_links(Path("."), feature, base_url=None)
+    all_keys = []
+    if local["epic"]:
+        all_keys.append(local["epic"]["key"])
+    all_keys += [s["key"] for s in local["stories"]]
+    all_keys += [t["key"] for t in local["tasks"]]
+    all_keys = [k for k in all_keys if _JIRA_KEY_RE.match(k)]
+    if not all_keys:
+        return {}
+
+    try:
+        issues = jira_client.search(
+            f"key in ({', '.join(all_keys)})", fields=["status"], max_results=len(all_keys),
+        )
+    except Exception as e:
+        return {"error": str(e)}
+    return {"statuses": {issue["key"]: issue.get("fields", {}).get("status", {}).get("name")
+                          for issue in issues}}
+
+
 def _fetch_review_links(feature: str) -> dict:
     """Live Jira/Confluence lookup for review-gate tickets (the ones
-    created by `sdd review submit`). status.py's local_links.jira_review
+    created by `sdd review submit`) plus live status for the progressive
+    Jira export's Epic/Story/Task tickets (see
+    _fetch_export_ticket_statuses). status.py's local_links.jira_review
     gives the passive 5s poll an instant-but-possibly-stale fallback pill
     (populated the moment `sdd review submit`/`apply` touches the
     ticket) — this function is what actually re-verifies against Jira/
@@ -951,8 +1019,8 @@ def _fetch_review_links(feature: str) -> dict:
         cfg = load_integrations()
     except FileNotFoundError as e:
         return {"error": str(e)}
-    if not cfg.document_reviews:
-        return {"error": "No document_reviews configured in .specify/integrations.yml"}
+    if not cfg.jira and not cfg.confluence:
+        return {"error": "Neither jira: nor confluence: configured in .specify/integrations.yml"}
 
     try:
         prof = load_profile(cfg.profile)
@@ -967,7 +1035,7 @@ def _fetch_review_links(feature: str) -> dict:
     project_name = (manifest.get("project") or {}).get("name", "Project")
 
     docs: dict = {}
-    for doc_key, dr in cfg.document_reviews.items():
+    for doc_key, dr in (cfg.document_reviews or {}).items():
         entry: dict = {"jira": None, "confluence": None}
 
         if jira_client:
@@ -1008,7 +1076,11 @@ def _fetch_review_links(feature: str) -> dict:
 
         docs[doc_key] = entry
 
-    return {"docs": docs, "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    return {
+        "docs": docs,
+        "export": _fetch_export_ticket_statuses(feature, jira_client),
+        "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
 
 
 _COMMENTS_FILE = Path(".specify") / ".dashboard-comments.json"

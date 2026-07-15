@@ -1951,6 +1951,32 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.73',
+    to:   '2.7.74',
+    description: "Enhance: sdd dashboard's (Python CLI) now shows live Jira ticket status (not just links) for review-gate and Jira Export Epic/Story/Task tickets",
+    notes: [
+      "User asked directly whether the dashboard shows Jira ticket " +
+      "status, not just links -- the raw status was already fetched " +
+      "but unused for review-gate tickets, and never fetched for " +
+      "Export tickets. Both gaps closed",
+      "Review-gate ticket pills now show the raw Jira workflow status " +
+      "(e.g. 'In Review') alongside SDD's own APPROVED/PENDING/" +
+      "NEEDS_REVISION review_status badge",
+      "A new batched JQL 'key in (...)' query resolves Epic/Story/Task " +
+      "status from docs/jira/{feature}/keys.yml in one call instead of " +
+      "one lookup per ticket, with keys validated before being " +
+      "interpolated into the query",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.74';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
