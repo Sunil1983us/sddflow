@@ -4,6 +4,30 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.67] — 2026-07-15 (Fix: dashboard Token Usage card broken by the 2.7.66 label rename)
+
+### Fixed
+
+- **`sdd dashboard`'s Token Usage card showed `—` for every total on any
+  `token-usage.md` written after 2.7.66.** Found while investigating a
+  user question about where dashboard data comes from. Root cause: 2.7.66
+  renamed `token-usage-template.md`'s Running Totals labels from `Total
+  Est. Input Tokens` etc. to `Total Input Tokens` (dropping the `Est.`
+  prefix, since a row can now be Real or Estimated), but two consumers of
+  that label text were never updated to match:
+  - `status.py`'s `_RUNNING_TOTAL_ROW_RE` regex only matched the old
+    `Total Est. X` label, so `_parse_token_usage()` returned `None` for
+    input/output/cost on any file using the new labels.
+  - `dashboard.py`'s `renderTokenUsage()` JS still hardcoded the old
+    `Total Est. X` label text in its rendered HTML.
+  - Fixed both to accept and render the current label text, while still
+    parsing the old `Total Est. X` label for any `token-usage.md` written
+    before 2.7.66 — no existing file needs to be touched.
+  - Added a regression test (`test_token_usage_parsed_from_legacy_est_labels`)
+    covering the pre-2.7.66 label format so this drift can't recur silently.
+
+---
+
 ## [2.7.66] — 2026-07-14 (Add: real Claude Code token usage via `sdd token-log`, instead of the char/4 estimate)
 
 ### Added

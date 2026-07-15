@@ -46,8 +46,12 @@ _TASK_HEADING_RE = re.compile(r"^#{2,3}\s+(TASK-\d+)\s*[—–-]+\s*(.+)$")
 _TASK_STATUS_FIELD_RE = re.compile(r"\*\*Status:\*\*\s*(.+)")
 _CHECKBOX_DONE_RE = re.compile(r"^\s*[-*]\s+\[[xX]\]")
 _CHECKBOX_OPEN_RE = re.compile(r"^\s*[-*]\s+\[\s\]")
-_RUNNING_TOTAL_ROW_RE = re.compile(r"\|\s*(Total Est\. Input Tokens|Total Est\. Output Tokens|"
-                                    r"Total Est\. Cost \(USD\)|Commands logged|Last updated)\s*\|\s*(.+?)\s*\|")
+# "Est. " is optional in the label -- token-usage-template.md dropped the
+# prefix when the Source column (Real | Estimated) was added, since a row
+# can now be either; older files created before that change still say
+# "Total Est. Input Tokens" etc. and must keep parsing correctly.
+_RUNNING_TOTAL_ROW_RE = re.compile(r"\|\s*(Total (?:Est\. )?Input Tokens|Total (?:Est\. )?Output Tokens|"
+                                    r"Total (?:Est\. )?Cost \(USD\)|Commands logged|Last updated)\s*\|\s*(.+?)\s*\|")
 
 
 def _doc_status(path: Path) -> str | None:
@@ -483,9 +487,9 @@ def _parse_token_usage(path: Path) -> dict | None:
                 "total_cost": None, "commands_logged": None, "last_updated": None}
     return {
         "exists": True,
-        "total_input":     values.get("Total Est. Input Tokens"),
-        "total_output":    values.get("Total Est. Output Tokens"),
-        "total_cost":      values.get("Total Est. Cost (USD)"),
+        "total_input":     values.get("Total Input Tokens") or values.get("Total Est. Input Tokens"),
+        "total_output":    values.get("Total Output Tokens") or values.get("Total Est. Output Tokens"),
+        "total_cost":      values.get("Total Cost (USD)") or values.get("Total Est. Cost (USD)"),
         "commands_logged": values.get("Commands logged"),
         "last_updated":    values.get("Last updated"),
     }

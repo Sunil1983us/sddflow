@@ -361,9 +361,9 @@ function renderReviewLinksControl(feature) {
 function renderTokenUsage(tu) {
   if (!tu) return '<div class="empty">Token usage logging not enabled for this feature.</div>';
   return `
-    <div class="kv"><span>Total Est. Input Tokens</span><span>${tu.total_input ?? '—'}</span></div>
-    <div class="kv"><span>Total Est. Output Tokens</span><span>${tu.total_output ?? '—'}</span></div>
-    <div class="kv"><span>Total Est. Cost (USD)</span><span>${tu.total_cost ?? '—'}</span></div>
+    <div class="kv"><span>Total Input Tokens</span><span>${tu.total_input ?? '—'}</span></div>
+    <div class="kv"><span>Total Output Tokens</span><span>${tu.total_output ?? '—'}</span></div>
+    <div class="kv"><span>Total Cost (USD)</span><span>${tu.total_cost ?? '—'}</span></div>
     <div class="kv"><span>Commands logged</span><span>${tu.commands_logged ?? '—'}</span></div>
     <div class="kv"><span>Last updated</span><span>${tu.last_updated ?? '—'}</span></div>
   `;

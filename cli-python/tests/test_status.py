@@ -185,6 +185,29 @@ def test_token_usage_parsed_from_running_totals(tmp_path, monkeypatch):
         "## Running Totals\n\n"
         "| Metric | Value |\n"
         "|---|---|\n"
+        "| Total Input Tokens | 12345 |\n"
+        "| Total Output Tokens | 6789 |\n"
+        "| Total Cost (USD) | 0.42 |\n"
+        "| Commands logged | 5 |\n"
+        "| Last updated | 2026-07-08 |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    tu = feat["token_usage"]
+    assert tu["total_input"] == "12345"
+    assert tu["total_output"] == "6789"
+    assert tu["total_cost"] == "0.42"
+    assert tu["commands_logged"] == "5"
+
+
+def test_token_usage_parsed_from_legacy_est_labels(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "token-usage.md").write_text(
+        "## Running Totals\n\n"
+        "| Metric | Value |\n"
+        "|---|---|\n"
         "| Total Est. Input Tokens | 12345 |\n"
         "| Total Est. Output Tokens | 6789 |\n"
         "| Total Est. Cost (USD) | 0.42 |\n"

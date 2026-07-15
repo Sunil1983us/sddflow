@@ -2614,6 +2614,30 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.66"},
     },
+    {
+        "from":        "2.7.66",
+        "to":          "2.7.67",
+        "description": "Fix: dashboard Token Usage card showed all blanks for any token-usage.md written after the Source-column rename (2.7.66) dropped the 'Est.' prefix from Running Totals labels",
+        "notes": [
+            "The 2.7.66 token-usage-template.md rewrite renamed the "
+            "Running Totals labels from 'Total Est. Input Tokens' etc. "
+            "to 'Total Input Tokens' (since a row can now be Real or "
+            "Estimated, not only estimated) -- but status.py's "
+            "_RUNNING_TOTAL_ROW_RE regex and dashboard.py's rendered JS "
+            "labels were never updated to match, so every token-usage.md "
+            "created or updated after that rename showed '-' for all "
+            "three totals in `sdd dashboard`'s Token Usage card",
+            "status.py: _RUNNING_TOTAL_ROW_RE now makes 'Est. ' optional "
+            "in the label, and _parse_token_usage() checks both the new "
+            "and legacy label text, so files written before or after "
+            "2.7.66 both parse correctly",
+            "dashboard.py: renderTokenUsage() JS now renders the current "
+            "'Total Input/Output Tokens' / 'Total Cost (USD)' labels",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.67"},
+    },
 ]
 
 

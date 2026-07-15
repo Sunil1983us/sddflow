@@ -1797,6 +1797,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.66',
+    to:   '2.7.67',
+    description: "Fix: dashboard Token Usage card showed blanks for token-usage.md files written after the 2.7.66 Source-column rename dropped the 'Est.' prefix from Running Totals labels",
+    notes: [
+      "The 2.7.66 template rewrite renamed 'Total Est. Input Tokens' " +
+      "etc. to 'Total Input Tokens' (a row can now be Real or " +
+      "Estimated), but status.py's parser and dashboard.py's rendered " +
+      "labels (Python CLI) were never updated to match, so the Token " +
+      "Usage card showed '-' for every project upgraded to 2.7.66",
+      "status.py now accepts both the new and legacy label text; " +
+      "dashboard.py's JS now renders the current label text",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.67';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
