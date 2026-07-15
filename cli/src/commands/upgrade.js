@@ -1841,6 +1841,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.68',
+    to:   '2.7.69',
+    description: "Enhance: sdd dashboard (Python CLI) gets a Real/Estimated token badge, a Features Overview table for multi-feature projects, and auto-refreshing Jira/Confluence review links",
+    notes: [
+      "Token Usage card now shows a Real N / Est. N badge tallied from " +
+      "the Per-Command Log's Source column",
+      "New Features Overview table (2+ features) lists every feature's " +
+      "current step, task progress, and next action with jump links",
+      "Once a feature's review links have been checked once (manual " +
+      "button click, opt-in preserved), the dashboard now auto-refreshes " +
+      "them every 5 minutes instead of only on click",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.69';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

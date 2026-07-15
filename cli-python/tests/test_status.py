@@ -222,6 +222,52 @@ def test_token_usage_parsed_from_legacy_est_labels(tmp_path, monkeypatch):
     assert tu["commands_logged"] == "5"
 
 
+def test_token_usage_source_mix_counts_real_vs_estimated(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "token-usage.md").write_text(
+        "## Running Totals\n\n"
+        "| Metric | Value |\n"
+        "|---|---|\n"
+        "| Total Input Tokens | 300 |\n"
+        "| Commands logged | 3 |\n\n"
+        "## Per-Command Log\n\n"
+        "| # | Command | Model | Input Tokens | Output Tokens | Cost (USD) | Source | Timestamp |\n"
+        "|---|---|---|---|---|---|---|---|\n"
+        "| 1 | specify | claude-sonnet-5 | 100 | 50 | $0.01 | Real (Claude Code) | 2026-07-08T10:00:00Z |\n"
+        "| 2 | plan | claude-sonnet-5 | 100 | 50 | $0.01 | Real (Claude Code) | 2026-07-08T11:00:00Z |\n"
+        "| 3 | task | gpt-4 | 100 | 50 | n/a | Estimated | 2026-07-08T12:00:00Z |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    tu = feat["token_usage"]
+    assert tu["real_commands"] == 2
+    assert tu["estimated_commands"] == 1
+
+
+def test_token_usage_source_mix_legacy_rows_all_estimated(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "token-usage.md").write_text(
+        "## Running Totals\n\n"
+        "| Metric | Value |\n"
+        "|---|---|\n"
+        "| Total Est. Input Tokens | 200 |\n\n"
+        "## Per-Command Log\n\n"
+        "| # | Command | Model | Input Tokens | Output Tokens | Cost (USD) | Timestamp |\n"
+        "|---|---|---|---|---|---|---|\n"
+        "| 1 | specify | claude-sonnet-5 | 100 | 50 | n/a | 2026-07-08T10:00:00Z |\n"
+        "| 2 | plan | claude-sonnet-5 | 100 | 50 | n/a | 2026-07-08T11:00:00Z |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    tu = feat["token_usage"]
+    assert tu["real_commands"] == 0
+    assert tu["estimated_commands"] == 2
+
+
 def test_token_usage_absent_when_no_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)

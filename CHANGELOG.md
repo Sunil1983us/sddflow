@@ -4,6 +4,34 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.69] — 2026-07-15 (Enhance: dashboard token badge, features overview, auto-refreshing review links)
+
+### Added
+
+- **Real/Estimated token badge.** The Token Usage card now shows a
+  "Source mix" row — `Real N` / `Est. N` badges tallied from the
+  Per-Command Log's `Source` column, so it's obvious at a glance how much
+  of a feature's total is measured (Claude Code's own transcript, via
+  `sdd token-log`) versus the character-count approximation. Legacy
+  `token-usage.md` files from before the `Source` column existed still
+  parse correctly — every row in those counts as Estimated.
+- **Features Overview table**, shown once a project has 2+ features
+  (skipped for one — it would just duplicate the block below it). Lists
+  every feature's current pipeline step, task progress, and next action
+  in a single table, with each row linking down to that feature's full
+  detail block — useful for scanning a multi-feature project without
+  scrolling past every full pipeline diagram first.
+- **Auto-refreshing Jira/Confluence review links.** The "Check
+  Jira/Confluence review links" button is still the only way to make the
+  *first* live call for a feature — that opt-in stays intact — but once
+  a feature has been checked once, the dashboard now quietly re-checks
+  it every 5 minutes so the pills don't go stale without a manual
+  re-click. A transient failure during auto-refresh keeps the last
+  known-good result instead of flashing an error over data that was fine
+  a moment ago.
+
+---
+
 ## [2.7.68] — 2026-07-15 (Enhance: dashboard theme toggle + usability)
 
 ### Fixed / Added

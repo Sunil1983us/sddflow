@@ -2669,6 +2669,34 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.68"},
     },
+    {
+        "from":        "2.7.68",
+        "to":          "2.7.69",
+        "description": "Enhance: sdd dashboard gets a Real/Estimated token badge, a Features Overview table for multi-feature projects, and auto-refreshing Jira/Confluence review links",
+        "notes": [
+            "Token Usage card now shows a 'Source mix' row -- Real N / "
+            "Est. N badges tallied from the Per-Command Log's Source "
+            "column (status.py's _parse_command_log_sources; mirrors "
+            "token_log.py's row-parsing so legacy 7-column rows without "
+            "a Source column still count correctly, as Estimated)",
+            "New 'Features Overview' card (only shown once a project has "
+            "2+ features -- redundant for one) lists every feature's "
+            "current pipeline step, task progress, and next action in "
+            "one table, each row linking to that feature's full block "
+            "further down the page",
+            "The 'Check Jira/Confluence review links' button remains the "
+            "only way to make the first live call for a feature (opt-in "
+            "preserved) -- but once you've checked a feature at least "
+            "once, the dashboard now quietly re-checks it every 5 "
+            "minutes so the pills don't go stale without a re-click. A "
+            "transient failure during auto-refresh keeps the last known-"
+            "good result rather than flashing an error over data that "
+            "was fine a moment ago",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.69"},
+    },
 ]
 
 

@@ -475,6 +475,29 @@ def _parse_tasks(tasks_path: Path) -> dict:
     }
 
 
+def _parse_command_log_sources(text: str) -> dict:
+    """Tally Per-Command Log rows by Source (Real vs Estimated), for the
+    dashboard's Token Usage card. Mirrors token_log.py's _parse_table_row
+    column handling (8-column current format with Source, or legacy
+    7-column rows that pre-date the column and are always Estimated) so
+    the two never drift apart.
+    """
+    real = estimated = 0
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not (stripped.startswith("|") and stripped.endswith("|")):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) not in (7, 8) or not cells[0].isdigit():
+            continue
+        source = cells[6] if len(cells) == 8 else "Estimated"
+        if source.startswith("Real"):
+            real += 1
+        else:
+            estimated += 1
+    return {"real_commands": real, "estimated_commands": estimated}
+
+
 def _parse_token_usage(path: Path) -> dict | None:
     if not path.exists():
         return None
@@ -482,9 +505,11 @@ def _parse_token_usage(path: Path) -> dict | None:
     values: dict[str, str] = {}
     for m in _RUNNING_TOTAL_ROW_RE.finditer(text):
         values[m.group(1)] = m.group(2).strip()
+    sources = _parse_command_log_sources(text)
     if not values:
         return {"exists": True, "total_input": None, "total_output": None,
-                "total_cost": None, "commands_logged": None, "last_updated": None}
+                "total_cost": None, "commands_logged": None, "last_updated": None,
+                **sources}
     return {
         "exists": True,
         "total_input":     values.get("Total Input Tokens") or values.get("Total Est. Input Tokens"),
@@ -492,6 +517,7 @@ def _parse_token_usage(path: Path) -> dict | None:
         "total_cost":      values.get("Total Cost (USD)") or values.get("Total Est. Cost (USD)"),
         "commands_logged": values.get("Commands logged"),
         "last_updated":    values.get("Last updated"),
+        **sources,
     }
 
 

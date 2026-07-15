@@ -70,6 +70,7 @@ _PAGE = """<!doctype html>
     --ok: #4ade80; --warn: #facc15; --bad: #f87171; --dim: #6b7280;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0; padding: 2rem; background: var(--bg); color: var(--fg);
     font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -213,8 +214,9 @@ _PAGE = """<!doctype html>
       the last time you ran <code>sdd jira push</code> / <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code> —
       they can go stale if the ticket changed since then. Click <strong>"Check Jira/Confluence review links"</strong> to make a
       live call that refreshes both pills and adds the same APPROVED/NEEDS REVISION/PENDING classification as
-      <code>sdd review check --doc</code>, plus reviewer comments (shown under 💬). That button is the only thing on this
-      page that talks to Jira/Confluence — everything else is local-file-only.
+      <code>sdd review check --doc</code>, plus reviewer comments (shown under 💬). That's the only thing on this page that
+      talks to Jira/Confluence — everything else is local-file-only — and once you've clicked it for a feature, it quietly
+      re-checks every 5 minutes so the pills stay fresh without you clicking again.
       <strong>Approve</strong> and comments update the local Status header (same as <code>sdd review approve --local</code>),
       mirror to Confluence if configured, and post a best-effort Jira comment.
     </div>
@@ -438,7 +440,7 @@ function renderReviewLinksControl(feature) {
   let status = '';
   if (entry === 'loading') status = '<span class="sub">Checking…</span>';
   else if (entry && entry.error) status = `<span class="sub" style="color:var(--bad)">${escapeHtml(entry.error)}</span>`;
-  else if (entry && entry.checked_at) status = `<span class="sub">Checked ${entry.checked_at}</span>`;
+  else if (entry && entry.checked_at) status = `<span class="sub">Checked ${entry.checked_at} — auto-refreshes every 5 min</span>`;
   return `
     <div class="check-links-row">
       <button class="link-btn" data-action="check-review-links" data-feature="${feature}">🔄 Check Jira/Confluence review links</button>
@@ -448,11 +450,20 @@ function renderReviewLinksControl(feature) {
 
 function renderTokenUsage(tu) {
   if (!tu) return '<div class="empty">Token usage logging not enabled for this feature.</div>';
+  const real = tu.real_commands || 0;
+  const estimated = tu.estimated_commands || 0;
+  const sourceMix = (real || estimated)
+    ? `<div class="kv"><span>Source mix</span><span>
+        <span class="badge b-ok" title="Real usage measured from Claude Code's own local session transcript via sdd token-log">Real ${real}</span>
+        <span class="badge b-dim" title="Character-count approximation, used whenever Real usage isn't available">Est. ${estimated}</span>
+      </span></div>`
+    : '';
   return `
     <div class="kv"><span>Total Input Tokens</span><span>${tu.total_input ?? '—'}</span></div>
     <div class="kv"><span>Total Output Tokens</span><span>${tu.total_output ?? '—'}</span></div>
     <div class="kv"><span>Total Cost (USD)</span><span>${tu.total_cost ?? '—'}</span></div>
     <div class="kv"><span>Commands logged</span><span>${tu.commands_logged ?? '—'}</span></div>
+    ${sourceMix}
     <div class="kv"><span>Last updated</span><span>${tu.last_updated ?? '—'}</span></div>
   `;
 }
@@ -505,10 +516,14 @@ function renderPipelineFlow(f, project) {
   `;
 }
 
+function featureAnchorId(name) {
+  return 'feature-' + encodeURIComponent(name);
+}
+
 function renderFeature(f, project) {
   const local = f.local_links || { jira: null, confluence: {}, jira_review: {} };
   return `
-  <div class="feature-block">
+  <div class="feature-block" id="${featureAnchorId(f.name)}">
     <div class="feature-title">${f.name}</div>
     ${renderReviewLinksControl(f.name)}
     <div class="grid feature-grid">
@@ -521,10 +536,38 @@ function renderFeature(f, project) {
   </div>`;
 }
 
+// Only worth showing once there's more than one feature to scan through —
+// for a single-feature project it would just duplicate the block below it.
+function renderFeatureOverview(features) {
+  if (!features || features.length < 2) return '';
+  const rows = features.map(f => {
+    const steps = (f.pipeline && f.pipeline.steps) || [];
+    const current = steps.find(s => s.state === 'current');
+    const stageLabel = current ? current.label : (steps.every(s => s.state === 'done' || s.state === 'skipped') ? 'Complete' : '—');
+    const tasks = f.tasks || {};
+    const pct = tasks.total ? Math.round(100 * tasks.done / tasks.total) : null;
+    const tasksCell = pct !== null ? `${pct}% <span class="sub">(${tasks.done}/${tasks.total})</span>` : '<span class="sub">no tasks.md</span>';
+    const nextAction = f.pipeline ? mdInlineCode(f.pipeline.next_action) : '—';
+    return `
+      <tr>
+        <td><a href="#${featureAnchorId(f.name)}">${escapeHtml(f.name)}</a></td>
+        <td>${escapeHtml(stageLabel)}</td>
+        <td>${tasksCell}</td>
+        <td>${nextAction}</td>
+      </tr>`;
+  }).join('');
+  return `
+    <div class="card card-wide" style="margin-bottom:1.5rem">
+      <h2>Features Overview</h2>
+      <table><thead><tr><th>Feature</th><th>Current Step</th><th>Tasks</th><th>Next Action</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+}
+
 function render() {
   if (!lastData) return;
   const data = lastData;
   document.getElementById('generated-at').textContent = 'Generated ' + data.generated_at;
+  const overview = renderFeatureOverview(data.features);
   const features = data.features.length
     ? data.features.map(f => renderFeature(f, data.project)).join('')
     : '<div class="empty">No features under .specify/features/ yet — run <code>/specify</code> (or <code>sdd specify</code>) to create your first one.</div>';
@@ -550,7 +593,7 @@ function render() {
     };
   }
 
-  root.innerHTML = renderProject(data.project, data.constitution) + features;
+  root.innerHTML = renderProject(data.project, data.constitution) + overview + features;
 
   if (focus) {
     const selector = `.${focus.cls}[data-feature="${CSS.escape(focus.feature)}"][data-doc="${CSS.escape(focus.doc)}"]`;
@@ -694,8 +737,37 @@ document.getElementById('root').addEventListener('click', async (e) => {
   }
 });
 
+// Opt-in only: this never fires for a feature the user hasn't manually
+// checked at least once via the "Check Jira/Confluence review links"
+// button -- the dashboard's one live-network-call path stays something
+// the user explicitly triggered, it just doesn't require re-clicking
+// every 5 minutes to stay fresh after that. Silently keeps the last good
+// result on a transient failure rather than flashing an error over data
+// that was fine a moment ago.
+const REVIEW_LINKS_AUTO_REFRESH_MS = 5 * 60 * 1000;
+
+async function autoRefreshReviewLinks() {
+  const features = Object.keys(state.reviewLinks).filter(feature => {
+    const entry = state.reviewLinks[feature];
+    return entry && typeof entry === 'object' && !entry.error;
+  });
+  if (!features.length) return;
+  let changed = false;
+  for (const feature of features) {
+    try {
+      const res = await fetch(`/api/review-links?feature=${encodeURIComponent(feature)}`);
+      state.reviewLinks[feature] = await res.json();
+      changed = true;
+    } catch (err) {
+      // Leave the last known-good result in place — see comment above.
+    }
+  }
+  if (changed) render();
+}
+
 refresh();
 setInterval(refresh, 5000);
+setInterval(autoRefreshReviewLinks, REVIEW_LINKS_AUTO_REFRESH_MS);
 </script>
 </body>
 </html>
