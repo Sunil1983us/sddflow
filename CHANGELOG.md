@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.70] — 2026-07-15 (Enhance: dashboard per-document approver detail)
+
+### Added
+
+- **Documents card now answers "who should approve this, and who did."**
+  The user asked: for a pending document, who should approve it (role
+  and name, not just a role label)? For an approved one, who approved
+  it, and was that via Jira or a manual/chat approval?
+  - New `status.py._parse_approvals_table()` parses each document's own
+    `## Approvals` table — present in every template and filled in
+    identically regardless of review mode (chat/local/jira), so it's the
+    one source of truth that works the same way everywhere. Handles both
+    the current 4-column format (`Role | Approver | Status | Date`) and
+    the older 3-column one from before the `Approver` column existed.
+  - New `status.py._resolve_expected_approver()` normalizes a document's
+    human-readable Role cell (`Product Owner`, `DevOps/SRE`) to
+    `roles.yml`'s snake_case key convention and looks up the name
+    already filled in there — a pending document now names the actual
+    person, not just their role.
+  - Each Documents row shows a compact one-line summary under the Status
+    badge (`👤 Awaiting Product Owner: Jane Smith`, or the approver's
+    name once approved) with no click required, plus a new `👤` toggle —
+    matching the existing `💬` comments pattern — that expands the full
+    Role/Approver/Status/Date table and states which mode recorded the
+    approval (Local / Jira / Chat only — no audit file).
+  - Fixed a related inconsistency along the way: the Approve pill next
+    to the Approve button previously only showed a name in local mode —
+    a Jira- or chat-approved document still showed a bare "Approve"
+    button even though its Status header already said Approved. It now
+    resolves the approver's name for every mode.
+  - Verified end-to-end with Playwright across a pending single-approver
+    doc, an approved doc via each of the three name sources, and a
+    multi-row pending doc (two stakeholders, two different names).
+
+---
+
 ## [2.7.69] — 2026-07-15 (Enhance: dashboard token badge, features overview, auto-refreshing review links)
 
 ### Added

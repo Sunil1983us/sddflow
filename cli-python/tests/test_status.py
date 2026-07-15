@@ -7,6 +7,7 @@ import sdd.utils.status as status_mod
 from sdd.utils.status import (
     build_project_status, build_feature_status, build_pipeline,
     _current_stage, persona_for,
+    _parse_approvals_table, _normalize_role_key, _resolve_expected_approver,
 )
 
 
@@ -65,6 +66,108 @@ def test_doc_status_header_parsed(tmp_path, monkeypatch):
     by_key = {d["key"]: d for d in feat["docs"]}
     assert by_key["brd"]["status"] == "Approved"
     assert by_key["srd"]["status"] == "Draft"
+
+
+def test_normalize_role_key_matches_roles_yml_convention():
+    assert _normalize_role_key("Product Owner") == "product_owner"
+    assert _normalize_role_key("QA Lead") == "qa_lead"
+    assert _normalize_role_key("DevOps/SRE") == "devops_sre"
+    assert _normalize_role_key("Tech Lead") == "tech_lead"
+
+
+def test_resolve_expected_approver_looks_up_roles_map():
+    roles_map = {"product_owner": "Jane Smith", "tech_lead": ""}
+    assert _resolve_expected_approver("Product Owner", roles_map) == "Jane Smith"
+    assert _resolve_expected_approver("Tech Lead", roles_map) is None  # blank in roles.yml
+    assert _resolve_expected_approver("Unknown Role", roles_map) is None
+
+
+def test_parse_approvals_table_current_4column_format(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\nStatus: Approved\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| Product Owner | Jane Smith | Approved | 2026-07-10 |\n\n"
+        "## Version History\n"
+    )
+    rows = _parse_approvals_table(doc)
+    assert rows == [{"role": "Product Owner", "approver": "Jane Smith",
+                      "status": "Approved", "date": "2026-07-10"}]
+
+
+def test_parse_approvals_table_legacy_3column_format(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\nStatus: Approved\n\n"
+        "## Approvals\n\n"
+        "| Role | Status | Date |\n"
+        "|---|---|---|\n"
+        "| Product Owner | Approved | 2026-06-28 |\n"
+    )
+    rows = _parse_approvals_table(doc)
+    assert rows == [{"role": "Product Owner", "approver": None,
+                      "status": "Approved", "date": "2026-06-28"}]
+
+
+def test_parse_approvals_table_skips_unfilled_placeholder_row(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\nStatus: Draft\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |\n"
+    )
+    assert _parse_approvals_table(doc) == []
+
+
+def test_parse_approvals_table_missing_section_returns_empty(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text("# BRD\nStatus: Draft\n")
+    assert _parse_approvals_table(doc) == []
+
+
+def test_feature_docs_approvals_resolve_expected_approver_when_pending(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "memory").mkdir(parents=True)
+    (tmp_path / ".specify" / "memory" / "roles.yml").write_text(
+        "roles:\n  product_owner: Jane Smith\n  tech_lead: \"\"\n"
+    )
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\nStatus: Draft\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| Product Owner | | Pending | |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    brd = next(d for d in feat["docs"] if d["key"] == "brd")
+    assert brd["approvals"] == [{
+        "role": "Product Owner", "approver": None, "status": "Pending",
+        "date": None, "expected_approver": "Jane Smith",
+    }]
+
+
+def test_feature_docs_approvals_no_expected_approver_when_roles_yml_missing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\nStatus: Draft\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| Product Owner | | Pending | |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    brd = next(d for d in feat["docs"] if d["key"] == "brd")
+    assert brd["approvals"][0]["expected_approver"] is None
 
 
 def test_current_stage_reports_last_doc_and_next(tmp_path, monkeypatch):

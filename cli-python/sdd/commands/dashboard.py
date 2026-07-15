@@ -167,6 +167,8 @@ _PAGE = """<!doctype html>
   .next-persona-role { color: var(--dim); font-size: .8rem; }
   .doc-next-ask { color: var(--dim); }
   .doc-next-ask em { color: var(--fg); font-style: normal; font-weight: 600; }
+  .doc-approval-line { font-size: .74rem; color: var(--muted); margin-top: .25rem; }
+  .doc-approval-pending strong { color: var(--fg); }
   .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
   .theme-toggle {
     display: inline-flex; gap: .15rem; background: var(--card); border: 1px solid var(--border);
@@ -257,7 +259,7 @@ function applyTheme(theme) {
 // Client-side only — never re-fetched from /api/status, so it survives
 // the 5s poll: which doc panels are expanded, their fetched content, and
 // any live Jira/Confluence review-link results the user asked for.
-const state = { expandedDocs: new Set(), expandedComments: new Set(), docContents: {}, reviewLinks: {}, commentDrafts: {} };
+const state = { expandedDocs: new Set(), expandedComments: new Set(), expandedApprovals: new Set(), docContents: {}, reviewLinks: {}, commentDrafts: {} };
 let lastData = null;
 
 function escapeHtml(s) {
@@ -338,6 +340,78 @@ function linkPill(kind, link) {
     : `<span class="pill pill-${kind === 'Jira' ? 'jira' : 'cf'}" title="No Atlassian base_url configured — run sdd config init">${label}</span>`;
 }
 
+// "Who approved this, and how" needs one answer that works the same way
+// regardless of review mode. d.local_approval only exists in local mode;
+// reviewJira.review_status only exists once Jira has been checked. The
+// document's own Approvals table (d.approvals, from status.py parsing
+// its "## Approvals" section) is the one thing populated identically in
+// every mode -- these helpers prefer the mode-specific record when it
+// exists (it carries a note/mode label the table alone doesn't) and fall
+// back to the table's Approver column otherwise.
+const _APPROVAL_MODE_LABEL = { local: 'Local (dashboard/CLI)', jira: 'Jira', chat: 'Chat only — no audit file' };
+
+function approvalMode(d, reviewJira) {
+  if (d.local_approval) return 'local';
+  if (reviewJira && reviewJira.review_status === 'approved') return 'jira';
+  if ((d.status || '').toLowerCase().includes('approved')) return 'chat';
+  return null;
+}
+
+function approvedRowInfo(d) {
+  if (d.local_approval) {
+    return { name: d.local_approval.approved_by || 'Approved', note: d.local_approval.note || '' };
+  }
+  const row = (d.approvals || []).find(r => (r.status || '').toLowerCase().includes('approved') && r.approver);
+  return row ? { name: row.approver, note: '' } : null;
+}
+
+// Compact one-line answer to "who should approve this / who did", shown
+// right under the Status badge with no click required — covers the
+// common single-approver document without needing the 👤 detail panel.
+function approvalSummaryLine(d) {
+  const rows = d.approvals || [];
+  if (!rows.length) return '';
+  if (rows.length > 1) {
+    const done = rows.filter(r => (r.status || '').toLowerCase().includes('approved')).length;
+    return `<div class="doc-approval-line sub">${done}/${rows.length} sign-offs — see 👤 for detail</div>`;
+  }
+  const r = rows[0];
+  if ((r.status || '').toLowerCase().includes('approved')) {
+    return r.approver
+      ? `<div class="doc-approval-line">👤 ${escapeHtml(r.approver)} <span class="sub">(${escapeHtml(r.role)})</span></div>`
+      : '';
+  }
+  const who = r.approver || r.expected_approver;
+  return `<div class="doc-approval-line doc-approval-pending">👤 Awaiting <strong>${escapeHtml(r.role)}</strong>${
+    who ? ': ' + escapeHtml(who) : ' <span class="sub">(name not set in roles.yml)</span>'}</div>`;
+}
+
+function renderApprovalsPanel(d, feature, mode) {
+  const rows = d.approvals || [];
+  const modeLine = mode
+    ? `<div class="sub" style="margin-bottom:.4rem">Recorded via: <strong>${escapeHtml(_APPROVAL_MODE_LABEL[mode])}</strong></div>`
+    : '<div class="sub" style="margin-bottom:.4rem">Not yet approved.</div>';
+  const body = rows.length
+    ? `<table><thead><tr><th>Role</th><th>Approver</th><th>Status</th><th>Date</th></tr></thead><tbody>${
+        rows.map(r => {
+          const who = r.approver
+            ? escapeHtml(r.approver)
+            : (r.expected_approver
+                ? `<span class="sub">Expected: ${escapeHtml(r.expected_approver)}</span>`
+                : '<span class="sub">— (not set in roles.yml)</span>');
+          return `<tr><td>${escapeHtml(r.role)}</td><td>${who}</td><td>${badge(r.status, 'doc')}</td><td>${escapeHtml(r.date || '—')}</td></tr>`;
+        }).join('')
+      }</tbody></table>`
+    : '<div class="sub">This document has no ## Approvals table yet.</div>';
+  return `
+    <tr class="doc-detail-row"><td colspan="3">
+      <div class="comments-box">
+        ${modeLine}
+        ${body}
+      </div>
+    </td></tr>`;
+}
+
 function renderCommentsPanel(d, feature, reviewJira) {
   const comments = d.comments || [];
   const jiraComments = (reviewJira && reviewJira.comments) || [];
@@ -378,6 +452,7 @@ function renderDocRow(d, feature, localConfluence, localJiraReview, reviewEntry)
   const key = feature + '|' + d.key;
   const expanded = state.expandedDocs.has(key);
   const commentsOpen = state.expandedComments.has(key);
+  const approvalsOpen = state.expandedApprovals.has(key);
   const localCf = (localConfluence || {})[d.key];
   const localJira = (localJiraReview || {})[d.key];
   const reviewJira = reviewEntry && reviewEntry.docs ? reviewEntry.docs[d.key]?.jira : null;
@@ -387,26 +462,31 @@ function renderDocRow(d, feature, localConfluence, localJiraReview, reviewEntry)
     linkPill('Jira', reviewJira || localJira),
     linkPill('Confluence', localCf || reviewCf),
   ].join('');
-  const approveControl = d.local_approval
-    ? `<span class="pill pill-ok" title="${escapeHtml(d.local_approval.note || '')}">✓ ${escapeHtml(d.local_approval.approved_by || 'Approved')}</span>`
+  const mode = approvalMode(d, reviewJira);
+  const info = approvedRowInfo(d);
+  const approveControl = info
+    ? `<span class="pill pill-ok" title="${escapeHtml(info.note)}${mode ? ' · ' + _APPROVAL_MODE_LABEL[mode] : ''}">✓ ${escapeHtml(info.name)}</span>`
     : `<button class="link-btn" data-action="approve-doc" data-feature="${feature}" data-doc="${d.key}">Approve</button>`;
   const commentCount = (d.comments || []).length;
   const commentBtn = `<button class="link-btn" data-action="toggle-comments" data-feature="${feature}" data-doc="${d.key}">💬${commentCount ? ' ' + commentCount : ''}</button>`;
+  const approvalRows = d.approvals || [];
+  const approvalBtn = `<button class="link-btn" data-action="toggle-approvals" data-feature="${feature}" data-doc="${d.key}">👤${approvalRows.length > 1 ? ' ' + approvalRows.length : ''}</button>`;
   const row = `
     <tr>
       <td>${d.label}</td>
-      <td>${badge(d.status, 'doc')}</td>
+      <td>${badge(d.status, 'doc')}${approvalSummaryLine(d)}</td>
       <td class="links-cell">
         <button class="link-btn" data-action="view-doc" data-feature="${feature}" data-doc="${d.key}">${expanded ? 'Hide' : 'View'}</button>
         ${approveControl}
-        ${commentBtn}${links}${reviewStatusBadge}
+        ${approvalBtn}${commentBtn}${links}${reviewStatusBadge}
       </td>
     </tr>`;
   const detail = expanded
     ? `<tr class="doc-detail-row"><td colspan="3"><pre class="doc-detail">${escapeHtml(state.docContents[key] ?? 'Loading…')}</pre></td></tr>`
     : '';
+  const approvalsPanel = approvalsOpen ? renderApprovalsPanel(d, feature, mode) : '';
   const commentsPanel = commentsOpen ? renderCommentsPanel(d, feature, reviewJira) : '';
-  return row + detail + commentsPanel;
+  return row + detail + approvalsPanel + commentsPanel;
 }
 
 function renderDocs(docs, stage, feature, localConfluence, localJiraReview) {
@@ -687,6 +767,12 @@ document.getElementById('root').addEventListener('click', async (e) => {
     const key = feature + '|' + btn.dataset.doc;
     if (state.expandedComments.has(key)) state.expandedComments.delete(key);
     else state.expandedComments.add(key);
+    render();
+
+  } else if (btn.dataset.action === 'toggle-approvals') {
+    const key = feature + '|' + btn.dataset.doc;
+    if (state.expandedApprovals.has(key)) state.expandedApprovals.delete(key);
+    else state.expandedApprovals.add(key);
     render();
 
   } else if (btn.dataset.action === 'approve-doc') {

@@ -64,6 +64,94 @@ def _doc_status(path: Path) -> str | None:
     return m.group(1).strip() if m else None
 
 
+_TABLE_SEP_RE = re.compile(r"^\|(?:-+\|)+$")
+
+
+def _parse_approvals_table(path: Path) -> list[dict]:
+    """Parses a document's own '## Approvals' table -- present in every
+    template, filled in identically regardless of review mode (chat/
+    local/jira) per the review-decision-step shared block. This is the
+    one source of truth for "who approved this / who's still pending"
+    that works the same way in every mode, unlike .local-approvals.yml
+    (local mode only) or a Jira ticket's comments (jira mode only).
+    Tolerates the older 3-column format (Role | Status | Date) from
+    before the Approver column existed, alongside the current 4-column
+    one -- an existing project's docs predate that addition and must
+    still parse. Returns [] if the section/table isn't found or the file
+    is unreadable -- never raises, this is best-effort dashboard sugar.
+    """
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return []
+    lines = text.splitlines()
+    try:
+        heading_idx = next(i for i, l in enumerate(lines) if l.strip() == "## Approvals")
+    except StopIteration:
+        return []
+    sep_idx = None
+    for i in range(heading_idx + 1, len(lines)):
+        stripped = lines[i].strip()
+        if stripped.startswith("## "):
+            return []
+        if _TABLE_SEP_RE.match(stripped):
+            sep_idx = i
+            break
+    if sep_idx is None:
+        return []
+    rows = []
+    for line in lines[sep_idx + 1:]:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("## "):
+            break
+        if not (stripped.startswith("|") and stripped.endswith("|")):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) == 4:
+            role, approver, appr_status, date = cells
+        elif len(cells) == 3:
+            role, appr_status, date = cells
+            approver = ""
+        else:
+            continue
+        if not role or role.startswith("{"):
+            continue  # unfilled template placeholder -- doc was never regenerated
+        rows.append({
+            "role": role,
+            "approver": approver or None,
+            "status": appr_status or None,
+            "date": date or None,
+        })
+    return rows
+
+
+def _load_roles_map(root: Path) -> dict:
+    """roles.yml's top-level `roles:` map (snake_case key -> name filled in
+    once per project), or {} if the file/section is missing/unreadable."""
+    path = root / ".specify" / "memory" / "roles.yml"
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text()) or {}
+    except Exception:
+        return {}
+    roles = data.get("roles")
+    return roles if isinstance(roles, dict) else {}
+
+
+def _normalize_role_key(role_label: str) -> str:
+    """'DevOps/SRE' / 'QA Lead' / 'Tech Lead' -> 'devops_sre' / 'qa_lead' /
+    'tech_lead' -- matches roles.yml's snake_case key convention so a
+    document's human-readable Approvals-table Role column can be looked
+    up directly, without a second hardcoded mapping to keep in sync."""
+    return re.sub(r"[^a-z0-9]+", "_", role_label.strip().lower()).strip("_")
+
+
+def _resolve_expected_approver(role_label: str, roles_map: dict) -> str | None:
+    name = roles_map.get(_normalize_role_key(role_label))
+    return name if isinstance(name, str) and name.strip() else None
+
+
 def _list_feature_names(root: Path) -> list[str]:
     features_dir = root / ".specify" / "features"
     if not features_dir.is_dir():
@@ -100,6 +188,20 @@ def _dashboard_comments(root: Path, feature: str, doc: str) -> list:
     return data.get(f"{feature}/{doc}", [])
 
 
+def _annotate_approvals(rows: list[dict], roles_map: dict) -> list[dict]:
+    """For each Approvals-table row still Pending with no Approver filled
+    in, resolve who's expected to act from roles.yml — so a document
+    waiting on review names the actual person, not just the role."""
+    annotated = []
+    for row in rows:
+        entry = dict(row)
+        entry["expected_approver"] = (
+            None if entry.get("approver") else _resolve_expected_approver(entry["role"], roles_map)
+        )
+        annotated.append(entry)
+    return annotated
+
+
 def _feature_docs(root: Path, feature: str) -> list[dict]:
     feature_dir = root / ".specify" / "features" / feature
     docs: list[dict] = []
@@ -109,6 +211,7 @@ def _feature_docs(root: Path, feature: str) -> list[dict]:
         key=lambda p: _PIPELINE_ORDER.get(p.stem, 999),
     )
     approvals = _local_approvals(root)
+    roles_map = _load_roles_map(root)
     for path in md_files:
         key = path.stem
         docs.append({
@@ -119,6 +222,7 @@ def _feature_docs(root: Path, feature: str) -> list[dict]:
             "path": str(path),
             "local_approval": approvals.get(key),
             "comments": _dashboard_comments(root, feature, key),
+            "approvals": _annotate_approvals(_parse_approvals_table(path), roles_map),
         })
     return docs
 

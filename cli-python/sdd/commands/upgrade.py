@@ -2697,6 +2697,53 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.69"},
     },
+    {
+        "from":        "2.7.69",
+        "to":          "2.7.70",
+        "description": "Enhance: sdd dashboard's Documents card now shows who should approve a pending document (role + name from roles.yml) and who approved it, via which mode, once it is",
+        "notes": [
+            "The user asked: for a document that isn't approved, who "
+            "should approve it (role + name)? For one that is, who "
+            "approved it, and was that recorded via Jira or a manual/"
+            "chat approval? Neither status.py nor the dashboard captured "
+            "any of this before -- only the bare Status: header value",
+            "New status.py._parse_approvals_table(path) parses a "
+            "document's own '## Approvals' table -- present in every "
+            "template, filled in identically regardless of review mode "
+            "(chat/local/jira) per the review-decision-step shared "
+            "block -- so it is the one source of truth for 'who "
+            "approved this / who's still pending' that works the same "
+            "way everywhere. Tolerates the older 3-column format (Role | "
+            "Status | Date) from before the Approver column existed "
+            "(added in an earlier release) alongside the current "
+            "4-column one",
+            "New status.py._resolve_expected_approver() normalizes a "
+            "document's human-readable Role cell ('Product Owner', "
+            "'DevOps/SRE') to roles.yml's snake_case key convention "
+            "(product_owner, devops_sre) and looks up the actual name "
+            "filled in there -- so a pending document names the person, "
+            "not just the role",
+            "dashboard.py: each Documents row now shows a compact one-"
+            "line summary under the Status badge ('Awaiting Product "
+            "Owner: Jane Smith', or the approver's name once approved), "
+            "plus a new 👤 toggle (matching the existing 💬 comments "
+            "pattern) that expands the full Role/Approver/Status/Date "
+            "table and states which mode recorded the approval (Local / "
+            "Jira / Chat only — no audit file)",
+            "The existing Approve pill (next to the Approve button) now "
+            "shows the resolved approver's name for every review mode, "
+            "not just local mode as before -- previously a Jira- or "
+            "chat-approved document still showed a bare 'Approve' "
+            "button even though its Status header already said Approved",
+            "Verified end-to-end with Playwright: pending single-"
+            "approver doc, approved doc via each of the three record "
+            "sources (local_approval, chat-only via the doc's own "
+            "table, legacy 3-column table), and a multi-row pending doc",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.70"},
+    },
 ]
 
 

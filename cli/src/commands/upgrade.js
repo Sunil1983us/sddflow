@@ -1863,6 +1863,30 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.69',
+    to:   '2.7.70',
+    description: "Enhance: sdd dashboard's (Python CLI) Documents card shows who should approve a pending document (role + name from roles.yml) and who approved it, via which mode",
+    notes: [
+      "status.py parses each document's own '## Approvals' table -- " +
+      "filled in identically regardless of review mode (chat/local/" +
+      "jira) -- and resolves a pending row's Role cell to the actual " +
+      "name in roles.yml. Tolerates both the current 4-column format " +
+      "(with Approver) and the legacy 3-column one",
+      "Each Documents row now shows a compact 'Awaiting Product Owner: " +
+      "Jane Smith' (or the approver's name once approved) summary, plus " +
+      "a 👤 toggle for the full Role/Approver/Status/Date table and " +
+      "which mode recorded the approval",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.70';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
