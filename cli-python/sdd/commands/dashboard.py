@@ -121,11 +121,19 @@ _PAGE = """<!doctype html>
   .links-cell { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
   .doc-detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
   .doc-detail {
-    margin: 0; padding: .75rem 1rem; background: var(--bg); max-height: 360px; overflow: auto;
-    font-size: .8rem; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    margin: 0; font-size: .8rem; white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
+  .details-panel { background: var(--bg); }
+  .tab-strip { display: flex; gap: .1rem; padding: .4rem 1rem 0; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted);
+    font: inherit; font-size: .78rem; padding: .4rem .7rem; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--fg); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab-body { padding: .75rem 1rem; max-height: 420px; overflow: auto; }
   .check-links-row { display: flex; align-items: center; gap: .6rem; margin: .5rem 0 1rem; }
-  .comments-box { padding: .75rem 1rem; background: var(--bg); }
   .comment { padding: .4rem 0; border-bottom: 1px dashed var(--border); font-size: .85rem; }
   .comment:last-of-type { border-bottom: none; }
   .comment-form { display: flex; flex-direction: column; gap: .4rem; margin-top: .6rem; max-width: 420px; }
@@ -259,7 +267,11 @@ function applyTheme(theme) {
 // Client-side only — never re-fetched from /api/status, so it survives
 // the 5s poll: which doc panels are expanded, their fetched content, and
 // any live Jira/Confluence review-link results the user asked for.
-const state = { expandedDocs: new Set(), expandedComments: new Set(), expandedApprovals: new Set(), docContents: {}, reviewLinks: {}, commentDrafts: {} };
+// openDocs / docTab replace three separate expand-toggles (View, 👤
+// Approvals, 💬 Comments) with one "Details" panel that has tabs -- see
+// renderDocDetailsPanel(). docTab defaults to 'content' when a doc key
+// has no entry yet.
+const state = { openDocs: new Set(), docTab: {}, docContents: {}, reviewLinks: {}, commentDrafts: {} };
 let lastData = null;
 
 function escapeHtml(s) {
@@ -386,7 +398,7 @@ function approvalSummaryLine(d) {
     who ? ': ' + escapeHtml(who) : ' <span class="sub">(name not set in roles.yml)</span>'}</div>`;
 }
 
-function renderApprovalsPanel(d, feature, mode) {
+function renderApprovalsBody(d, mode) {
   const rows = d.approvals || [];
   const modeLine = mode
     ? `<div class="sub" style="margin-bottom:.4rem">Recorded via: <strong>${escapeHtml(_APPROVAL_MODE_LABEL[mode])}</strong></div>`
@@ -403,16 +415,10 @@ function renderApprovalsPanel(d, feature, mode) {
         }).join('')
       }</tbody></table>`
     : '<div class="sub">This document has no ## Approvals table yet.</div>';
-  return `
-    <tr class="doc-detail-row"><td colspan="3">
-      <div class="comments-box">
-        ${modeLine}
-        ${body}
-      </div>
-    </td></tr>`;
+  return `${modeLine}${body}`;
 }
 
-function renderCommentsPanel(d, feature, reviewJira) {
+function renderCommentsBody(d, feature, reviewJira) {
   const comments = d.comments || [];
   const jiraComments = (reviewJira && reviewJira.comments) || [];
   const key = feature + '|' + d.key;
@@ -433,26 +439,47 @@ function renderCommentsPanel(d, feature, reviewJira) {
         </div>`).join('')
     : '<div class="sub">No dashboard comments yet.</div>';
   return `
+    ${jiraList}
+    ${list}
+    <div class="comment-form">
+      <input type="text" class="comment-by" data-feature="${feature}" data-doc="${d.key}"
+             placeholder="Your name" maxlength="200" value="${escapeHtml(draft.by)}">
+      <textarea class="comment-text" data-feature="${feature}" data-doc="${d.key}"
+                placeholder="Add a review comment…" rows="2" maxlength="2000">${escapeHtml(draft.text)}</textarea>
+      <button class="link-btn" data-action="submit-comment" data-feature="${feature}" data-doc="${d.key}">Post comment</button>
+    </div>`;
+}
+
+// One "Details" panel with tabs (Content / Approvals / Comments) instead
+// of three independent expand-toggles -- keeps only one panel open per
+// document instead of up to three stacking, and the Links cell down to
+// [Approve] [Details] [Jira pill] [Confluence pill] [review badge].
+function renderDocDetailsPanel(d, feature, mode, reviewJira) {
+  const key = feature + '|' + d.key;
+  const activeTab = state.docTab[key] || 'content';
+  const commentCount = (d.comments || []).length;
+  const approvalRows = d.approvals || [];
+  const tabs = [
+    { id: 'content', label: 'Content' },
+    { id: 'approvals', label: 'Approvals' + (approvalRows.length ? ` (${approvalRows.length})` : '') },
+    { id: 'comments', label: 'Comments' + (commentCount ? ` (${commentCount})` : '') },
+  ];
+  const tabStrip = `<div class="tab-strip">${tabs.map(t => `
+    <button class="tab-btn${t.id === activeTab ? ' active' : ''}" data-action="switch-tab"
+            data-tab="${t.id}" data-feature="${feature}" data-doc="${d.key}">${t.label}</button>`).join('')}</div>`;
+  let body;
+  if (activeTab === 'approvals') body = renderApprovalsBody(d, mode);
+  else if (activeTab === 'comments') body = renderCommentsBody(d, feature, reviewJira);
+  else body = `<pre class="doc-detail">${escapeHtml(state.docContents[key] ?? 'Loading…')}</pre>`;
+  return `
     <tr class="doc-detail-row"><td colspan="3">
-      <div class="comments-box">
-        ${jiraList}
-        ${list}
-        <div class="comment-form">
-          <input type="text" class="comment-by" data-feature="${feature}" data-doc="${d.key}"
-                 placeholder="Your name" maxlength="200" value="${escapeHtml(draft.by)}">
-          <textarea class="comment-text" data-feature="${feature}" data-doc="${d.key}"
-                    placeholder="Add a review comment…" rows="2" maxlength="2000">${escapeHtml(draft.text)}</textarea>
-          <button class="link-btn" data-action="submit-comment" data-feature="${feature}" data-doc="${d.key}">Post comment</button>
-        </div>
-      </div>
+      <div class="details-panel">${tabStrip}<div class="tab-body">${body}</div></div>
     </td></tr>`;
 }
 
 function renderDocRow(d, feature, localConfluence, localJiraReview, reviewEntry) {
   const key = feature + '|' + d.key;
-  const expanded = state.expandedDocs.has(key);
-  const commentsOpen = state.expandedComments.has(key);
-  const approvalsOpen = state.expandedApprovals.has(key);
+  const isOpen = state.openDocs.has(key);
   const localCf = (localConfluence || {})[d.key];
   const localJira = (localJiraReview || {})[d.key];
   const reviewJira = reviewEntry && reviewEntry.docs ? reviewEntry.docs[d.key]?.jira : null;
@@ -468,25 +495,19 @@ function renderDocRow(d, feature, localConfluence, localJiraReview, reviewEntry)
     ? `<span class="pill pill-ok" title="${escapeHtml(info.note)}${mode ? ' · ' + _APPROVAL_MODE_LABEL[mode] : ''}">✓ ${escapeHtml(info.name)}</span>`
     : `<button class="link-btn" data-action="approve-doc" data-feature="${feature}" data-doc="${d.key}">Approve</button>`;
   const commentCount = (d.comments || []).length;
-  const commentBtn = `<button class="link-btn" data-action="toggle-comments" data-feature="${feature}" data-doc="${d.key}">💬${commentCount ? ' ' + commentCount : ''}</button>`;
-  const approvalRows = d.approvals || [];
-  const approvalBtn = `<button class="link-btn" data-action="toggle-approvals" data-feature="${feature}" data-doc="${d.key}">👤${approvalRows.length > 1 ? ' ' + approvalRows.length : ''}</button>`;
+  const detailsBtn = `<button class="link-btn" data-action="toggle-details" data-feature="${feature}" data-doc="${d.key}">${
+    isOpen ? 'Hide' : 'Details'}${commentCount ? ' 💬' + commentCount : ''}</button>`;
   const row = `
     <tr>
       <td>${d.label}</td>
       <td>${badge(d.status, 'doc')}${approvalSummaryLine(d)}</td>
       <td class="links-cell">
-        <button class="link-btn" data-action="view-doc" data-feature="${feature}" data-doc="${d.key}">${expanded ? 'Hide' : 'View'}</button>
         ${approveControl}
-        ${approvalBtn}${commentBtn}${links}${reviewStatusBadge}
+        ${detailsBtn}${links}${reviewStatusBadge}
       </td>
     </tr>`;
-  const detail = expanded
-    ? `<tr class="doc-detail-row"><td colspan="3"><pre class="doc-detail">${escapeHtml(state.docContents[key] ?? 'Loading…')}</pre></td></tr>`
-    : '';
-  const approvalsPanel = approvalsOpen ? renderApprovalsPanel(d, feature, mode) : '';
-  const commentsPanel = commentsOpen ? renderCommentsPanel(d, feature, reviewJira) : '';
-  return row + detail + approvalsPanel + commentsPanel;
+  const detail = isOpen ? renderDocDetailsPanel(d, feature, mode, reviewJira) : '';
+  return row + detail;
 }
 
 function renderDocs(docs, stage, feature, localConfluence, localJiraReview) {
@@ -685,6 +706,25 @@ function render() {
   }
 }
 
+// Shared by 'toggle-details' (opening straight on the Content tab) and
+// 'switch-tab' (switching to it later) -- fetches once per doc key and
+// caches in state.docContents, matching the never-refetch behavior the
+// old view-doc handler had.
+async function ensureDocContentLoaded(feature, doc) {
+  const key = feature + '|' + doc;
+  if (key in state.docContents) return;
+  state.docContents[key] = 'Loading…';
+  render();
+  try {
+    const res = await fetch(`/api/doc?feature=${encodeURIComponent(feature)}&doc=${encodeURIComponent(doc)}`);
+    const data = await res.json();
+    state.docContents[key] = data.content ?? ('Error: ' + (data.error || 'unknown'));
+  } catch (err) {
+    state.docContents[key] = 'Error: ' + err;
+  }
+  render();
+}
+
 async function refresh() {
   // A failed poll (malformed file on disk, network hiccup) must not
   // silently freeze the UI on stale data with no indication anything is
@@ -730,27 +770,24 @@ document.getElementById('root').addEventListener('click', async (e) => {
   if (!btn) return;
   const feature = btn.dataset.feature;
 
-  if (btn.dataset.action === 'view-doc') {
+  if (btn.dataset.action === 'toggle-details') {
     const doc = btn.dataset.doc;
     const key = feature + '|' + doc;
-    if (state.expandedDocs.has(key)) {
-      state.expandedDocs.delete(key);
+    if (state.openDocs.has(key)) {
+      state.openDocs.delete(key);
       render();
       return;
     }
-    state.expandedDocs.add(key);
-    if (!(key in state.docContents)) {
-      state.docContents[key] = 'Loading…';
-      render();
-      try {
-        const res = await fetch(`/api/doc?feature=${encodeURIComponent(feature)}&doc=${encodeURIComponent(doc)}`);
-        const data = await res.json();
-        state.docContents[key] = data.content ?? ('Error: ' + (data.error || 'unknown'));
-      } catch (err) {
-        state.docContents[key] = 'Error: ' + err;
-      }
-    }
+    state.openDocs.add(key);
     render();
+    if ((state.docTab[key] || 'content') === 'content') await ensureDocContentLoaded(feature, doc);
+
+  } else if (btn.dataset.action === 'switch-tab') {
+    const doc = btn.dataset.doc;
+    const key = feature + '|' + doc;
+    state.docTab[key] = btn.dataset.tab;
+    render();
+    if (btn.dataset.tab === 'content') await ensureDocContentLoaded(feature, doc);
 
   } else if (btn.dataset.action === 'check-review-links') {
     state.reviewLinks[feature] = 'loading';
@@ -761,18 +798,6 @@ document.getElementById('root').addEventListener('click', async (e) => {
     } catch (err) {
       state.reviewLinks[feature] = { error: String(err) };
     }
-    render();
-
-  } else if (btn.dataset.action === 'toggle-comments') {
-    const key = feature + '|' + btn.dataset.doc;
-    if (state.expandedComments.has(key)) state.expandedComments.delete(key);
-    else state.expandedComments.add(key);
-    render();
-
-  } else if (btn.dataset.action === 'toggle-approvals') {
-    const key = feature + '|' + btn.dataset.doc;
-    if (state.expandedApprovals.has(key)) state.expandedApprovals.delete(key);
-    else state.expandedApprovals.add(key);
     render();
 
   } else if (btn.dataset.action === 'approve-doc') {
@@ -797,7 +822,7 @@ document.getElementById('root').addEventListener('click', async (e) => {
 
   } else if (btn.dataset.action === 'submit-comment') {
     const doc = btn.dataset.doc;
-    const box = btn.closest('.comments-box');
+    const box = btn.closest('.tab-body');
     const by = box.querySelector('.comment-by').value.trim();
     const text = box.querySelector('.comment-text').value.trim();
     if (!text) return;
@@ -814,7 +839,8 @@ document.getElementById('root').addEventListener('click', async (e) => {
       } else {
         delete state.commentDrafts[feature + '|' + doc];
       }
-      state.expandedComments.add(feature + '|' + doc);
+      state.openDocs.add(feature + '|' + doc);
+      state.docTab[feature + '|' + doc] = 'comments';
       await refresh();
     } catch (err) {
       window.alert('Comment failed: ' + err);

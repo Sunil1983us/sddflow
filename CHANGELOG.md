@@ -4,6 +4,27 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.71] — 2026-07-15 (Enhance: dashboard Documents row consolidated into a tabbed Details panel)
+
+### Changed
+
+- **UX cleanup of the Documents row**, following a dashboard UX review
+  the user asked for. Across this release cycle the Links cell had
+  accumulated View, 👤 Approvals, 💬 Comments, a Jira pill, a Confluence
+  pill, and a review-status badge — up to 7 elements in one cell, and
+  opening View + Approvals + Comments together stacked three separate
+  panels below the row.
+  - Replaced the three independent expand-toggles with a single
+    **Details** button that opens one panel with a **Content / Approvals
+    / Comments** tab strip — only the active tab renders. The row is
+    typically down to `[Approve] [Details] [Jira pill] [Confluence pill]`.
+  - Posting a comment now opens the panel directly on the Comments tab.
+  - Verified with Playwright: button count before/after, tab switching,
+    comment-then-auto-switch, and that only one panel renders per
+    document at a time (previously up to three could stack).
+
+---
+
 ## [2.7.70] — 2026-07-15 (Enhance: dashboard per-document approver detail)
 
 ### Added

@@ -1887,6 +1887,26 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.70',
+    to:   '2.7.71',
+    description: "Enhance: sdd dashboard (Python CLI) consolidates each document's View/Approvals/Comments toggles into one tabbed Details panel",
+    notes: [
+      "The Documents row had grown to up to 7 elements (View, 👤, 💬, " +
+      "Jira pill, Confluence pill, review badge, Approve) across several " +
+      "features added this release cycle. Replaced the three expand-" +
+      "toggles with one 'Details' button opening a tab strip (Content / " +
+      "Approvals / Comments) -- only one panel renders per document now",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.71';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

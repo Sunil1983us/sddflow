@@ -2744,6 +2744,39 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.70"},
     },
+    {
+        "from":        "2.7.70",
+        "to":          "2.7.71",
+        "description": "Enhance: sdd dashboard consolidates each document's View/Approvals/Comments toggles into one tabbed Details panel, decluttering the Documents row",
+        "notes": [
+            "Follow-up to a UX review the user asked for after several "
+            "features were bolted onto the same Documents row this "
+            "release cycle (View, 👤 Approvals, 💬 Comments, Jira pill, "
+            "Confluence pill, review-status badge -- up to 7 elements in "
+            "one cell). Verified with Playwright at 600px/900px widths: "
+            "no findings of actual breakage, but the row had grown past "
+            "a comfortable scan-width, and opening View + Approvals + "
+            "Comments together stacked three separate panels",
+            "dashboard.py: replaced the three independent expand-toggles "
+            "with a single 'Details' button that opens one panel with a "
+            "tab strip (Content / Approvals / Comments) -- only one tab's "
+            "content renders at a time. The Links cell is now typically "
+            "just [Approve] [Details] [Jira pill] [Confluence pill]",
+            "Posting a comment now opens the panel on the Comments tab "
+            "(previously: expanded a separate comments-only panel)",
+            "New state shape: openDocs (Set of doc keys with the panel "
+            "open) + docTab (doc key -> active tab, default 'content'), "
+            "replacing the previous expandedDocs/expandedComments/"
+            "expandedApprovals three-Set setup",
+            "Verified end-to-end with Playwright: row button count "
+            "before/after, tab switching, comment-then-auto-switch-to-"
+            "Comments-tab, and confirmed only one detail panel renders "
+            "per document at a time",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.71"},
+    },
 ]
 
 
