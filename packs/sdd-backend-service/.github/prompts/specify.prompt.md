@@ -85,6 +85,14 @@ Do NOT proceed to Action 2 in the same turn as a first-time generation
 unless the user has already reviewed Part 2. If the user says
 "Constitution Part 2 finalized" (now or in a later session), proceed.
 
+If `.specify/integrations.yml` has a `confluence:` section, also push it
+now — no manual trigger, no formal Jira review gate (finalization is
+GATE-1's own manual review, not a Jira ticket):
+```bash
+sdd confluence push --doc constitution
+```
+Skip silently if `confluence:` is not configured, or the command fails.
+
 A later /specify re-run on an already-finalized Part 2 must NOT silently
 overwrite finalized rows. Instead, produce a Constitution Amendment
 Summary:
@@ -94,6 +102,9 @@ Summary:
 - Show the version bump (v{X.Y} → v{X.Y+1}) and new "Amended By" value
 - Present the summary. WAIT for the user to confirm before applying any
   change to the finalized Part 2.
+- On confirmation, apply the change, then re-push if `confluence:` is
+  configured: `sdd confluence push --doc constitution` (skip silently if
+  not configured or the command fails).
 
 ## After GATE-1 — Generate Spec Documents
 

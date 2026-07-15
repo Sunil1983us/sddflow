@@ -189,10 +189,10 @@ FR-NNN columns are populated by **/specify-srd** after this document is approved
 ---
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| Business Analyst (responsible — domain accuracy) | Pending | |
-| Product Owner (accountable — business scenario sign-off) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Business Analyst (responsible — domain accuracy) | | Pending | |
+| Product Owner (accountable — business scenario sign-off) | | Pending | |
 
 ## Version History
 

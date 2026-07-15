@@ -99,10 +99,10 @@ Out of Scope:
 
 ## Approvals
 
-| Role | Status | Date |
-|---|---|---|
-| Product Owner (accountable — business objectives sign-off) | Pending | |
-| Business Analyst (responsible — requirements accuracy) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Product Owner (accountable — business objectives sign-off) | | Pending | |
+| Business Analyst (responsible — requirements accuracy) | | Pending | |
 
 ## Version History
 

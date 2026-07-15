@@ -114,6 +114,12 @@ class TestResolveDocParentId:
         p2 = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "billing", "security-design")
         assert p1 == p2  # same Project-level parent regardless of which feature pushed it
 
+    def test_constitution_nests_directly_under_project_page(self):
+        client = FakeConfluenceClient()
+        parent_id = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "auth", "constitution")
+        assert parent_id == client.pages_by_title["MyProject"]["id"]
+        assert "auth" not in client.pages_by_title
+
 
 class TestUploadDiagramAttachments:
     """The local-svg mode's attach-after-upsert step: each rendered
@@ -148,6 +154,32 @@ class TestUploadDiagramAttachments:
         out = capsys.readouterr().out
         assert "diagram-1.svg" in out
         assert "attachment upload failed" in out
+
+    def test_http_error_surfaces_response_body_reason(self, capsys):
+        """A bare 'requests.HTTPError: 400 Client Error: Bad Request for
+        url: ...' names the status code but never the actual reason --
+        that lives in the response body. A user hitting a real 400 (e.g.
+        a specific diagram Confluence rejected) needs that reason to
+        diagnose it, not just confirmation that something failed."""
+        import requests
+
+        class HTTPErrorClient(FakeConfluenceClient):
+            def upload_attachment(self, page_id, filename, content, media_type="image/svg+xml"):
+                response = requests.Response()
+                response.status_code = 400
+                response._content = b'{"message": "Cannot add attachment: file too large"}'
+                error = requests.exceptions.HTTPError(
+                    "400 Client Error: Bad Request for url: https://x/y", response=response
+                )
+                raise error
+
+        client = HTTPErrorClient()
+        upload_diagram_attachments(
+            client, "999", [("diagram-1.svg", b"<svg/>", "image/svg+xml")]
+        )
+        out = capsys.readouterr().out
+        assert "diagram-1.svg" in out
+        assert "Cannot add attachment: file too large" in out
 
     def test_one_failure_does_not_block_the_remaining_uploads(self):
         class PartiallyFailingClient(FakeConfluenceClient):

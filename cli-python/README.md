@@ -612,6 +612,49 @@ your own `~/.sdd/config.yml`.
 
 ---
 
+### `sdd token-log`
+
+Logs **real** token usage for one command — reads Claude Code's own local
+session transcript (`~/.claude/projects/{project}/{session-id}.jsonl`,
+including any subagent transcripts spawned during the command) for actual
+measured `input_tokens`/`output_tokens`/cache-token counts the Anthropic
+API reported, not an estimate.
+
+```bash
+sdd token-log --command specify-brd              # log real usage for this command
+sdd token-log --command specify-brd --feature auth
+sdd token-log --command specify-brd --dry-run     # print without writing
+```
+
+Requires `.specify/memory/token-pricing.yml` to exist (same opt-in gate as
+the estimate — see "Token Usage Logging" in `HOW-TO-USE.md`). Writes/creates
+`.specify/features/{feature}/token-usage.md`, appending a row per model used
+and updating its Running Totals table.
+
+**This is Claude Code-only.** No other AI tool this framework supports
+(GitHub Copilot, Cursor, Windsurf, copy-paste "any AI") has a local,
+readable equivalent — the transcript path/format is undocumented,
+reverse-engineered from observed file layout, not a published API, and
+could change in a future Claude Code release. Exit codes tell a calling
+prompt exactly what happened, so it can fall back to the character-count
+estimate cleanly instead of surfacing a raw error:
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Logged successfully — or nothing new since the last logged row (also `0`, no row added) |
+| `1` | Unexpected error (e.g. no feature name resolvable, or an existing `token-usage.md` doesn't match the expected table shape) |
+| `2` | `token-pricing.yml` doesn't exist — logging is off entirely |
+| `3` | No Claude Code session transcript found for this project — not running under Claude Code, or no session has touched it yet |
+
+Each command's usage window is bounded by the previous logged row's
+timestamp (or the whole current session, for the very first command
+logged for a feature) — never re-sums usage already logged. A
+pre-existing `token-usage.md` from before this column existed (7-column
+rows, no `Source` column) is left untouched; new rows are only ever
+appended, never used to rewrite old ones.
+
+---
+
 ### `sdd pr create`
 
 Create a git branch and a PR for a task, linked back to its Jira issue — on

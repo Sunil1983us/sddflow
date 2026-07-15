@@ -1629,6 +1629,354 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.60',
+    to:   '2.7.61',
+    description: "Fix: /clarify now auto-pushes its open items to Jira/Confluence on generation and auto-pulls answers on re-run, matching /validate's existing behavior (prompt-only) -- no manifest changes",
+    notes: [
+      "clarify.prompt.md (all 5 packs) now auto-runs " +
+      "`sdd review push-questions --doc clarify` right after generating " +
+      "the report (when document_reviews.clarify is configured), and " +
+      "auto-runs pull-answers first on every re-run, matching " +
+      "validate.prompt.md's existing §3a pattern -- previously it required " +
+      "the user to explicitly ask for the Jira push each time",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.61';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.61',
+    to:   '2.7.62',
+    description: "Fix: clarify.md's Step 4 re-syncs affected documents to Confluence/Jira; sdd review apply no longer requires both jira: and confluence:; new sdd confluence push --summary (Python CLI) -- no manifest changes",
+    notes: [
+      "clarify.prompt.md (all 5 packs) Step 4 now runs " +
+      "`sdd review apply --doc {doc}` for each spec document an answer " +
+      "was applied to, so the change reaches that document's own " +
+      "Confluence page and Jira reviewer, not just the local file",
+      "sdd review apply (Python CLI) no longer requires both jira: and " +
+      "confluence: configured -- it does whichever half is actually set up",
+      "New sdd confluence push --doc {doc} --summary (Python CLI) pushes " +
+      "a doc's .summary.md to its own Confluence page",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.62';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.62',
+    to:   '2.7.63',
+    description: "Fix: plan-design's api-spec.md merge and change.prompt.md's full document walk now re-sync to Confluence/Jira after each local update (prompt-only) -- no manifest changes",
+    notes: [
+      "Same root cause as 2.7.62's clarify fix, found in two more places: " +
+      "plan-design.prompt.md §3 (api-spec.md living-doc merge) and " +
+      "change.prompt.md's Step 5 document walk (any of 14 document types, " +
+      "UPDATE/RERUN/ANNOTATE branches) -- both now run `sdd review apply " +
+      "--doc {doc}` after each local update, reusing the same relaxed " +
+      "review apply from 2.7.62 (works with confluence-only, jira-only, " +
+      "or both configured)",
+      "This Node CLI does not implement sdd review submit/approve -- it " +
+      "stays scoped to init/upgrade scaffolding, per its own README; " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.63';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.63',
+    to:   '2.7.64',
+    description: "Fix: local-svg diagrams pushed to Confluence now render at a readable width (ac:width=900 by default, configurable via diagrams.local_svg.width in the Python CLI) instead of the SVG's own tiny intrinsic size -- no manifest changes",
+    notes: [
+      "Root cause: the Python CLI's _render_local_svg() emitted " +
+      "<ac:image> with no ac:width attribute, so Confluence displayed " +
+      "the diagram at the SVG's own intrinsic size (Mermaid's renderer " +
+      "typically emits a few hundred pixels), forcing the reader to " +
+      "open and zoom",
+      "New DiagramsConfig.local_svg_width field (default 900), " +
+      "configured via diagrams.local_svg.width in integrations.yml -- " +
+      "Confluence scales height to match, preserving aspect ratio",
+      "integrations.yml.example (all 5 packs) documents the new " +
+      "local_svg.width option in place of the old placeholder comment",
+      "This Node CLI does not implement diagram rendering or Confluence " +
+      "push -- it stays scoped to init/upgrade scaffolding, per its own " +
+      "README; this migration entry exists so both CLIs report the " +
+      "same sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.64';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.64',
+    to:   '2.7.65',
+    description: "Fix: /task never pushed stories/tasks to Jira or Confluence, diagram attachment 400s hid the real reason, constitution.md is now pushable; adds Approver name column to every Approvals table (Python CLI features; prompt/template changes apply to both CLIs' shared assets)",
+    notes: [
+      "task.prompt.md (all 5 packs) rewritten: auto-runs `sdd jira push " +
+      "--level story` then `--level task` (finalizes UC-draft Stories in " +
+      "place, creates real Tasks linked to their parent Story), pushes " +
+      "stories.md/qa-testcases.md directly to Confluence, and routes " +
+      "tasks.md through the same Submit-for-Review + review-decision " +
+      "discipline every other reviewed document uses -- previously it " +
+      "only generated an offline CSV and pointed at a retired manual " +
+      "slash command",
+      "Added missing stories/smoke-tests page_map entries and fixed a " +
+      "title mismatch between document_reviews.tasks.confluence_page and " +
+      "page_map.tasks that could have landed pushes on two different " +
+      "Confluence pages for the same document",
+      "Diagram attachment 400 errors now surface Confluence's actual " +
+      "error body instead of a bare status code; malformed non-SVG " +
+      "renderer output is now caught before reaching the upload call",
+      "constitution.md can now be pushed to Confluence (a project-wide " +
+      "page, like living docs) -- auto-pushed at GATE-1 finalization and " +
+      "after confirmed amendments (Python CLI feature)",
+      "Every document template gained an Approver column in its " +
+      "## Approvals table (132 template files); approvals now resolve " +
+      "the approver's name from roles.yml first, asking only if empty",
+      "This Node CLI does not implement sdd review/jira/confluence " +
+      "commands -- it stays scoped to init/upgrade scaffolding, per its " +
+      "own README; this migration entry exists so both CLIs report the " +
+      "same sdd_version chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.65';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.65',
+    to:   '2.7.66',
+    description: "Add: sdd token-log (Python CLI) reads Claude Code's own local session transcript for REAL token usage instead of the char/4 estimate; every other AI tool keeps the existing estimate",
+    notes: [
+      "Claude Code writes a local session transcript " +
+      "(~/.claude/projects/{project}/{session-id}.jsonl, plus one file " +
+      "per spawned subagent) where every assistant turn carries the " +
+      "REAL usage object the Anthropic API actually returned -- not an " +
+      "estimate. New `sdd token-log --command {name}` (Python CLI) " +
+      "reads it and writes an authoritative row to token-usage.md",
+      "This is Claude Code-only by nature -- undocumented, reverse-" +
+      "engineered file layout, no equivalent under any other AI tool. " +
+      "The shared token-usage-logging.md CLAUDE.md block tries it first " +
+      "and falls back to the existing char/4 estimate on any non-zero " +
+      "exit code; every other AI tool is unaffected",
+      "token-usage-template.md's Per-Command Log table gained a Source " +
+      "column (Real (Claude Code) | Estimated) so the two measurement " +
+      "kinds are never silently compared to each other",
+      "This Node CLI does not implement sdd token-log -- it stays " +
+      "scoped to init/upgrade scaffolding, per its own README; this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain for a given manifest.yml",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.66';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.66',
+    to:   '2.7.67',
+    description: "Fix: dashboard Token Usage card showed blanks for token-usage.md files written after the 2.7.66 Source-column rename dropped the 'Est.' prefix from Running Totals labels",
+    notes: [
+      "The 2.7.66 template rewrite renamed 'Total Est. Input Tokens' " +
+      "etc. to 'Total Input Tokens' (a row can now be Real or " +
+      "Estimated), but status.py's parser and dashboard.py's rendered " +
+      "labels (Python CLI) were never updated to match, so the Token " +
+      "Usage card showed '-' for every project upgraded to 2.7.66",
+      "status.py now accepts both the new and legacy label text; " +
+      "dashboard.py's JS now renders the current label text",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.67';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.67',
+    to:   '2.7.68',
+    description: "Enhance: sdd dashboard (Python CLI) gets a manual Light/Dark/Auto theme toggle plus a discoverable data-sourcing explainer and clearer empty states",
+    notes: [
+      "The dashboard only ever followed the browser's prefers-color-" +
+      "scheme media query, which some browsers/embedded webviews never " +
+      "report reliably -- users saw dark/light mode 'not working'. " +
+      "Fixed with an explicit Light/Dark/Auto toggle persisted to " +
+      "localStorage, verified with Playwright across all theme states",
+      "Added a collapsible 'Where this data comes from' explainer near " +
+      "the top of the page, and a more actionable empty-features state",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.68';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.68',
+    to:   '2.7.69',
+    description: "Enhance: sdd dashboard (Python CLI) gets a Real/Estimated token badge, a Features Overview table for multi-feature projects, and auto-refreshing Jira/Confluence review links",
+    notes: [
+      "Token Usage card now shows a Real N / Est. N badge tallied from " +
+      "the Per-Command Log's Source column",
+      "New Features Overview table (2+ features) lists every feature's " +
+      "current step, task progress, and next action with jump links",
+      "Once a feature's review links have been checked once (manual " +
+      "button click, opt-in preserved), the dashboard now auto-refreshes " +
+      "them every 5 minutes instead of only on click",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.69';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.69',
+    to:   '2.7.70',
+    description: "Enhance: sdd dashboard's (Python CLI) Documents card shows who should approve a pending document (role + name from roles.yml) and who approved it, via which mode",
+    notes: [
+      "status.py parses each document's own '## Approvals' table -- " +
+      "filled in identically regardless of review mode (chat/local/" +
+      "jira) -- and resolves a pending row's Role cell to the actual " +
+      "name in roles.yml. Tolerates both the current 4-column format " +
+      "(with Approver) and the legacy 3-column one",
+      "Each Documents row now shows a compact 'Awaiting Product Owner: " +
+      "Jane Smith' (or the approver's name once approved) summary, plus " +
+      "a 👤 toggle for the full Role/Approver/Status/Date table and " +
+      "which mode recorded the approval",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.70';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.70',
+    to:   '2.7.71',
+    description: "Enhance: sdd dashboard (Python CLI) consolidates each document's View/Approvals/Comments toggles into one tabbed Details panel",
+    notes: [
+      "The Documents row had grown to up to 7 elements (View, 👤, 💬, " +
+      "Jira pill, Confluence pill, review badge, Approve) across several " +
+      "features added this release cycle. Replaced the three expand-" +
+      "toggles with one 'Details' button opening a tab strip (Content / " +
+      "Approvals / Comments) -- only one panel renders per document now",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.71';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.71',
+    to:   '2.7.72',
+    description: "Fix: sdd dashboard's (Python CLI) Constitution/Token-Usage status badges silently lost their color, and stale 'View' button copy",
+    notes: [
+      "A CSS descendant-combinator bug ('.kv span:first-child') was " +
+      "unintentionally overriding badge colors nested inside a .kv row " +
+      "to plain gray -- fixed with a child combinator so only the row's " +
+      "own label span is affected",
+      "The info box referenced a 'View' button that no longer exists " +
+      "after the Details-panel consolidation (2.7.71) -- updated to " +
+      "reference the Content tab",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.72';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.72',
+    to:   '2.7.73',
+    description: "Fix: sdd dashboard's (Python CLI) Approve pill could keep showing a stale approver's name after a document was regenerated back to Draft",
+    notes: [
+      "approvalMode()/approvedRowInfo() previously trusted " +
+      "d.local_approval unconditionally, so a doc regenerated back to " +
+      "Draft could still show the old approver's checkmark -- " +
+      ".local-approvals.yml isn't cleared just because doc content " +
+      "changed. Both now check the document's live Status: header " +
+      "first, the same authoritative-source rule the status badge " +
+      "itself already follows",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.73';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.73',
+    to:   '2.7.74',
+    description: "Enhance: sdd dashboard's (Python CLI) now shows live Jira ticket status (not just links) for review-gate and Jira Export Epic/Story/Task tickets",
+    notes: [
+      "User asked directly whether the dashboard shows Jira ticket " +
+      "status, not just links -- the raw status was already fetched " +
+      "but unused for review-gate tickets, and never fetched for " +
+      "Export tickets. Both gaps closed",
+      "Review-gate ticket pills now show the raw Jira workflow status " +
+      "(e.g. 'In Review') alongside SDD's own APPROVED/PENDING/" +
+      "NEEDS_REVISION review_status badge",
+      "A new batched JQL 'key in (...)' query resolves Epic/Story/Task " +
+      "status from docs/jira/{feature}/keys.yml in one call instead of " +
+      "one lookup per ticket, with keys validated before being " +
+      "interpolated into the query",
+      "This Node CLI does not implement sdd dashboard -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.74';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

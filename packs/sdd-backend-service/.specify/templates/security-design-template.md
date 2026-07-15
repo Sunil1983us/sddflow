@@ -109,9 +109,9 @@
 
 <!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->
 
-| Role | Status | Date |
-|---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |
 
 ## Version History
 

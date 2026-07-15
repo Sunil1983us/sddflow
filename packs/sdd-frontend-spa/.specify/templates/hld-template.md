@@ -104,10 +104,10 @@ stateDiagram-v2
 *All diagrams: Mermaid — renders in GitHub, VS Code, Claude. Paste into https://mermaid.live to verify before approving.*
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| Architect | Pending | |
-| Tech Lead | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Architect | | Pending | |
+| Tech Lead | | Pending | |
 
 ## Version History
 | Version | Date | Changed By | Summary | CHG-NNN |

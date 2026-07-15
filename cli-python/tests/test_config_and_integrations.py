@@ -50,8 +50,9 @@ def test_shipped_example_parses_and_agrees_with_defaults():
     assert set(EXPECTED_DOC_KEYS) <= set(data["confluence"]["page_map"])
     assert set(data["confluence"]["page_map"]) - set(EXPECTED_DOC_KEYS) == {
         "validate", "analyze", "clarify",
-        "tasks", "checklist", "qa-testcases",
+        "stories", "tasks", "checklist", "qa-testcases", "smoke-tests",
         "data-model", "security-design", "api-spec", "component-library",
+        "constitution",
     }
     # active document_reviews ships in unified mode: design yes, arch/hld/adr commented
     reviews = data["document_reviews"]
@@ -84,6 +85,31 @@ def test_load_integrations_confluence_only(tmp_path, monkeypatch):
     assert cfg.jira is None
     assert cfg.confluence.space_key == "ENG"
     assert cfg.confluence.page_map == _DEFAULT_PAGE_MAP
+
+
+def test_load_integrations_local_svg_width_defaults_to_900(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "confluence:\n  space_key: ENG\n  diagrams:\n    mode: local-svg\n"
+    )
+    cfg = load_integrations()
+    assert cfg.confluence.diagrams.local_svg_width == 900
+
+
+def test_load_integrations_local_svg_width_override(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "confluence:\n"
+        "  space_key: ENG\n"
+        "  diagrams:\n"
+        "    mode: local-svg\n"
+        "    local_svg:\n"
+        "      width: 600\n"
+    )
+    cfg = load_integrations()
+    assert cfg.confluence.diagrams.local_svg_width == 600
 
 
 def test_jira_project_keys_default_to_empty_dict(tmp_path, monkeypatch):

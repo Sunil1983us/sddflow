@@ -119,10 +119,10 @@ State one of:
 ---
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| Product Owner (accountable) | Pending | |
-| Business Analyst (responsible) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Product Owner (accountable) | | Pending | |
+| Business Analyst (responsible) | | Pending | |
 
 ## Version History
 

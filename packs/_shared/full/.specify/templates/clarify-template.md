@@ -83,9 +83,9 @@ Status: OPEN → RESOLVED / CONFIRMED / DECIDED / CORRECTED
 All items must be resolved before PLAN begins.
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| Architect (accountable) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Architect (accountable) | | Pending | |
 
 ## Version History
 

@@ -272,10 +272,16 @@ List any `[MISSING — ask user]` rows as Open Items. State: "Constitution Part 
 Do NOT proceed to Action 2 in the same turn as a first-time generation unless
 the user has already reviewed Part 2. Wait for: "Constitution Part 2 finalized."
 
+If `.specify/integrations.yml` has a `confluence:` section, also push it
+now — no manual trigger, no formal Jira review gate (finalization is
+GATE-1's own manual review, not a Jira ticket): `sdd confluence push --doc
+constitution`. Skip silently if not configured or the command fails.
+
 A later /specify re-run on an already-finalized Part 2 must NOT silently overwrite
 finalized rows. Instead, produce a Constitution Amendment Summary (row diffs +
 version bump + change-rules.md Change Impact Matrix cross-reference) and WAIT for
-user confirmation before applying any change.
+user confirmation before applying any change. On confirmation, apply the change,
+then re-push the same way as above if `confluence:` is configured.
 
 ---
 

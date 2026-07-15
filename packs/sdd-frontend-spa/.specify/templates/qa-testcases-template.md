@@ -186,10 +186,10 @@
 ---
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| QA Lead (accountable — test case completeness) | Pending | |
-| Tech Lead (consulted — coverage against FR-NNN) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| QA Lead (accountable — test case completeness) | | Pending | |
+| Tech Lead (consulted — coverage against FR-NNN) | | Pending | |
 
 ## Version History
 

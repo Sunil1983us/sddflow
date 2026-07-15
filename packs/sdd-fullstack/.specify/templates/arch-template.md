@@ -111,10 +111,10 @@ Every NFR from `analyze.summary.md §5` must appear here with the decision that 
 ---
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| Architect | Pending | |
-| Tech Lead | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Architect | | Pending | |
+| Tech Lead | | Pending | |
 
 ## Version History
 | Version | Date | Changed By | Summary | CHG-NNN |

@@ -266,11 +266,11 @@ per-feature, as this isn't something the component itself owns:
 
 ## Approvals
 
-| Role | Status | Date |
-|---|---|---|
-| Architect | Pending | |
-| Tech Lead | Pending | |
-| Stakeholder (HLD sign-off) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Architect | | Pending | |
+| Tech Lead | | Pending | |
+| Stakeholder (HLD sign-off) | | Pending | |
 
 ## Version History
 

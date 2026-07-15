@@ -45,14 +45,32 @@ _PAGE = """<!doctype html>
     --border: #e2e2e6; --accent: #2563eb;
     --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --dim: #9ca3af;
   }
+  /* Auto (default): follows the OS/browser signal. */
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme]) {
       --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa0a6; --card: #1a1d24;
       --border: #2a2d35; --accent: #60a5fa;
       --ok: #4ade80; --warn: #facc15; --bad: #f87171; --dim: #6b7280;
     }
   }
+  /* Explicit Light/Dark picks from the toggle below always win over the
+     OS signal above, since some browsers/embedded webviews never report
+     prefers-color-scheme reliably -- this is the actual fix, not just a
+     nicety. Persisted to localStorage by the script at the bottom. */
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --card: #f5f5f7;
+    --border: #e2e2e6; --accent: #2563eb;
+    --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --dim: #9ca3af;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa0a6; --card: #1a1d24;
+    --border: #2a2d35; --accent: #60a5fa;
+    --ok: #4ade80; --warn: #facc15; --bad: #f87171; --dim: #6b7280;
+  }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0; padding: 2rem; background: var(--bg); color: var(--fg);
     font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -68,7 +86,13 @@ _PAGE = """<!doctype html>
     padding: 1rem 1.2rem;
   }
   .kv { display: flex; justify-content: space-between; padding: .3rem 0; font-size: .9rem; }
-  .kv span:first-child { color: var(--muted); }
+  /* Child combinator, not descendant -- ".kv span:first-child" (space)
+     also matched a badge/pill nested inside the value span whenever it
+     was that span's only child (a badge IS ":first-child" of ITS own
+     parent), silently overriding the badge's semantic color (green/red/
+     amber) to plain gray. Hit the Constitution card's gate-1 badge and
+     the Token Usage "Source mix" badges. */
+  .kv > span:first-child { color: var(--muted); }
   .badge {
     display: inline-block; padding: .1rem .55rem; border-radius: 999px;
     font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .02em;
@@ -103,11 +127,19 @@ _PAGE = """<!doctype html>
   .links-cell { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
   .doc-detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
   .doc-detail {
-    margin: 0; padding: .75rem 1rem; background: var(--bg); max-height: 360px; overflow: auto;
-    font-size: .8rem; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    margin: 0; font-size: .8rem; white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
+  .details-panel { background: var(--bg); }
+  .tab-strip { display: flex; gap: .1rem; padding: .4rem 1rem 0; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted);
+    font: inherit; font-size: .78rem; padding: .4rem .7rem; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--fg); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab-body { padding: .75rem 1rem; max-height: 420px; overflow: auto; }
   .check-links-row { display: flex; align-items: center; gap: .6rem; margin: .5rem 0 1rem; }
-  .comments-box { padding: .75rem 1rem; background: var(--bg); }
   .comment { padding: .4rem 0; border-bottom: 1px dashed var(--border); font-size: .85rem; }
   .comment:last-of-type { border-bottom: none; }
   .comment-form { display: flex; flex-direction: column; gap: .4rem; margin-top: .6rem; max-width: 420px; }
@@ -149,25 +181,104 @@ _PAGE = """<!doctype html>
   .next-persona-role { color: var(--dim); font-size: .8rem; }
   .doc-next-ask { color: var(--dim); }
   .doc-next-ask em { color: var(--fg); font-style: normal; font-weight: 600; }
+  .doc-approval-line { font-size: .74rem; color: var(--muted); margin-top: .25rem; }
+  .doc-approval-pending strong { color: var(--fg); }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .theme-toggle {
+    display: inline-flex; gap: .15rem; background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: .2rem; flex-shrink: 0;
+  }
+  .theme-toggle button {
+    background: transparent; border: none; color: var(--muted); font: inherit; font-size: .78rem;
+    padding: .3rem .65rem; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  }
+  .theme-toggle button:hover { color: var(--fg); }
+  .theme-toggle button.active { background: var(--accent); color: #fff; }
+  .info-box {
+    margin: .5rem 0 1.5rem; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--card); font-size: .82rem; color: var(--muted);
+  }
+  .info-box summary {
+    cursor: pointer; padding: .5rem .8rem; font-weight: 600; color: var(--fg);
+    list-style: none; display: flex; align-items: center; gap: .4rem;
+  }
+  .info-box summary::-webkit-details-marker { display: none; }
+  .info-box summary::before { content: "▸"; color: var(--dim); transition: transform .15s; }
+  .info-box[open] summary::before { transform: rotate(90deg); }
+  .info-box .info-content { padding: 0 .8rem .8rem; line-height: 1.6; }
+  .info-box code { background: var(--bg); border-radius: 4px; padding: .05rem .35rem; font-size: .9em; }
 </style>
 </head>
 <body>
-  <h1>SDD Dashboard</h1>
-  <div class="sub" id="generated-at">loading…</div>
+  <div class="topbar">
+    <div>
+      <h1>SDD Dashboard</h1>
+      <div class="sub" id="generated-at">loading…</div>
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button type="button" data-theme-choice="light" title="Always use light theme">☀️ Light</button>
+      <button type="button" data-theme-choice="dark" title="Always use dark theme">🌙 Dark</button>
+      <button type="button" data-theme-choice="auto" title="Match your OS/browser setting">🖥️ Auto</button>
+    </div>
+  </div>
+  <details class="info-box">
+    <summary>ℹ️ Where this data comes from</summary>
+    <div class="info-content">
+      Everything below is a snapshot of local files under <code>.specify/</code> and <code>docs/jira/</code> — refreshed
+      every 5s, no network calls. Task status reflects <code>tasks.md</code>, not live PR state.
+      "Details" → Content reads the raw .md file from disk. Jira/Confluence pills next to a document come from a local cache written
+      the last time you ran <code>sdd jira push</code> / <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code> —
+      they can go stale if the ticket changed since then. Click <strong>"Check Jira/Confluence status"</strong> to make a
+      live call that refreshes both pills and adds the same APPROVED/NEEDS REVISION/PENDING classification as
+      <code>sdd review check --doc</code>, plus reviewer comments (shown under 💬) — and, in the same call, the live Jira
+      workflow status (e.g. "In Review", "Done") for both the review-gate tickets and the Jira Export card's Epic/Story/Task
+      tickets. That's the only thing on this page that talks to Jira/Confluence — everything else is local-file-only — and
+      once you've clicked it for a feature, it quietly re-checks every 5 minutes so it all stays fresh without you clicking again.
+      <strong>Approve</strong> and comments update the local Status header (same as <code>sdd review approve --local</code>),
+      mirror to Confluence if configured, and post a best-effort Jira comment.
+    </div>
+  </details>
   <div id="root"></div>
-  <div class="refresh-note">Snapshot of <code>.specify/</code> — refreshes every 5s. Task/PR status reflects tasks.md, not live PR state.
-    "View" reads the raw .md file from disk. Jira/Confluence pills next to a document are from local cache (progressive export /
-    <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code>) — "Check Jira/Confluence review links" additionally
-    queries live, refreshing both pills and adding the same APPROVED/NEEDS REVISION/PENDING classification as <code>sdd review check --doc</code>,
-    plus reviewer comments (shown under 💬).
-    "Approve" and comments update the local Status header (same as <code>sdd review approve --local</code>), mirror to Confluence if configured,
-    and post a best-effort Jira comment.</div>
 
+<script>
+// Theme: defaults to Auto (follows OS/browser prefers-color-scheme via the
+// CSS media query). An explicit Light/Dark pick sets data-theme on <html>,
+// which the CSS above gives higher specificity than the media query, and
+// persists to localStorage so it survives reloads and doesn't depend on
+// the OS signal reaching this page correctly.
+const THEME_KEY = 'sdd-dashboard-theme';
+
+function applyTheme(theme) {
+  if (theme === 'light' || theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', theme);
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  document.querySelectorAll('[data-theme-choice]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.themeChoice === theme);
+  });
+}
+
+(function initTheme() {
+  applyTheme(localStorage.getItem(THEME_KEY) || 'auto');
+  document.querySelectorAll('[data-theme-choice]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.themeChoice;
+      localStorage.setItem(THEME_KEY, theme);
+      applyTheme(theme);
+    });
+  });
+})();
+</script>
 <script>
 // Client-side only — never re-fetched from /api/status, so it survives
 // the 5s poll: which doc panels are expanded, their fetched content, and
 // any live Jira/Confluence review-link results the user asked for.
-const state = { expandedDocs: new Set(), expandedComments: new Set(), docContents: {}, reviewLinks: {}, commentDrafts: {} };
+// openDocs / docTab replace three separate expand-toggles (View, 👤
+// Approvals, 💬 Comments) with one "Details" panel that has tabs -- see
+// renderDocDetailsPanel(). docTab defaults to 'content' when a doc key
+// has no entry yet.
+const state = { openDocs: new Set(), docTab: {}, docContents: {}, reviewLinks: {}, commentDrafts: {} };
 let lastData = null;
 
 function escapeHtml(s) {
@@ -243,12 +354,101 @@ function linkPill(kind, link) {
   if (!link) return '';
   if (link.error) return `<span class="pill pill-bad" title="${escapeHtml(link.error)}">${kind} ⚠</span>`;
   const label = kind === 'Jira' ? `Jira ${link.key}` : 'Confluence';
-  return link.url
+  // link.status is the raw Jira workflow status (e.g. "In Review",
+  // "Done") -- only present once the live check has run (reviewJira,
+  // not the local-cache fallback), and distinct from review_status
+  // (our own APPROVED/NEEDS REVISION/PENDING classification, shown as
+  // its own badge) -- a ticket can be "Done" in the team's board while
+  // still PENDING our classification, or vice versa.
+  const statusSuffix = (kind === 'Jira' && link.status)
+    ? ` <span class="sub">(${escapeHtml(link.status)})</span>` : '';
+  return (link.url
     ? `<a class="pill pill-${kind === 'Jira' ? 'jira' : 'cf'}" href="${link.url}" target="_blank" rel="noopener">${label}</a>`
-    : `<span class="pill pill-${kind === 'Jira' ? 'jira' : 'cf'}" title="No Atlassian base_url configured — run sdd config init">${label}</span>`;
+    : `<span class="pill pill-${kind === 'Jira' ? 'jira' : 'cf'}" title="No Atlassian base_url configured — run sdd config init">${label}</span>`
+  ) + statusSuffix;
 }
 
-function renderCommentsPanel(d, feature, reviewJira) {
+// "Who approved this, and how" needs one answer that works the same way
+// regardless of review mode. d.local_approval only exists in local mode;
+// reviewJira.review_status only exists once Jira has been checked. The
+// document's own Approvals table (d.approvals, from status.py parsing
+// its "## Approvals" section) is the one thing populated identically in
+// every mode -- these helpers prefer the mode-specific record when it
+// exists (it carries a note/mode label the table alone doesn't) and fall
+// back to the table's Approver column otherwise.
+//
+// Both gate on the doc's live Status: header first -- the same
+// authoritative-source check badge(d.status, 'doc') already uses (see
+// CLAUDE.md "Document Review Gates": the Status: header is the
+// authoritative gate in every mode). Without this, a document that was
+// locally approved and later regenerated back to Draft would still show
+// the old approver's checkmark pill -- .local-approvals.yml isn't
+// cleared just because the doc content changed, so d.local_approval can
+// outlive the approval it recorded.
+const _APPROVAL_MODE_LABEL = { local: 'Local (dashboard/CLI)', jira: 'Jira', chat: 'Chat only — no audit file' };
+
+function _statusSaysApproved(d) {
+  return (d.status || '').toLowerCase().includes('approved');
+}
+
+function approvalMode(d, reviewJira) {
+  if (!_statusSaysApproved(d)) return null;
+  if (d.local_approval) return 'local';
+  if (reviewJira && reviewJira.review_status === 'approved') return 'jira';
+  return 'chat';
+}
+
+function approvedRowInfo(d) {
+  if (!_statusSaysApproved(d)) return null;
+  if (d.local_approval) {
+    return { name: d.local_approval.approved_by || 'Approved', note: d.local_approval.note || '' };
+  }
+  const row = (d.approvals || []).find(r => (r.status || '').toLowerCase().includes('approved') && r.approver);
+  return row ? { name: row.approver, note: '' } : null;
+}
+
+// Compact one-line answer to "who should approve this / who did", shown
+// right under the Status badge with no click required — covers the
+// common single-approver document without needing the 👤 detail panel.
+function approvalSummaryLine(d) {
+  const rows = d.approvals || [];
+  if (!rows.length) return '';
+  if (rows.length > 1) {
+    const done = rows.filter(r => (r.status || '').toLowerCase().includes('approved')).length;
+    return `<div class="doc-approval-line sub">${done}/${rows.length} sign-offs — see 👤 for detail</div>`;
+  }
+  const r = rows[0];
+  if ((r.status || '').toLowerCase().includes('approved')) {
+    return r.approver
+      ? `<div class="doc-approval-line">👤 ${escapeHtml(r.approver)} <span class="sub">(${escapeHtml(r.role)})</span></div>`
+      : '';
+  }
+  const who = r.approver || r.expected_approver;
+  return `<div class="doc-approval-line doc-approval-pending">👤 Awaiting <strong>${escapeHtml(r.role)}</strong>${
+    who ? ': ' + escapeHtml(who) : ' <span class="sub">(name not set in roles.yml)</span>'}</div>`;
+}
+
+function renderApprovalsBody(d, mode) {
+  const rows = d.approvals || [];
+  const modeLine = mode
+    ? `<div class="sub" style="margin-bottom:.4rem">Recorded via: <strong>${escapeHtml(_APPROVAL_MODE_LABEL[mode])}</strong></div>`
+    : '<div class="sub" style="margin-bottom:.4rem">Not yet approved.</div>';
+  const body = rows.length
+    ? `<table><thead><tr><th>Role</th><th>Approver</th><th>Status</th><th>Date</th></tr></thead><tbody>${
+        rows.map(r => {
+          const who = r.approver
+            ? escapeHtml(r.approver)
+            : (r.expected_approver
+                ? `<span class="sub">Expected: ${escapeHtml(r.expected_approver)}</span>`
+                : '<span class="sub">— (not set in roles.yml)</span>');
+          return `<tr><td>${escapeHtml(r.role)}</td><td>${who}</td><td>${badge(r.status, 'doc')}</td><td>${escapeHtml(r.date || '—')}</td></tr>`;
+        }).join('')
+      }</tbody></table>`
+    : '<div class="sub">This document has no ## Approvals table yet.</div>';
+  return `${modeLine}${body}`;
+}
+
+function renderCommentsBody(d, feature, reviewJira) {
   const comments = d.comments || [];
   const jiraComments = (reviewJira && reviewJira.comments) || [];
   const key = feature + '|' + d.key;
@@ -269,25 +469,47 @@ function renderCommentsPanel(d, feature, reviewJira) {
         </div>`).join('')
     : '<div class="sub">No dashboard comments yet.</div>';
   return `
+    ${jiraList}
+    ${list}
+    <div class="comment-form">
+      <input type="text" class="comment-by" data-feature="${feature}" data-doc="${d.key}"
+             placeholder="Your name" maxlength="200" value="${escapeHtml(draft.by)}">
+      <textarea class="comment-text" data-feature="${feature}" data-doc="${d.key}"
+                placeholder="Add a review comment…" rows="2" maxlength="2000">${escapeHtml(draft.text)}</textarea>
+      <button class="link-btn" data-action="submit-comment" data-feature="${feature}" data-doc="${d.key}">Post comment</button>
+    </div>`;
+}
+
+// One "Details" panel with tabs (Content / Approvals / Comments) instead
+// of three independent expand-toggles -- keeps only one panel open per
+// document instead of up to three stacking, and the Links cell down to
+// [Approve] [Details] [Jira pill] [Confluence pill] [review badge].
+function renderDocDetailsPanel(d, feature, mode, reviewJira) {
+  const key = feature + '|' + d.key;
+  const activeTab = state.docTab[key] || 'content';
+  const commentCount = (d.comments || []).length;
+  const approvalRows = d.approvals || [];
+  const tabs = [
+    { id: 'content', label: 'Content' },
+    { id: 'approvals', label: 'Approvals' + (approvalRows.length ? ` (${approvalRows.length})` : '') },
+    { id: 'comments', label: 'Comments' + (commentCount ? ` (${commentCount})` : '') },
+  ];
+  const tabStrip = `<div class="tab-strip">${tabs.map(t => `
+    <button class="tab-btn${t.id === activeTab ? ' active' : ''}" data-action="switch-tab"
+            data-tab="${t.id}" data-feature="${feature}" data-doc="${d.key}">${t.label}</button>`).join('')}</div>`;
+  let body;
+  if (activeTab === 'approvals') body = renderApprovalsBody(d, mode);
+  else if (activeTab === 'comments') body = renderCommentsBody(d, feature, reviewJira);
+  else body = `<pre class="doc-detail">${escapeHtml(state.docContents[key] ?? 'Loading…')}</pre>`;
+  return `
     <tr class="doc-detail-row"><td colspan="3">
-      <div class="comments-box">
-        ${jiraList}
-        ${list}
-        <div class="comment-form">
-          <input type="text" class="comment-by" data-feature="${feature}" data-doc="${d.key}"
-                 placeholder="Your name" maxlength="200" value="${escapeHtml(draft.by)}">
-          <textarea class="comment-text" data-feature="${feature}" data-doc="${d.key}"
-                    placeholder="Add a review comment…" rows="2" maxlength="2000">${escapeHtml(draft.text)}</textarea>
-          <button class="link-btn" data-action="submit-comment" data-feature="${feature}" data-doc="${d.key}">Post comment</button>
-        </div>
-      </div>
+      <div class="details-panel">${tabStrip}<div class="tab-body">${body}</div></div>
     </td></tr>`;
 }
 
 function renderDocRow(d, feature, localConfluence, localJiraReview, reviewEntry) {
   const key = feature + '|' + d.key;
-  const expanded = state.expandedDocs.has(key);
-  const commentsOpen = state.expandedComments.has(key);
+  const isOpen = state.openDocs.has(key);
   const localCf = (localConfluence || {})[d.key];
   const localJira = (localJiraReview || {})[d.key];
   const reviewJira = reviewEntry && reviewEntry.docs ? reviewEntry.docs[d.key]?.jira : null;
@@ -297,26 +519,25 @@ function renderDocRow(d, feature, localConfluence, localJiraReview, reviewEntry)
     linkPill('Jira', reviewJira || localJira),
     linkPill('Confluence', localCf || reviewCf),
   ].join('');
-  const approveControl = d.local_approval
-    ? `<span class="pill pill-ok" title="${escapeHtml(d.local_approval.note || '')}">✓ ${escapeHtml(d.local_approval.approved_by || 'Approved')}</span>`
+  const mode = approvalMode(d, reviewJira);
+  const info = approvedRowInfo(d);
+  const approveControl = info
+    ? `<span class="pill pill-ok" title="${escapeHtml(info.note)}${mode ? ' · ' + _APPROVAL_MODE_LABEL[mode] : ''}">✓ ${escapeHtml(info.name)}</span>`
     : `<button class="link-btn" data-action="approve-doc" data-feature="${feature}" data-doc="${d.key}">Approve</button>`;
   const commentCount = (d.comments || []).length;
-  const commentBtn = `<button class="link-btn" data-action="toggle-comments" data-feature="${feature}" data-doc="${d.key}">💬${commentCount ? ' ' + commentCount : ''}</button>`;
+  const detailsBtn = `<button class="link-btn" data-action="toggle-details" data-feature="${feature}" data-doc="${d.key}">${
+    isOpen ? 'Hide' : 'Details'}${commentCount ? ' 💬' + commentCount : ''}</button>`;
   const row = `
     <tr>
       <td>${d.label}</td>
-      <td>${badge(d.status, 'doc')}</td>
+      <td>${badge(d.status, 'doc')}${approvalSummaryLine(d)}</td>
       <td class="links-cell">
-        <button class="link-btn" data-action="view-doc" data-feature="${feature}" data-doc="${d.key}">${expanded ? 'Hide' : 'View'}</button>
         ${approveControl}
-        ${commentBtn}${links}${reviewStatusBadge}
+        ${detailsBtn}${links}${reviewStatusBadge}
       </td>
     </tr>`;
-  const detail = expanded
-    ? `<tr class="doc-detail-row"><td colspan="3"><pre class="doc-detail">${escapeHtml(state.docContents[key] ?? 'Loading…')}</pre></td></tr>`
-    : '';
-  const commentsPanel = commentsOpen ? renderCommentsPanel(d, feature, reviewJira) : '';
-  return row + detail + commentsPanel;
+  const detail = isOpen ? renderDocDetailsPanel(d, feature, mode, reviewJira) : '';
+  return row + detail;
 }
 
 function renderDocs(docs, stage, feature, localConfluence, localJiraReview) {
@@ -331,14 +552,25 @@ function renderDocs(docs, stage, feature, localConfluence, localJiraReview) {
   return `<table><thead><tr><th>Document</th><th>Status</th><th>Links</th></tr></thead><tbody>${rows}</tbody></table>${next}`;
 }
 
-function renderJiraExport(jira) {
+// exportEntry is state.reviewLinks[feature].export -- live ticket status
+// for the Epic/Story/Task tickets, fetched by the same "Check Jira/
+// Confluence status" click/auto-refresh as the review-gate tickets (see
+// _fetch_export_ticket_statuses). null/undefined until that's run once.
+function renderJiraExport(jira, exportEntry) {
   if (!jira || (!jira.epic && jira.stories.length === 0 && jira.tasks.length === 0)) {
     return '<div class="empty">No progressive Jira export yet (run /jira-push or sdd jira push).</div>';
   }
-  const list = arr => arr.length
-    ? arr.map(x => x.url ? `<a href="${x.url}" target="_blank" rel="noopener">${x.key}</a>` : x.key).join(', ')
-    : '—';
+  const statuses = (exportEntry && exportEntry.statuses) || null;
+  const itemLabel = x => {
+    const label = x.url ? `<a href="${x.url}" target="_blank" rel="noopener">${x.key}</a>` : x.key;
+    const status = statuses && statuses[x.key];
+    return status ? `${label} <span class="sub">(${escapeHtml(status)})</span>` : label;
+  };
+  const list = arr => arr.length ? arr.map(itemLabel).join(', ') : '—';
+  const errLine = exportEntry && exportEntry.error
+    ? `<div class="sub" style="color:var(--bad)">${escapeHtml(exportEntry.error)}</div>` : '';
   return `
+    ${errLine}
     <div class="kv"><span>Epic</span><span>${jira.epic ? list([jira.epic]) : '—'}</span></div>
     <div class="kv"><span>Stories (${jira.stories.length})</span><span>${list(jira.stories)}</span></div>
     <div class="kv"><span>Tasks (${jira.tasks.length})</span><span>${list(jira.tasks)}</span></div>
@@ -350,21 +582,30 @@ function renderReviewLinksControl(feature) {
   let status = '';
   if (entry === 'loading') status = '<span class="sub">Checking…</span>';
   else if (entry && entry.error) status = `<span class="sub" style="color:var(--bad)">${escapeHtml(entry.error)}</span>`;
-  else if (entry && entry.checked_at) status = `<span class="sub">Checked ${entry.checked_at}</span>`;
+  else if (entry && entry.checked_at) status = `<span class="sub">Checked ${entry.checked_at} — auto-refreshes every 5 min</span>`;
   return `
     <div class="check-links-row">
-      <button class="link-btn" data-action="check-review-links" data-feature="${feature}">🔄 Check Jira/Confluence review links</button>
+      <button class="link-btn" data-action="check-review-links" data-feature="${feature}">🔄 Check Jira/Confluence status</button>
       ${status}
     </div>`;
 }
 
 function renderTokenUsage(tu) {
   if (!tu) return '<div class="empty">Token usage logging not enabled for this feature.</div>';
+  const real = tu.real_commands || 0;
+  const estimated = tu.estimated_commands || 0;
+  const sourceMix = (real || estimated)
+    ? `<div class="kv"><span>Source mix</span><span>
+        <span class="badge b-ok" title="Real usage measured from Claude Code's own local session transcript via sdd token-log">Real ${real}</span>
+        <span class="badge b-dim" title="Character-count approximation, used whenever Real usage isn't available">Est. ${estimated}</span>
+      </span></div>`
+    : '';
   return `
-    <div class="kv"><span>Total Est. Input Tokens</span><span>${tu.total_input ?? '—'}</span></div>
-    <div class="kv"><span>Total Est. Output Tokens</span><span>${tu.total_output ?? '—'}</span></div>
-    <div class="kv"><span>Total Est. Cost (USD)</span><span>${tu.total_cost ?? '—'}</span></div>
+    <div class="kv"><span>Total Input Tokens</span><span>${tu.total_input ?? '—'}</span></div>
+    <div class="kv"><span>Total Output Tokens</span><span>${tu.total_output ?? '—'}</span></div>
+    <div class="kv"><span>Total Cost (USD)</span><span>${tu.total_cost ?? '—'}</span></div>
     <div class="kv"><span>Commands logged</span><span>${tu.commands_logged ?? '—'}</span></div>
+    ${sourceMix}
     <div class="kv"><span>Last updated</span><span>${tu.last_updated ?? '—'}</span></div>
   `;
 }
@@ -417,10 +658,16 @@ function renderPipelineFlow(f, project) {
   `;
 }
 
+function featureAnchorId(name) {
+  return 'feature-' + encodeURIComponent(name);
+}
+
 function renderFeature(f, project) {
   const local = f.local_links || { jira: null, confluence: {}, jira_review: {} };
+  const reviewEntry = state.reviewLinks[f.name];
+  const exportEntry = (reviewEntry && typeof reviewEntry === 'object') ? reviewEntry.export : null;
   return `
-  <div class="feature-block">
+  <div class="feature-block" id="${featureAnchorId(f.name)}">
     <div class="feature-title">${f.name}</div>
     ${renderReviewLinksControl(f.name)}
     <div class="grid feature-grid">
@@ -428,18 +675,46 @@ function renderFeature(f, project) {
       <div class="card card-wide"><h2>Documents</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence, local.jira_review)}</div>
       <div class="card"><h2>Tasks</h2>${renderTasks(f.tasks)}</div>
       <div class="card"><h2>Token Usage</h2>${renderTokenUsage(f.token_usage)}</div>
-      <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira)}</div>
+      <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira, exportEntry)}</div>
     </div>
   </div>`;
+}
+
+// Only worth showing once there's more than one feature to scan through —
+// for a single-feature project it would just duplicate the block below it.
+function renderFeatureOverview(features) {
+  if (!features || features.length < 2) return '';
+  const rows = features.map(f => {
+    const steps = (f.pipeline && f.pipeline.steps) || [];
+    const current = steps.find(s => s.state === 'current');
+    const stageLabel = current ? current.label : (steps.every(s => s.state === 'done' || s.state === 'skipped') ? 'Complete' : '—');
+    const tasks = f.tasks || {};
+    const pct = tasks.total ? Math.round(100 * tasks.done / tasks.total) : null;
+    const tasksCell = pct !== null ? `${pct}% <span class="sub">(${tasks.done}/${tasks.total})</span>` : '<span class="sub">no tasks.md</span>';
+    const nextAction = f.pipeline ? mdInlineCode(f.pipeline.next_action) : '—';
+    return `
+      <tr>
+        <td><a href="#${featureAnchorId(f.name)}">${escapeHtml(f.name)}</a></td>
+        <td>${escapeHtml(stageLabel)}</td>
+        <td>${tasksCell}</td>
+        <td>${nextAction}</td>
+      </tr>`;
+  }).join('');
+  return `
+    <div class="card card-wide" style="margin-bottom:1.5rem">
+      <h2>Features Overview</h2>
+      <table><thead><tr><th>Feature</th><th>Current Step</th><th>Tasks</th><th>Next Action</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
 }
 
 function render() {
   if (!lastData) return;
   const data = lastData;
   document.getElementById('generated-at').textContent = 'Generated ' + data.generated_at;
+  const overview = renderFeatureOverview(data.features);
   const features = data.features.length
     ? data.features.map(f => renderFeature(f, data.project)).join('')
-    : '<div class="empty">No features under .specify/features/ yet.</div>';
+    : '<div class="empty">No features under .specify/features/ yet — run <code>/specify</code> (or <code>sdd specify</code>) to create your first one.</div>';
 
   // Rebuilding #root wholesale (below) would otherwise steal focus and reset
   // the caret out from under anyone actively typing in a comment field —
@@ -462,7 +737,7 @@ function render() {
     };
   }
 
-  root.innerHTML = renderProject(data.project, data.constitution) + features;
+  root.innerHTML = renderProject(data.project, data.constitution) + overview + features;
 
   if (focus) {
     const selector = `.${focus.cls}[data-feature="${CSS.escape(focus.feature)}"][data-doc="${CSS.escape(focus.doc)}"]`;
@@ -472,6 +747,25 @@ function render() {
       try { el.setSelectionRange(focus.start, focus.end); } catch (err) { /* not all inputs support this */ }
     }
   }
+}
+
+// Shared by 'toggle-details' (opening straight on the Content tab) and
+// 'switch-tab' (switching to it later) -- fetches once per doc key and
+// caches in state.docContents, matching the never-refetch behavior the
+// old view-doc handler had.
+async function ensureDocContentLoaded(feature, doc) {
+  const key = feature + '|' + doc;
+  if (key in state.docContents) return;
+  state.docContents[key] = 'Loading…';
+  render();
+  try {
+    const res = await fetch(`/api/doc?feature=${encodeURIComponent(feature)}&doc=${encodeURIComponent(doc)}`);
+    const data = await res.json();
+    state.docContents[key] = data.content ?? ('Error: ' + (data.error || 'unknown'));
+  } catch (err) {
+    state.docContents[key] = 'Error: ' + err;
+  }
+  render();
 }
 
 async function refresh() {
@@ -519,27 +813,24 @@ document.getElementById('root').addEventListener('click', async (e) => {
   if (!btn) return;
   const feature = btn.dataset.feature;
 
-  if (btn.dataset.action === 'view-doc') {
+  if (btn.dataset.action === 'toggle-details') {
     const doc = btn.dataset.doc;
     const key = feature + '|' + doc;
-    if (state.expandedDocs.has(key)) {
-      state.expandedDocs.delete(key);
+    if (state.openDocs.has(key)) {
+      state.openDocs.delete(key);
       render();
       return;
     }
-    state.expandedDocs.add(key);
-    if (!(key in state.docContents)) {
-      state.docContents[key] = 'Loading…';
-      render();
-      try {
-        const res = await fetch(`/api/doc?feature=${encodeURIComponent(feature)}&doc=${encodeURIComponent(doc)}`);
-        const data = await res.json();
-        state.docContents[key] = data.content ?? ('Error: ' + (data.error || 'unknown'));
-      } catch (err) {
-        state.docContents[key] = 'Error: ' + err;
-      }
-    }
+    state.openDocs.add(key);
     render();
+    if ((state.docTab[key] || 'content') === 'content') await ensureDocContentLoaded(feature, doc);
+
+  } else if (btn.dataset.action === 'switch-tab') {
+    const doc = btn.dataset.doc;
+    const key = feature + '|' + doc;
+    state.docTab[key] = btn.dataset.tab;
+    render();
+    if (btn.dataset.tab === 'content') await ensureDocContentLoaded(feature, doc);
 
   } else if (btn.dataset.action === 'check-review-links') {
     state.reviewLinks[feature] = 'loading';
@@ -550,12 +841,6 @@ document.getElementById('root').addEventListener('click', async (e) => {
     } catch (err) {
       state.reviewLinks[feature] = { error: String(err) };
     }
-    render();
-
-  } else if (btn.dataset.action === 'toggle-comments') {
-    const key = feature + '|' + btn.dataset.doc;
-    if (state.expandedComments.has(key)) state.expandedComments.delete(key);
-    else state.expandedComments.add(key);
     render();
 
   } else if (btn.dataset.action === 'approve-doc') {
@@ -580,7 +865,7 @@ document.getElementById('root').addEventListener('click', async (e) => {
 
   } else if (btn.dataset.action === 'submit-comment') {
     const doc = btn.dataset.doc;
-    const box = btn.closest('.comments-box');
+    const box = btn.closest('.tab-body');
     const by = box.querySelector('.comment-by').value.trim();
     const text = box.querySelector('.comment-text').value.trim();
     if (!text) return;
@@ -597,7 +882,8 @@ document.getElementById('root').addEventListener('click', async (e) => {
       } else {
         delete state.commentDrafts[feature + '|' + doc];
       }
-      state.expandedComments.add(feature + '|' + doc);
+      state.openDocs.add(feature + '|' + doc);
+      state.docTab[feature + '|' + doc] = 'comments';
       await refresh();
     } catch (err) {
       window.alert('Comment failed: ' + err);
@@ -606,8 +892,37 @@ document.getElementById('root').addEventListener('click', async (e) => {
   }
 });
 
+// Opt-in only: this never fires for a feature the user hasn't manually
+// checked at least once via the "Check Jira/Confluence status"
+// button -- the dashboard's one live-network-call path stays something
+// the user explicitly triggered, it just doesn't require re-clicking
+// every 5 minutes to stay fresh after that. Silently keeps the last good
+// result on a transient failure rather than flashing an error over data
+// that was fine a moment ago.
+const REVIEW_LINKS_AUTO_REFRESH_MS = 5 * 60 * 1000;
+
+async function autoRefreshReviewLinks() {
+  const features = Object.keys(state.reviewLinks).filter(feature => {
+    const entry = state.reviewLinks[feature];
+    return entry && typeof entry === 'object' && !entry.error;
+  });
+  if (!features.length) return;
+  let changed = false;
+  for (const feature of features) {
+    try {
+      const res = await fetch(`/api/review-links?feature=${encodeURIComponent(feature)}`);
+      state.reviewLinks[feature] = await res.json();
+      changed = true;
+    } catch (err) {
+      // Leave the last known-good result in place — see comment above.
+    }
+  }
+  if (changed) render();
+}
+
 refresh();
 setInterval(refresh, 5000);
+setInterval(autoRefreshReviewLinks, REVIEW_LINKS_AUTO_REFRESH_MS);
 </script>
 </body>
 </html>
@@ -631,9 +946,54 @@ def _fetch_doc_content(feature: str, doc: str) -> dict | None:
     return {"path": str(path), "content": path.read_text(errors="replace")}
 
 
+_JIRA_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]*-\d+$")
+
+
+def _fetch_export_ticket_statuses(feature: str, jira_client) -> dict:
+    """Live Jira status for the Epic/Story/Task tickets from the
+    progressive export (docs/jira/{feature}/keys.yml, written by `sdd
+    jira push`) -- unlike the review-gate tickets above, status.py's
+    local_links.jira only ever has cached key+url, never a live status,
+    since nothing previously fetched one. One batched 'key in (...)' JQL
+    query covers the whole Epic+Stories+Tasks set in a single API call.
+    Folded into _fetch_review_links' response so there's still only one
+    "Check Jira/Confluence status" action per feature, not two buttons.
+
+    Keys are re-validated against Jira's own KEY-123 format before being
+    inlined into the JQL string -- they normally come straight from
+    Jira's own issue-creation response (via `sdd jira push`), but
+    keys.yml is a plain file on disk a user could hand-edit, and JQL has
+    no query-parameter binding to lean on the way SQL does.
+    """
+    if jira_client is None:
+        return {}
+    from sdd.utils.status import _local_jira_links
+
+    local = _local_jira_links(Path("."), feature, base_url=None)
+    all_keys = []
+    if local["epic"]:
+        all_keys.append(local["epic"]["key"])
+    all_keys += [s["key"] for s in local["stories"]]
+    all_keys += [t["key"] for t in local["tasks"]]
+    all_keys = [k for k in all_keys if _JIRA_KEY_RE.match(k)]
+    if not all_keys:
+        return {}
+
+    try:
+        issues = jira_client.search(
+            f"key in ({', '.join(all_keys)})", fields=["status"], max_results=len(all_keys),
+        )
+    except Exception as e:
+        return {"error": str(e)}
+    return {"statuses": {issue["key"]: issue.get("fields", {}).get("status", {}).get("name")
+                          for issue in issues}}
+
+
 def _fetch_review_links(feature: str) -> dict:
     """Live Jira/Confluence lookup for review-gate tickets (the ones
-    created by `sdd review submit`). status.py's local_links.jira_review
+    created by `sdd review submit`) plus live status for the progressive
+    Jira export's Epic/Story/Task tickets (see
+    _fetch_export_ticket_statuses). status.py's local_links.jira_review
     gives the passive 5s poll an instant-but-possibly-stale fallback pill
     (populated the moment `sdd review submit`/`apply` touches the
     ticket) — this function is what actually re-verifies against Jira/
@@ -659,8 +1019,8 @@ def _fetch_review_links(feature: str) -> dict:
         cfg = load_integrations()
     except FileNotFoundError as e:
         return {"error": str(e)}
-    if not cfg.document_reviews:
-        return {"error": "No document_reviews configured in .specify/integrations.yml"}
+    if not cfg.jira and not cfg.confluence:
+        return {"error": "Neither jira: nor confluence: configured in .specify/integrations.yml"}
 
     try:
         prof = load_profile(cfg.profile)
@@ -675,7 +1035,7 @@ def _fetch_review_links(feature: str) -> dict:
     project_name = (manifest.get("project") or {}).get("name", "Project")
 
     docs: dict = {}
-    for doc_key, dr in cfg.document_reviews.items():
+    for doc_key, dr in (cfg.document_reviews or {}).items():
         entry: dict = {"jira": None, "confluence": None}
 
         if jira_client:
@@ -716,7 +1076,11 @@ def _fetch_review_links(feature: str) -> dict:
 
         docs[doc_key] = entry
 
-    return {"docs": docs, "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    return {
+        "docs": docs,
+        "export": _fetch_export_ticket_statuses(feature, jira_client),
+        "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
 
 
 _COMMENTS_FILE = Path(".specify") / ".dashboard-comments.json"

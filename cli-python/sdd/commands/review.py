@@ -52,10 +52,10 @@ def _is_locally_approved(doc: str) -> bool:
 def _doc_md_path(doc: str, feature: str | None) -> Path | None:
     """Resolve the on-disk path for a doc key, or None if unresolvable.
 
-    Living/service-level docs (data-model, security-design, api-spec) resolve
-    to .specify/service/{doc}.md regardless of feature. Everything else
-    resolves to .specify/features/{feature}/{doc}.md."""
-    if doc in LIVING_SERVICE_DOCS:
+    "constitution" and living/service-level docs (data-model,
+    security-design, api-spec) resolve to a fixed path regardless of
+    feature. Everything else resolves to .specify/features/{feature}/{doc}.md."""
+    if doc == "constitution" or doc in LIVING_SERVICE_DOCS:
         return resolve_doc_path(doc, "")
     manifest     = read_manifest() or {}
     proj         = manifest.get("project") or {}
@@ -160,7 +160,14 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> tuple[str, str
     proj         = manifest.get("project") or {}
     project_name = proj.get("name", "Project")
 
-    if doc in cfg.document_reviews:
+    if doc == "constitution":
+        # Project-wide, no document_reviews entry (amended via GATE-1, not
+        # a Jira review ticket) -- must match confluence.py's
+        # _resolve_page_title exactly, or `sdd review apply --doc
+        # constitution` and `sdd confluence push --doc constitution` would
+        # land on two different pages for the same document.
+        title = "{project} — Constitution"
+    elif doc in cfg.document_reviews:
         title = cfg.document_reviews[doc].confluence_page
     else:
         title = cfg.confluence.page_map.get(doc, f"{{project}} — {doc.upper()}")
@@ -1438,42 +1445,41 @@ def review_apply(doc, profile, feature):
         console.print()
         return
 
-    if not cfg.jira or not cfg.confluence:
-        console.print("  [red]✗  Both jira: and confluence: required in integrations.yml[/red]")
-        raise SystemExit(1)
-
-    doc_cfg = cfg.document_reviews.get(doc)
-    if not doc_cfg:
-        console.print(f"  [red]✗  '{doc}' not found in document_reviews[/red]")
-        raise SystemExit(1)
-
-    jira_client = JiraClient(session, prof.base_url)
-
-    # Re-push updated doc (picks up the Jira link/status banner automatically,
-    # since the review ticket from the original `sdd review submit` already exists)
+    # Unlike review_submit (which must create a brand-new Jira ticket AND
+    # therefore needs both sections up front), apply is a re-push of a doc
+    # that may already be under review in either integration independently
+    # -- confluence-only and jira-only configs both re-push/notify with
+    # whatever's actually configured, rather than hard-requiring both.
     try:
         md_path = resolve_doc_path(doc, feature_name)
     except ValueError as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
-    page_url = ""
-    if md_path.exists():
-        pushed = _push_doc_page(doc, md_path, feature_name)
-        if pushed:
-            page_title, page_url = pushed
-            console.print(f"  [green]✓[/green]  Confluence updated: [cyan]{page_title}[/cyan]")
-    else:
-        console.print(f"  [dim]·[/dim]  {md_path} not found — skipping Confluence update")
 
-    # Notify reviewer on Jira
-    issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature_name}:{doc}")
-    if issue:
-        msg = f"Document updated per review comments. Please re-review: {page_url}"
-        jira_client.add_comment(issue["key"], msg)
-        console.print(f"  [green]✓[/green]  Reviewer notified on [cyan]{issue['key']}[/cyan]")
-        _record_review_link(doc, issue["key"])
-    else:
-        console.print(f"  [yellow]·[/yellow]  No Jira review story found for {doc.upper()}")
+    page_url = ""
+    if cfg.confluence:
+        if md_path.exists():
+            pushed = _push_doc_page(doc, md_path, feature_name)
+            if pushed:
+                page_title, page_url = pushed
+                console.print(f"  [green]✓[/green]  Confluence updated: [cyan]{page_title}[/cyan]")
+        else:
+            console.print(f"  [dim]·[/dim]  {md_path} not found — skipping Confluence update")
+
+    # Notify reviewer on Jira (only if a review ticket exists for this doc --
+    # docs pushed via the page_map fallback alone have no ticket to notify)
+    if cfg.jira:
+        jira_client = JiraClient(session, prof.base_url)
+        issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature_name}:{doc}")
+        if issue:
+            msg = "Document updated per review comments. Please re-review:"
+            if page_url:
+                msg += f" {page_url}"
+            jira_client.add_comment(issue["key"], msg)
+            console.print(f"  [green]✓[/green]  Reviewer notified on [cyan]{issue['key']}[/cyan]")
+            _record_review_link(doc, issue["key"])
+        else:
+            console.print(f"  [yellow]·[/yellow]  No Jira review story found for {doc.upper()}")
 
     console.print()
     console.print(

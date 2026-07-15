@@ -98,6 +98,6 @@ If no down-migration exists for the latest version: {documented manual recovery 
 
 ## Approvals
 
-| Role | Status | Date |
-|---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |

@@ -2380,6 +2380,506 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.60"},
     },
+    {
+        "from":        "2.7.60",
+        "to":          "2.7.61",
+        "description": "Fix: /clarify now auto-pushes its open items to Jira/Confluence on generation and auto-pulls answers on re-run, matching /validate's existing behavior -- prompt-only, no CLI or manifest changes",
+        "notes": [
+            "The 2.7.60 clarify Jira-answers feature only wired the CLI "
+            "(push-questions/pull-answers) to understand clarify.md's STATUS "
+            "TABLE -- it left clarify.prompt.md requiring the user to "
+            "explicitly ask for the Jira push each time, unlike "
+            "validate.prompt.md's §3a, which pushes automatically the "
+            "moment it detects open items and pulls automatically at the "
+            "start of every re-run",
+            "clarify.prompt.md (all 5 packs) now: (1) at the top of 'Your "
+            "Task', if clarify.md already exists, runs pull-answers first "
+            "and skips regeneration if everything is now resolved; (2) "
+            "right after saving a freshly generated clarify.md, "
+            "auto-runs `sdd review push-questions --doc clarify` when "
+            "document_reviews.clarify is configured, before presenting "
+            "the report to the user",
+            "'Accepted reply forms' simplified accordingly -- Jira/"
+            "Confluence answers are now just another accepted reply form "
+            "(pulled in automatically), not a separate manual opt-in step",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.61"},
+    },
+    {
+        "from":        "2.7.61",
+        "to":          "2.7.62",
+        "description": "Fix: clarify.md's Step 4 now re-syncs affected documents to Confluence/Jira after applying an answer, sdd review apply no longer requires both jira: and confluence:; new sdd confluence push --summary pushes a doc's .summary.md to its own page -- no manifest schema changes",
+        "notes": [
+            "User found 3 issues with the clarify Jira-answers flow: (1) "
+            "when an answer got applied to brd/srd/use-cases (Step 4), "
+            "those documents were updated locally and their .summary.md "
+            "regenerated, but the change never reached Confluence or "
+            "notified that document's own Jira reviewer; (2) same root "
+            "cause, described as 'status not updating, only summary is "
+            "created'; (3) enhancement request -- push .summary.md files "
+            "to their own Confluence page too",
+            "clarify.prompt.md (all 5 packs) Step 4 now runs `sdd review "
+            "apply --doc {doc}` for each affected document right after "
+            "bumping its version -- this re-pushes the updated content to "
+            "that document's OWN Confluence page and posts a 'please "
+            "re-review' comment on its OWN Jira ticket, independent of "
+            "clarify.md's ticket. Skips silently if not configured",
+            "review_apply no longer hard-requires both jira: and "
+            "confluence: sections (previously errored out entirely on a "
+            "confluence-only or jira-only project) -- it now does "
+            "whichever half is actually configured, matching the rest of "
+            "the framework's confluence-is-independently-optional design",
+            "New `sdd confluence push --doc {doc} --summary` pushes "
+            "{doc}.summary.md (if it exists) to a separate page titled "
+            "'... — Summary', leaving the full doc's own page untouched. "
+            "clarify.prompt.md Step 5 now auto-runs this for "
+            "clarify.summary.md when confluence: is configured",
+            "10 new tests: confluence-only and jira-only review_apply "
+            "paths, and 4 covering the --summary flag (push, full-doc-"
+            "unaffected, missing-summary-file skip, dry-run)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.62"},
+    },
+    {
+        "from":        "2.7.62",
+        "to":          "2.7.63",
+        "description": "Fix: plan-design.prompt.md's api-spec.md merge and change.prompt.md's entire document walk (UPDATE/RERUN/ANNOTATE) now re-sync to Confluence/Jira after each local update -- prompt-only, no CLI or manifest changes",
+        "notes": [
+            "Same root cause as 2.7.62's clarify fix, found in two more "
+            "places: plan-design.prompt.md §3 merges endpoint changes into "
+            "the living .specify/service/api-spec.md (bump version, "
+            "Version History, regenerate summary) but never re-pushed it; "
+            "change.prompt.md's Step 5 document walk can UPDATE, RERUN, or "
+            "ANNOTATE any of 14 document types in the full pipeline chain "
+            "(brd through tasks) with the identical local-only pattern",
+            "plan-design.prompt.md (all 5 packs) now runs `sdd review apply "
+            "--doc api-spec` immediately after merging into api-spec.md, "
+            "before design.md §3's own summary text",
+            "change.prompt.md (all 5 packs) now runs `sdd review apply "
+            "--doc {doc-key}` at the end of all three action branches "
+            "(ANNOTATE, UPDATE incl. 'modify', RERUN) for every document in "
+            "the walk order except constitution.md (not resolvable via "
+            "resolve_doc_path -- it lives outside .specify/features/ and "
+            ".specify/service/, never pushed). A doc-key convention note "
+            "(filename minus .md) was added once near the walk order line",
+            "No CLI changes needed -- this reuses sdd review apply exactly "
+            "as fixed/relaxed in 2.7.62 (works with confluence-only, "
+            "jira-only, or both; skips silently if neither is configured)",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.63"},
+    },
+    {
+        "from":        "2.7.63",
+        "to":          "2.7.64",
+        "description": "Fix: local-svg diagrams pushed to Confluence now render at a readable width (ac:width=900 by default, configurable via diagrams.local_svg.width) instead of the SVG's own tiny intrinsic size -- no manifest schema changes",
+        "notes": [
+            "User reported that Mermaid diagrams rendered via "
+            "diagrams.mode: local-svg showed up very small on the "
+            "Confluence page, forcing the reader to open and zoom -- "
+            "root cause: _render_local_svg() emitted <ac:image> with no "
+            "ac:width attribute, so Confluence displayed the image at "
+            "the SVG's own intrinsic size (Mermaid's renderer typically "
+            "emits a few hundred pixels)",
+            "New DiagramsConfig.local_svg_width field (default 900), "
+            "configured via a nested diagrams.local_svg.width key in "
+            "integrations.yml, matching the existing mermaid_app/"
+            "plantuml_macro nested-dict convention",
+            "_render_local_svg() now emits <ac:image ac:width=\"{width}\">"
+            " -- Confluence scales height to match, preserving aspect "
+            "ratio",
+            "integrations.yml.example (all 5 packs) documents the new "
+            "local_svg.width option in place of the old placeholder "
+            "'no options today' comment",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.64"},
+    },
+    {
+        "from":        "2.7.64",
+        "to":          "2.7.65",
+        "description": "Fix: /task never pushed stories/tasks to Jira or Confluence, diagram attachment 400s hid the real reason, constitution.md is now pushable; adds Approver name column to every Approvals table",
+        "notes": [
+            "User reported 4 real gaps after running /task: (1) the "
+            "placeholder Jira Story created at /specify-uc time never got "
+            "updated/finalized, (2) Tasks were never created in Jira nor "
+            "linked to their Story, (3) no Confluence page (with Jira "
+            "link + status) was ever created for tasks.md, (4) no /task "
+            "document reached Confluence at all -- root cause: "
+            "task.prompt.md's old Section 4 only generated an offline CSV "
+            "export and told the user to manually run a retired /jira-push "
+            "slash command; it never called the sdd CLI",
+            "task.prompt.md (all 5 packs) rewritten: new Section 4 "
+            "auto-runs `sdd jira push --level story` then `--level task` "
+            "(finalizes UC-draft Stories in place, creates real Tasks "
+            "linked to their parent Story); new Section 5 pushes "
+            "stories.md/qa-testcases.md directly to Confluence and runs "
+            "tasks.md through the same Submit-for-Review + review-decision "
+            "discipline every other document uses (tasks.md has a real "
+            "document_reviews gate, reviewed by the Scrum Master); the old "
+            "CSV export is kept as Section 6, relabelled as an offline "
+            "fallback",
+            "Added missing `stories`/`smoke-tests` page_map entries "
+            "(collision risk across features without them, same bug "
+            "class as an earlier fix); fixed document_reviews.tasks."
+            "confluence_page ('Task Breakdown') diverging from page_map."
+            "tasks ('Tasks') -- they must agree or review submit/apply "
+            "and a direct confluence push land on two different pages",
+            "Diagram attachment 400 errors (e.g. a sequence diagram during "
+            "`sdd review check --doc design`) only ever showed a bare "
+            "'400 Client Error: Bad Request for url: ...' with no reason "
+            "-- upload_diagram_attachments now parses the actual "
+            "Confluence error body (message/errors) into the warning. "
+            "_render_local_svg also now guards against mmdr returning "
+            "non-SVG output for certain diagrams without raising, which "
+            "previously reached Confluence as malformed bytes",
+            "constitution.md was the one document with no way to reach "
+            "Confluence at all -- resolve_doc_path/_resolve_page_title/"
+            "resolve_doc_parent_id/_push_doc_page now special-case "
+            "'constitution' as a project-wide page (like living docs, "
+            "but at .specify/memory/ not .specify/service/); "
+            "specify.prompt.md (all 5 packs) auto-pushes it right after "
+            "GATE-1 finalizes or a later amendment is confirmed",
+            "Every document template's `## Approvals` table gained an "
+            "`Approver` column between Role and Status (132 template "
+            "files across _shared + all 5 packs) -- the review-decision-"
+            "step shared block now resolves the approver's actual name "
+            "from roles.yml's `roles:` map (filled in once per project) "
+            "before falling back to asking, and writes it into that "
+            "column, so approvals show who, not just which role",
+            "token-usage-template.md's own notes section now explains "
+            "specifically why the estimate reads far lower than a "
+            "provider's real usage dashboard (scoped to doc I/O only, "
+            "excludes system prompt/tool defs/conversation history) and "
+            "points to the AI tool's own native usage reporting as the "
+            "authoritative source -- there is no API this framework can "
+            "call to get a real number from inside a prompt",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.65"},
+    },
+    {
+        "from":        "2.7.65",
+        "to":          "2.7.66",
+        "description": "Add: sdd token-log reads Claude Code's own local session transcript for REAL token usage (not the char/4 estimate) -- new CLI command + token-usage-template.md Source column; every other AI tool keeps the existing estimate",
+        "notes": [
+            "The user asked whether anything more could be done about "
+            "the token-usage estimate reading much lower than a real "
+            "usage dashboard. Verified: Claude Code writes a local "
+            "session transcript (~/.claude/projects/{project}/"
+            "{session-id}.jsonl, plus one file per spawned subagent "
+            "under {session-id}/subagents/) where every assistant turn "
+            "carries the REAL usage object the Anthropic API actually "
+            "returned -- input_tokens, output_tokens, "
+            "cache_creation_input_tokens, cache_read_input_tokens. Not "
+            "an estimate",
+            "New sdd/utils/claude_code_transcript.py locates the current "
+            "session's transcript (and its subagent transcripts) and "
+            "sums real usage per model since a given timestamp",
+            "New `sdd token-log --command {name}` CLI command: resolves "
+            "the window to sum (since the last logged row's timestamp, "
+            "or the whole session for the first command logged), writes/"
+            "creates token-usage.md from the template, appends one row "
+            "per model, and updates Running Totals -- all without agent "
+            "hand-arithmetic. Exit codes let a calling prompt distinguish "
+            "success (0), the opt-in gate being off (2, token-pricing.yml "
+            "missing), and no transcript found (3, not Claude Code or no "
+            "session has touched this project -- fall back to the "
+            "estimate) from an actual error (1)",
+            "This is Claude Code-only by nature -- the transcript path/"
+            "format is undocumented and reverse-engineered, not a "
+            "published API, and has no equivalent under any other AI "
+            "tool this framework supports. token-usage-logging.md (the "
+            "shared CLAUDE.md block) now tries `sdd token-log` first and "
+            "falls back to the existing char/4 estimate whenever it's "
+            "unavailable or exits non-zero -- every other AI tool "
+            "(Copilot, Cursor, Windsurf, copy-paste 'any AI') is "
+            "completely unaffected, still estimate-only",
+            "token-usage-template.md's Per-Command Log table gained a "
+            "Source column (Real (Claude Code) | Estimated) so the two "
+            "measurement kinds are never silently compared to each "
+            "other. A pre-existing token-usage.md from before this "
+            "column existed (7-column rows) is never rewritten -- new "
+            "rows are only ever appended, old ones parsed generically "
+            "for the Running Totals sum but left byte-for-byte untouched",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.66"},
+    },
+    {
+        "from":        "2.7.66",
+        "to":          "2.7.67",
+        "description": "Fix: dashboard Token Usage card showed all blanks for any token-usage.md written after the Source-column rename (2.7.66) dropped the 'Est.' prefix from Running Totals labels",
+        "notes": [
+            "The 2.7.66 token-usage-template.md rewrite renamed the "
+            "Running Totals labels from 'Total Est. Input Tokens' etc. "
+            "to 'Total Input Tokens' (since a row can now be Real or "
+            "Estimated, not only estimated) -- but status.py's "
+            "_RUNNING_TOTAL_ROW_RE regex and dashboard.py's rendered JS "
+            "labels were never updated to match, so every token-usage.md "
+            "created or updated after that rename showed '-' for all "
+            "three totals in `sdd dashboard`'s Token Usage card",
+            "status.py: _RUNNING_TOTAL_ROW_RE now makes 'Est. ' optional "
+            "in the label, and _parse_token_usage() checks both the new "
+            "and legacy label text, so files written before or after "
+            "2.7.66 both parse correctly",
+            "dashboard.py: renderTokenUsage() JS now renders the current "
+            "'Total Input/Output Tokens' / 'Total Cost (USD)' labels",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.67"},
+    },
+    {
+        "from":        "2.7.67",
+        "to":          "2.7.68",
+        "description": "Enhance: sdd dashboard gets a manual Light/Dark/Auto theme toggle (fixes theme not switching for users whose browser doesn't report prefers-color-scheme reliably) plus a discoverable data-sourcing explainer and clearer empty states",
+        "notes": [
+            "The user reported dark/light mode 'not working' on the "
+            "dashboard. The dashboard only ever followed the browser's "
+            "prefers-color-scheme media query -- some browsers/embedded "
+            "webviews never report that signal reliably, so the page was "
+            "stuck on one theme regardless of OS setting. Fixed by adding "
+            "an explicit Light / Dark / Auto toggle (top right) that sets "
+            "data-theme on <html>, which CSS gives higher specificity "
+            "than the media query, and persists the choice to "
+            "localStorage so it survives reloads",
+            "Verified with Playwright across all 3 states (OS=dark + "
+            "auto, forced light while OS=dark, forced dark, back to "
+            "auto, OS=light + auto) plus reload-persistence -- each "
+            "produced the expected --bg value",
+            "Added a collapsible 'Where this data comes from' info box "
+            "near the top of the page (was previously a long paragraph "
+            "buried at the bottom, easy to miss) explaining which cards "
+            "are local-file-only vs. the one on-demand live Jira/"
+            "Confluence check",
+            "The 'no features yet' empty state now names the actual "
+            "next command (/specify or sdd specify) instead of just "
+            "stating the absence",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.68"},
+    },
+    {
+        "from":        "2.7.68",
+        "to":          "2.7.69",
+        "description": "Enhance: sdd dashboard gets a Real/Estimated token badge, a Features Overview table for multi-feature projects, and auto-refreshing Jira/Confluence review links",
+        "notes": [
+            "Token Usage card now shows a 'Source mix' row -- Real N / "
+            "Est. N badges tallied from the Per-Command Log's Source "
+            "column (status.py's _parse_command_log_sources; mirrors "
+            "token_log.py's row-parsing so legacy 7-column rows without "
+            "a Source column still count correctly, as Estimated)",
+            "New 'Features Overview' card (only shown once a project has "
+            "2+ features -- redundant for one) lists every feature's "
+            "current pipeline step, task progress, and next action in "
+            "one table, each row linking to that feature's full block "
+            "further down the page",
+            "The 'Check Jira/Confluence review links' button remains the "
+            "only way to make the first live call for a feature (opt-in "
+            "preserved) -- but once you've checked a feature at least "
+            "once, the dashboard now quietly re-checks it every 5 "
+            "minutes so the pills don't go stale without a re-click. A "
+            "transient failure during auto-refresh keeps the last known-"
+            "good result rather than flashing an error over data that "
+            "was fine a moment ago",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.69"},
+    },
+    {
+        "from":        "2.7.69",
+        "to":          "2.7.70",
+        "description": "Enhance: sdd dashboard's Documents card now shows who should approve a pending document (role + name from roles.yml) and who approved it, via which mode, once it is",
+        "notes": [
+            "The user asked: for a document that isn't approved, who "
+            "should approve it (role + name)? For one that is, who "
+            "approved it, and was that recorded via Jira or a manual/"
+            "chat approval? Neither status.py nor the dashboard captured "
+            "any of this before -- only the bare Status: header value",
+            "New status.py._parse_approvals_table(path) parses a "
+            "document's own '## Approvals' table -- present in every "
+            "template, filled in identically regardless of review mode "
+            "(chat/local/jira) per the review-decision-step shared "
+            "block -- so it is the one source of truth for 'who "
+            "approved this / who's still pending' that works the same "
+            "way everywhere. Tolerates the older 3-column format (Role | "
+            "Status | Date) from before the Approver column existed "
+            "(added in an earlier release) alongside the current "
+            "4-column one",
+            "New status.py._resolve_expected_approver() normalizes a "
+            "document's human-readable Role cell ('Product Owner', "
+            "'DevOps/SRE') to roles.yml's snake_case key convention "
+            "(product_owner, devops_sre) and looks up the actual name "
+            "filled in there -- so a pending document names the person, "
+            "not just the role",
+            "dashboard.py: each Documents row now shows a compact one-"
+            "line summary under the Status badge ('Awaiting Product "
+            "Owner: Jane Smith', or the approver's name once approved), "
+            "plus a new 👤 toggle (matching the existing 💬 comments "
+            "pattern) that expands the full Role/Approver/Status/Date "
+            "table and states which mode recorded the approval (Local / "
+            "Jira / Chat only — no audit file)",
+            "The existing Approve pill (next to the Approve button) now "
+            "shows the resolved approver's name for every review mode, "
+            "not just local mode as before -- previously a Jira- or "
+            "chat-approved document still showed a bare 'Approve' "
+            "button even though its Status header already said Approved",
+            "Verified end-to-end with Playwright: pending single-"
+            "approver doc, approved doc via each of the three record "
+            "sources (local_approval, chat-only via the doc's own "
+            "table, legacy 3-column table), and a multi-row pending doc",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.70"},
+    },
+    {
+        "from":        "2.7.70",
+        "to":          "2.7.71",
+        "description": "Enhance: sdd dashboard consolidates each document's View/Approvals/Comments toggles into one tabbed Details panel, decluttering the Documents row",
+        "notes": [
+            "Follow-up to a UX review the user asked for after several "
+            "features were bolted onto the same Documents row this "
+            "release cycle (View, 👤 Approvals, 💬 Comments, Jira pill, "
+            "Confluence pill, review-status badge -- up to 7 elements in "
+            "one cell). Verified with Playwright at 600px/900px widths: "
+            "no findings of actual breakage, but the row had grown past "
+            "a comfortable scan-width, and opening View + Approvals + "
+            "Comments together stacked three separate panels",
+            "dashboard.py: replaced the three independent expand-toggles "
+            "with a single 'Details' button that opens one panel with a "
+            "tab strip (Content / Approvals / Comments) -- only one tab's "
+            "content renders at a time. The Links cell is now typically "
+            "just [Approve] [Details] [Jira pill] [Confluence pill]",
+            "Posting a comment now opens the panel on the Comments tab "
+            "(previously: expanded a separate comments-only panel)",
+            "New state shape: openDocs (Set of doc keys with the panel "
+            "open) + docTab (doc key -> active tab, default 'content'), "
+            "replacing the previous expandedDocs/expandedComments/"
+            "expandedApprovals three-Set setup",
+            "Verified end-to-end with Playwright: row button count "
+            "before/after, tab switching, comment-then-auto-switch-to-"
+            "Comments-tab, and confirmed only one detail panel renders "
+            "per document at a time",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.71"},
+    },
+    {
+        "from":        "2.7.71",
+        "to":          "2.7.72",
+        "description": "Fix: sdd dashboard's Constitution/Token-Usage status badges silently lost their green/amber color, and the info box referenced a 'View' button that no longer exists",
+        "notes": [
+            "A second UX review pass (user asked to review the whole "
+            "dashboard again after the Details-panel consolidation) "
+            "found two real, verified regressions rather than just "
+            "opinion -- confirmed each with a live headless-browser "
+            "check of computed CSS/DOM before and after the fix",
+            "CSS bug: '.kv span:first-child { color: var(--muted) }' "
+            "used a descendant combinator, so it also matched a badge/"
+            "pill span nested inside a .kv row's value column whenever "
+            "that badge was the value span's only child -- a badge IS "
+            "':first-child' of ITS OWN parent too. This silently forced "
+            "the Constitution card's gate-1 badge and the Token Usage "
+            "card's Real/Est 'Source mix' badges to plain gray instead "
+            "of their intended green, losing the color cue exactly "
+            "where it mattered. Fixed with a child combinator "
+            "('.kv > span:first-child'), which only ever matches the "
+            "row's own direct label span",
+            "Stale copy: the info box's 'Where this data comes from' "
+            "text still said '\"View\" reads the raw .md file from "
+            "disk' -- a leftover from before the View/Approvals/"
+            "Comments toggles were consolidated into one Details panel "
+            "with tabs (2.7.71). Updated to reference the Details "
+            "button's Content tab instead",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.72"},
+    },
+    {
+        "from":        "2.7.72",
+        "to":          "2.7.73",
+        "description": "Fix: sdd dashboard's Approve pill could keep showing a stale approver's name after a document was regenerated back to Draft",
+        "notes": [
+            "Flagged during the previous UX review as a known, pre-"
+            "existing (not introduced that round) edge case, then the "
+            "user asked how to fix it -- so it's fixed now",
+            "approvalMode() and approvedRowInfo() (dashboard.py) "
+            "previously trusted d.local_approval unconditionally: once "
+            "`sdd review approve --local` (or the dashboard's own "
+            "Approve button) wrote a record for a doc key, the Approve "
+            "pill kept showing that approver's name even after the "
+            "document was regenerated back to Draft -- "
+            ".local-approvals.yml isn't cleared just because a doc's "
+            "content changed, so the record can outlive the approval it "
+            "recorded",
+            "Both functions now check the document's live Status: "
+            "header first -- the same authoritative-source rule "
+            "badge(d.status, 'doc') already follows, and the same one "
+            "CLAUDE.md documents as the gate in every review mode. Only "
+            "once the header actually says Approved do they consult "
+            "local_approval / the Jira review status / the doc's own "
+            "Approvals table to find out who",
+            "Verified live: a doc with a stale local_approval record but "
+            "Status: Draft now shows the Approve button (not the old "
+            "checkmark), and its Approvals tab correctly says 'Not yet "
+            "approved' instead of 'Recorded via: Local'",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.73"},
+    },
+    {
+        "from":        "2.7.73",
+        "to":          "2.7.74",
+        "description": "Enhance: sdd dashboard now shows live Jira ticket status (not just links) for both review-gate tickets and Jira Export Epic/Story/Task tickets",
+        "notes": [
+            "User asked directly: 'do we show the Jira status also?' -- "
+            "investigation found the raw Jira status was already fetched "
+            "but unused for review-gate tickets, and never fetched at "
+            "all for Export tickets. User chose to close both gaps",
+            "linkPill() now shows the review-gate ticket's raw Jira "
+            "workflow status (e.g. 'In Review') as a suffix next to the "
+            "pill, alongside (not merged with) SDD's own APPROVED/"
+            "PENDING/NEEDS_REVISION review_status badge -- the two are "
+            "legitimately different concepts shown side by side",
+            "New _fetch_export_ticket_statuses() reads Epic/Story/Task "
+            "keys from docs/jira/{feature}/keys.yml and resolves their "
+            "live status with a single batched JQL 'key in (...)' query "
+            "instead of one lookup per ticket",
+            "Jira keys from keys.yml are validated against "
+            "_JIRA_KEY_RE before being interpolated into the JQL string "
+            "-- keys normally come from Jira's own API but the file is "
+            "user-editable on disk, and JQL has no parameterized-query "
+            "binding",
+            "_fetch_review_links()'s guard relaxed from requiring "
+            "document_reviews to be configured to requiring only jira: "
+            "or confluence: -- a project using Jira solely for "
+            "progressive export (no document review gates) can now "
+            "still use the status check",
+            "The '\U0001f504 Check Jira/Confluence review links' button "
+            "renamed to '\U0001f504 Check Jira/Confluence status' since "
+            "it now refreshes ticket status too, reusing the existing "
+            "on-demand + 5-minute auto-refresh mechanism rather than "
+            "adding a second control",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.74"},
+    },
 ]
 
 

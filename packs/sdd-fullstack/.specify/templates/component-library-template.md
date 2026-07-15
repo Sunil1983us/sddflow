@@ -39,6 +39,6 @@
 | 1.0 | {date} | {feature} | Initial component(s) added |
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |

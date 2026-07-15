@@ -121,10 +121,10 @@ Carried into feature-story-template.md Traceability Matrix (R-NNN column).
 ---
 
 ## Approvals
-| Role | Status | Date |
-|---|---|---|
-| Tech Lead (accountable) | Pending | |
-| Architect (consulted, mvp+) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Tech Lead (accountable) | | Pending | |
+| Architect (consulted, mvp+) | | Pending | |
 
 ## Version History
 

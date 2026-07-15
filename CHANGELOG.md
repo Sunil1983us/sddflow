@@ -4,6 +4,458 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.74] — 2026-07-15 (Enhance: dashboard shows live Jira ticket status for review-gate and Export tickets)
+
+### Added
+
+- **Live Jira ticket status, not just links.** The user asked directly:
+  "do we show the Jira status also?" Investigation found the raw Jira
+  status was already fetched but unused for review-gate tickets, and
+  never fetched at all for Jira Export (Epic/Story/Task) tickets. Both
+  gaps are now closed:
+  - **Review-gate tickets**: each Jira pill now shows the ticket's raw
+    Jira workflow status (e.g. `(In Review)`) as a suffix, alongside —
+    not merged with — SDD's own `APPROVED`/`PENDING`/`NEEDS_REVISION`
+    `review_status` badge. The two are legitimately different concepts
+    (SDD's approval classification vs. the ticket's actual Jira
+    workflow state) and are shown side by side.
+  - **Jira Export tickets**: a new `_fetch_export_ticket_statuses()`
+    (`dashboard.py`) reads the Epic/Story/Task keys from
+    `docs/jira/{feature}/keys.yml` and resolves their live status with
+    a single batched JQL `key in (...)` query, instead of one lookup
+    per ticket. Keys are validated against `_JIRA_KEY_RE` before being
+    interpolated into the JQL string — keys normally come from Jira's
+    own API, but `keys.yml` is a plain file a user could hand-edit, and
+    JQL has no parameterized-query binding.
+  - `_fetch_review_links()`'s guard relaxed: previously required
+    `document_reviews` to be configured before running at all, which
+    would have blocked the new export-status fetch for a project using
+    Jira only for progressive export (no review gates). Now requires
+    only `jira:` or `confluence:` to be configured.
+  - The dashboard's "🔄 Check Jira/Confluence review links" button is
+    renamed to "🔄 Check Jira/Confluence status", since it now
+    refreshes ticket status too — reusing the existing on-demand +
+    5-minute auto-refresh mechanism rather than adding a second
+    control.
+  - Verified live (simulated API response, no live Jira instance in the
+    sandbox): a review-gate pill correctly showed `Jira PROJ-9 (In
+    Review)` next to its separate `PENDING` badge, and the Jira Export
+    card correctly showed each Epic/Story/Task with its live status,
+    e.g. `PROJ-2 (Done)`, `PROJ-3 (To Do)`.
+
+---
+
+## [2.7.73] — 2026-07-15 (Fix: dashboard stale approver name after a document reverts to Draft)
+
+### Fixed
+
+- **The Approve pill could keep showing a stale approver's name.**
+  Flagged as a known, pre-existing edge case during the previous review;
+  the user then asked how to fix it, so it's fixed now. `approvalMode()`
+  and `approvedRowInfo()` (`dashboard.py`) previously trusted
+  `d.local_approval` unconditionally — once a document had been approved
+  once, its Approve pill kept showing that approver's name even after the
+  document was regenerated back to `Draft`, since `.local-approvals.yml`
+  isn't cleared just because a doc's content changed. Both functions now
+  check the document's live `Status:` header first — the same
+  authoritative-source rule the status badge itself already follows (see
+  CLAUDE.md "Document Review Gates") — and only consult
+  `local_approval`/the Jira review status/the doc's own Approvals table
+  once the header actually says `Approved`. Verified live: a doc with a
+  stale local-approval record but `Status: Draft` now correctly shows the
+  **Approve** button and its Approvals tab says "Not yet approved."
+
+---
+
+## [2.7.72] — 2026-07-15 (Fix: dashboard badge color bug + stale "View" copy, found in a second UX review pass)
+
+### Fixed
+
+- **Constitution and Token Usage status badges silently lost their
+  color.** A second dashboard UX review (the user asked for another full
+  pass after the Details-panel consolidation) turned up two verified
+  regressions, confirmed with a live headless-browser check of computed
+  CSS/DOM before and after each fix:
+  - `.kv span:first-child { color: var(--muted) }` used a descendant
+    combinator, so it also matched a badge/pill nested inside a `.kv`
+    row's value column whenever that badge was the value span's only
+    child — a badge counts as `:first-child` of its own parent too. This
+    silently forced the Constitution card's gate-1 badge and the Token
+    Usage card's Real/Est "Source mix" badges to plain gray instead of
+    their intended green, losing the color cue exactly where it
+    mattered. Fixed with a child combinator (`.kv > span:first-child`),
+    which only ever matches the row's own direct label span.
+  - The info box's "Where this data comes from" text still said `"View"
+    reads the raw .md file from disk` — a leftover from before the
+    View/Approvals/Comments toggles were consolidated into one Details
+    panel with tabs (2.7.71). Updated to reference the Content tab.
+
+---
+
+## [2.7.71] — 2026-07-15 (Enhance: dashboard Documents row consolidated into a tabbed Details panel)
+
+### Changed
+
+- **UX cleanup of the Documents row**, following a dashboard UX review
+  the user asked for. Across this release cycle the Links cell had
+  accumulated View, 👤 Approvals, 💬 Comments, a Jira pill, a Confluence
+  pill, and a review-status badge — up to 7 elements in one cell, and
+  opening View + Approvals + Comments together stacked three separate
+  panels below the row.
+  - Replaced the three independent expand-toggles with a single
+    **Details** button that opens one panel with a **Content / Approvals
+    / Comments** tab strip — only the active tab renders. The row is
+    typically down to `[Approve] [Details] [Jira pill] [Confluence pill]`.
+  - Posting a comment now opens the panel directly on the Comments tab.
+  - Verified with Playwright: button count before/after, tab switching,
+    comment-then-auto-switch, and that only one panel renders per
+    document at a time (previously up to three could stack).
+
+---
+
+## [2.7.70] — 2026-07-15 (Enhance: dashboard per-document approver detail)
+
+### Added
+
+- **Documents card now answers "who should approve this, and who did."**
+  The user asked: for a pending document, who should approve it (role
+  and name, not just a role label)? For an approved one, who approved
+  it, and was that via Jira or a manual/chat approval?
+  - New `status.py._parse_approvals_table()` parses each document's own
+    `## Approvals` table — present in every template and filled in
+    identically regardless of review mode (chat/local/jira), so it's the
+    one source of truth that works the same way everywhere. Handles both
+    the current 4-column format (`Role | Approver | Status | Date`) and
+    the older 3-column one from before the `Approver` column existed.
+  - New `status.py._resolve_expected_approver()` normalizes a document's
+    human-readable Role cell (`Product Owner`, `DevOps/SRE`) to
+    `roles.yml`'s snake_case key convention and looks up the name
+    already filled in there — a pending document now names the actual
+    person, not just their role.
+  - Each Documents row shows a compact one-line summary under the Status
+    badge (`👤 Awaiting Product Owner: Jane Smith`, or the approver's
+    name once approved) with no click required, plus a new `👤` toggle —
+    matching the existing `💬` comments pattern — that expands the full
+    Role/Approver/Status/Date table and states which mode recorded the
+    approval (Local / Jira / Chat only — no audit file).
+  - Fixed a related inconsistency along the way: the Approve pill next
+    to the Approve button previously only showed a name in local mode —
+    a Jira- or chat-approved document still showed a bare "Approve"
+    button even though its Status header already said Approved. It now
+    resolves the approver's name for every mode.
+  - Verified end-to-end with Playwright across a pending single-approver
+    doc, an approved doc via each of the three name sources, and a
+    multi-row pending doc (two stakeholders, two different names).
+
+---
+
+## [2.7.69] — 2026-07-15 (Enhance: dashboard token badge, features overview, auto-refreshing review links)
+
+### Added
+
+- **Real/Estimated token badge.** The Token Usage card now shows a
+  "Source mix" row — `Real N` / `Est. N` badges tallied from the
+  Per-Command Log's `Source` column, so it's obvious at a glance how much
+  of a feature's total is measured (Claude Code's own transcript, via
+  `sdd token-log`) versus the character-count approximation. Legacy
+  `token-usage.md` files from before the `Source` column existed still
+  parse correctly — every row in those counts as Estimated.
+- **Features Overview table**, shown once a project has 2+ features
+  (skipped for one — it would just duplicate the block below it). Lists
+  every feature's current pipeline step, task progress, and next action
+  in a single table, with each row linking down to that feature's full
+  detail block — useful for scanning a multi-feature project without
+  scrolling past every full pipeline diagram first.
+- **Auto-refreshing Jira/Confluence review links.** The "Check
+  Jira/Confluence review links" button is still the only way to make the
+  *first* live call for a feature — that opt-in stays intact — but once
+  a feature has been checked once, the dashboard now quietly re-checks
+  it every 5 minutes so the pills don't go stale without a manual
+  re-click. A transient failure during auto-refresh keeps the last
+  known-good result instead of flashing an error over data that was fine
+  a moment ago.
+
+---
+
+## [2.7.68] — 2026-07-15 (Enhance: dashboard theme toggle + usability)
+
+### Fixed / Added
+
+- **`sdd dashboard` dark/light mode "not working".** The dashboard only
+  ever followed the browser's `prefers-color-scheme` media query — some
+  browsers/embedded webviews never report that signal reliably, so the
+  page could get stuck on one theme regardless of the OS setting.
+  - Added an explicit **☀️ Light / 🌙 Dark / 🖥️ Auto** toggle (top right).
+    Light/Dark set `data-theme` on `<html>`, which CSS gives higher
+    specificity than the `prefers-color-scheme` media query, so a manual
+    pick always wins; Auto returns to following the OS/browser signal.
+    The choice is saved to `localStorage` and survives reloads.
+  - Verified with Playwright across all states: OS=dark + Auto, forced
+    Light while OS=dark, forced Dark, back to Auto, OS=light + Auto, and
+    reload-persistence — each produced the expected background color.
+- **Usability pass**, prompted by a user question about where dashboard
+  data comes from:
+  - Added a collapsible **"ℹ️ Where this data comes from"** box near the
+    top of the page — previously this explanation was one long paragraph
+    buried at the bottom, easy to miss. It now clearly distinguishes the
+    local-file-only cards (everything, on every 5s poll) from the single
+    on-demand live network call (the "Check Jira/Confluence review
+    links" button).
+  - The "no features yet" empty state now names the actual next command
+    (`/specify` or `sdd specify`) instead of just stating the absence.
+
+---
+
+## [2.7.67] — 2026-07-15 (Fix: dashboard Token Usage card broken by the 2.7.66 label rename)
+
+### Fixed
+
+- **`sdd dashboard`'s Token Usage card showed `—` for every total on any
+  `token-usage.md` written after 2.7.66.** Found while investigating a
+  user question about where dashboard data comes from. Root cause: 2.7.66
+  renamed `token-usage-template.md`'s Running Totals labels from `Total
+  Est. Input Tokens` etc. to `Total Input Tokens` (dropping the `Est.`
+  prefix, since a row can now be Real or Estimated), but two consumers of
+  that label text were never updated to match:
+  - `status.py`'s `_RUNNING_TOTAL_ROW_RE` regex only matched the old
+    `Total Est. X` label, so `_parse_token_usage()` returned `None` for
+    input/output/cost on any file using the new labels.
+  - `dashboard.py`'s `renderTokenUsage()` JS still hardcoded the old
+    `Total Est. X` label text in its rendered HTML.
+  - Fixed both to accept and render the current label text, while still
+    parsing the old `Total Est. X` label for any `token-usage.md` written
+    before 2.7.66 — no existing file needs to be touched.
+  - Added a regression test (`test_token_usage_parsed_from_legacy_est_labels`)
+    covering the pre-2.7.66 label format so this drift can't recur silently.
+
+---
+
+## [2.7.66] — 2026-07-14 (Add: real Claude Code token usage via `sdd token-log`, instead of the char/4 estimate)
+
+### Added
+
+- **`sdd token-log` — real, measured token usage, not an estimate, when
+  running under Claude Code.** Following up on 2.7.65's explanation of
+  why the estimate reads low, the user asked if anything more could be
+  done. Verified: Claude Code writes a local session transcript
+  (`~/.claude/projects/{project}/{session-id}.jsonl`, plus one file per
+  spawned subagent under `{session-id}/subagents/`) where every
+  assistant turn carries the actual `usage` object the Anthropic API
+  returned — real `input_tokens`, `output_tokens`,
+  `cache_creation_input_tokens`, `cache_read_input_tokens`.
+  - New `sdd/utils/claude_code_transcript.py` locates the current
+    session's transcript (and its subagent transcripts) and sums real
+    usage per model since a given timestamp.
+  - New `sdd token-log --command {name}` CLI command: resolves the
+    window to sum (since the last logged row's timestamp, or the whole
+    session for the first command logged for a feature), creates
+    `token-usage.md` from the template if needed, appends one row per
+    model, and updates Running Totals — no agent hand-arithmetic. Exit
+    codes distinguish success (`0`), the opt-in gate being off (`2`,
+    `token-pricing.yml` missing), and no transcript found (`3`, not
+    Claude Code or no session has touched this project yet — the normal
+    fall-back case) from an actual error (`1`).
+  - This is **Claude Code-only** by nature — the transcript path/format
+    is undocumented and reverse-engineered, not a published API, with no
+    equivalent under any other AI tool this framework supports. The
+    shared `token-usage-logging.md` CLAUDE.md block now tries `sdd
+    token-log` first and falls back to the existing char/4 estimate
+    whenever it's unavailable or exits non-zero — GitHub Copilot,
+    Cursor, Windsurf, and copy-paste "any AI" are completely unaffected,
+    still estimate-only.
+  - `token-usage-template.md`'s Per-Command Log table gained a `Source`
+    column (`Real (Claude Code)` | `Estimated`) so the two measurement
+    kinds are never silently compared to each other. A pre-existing
+    `token-usage.md` from before this column existed (7-column rows) is
+    never rewritten — new rows are only ever appended; old rows are
+    parsed generically for the Running Totals sum but left
+    byte-for-byte untouched.
+
+---
+
+## [2.7.65] — 2026-07-14 (Fix: /task never pushed to Jira/Confluence; diagram 400s hid the reason; constitution.md pushable; Approver names in Approvals)
+
+### Fixed
+
+- **`/task`'s entire Jira/Confluence sync was broken.** User reported 4
+  issues: (1) the placeholder Jira Story created at `/specify-uc` time
+  never got finalized/updated, (2) Tasks were never created in Jira or
+  linked to their Story, (3) no Confluence page (with Jira link + status)
+  was ever created for `tasks.md`, (4) no `/task` document reached
+  Confluence at all. Root cause: `task.prompt.md`'s Section 4 only
+  generated an offline CSV export and told the user to manually run a
+  retired `/jira-push` slash command — it never called the `sdd` CLI at
+  all, unlike every other command in this pipeline.
+  - `task.prompt.md` (all 5 packs) rewritten: new Section 4 auto-runs
+    `sdd jira push --level story` then `--level task` — finalizes
+    UC-derived draft Stories in place, creates real Tasks linked to their
+    parent Story. New Section 5 pushes `stories.md`/`qa-testcases.md`
+    directly to Confluence and routes `tasks.md` through the same
+    Submit-for-Review + review-decision discipline every other reviewed
+    document uses (`tasks.md` has a real `document_reviews` gate,
+    reviewed by the Scrum Master). The old CSV export is kept as an
+    explicitly-labelled offline fallback (Section 6).
+  - Added missing `stories`/`smoke-tests` `page_map` entries (same
+    cross-feature collision risk as an earlier fix) and fixed
+    `document_reviews.tasks.confluence_page` ("Task Breakdown")
+    diverging from `page_map.tasks` ("Tasks") — they must agree, or
+    `review submit`/`apply` and a direct `confluence push` land on two
+    different pages for the same document.
+- **Diagram attachment 400 errors hid the actual reason.** `sdd review
+  check --doc design` failing on a sequence diagram only ever showed a
+  bare `400 Client Error: Bad Request for url: ...` — Confluence's real
+  error message lives in the response body, which was never surfaced.
+  `upload_diagram_attachments` now parses it out. `_render_local_svg`
+  also now guards against the renderer returning non-SVG output for
+  certain diagrams without raising, which previously reached Confluence
+  as malformed bytes and produced an opaque 400.
+- **Audited `plan-arch`/`plan-hld`/`plan-adr`/`plan-lld`** for the same
+  "document updated locally but never re-published" bug fixed for
+  api-spec.md and `/change` in 2.7.63 — confirmed they're already wired
+  correctly via the shared `submit-for-review-step`/`review-decision-step`
+  blocks; no bug found there.
+
+### Added
+
+- **`constitution.md` can now be pushed to Confluence** — the one
+  document that had no way to reach it at all. `resolve_doc_path`,
+  `_resolve_page_title`, `resolve_doc_parent_id`, and `_push_doc_page`
+  now special-case `"constitution"` as a project-wide page (like a
+  living doc, but at `.specify/memory/` rather than `.specify/service/`).
+  `specify.prompt.md` (all 5 packs) auto-pushes it right after GATE-1
+  finalizes, and again after any later confirmed amendment.
+- **Approver name in every document's Approvals table.** Previously only
+  the accountable *role* was recorded (`| Role | Status | Date |`) — the
+  actual approver was only ever asked about in chat, with nowhere to
+  record it. Every template's `## Approvals` table (132 files across
+  `_shared/` and all 5 packs) gained an `Approver` column. The
+  `review-decision-step` shared block now resolves the approver's name
+  from `roles.yml`'s `roles:` map (filled in once per project) first,
+  asking the user directly only if that entry is still empty — either
+  way the resolved name is written into the document itself.
+
+### Changed
+
+- `token-usage-template.md`'s notes section now explains specifically
+  *why* the estimate reads far lower than a provider's real usage/billing
+  dashboard (it's scoped only to the SDD documents a command
+  intentionally read or wrote — it excludes system prompt, tool
+  definitions, and prior conversation turns, which are frequently the
+  majority of a turn's real cost) and points to the AI tool's own native
+  usage reporting (e.g. Claude Code's `/cost`, the Anthropic Console, or
+  GitHub Copilot's usage dashboard) as the authoritative source. There is
+  no API a prompt-driven framework can call to get a real number from
+  inside a session — this is a platform limitation, not something a
+  better formula can fix.
+
+---
+
+## [2.7.64] — 2026-07-14 (Fix: local-svg diagrams render too small in Confluence — set ac:width)
+
+### Fixed
+
+- **User reported that Mermaid diagrams pushed via `diagrams.mode:
+  local-svg` showed up very small on the Confluence page, requiring the
+  reader to open and zoom.**
+  - Root cause: `_render_local_svg()` in `md_to_cf.py` emitted
+    `<ac:image>` with no `ac:width` attribute, so Confluence displayed the
+    image at the SVG's own intrinsic size — Mermaid's renderer typically
+    emits a few hundred pixels.
+  - New `DiagramsConfig.local_svg_width` field (default `900`), configured
+    via a nested `diagrams.local_svg.width` key in `integrations.yml`,
+    matching the existing `mermaid_app`/`plantuml_macro` nested-dict
+    convention.
+  - `_render_local_svg()` now emits `<ac:image ac:width="{width}">` —
+    Confluence scales height to match, preserving aspect ratio.
+  - `integrations.yml.example` (all 5 packs) documents the new option in
+    place of the old "no options today" placeholder comment.
+
+---
+
+## [2.7.63] — 2026-07-14 (Fix: plan-design's api-spec.md merge and change.prompt.md's full document walk re-sync to Confluence/Jira)
+
+### Fixed
+
+- **Same root cause as 2.7.62's clarify fix, found in two more places
+  during a follow-up check the user asked for.**
+  - `plan-design.prompt.md` §3 merges endpoint changes into the living
+    `.specify/service/api-spec.md` (bump version, Version History,
+    regenerate summary) but never re-pushed it to Confluence or notified
+    its Jira reviewer — now runs `sdd review apply --doc api-spec`
+    immediately after the merge, before `design.md` §3's own summary text.
+  - `change.prompt.md`'s Step 5 document walk can UPDATE, RERUN, or
+    ANNOTATE **any** of the 14 document types in the pipeline (brd through
+    tasks) with the identical local-only pattern — the biggest instance of
+    this gap, since `/change` can touch every document type. All three
+    action branches (ANNOTATE, UPDATE including 'modify', RERUN) now run
+    `sdd review apply --doc {doc-key}` as their last step, for every
+    document except `constitution.md` (not resolvable via
+    `resolve_doc_path` — it lives outside `.specify/features/`/
+    `.specify/service/` and is never pushed). A doc-key convention note
+    (filename minus `.md`) was added once near the walk order line.
+  - No CLI changes needed — both reuse `sdd review apply` exactly as
+    fixed/relaxed in 2.7.62.
+
+---
+
+## [2.7.62] — 2026-07-14 (Fix: clarify.md re-syncs affected documents to Confluence/Jira; sdd review apply no longer requires both integrations; new confluence push --summary)
+
+### Fixed
+
+- **User found that when `/clarify` applies an answer to another spec
+  document (brd/srd/use-cases, Step 4), that document was updated locally
+  and its `.summary.md` regenerated, but the change never reached
+  Confluence or notified that document's own Jira reviewer — only
+  `clarify.md` itself was ever kept in sync.**
+  - `clarify.prompt.md` (all 5 packs) Step 4 now runs
+    `sdd review apply --doc {doc}` for each affected document right after
+    bumping its version — this re-pushes the updated content to that
+    document's **own** Confluence page and posts a "please re-review"
+    comment on its **own** Jira ticket, independent of `clarify.md`'s
+    ticket. Skips silently if not configured.
+  - `sdd review apply` no longer hard-requires both `jira:` and
+    `confluence:` sections (it previously errored out entirely on a
+    confluence-only or jira-only project) — it now does whichever half is
+    actually configured, matching the rest of the framework's
+    confluence-is-independently-optional design.
+
+### Added
+
+- **User also asked to push `.summary.md` files to Confluence under their
+  own document, not just the full `.md`.**
+  - New `sdd confluence push --doc {doc} --summary` pushes `{doc}.summary.md`
+    (if it exists) to a separate page titled "… — Summary", leaving the
+    full document's own page untouched.
+  - `clarify.prompt.md` Step 5 now auto-runs this for `clarify.summary.md`
+    when `confluence:` is configured.
+- 10 new tests: confluence-only and jira-only `review apply` paths, and 4
+  covering the `--summary` flag (push, full-doc-unaffected, missing-file
+  skip, dry-run).
+
+---
+
+## [2.7.61] — 2026-07-14 (Fix: /clarify auto-pushes to Jira/Confluence on generation, auto-pulls on re-run — matching /validate)
+
+### Fixed
+
+- **The 2.7.60 clarify Jira-answers feature only wired the CLI
+  (`push-questions`/`pull-answers`) to understand `clarify.md`'s STATUS
+  TABLE — it left `clarify.prompt.md` requiring the user to explicitly ask
+  for the Jira push every time, unlike `validate.prompt.md`'s §3a, which
+  pushes automatically the moment it detects open items and pulls
+  automatically at the start of every re-run.**
+  - `clarify.prompt.md` (all 5 packs) now: at the top of "Your Task", if
+    `clarify.md` already exists, runs `pull-answers` first and skips
+    straight to "After Human Fills Answers" if everything is now resolved;
+    and right after saving a freshly generated `clarify.md`, auto-runs
+    `sdd review push-questions --doc clarify` when
+    `document_reviews.clarify` is configured, before presenting the report.
+  - "Accepted reply forms" simplified accordingly — Jira/Confluence
+    answers are now just another accepted reply form (pulled in
+    automatically), not a separate manual opt-in step.
+
+---
+
 ## [2.7.60] — 2026-07-14 (Feature: clarify.md's own open items can be answered via Jira/Confluence, same as validate.md)
 
 ### Added

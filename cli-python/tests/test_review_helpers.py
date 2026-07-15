@@ -563,7 +563,7 @@ class TestReviewApplyRecordsLink:
             result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
-        assert fake_jira.added_comments == [("PROJ-7", "Document updated per review comments. Please re-review: ")]
+        assert fake_jira.added_comments == [("PROJ-7", "Document updated per review comments. Please re-review:")]
         links = review._load_review_links()
         assert links["brd"] == {"key": "PROJ-7"}
 
@@ -578,6 +578,72 @@ class TestReviewApplyRecordsLink:
 
         assert result.exit_code == 0, result.output
         assert review._load_review_links() == {}
+
+    def test_apply_pushes_confluence_with_no_jira_configured(self, project, runner):
+        """review_apply used to hard-require both jira: and confluence: --
+        a confluence-only project (no jira: section at all) got a red error
+        and nothing pushed, even though there's nothing stopping the
+        Confluence half from working on its own."""
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nUpdated content.\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "confluence:\n  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{feature} — BRD'\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+        cf_client = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert "auth — BRD" in cf_client.pages_by_title
+        assert "Updated content." in cf_client.body_by_title["auth — BRD"]
+
+    def test_apply_notifies_jira_with_no_confluence_configured(self, project, runner):
+        """Symmetric case: jira-only (no confluence: section) should still
+        notify the reviewer, just skip the Confluence push entirely rather
+        than erroring out."""
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nUpdated content.\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: ''\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{feature} — BRD'\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-9", "fields": {"status": {"name": "In Review"}},
+        }
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.JiraClient", return_value=fake_jira):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert fake_jira.added_comments == [
+            ("PROJ-9", "Document updated per review comments. Please re-review:")
+        ]
+        assert "Confluence" not in result.output
 
 
 class TestValidatePhaseDocKeys:
@@ -805,6 +871,34 @@ class TestJiraStatusBanner:
         assert title == "auth — QA Test Cases"
         assert url.startswith("https://x.atlassian.net/wiki/pages/")
         assert "Jira review" not in cf_client.body_by_title["auth — QA Test Cases"]
+
+    def test_constitution_pushes_to_project_wide_page(self, project, runner):
+        """constitution.md has no document_reviews entry (amended via
+        GATE-1, not a Jira review ticket) and no per-feature title -- it
+        must resolve to the fixed "{project} — Constitution" page,
+        matching confluence.py's _resolve_page_title exactly so `sdd
+        review apply --doc constitution` and `sdd confluence push --doc
+        constitution` never diverge onto two different pages."""
+        constitution = project / ".specify" / "memory" / "constitution.md"
+        constitution.parent.mkdir(parents=True, exist_ok=True)
+        constitution.write_text("# Constitution\n\nPart 1 ...\n")
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "confluence:\n"
+            "  space_key: ENG\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+        cf_client = FakeConfluenceClient()
+        with patch("sdd.commands.review.load_profile",
+                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
+             patch("sdd.commands.review.build_session", return_value=object()), \
+             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+            result = review._push_doc_page("constitution", constitution, "auth")
+
+        assert result is not None
+        title, url = result
+        assert title == "Demo — Constitution"
+        assert "Jira review" not in cf_client.body_by_title["Demo — Constitution"]
 
 
 class TestReviewStatusPersonaHint:

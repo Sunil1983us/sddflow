@@ -111,7 +111,7 @@
 
 <!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->
 
-| Role | Status | Date |
-|---|---|---|
-| Security Officer (accountable — controls adequacy) | Pending | |
-| Tech Lead (consulted — implementation feasibility) | Pending | |
+| Role | Approver | Status | Date |
+|---|---|---|---|
+| Security Officer (accountable — controls adequacy) | | Pending | |
+| Tech Lead (consulted — implementation feasibility) | | Pending | |

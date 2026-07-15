@@ -274,3 +274,176 @@ def test_page_wires_local_jira_review_link_into_doc_row():
     assert "local.jira_review" in _PAGE
     assert "localJiraReview" in _PAGE
     assert "reviewJira || localJira" in _PAGE
+
+
+# The user asked "do we show the Jira status also?" -- we fetched the raw
+# workflow status for review-gate tickets but never rendered it, and never
+# fetched one at all for the Jira Export card's Epic/Story/Task tickets.
+# These cover both gaps: linkPill() now renders link.status when present,
+# and _fetch_export_ticket_statuses() does a batched JQL lookup for the
+# progressive export's tickets.
+def test_page_renders_jira_status_suffix_on_link_pill():
+    assert "statusSuffix" in _PAGE
+    assert "link.status" in _PAGE
+
+
+def test_page_wires_export_status_into_jira_export_card():
+    assert "exportEntry" in _PAGE
+    assert "renderJiraExport(local.jira, exportEntry)" in _PAGE
+
+
+def _scaffold_export_keys(tmp_path: Path, feature: str, epic="PROJ-1",
+                           stories=("PROJ-2", "PROJ-3"), tasks=("PROJ-4",)) -> None:
+    import yaml
+    keys_dir = tmp_path / "docs" / "jira" / feature
+    keys_dir.mkdir(parents=True)
+    (keys_dir / "keys.yml").write_text(yaml.dump({
+        "epic": epic, "stories": list(stories), "tasks": list(tasks),
+    }))
+
+
+def test_fetch_export_ticket_statuses_batches_all_keys_in_one_jql_query(tmp_path, monkeypatch):
+    import sdd.commands.dashboard as dashboard_mod
+    monkeypatch.chdir(tmp_path)
+    _scaffold_export_keys(tmp_path, "payments")
+
+    calls = []
+
+    class FakeJiraClient:
+        def search(self, jql, fields=None, max_results=50):
+            calls.append(jql)
+            return [
+                {"key": "PROJ-1", "fields": {"status": {"name": "In Progress"}}},
+                {"key": "PROJ-2", "fields": {"status": {"name": "Done"}}},
+                {"key": "PROJ-3", "fields": {"status": {"name": "To Do"}}},
+                {"key": "PROJ-4", "fields": {"status": {"name": "In Progress"}}},
+            ]
+
+    result = dashboard_mod._fetch_export_ticket_statuses("payments", FakeJiraClient())
+    assert len(calls) == 1, "must be one batched query, not one per ticket"
+    for key in ("PROJ-1", "PROJ-2", "PROJ-3", "PROJ-4"):
+        assert key in calls[0]
+    assert result["statuses"] == {
+        "PROJ-1": "In Progress", "PROJ-2": "Done", "PROJ-3": "To Do", "PROJ-4": "In Progress",
+    }
+
+
+def test_fetch_export_ticket_statuses_no_client_returns_empty(tmp_path, monkeypatch):
+    import sdd.commands.dashboard as dashboard_mod
+    monkeypatch.chdir(tmp_path)
+    _scaffold_export_keys(tmp_path, "payments")
+    assert dashboard_mod._fetch_export_ticket_statuses("payments", None) == {}
+
+
+def test_fetch_export_ticket_statuses_no_keys_yml_returns_empty(tmp_path, monkeypatch):
+    import sdd.commands.dashboard as dashboard_mod
+    monkeypatch.chdir(tmp_path)
+
+    class FakeJiraClient:
+        def search(self, jql, fields=None, max_results=50):
+            raise AssertionError("must not query Jira when there's nothing exported")
+
+    assert dashboard_mod._fetch_export_ticket_statuses("payments", FakeJiraClient()) == {}
+
+
+def test_fetch_export_ticket_statuses_rejects_malformed_keys(tmp_path, monkeypatch):
+    # A hand-edited keys.yml with a garbage entry must never reach the JQL
+    # string unescaped -- filtered out before the query is built.
+    import sdd.commands.dashboard as dashboard_mod
+    import yaml
+    monkeypatch.chdir(tmp_path)
+    keys_dir = tmp_path / "docs" / "jira" / "payments"
+    keys_dir.mkdir(parents=True)
+    (keys_dir / "keys.yml").write_text(yaml.dump({
+        "epic": "PROJ-1", "stories": ['PROJ-2") OR (1=1'], "tasks": [],
+    }))
+
+    calls = []
+
+    class FakeJiraClient:
+        def search(self, jql, fields=None, max_results=50):
+            calls.append(jql)
+            return [{"key": "PROJ-1", "fields": {"status": {"name": "Done"}}}]
+
+    result = dashboard_mod._fetch_export_ticket_statuses("payments", FakeJiraClient())
+    assert "1=1" not in calls[0]
+    assert result["statuses"] == {"PROJ-1": "Done"}
+
+
+def test_fetch_review_links_includes_export_status(tmp_path, monkeypatch):
+    import sdd.commands.dashboard as dashboard_mod
+    import sdd.utils.integrations as integrations_mod
+    import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.jira_client as jira_client_mod
+    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
+    from sdd.utils.atlassian_auth import Profile
+
+    monkeypatch.chdir(tmp_path)
+    _scaffold_export_keys(tmp_path, "payments", epic="PROJ-1", stories=(), tasks=())
+
+    cfg = IntegrationsConfig(profile=None, jira=JiraConfig(project_key="PROJ"),
+                              confluence=None, document_reviews={})
+    monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
+    monkeypatch.setattr(auth_mod, "load_profile", lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"))
+    monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
+
+    class FakeJiraClient:
+        def __init__(self, session, base_url):
+            pass
+
+        def search(self, jql, fields=None, max_results=50):
+            return [{"key": "PROJ-1", "fields": {"status": {"name": "In Progress"}}}]
+
+    monkeypatch.setattr(jira_client_mod, "JiraClient", FakeJiraClient)
+
+    result = dashboard_mod._fetch_review_links("payments")
+    assert result["docs"] == {}
+    assert result["export"]["statuses"] == {"PROJ-1": "In Progress"}
+
+
+def test_fetch_review_links_works_without_document_reviews_configured(tmp_path, monkeypatch):
+    # Previously this hard-errored on "No document_reviews configured" even
+    # when jira: was set up purely for the progressive export, with no
+    # review gates at all -- that's a legitimate, common setup and must not
+    # block the export-status half of the same live check.
+    import sdd.commands.dashboard as dashboard_mod
+    import sdd.utils.integrations as integrations_mod
+    import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.jira_client as jira_client_mod
+    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
+    from sdd.utils.atlassian_auth import Profile
+
+    monkeypatch.chdir(tmp_path)
+    _scaffold_export_keys(tmp_path, "payments", epic="PROJ-1", stories=(), tasks=())
+
+    cfg = IntegrationsConfig(profile=None, jira=JiraConfig(project_key="PROJ"),
+                              confluence=None, document_reviews=None)
+    monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
+    monkeypatch.setattr(auth_mod, "load_profile", lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"))
+    monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
+
+    class FakeJiraClient:
+        def __init__(self, session, base_url):
+            pass
+
+        def search(self, jql, fields=None, max_results=50):
+            return [{"key": "PROJ-1", "fields": {"status": {"name": "Done"}}}]
+
+    monkeypatch.setattr(jira_client_mod, "JiraClient", FakeJiraClient)
+
+    result = dashboard_mod._fetch_review_links("payments")
+    assert "error" not in result
+    assert result["export"]["statuses"] == {"PROJ-1": "Done"}
+
+
+def test_fetch_review_links_errors_when_nothing_configured(tmp_path, monkeypatch):
+    import sdd.commands.dashboard as dashboard_mod
+    import sdd.utils.integrations as integrations_mod
+    from sdd.utils.integrations import IntegrationsConfig
+
+    monkeypatch.chdir(tmp_path)
+    cfg = IntegrationsConfig(profile=None, jira=None, confluence=None, document_reviews=None)
+    monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
+
+    result = dashboard_mod._fetch_review_links("payments")
+    assert "error" in result

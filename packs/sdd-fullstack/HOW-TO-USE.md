@@ -682,8 +682,9 @@ After generating a spec document:
 sdd confluence push --doc brd    # push BRD to Confluence as a formatted page
 sdd confluence push --doc srd    # push SRD
 sdd confluence push --all        # push all documents listed in integrations.yml page_map
+sdd confluence push --doc brd --summary   # push brd.summary.md to its own "... — Summary" page
 ```
-Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page.
+Page titles come from `integrations.yml → confluence.page_map`. Re-running updates the existing page. `--summary` pushes the shorter `.summary.md` (if one exists) to a separate page — the full doc's own page is untouched, so you get both a detailed page and a quick-read one in Confluence.
 
 `page_map` covers every generated doc type by default, not just the phase-gated ones — `qa-testcases`, `tasks`, `checklist`, and the living/service-level docs (`data-model`, `security-design`, `api-spec`, `component-library`) all have an entry, so `sdd confluence push --doc qa-testcases` (for example) works out of the box even though QA test cases have no Jira review gate.
 
@@ -730,6 +731,8 @@ usage per feature, plus Approve/comment buttons that update the same
 2. Run `/address-review --doc brd` — agent reads comments, proposes updates, you approve
 3. `sdd review apply --doc brd` — re-pushes the updated page to Confluence
 4. Reviewer re-approves → `sdd review check --doc brd` exits 0 (APPROVED)
+
+**`sdd review apply` works with just one integration configured too** — Confluence-only (no `jira:` section) still re-pushes the page; Jira-only (no `confluence:` section) still posts the "please re-review" comment. It no longer hard-requires both.
 
 Configure reviewers (Jira accountId per document) in `.specify/integrations.yml`. Run `sdd config init` to generate this file interactively, or copy `.specify/integrations.yml.example` and edit it.
 
@@ -910,10 +913,10 @@ Tell agent: "Summary rules updated — re-read summary-rules.md"
 
 ---
 
-## Token Usage Logging (optional, self-estimated)
+## Token Usage Logging (optional — real when available, estimated otherwise)
 
-**What:** A per-feature running log of estimated token usage and cost,
-one row appended after every command. Off by default.
+**What:** A per-feature running log of token usage and cost, one row
+appended after every command. Off by default.
 
 **Enable it:** `cp .specify/memory/token-pricing.yml.example .specify/memory/token-pricing.yml`,
 then fill in current $/million-token rates from your provider's own
@@ -922,17 +925,43 @@ live pricing). From the next command onward, the agent creates
 `.specify/features/{feature}/token-usage.md` (from
 `token-usage-template.md`) and appends a row each time.
 
-**What each row contains:** command name, model, estimated input tokens,
-estimated output tokens, estimated cost, timestamp — plus a running-total
-table at the top of the file.
+**Real usage under Claude Code.** If you're running this pack in Claude
+Code, `sdd token-log --command {name}` reads Claude Code's own local
+session transcript (`~/.claude/projects/...` — real per-turn usage the
+Anthropic API actually reported, not an approximation) and writes the
+row itself, including creating the file and updating Running Totals.
+Exit codes tell the agent what happened, so you'll never see a raw
+traceback for the normal cases:
+- `0` — logged successfully (or nothing new since the last log — also
+  exit 0, no row added)
+- `2` — `token-pricing.yml` doesn't exist yet (logging is off)
+- `3` — no Claude Code session transcript found (not running under
+  Claude Code, or this project hasn't been touched by one yet) — the
+  agent falls back to the estimate below, silently
+
+**Estimated fallback (every other AI tool, or if `sdd token-log` isn't
+available):** the agent computes each row itself — command name, model,
+estimated input tokens, estimated output tokens, estimated cost,
+`Source: Estimated`, timestamp — plus updating the running-total table
+at the top of the file itself.
+
+**What each row contains:** command name, model, input tokens, output
+tokens, cost, `Source` (`Real (Claude Code)` or `Estimated` — check this
+before comparing two rows to each other), timestamp.
 
 **Important limits — read before trusting the numbers:**
-- **Estimated, not measured.** No AI tool this framework supports (Claude
-  Code, Copilot, Cursor, Windsurf, or copy-paste "any AI") exposes an API
-  for an agent to introspect its own exact token consumption. Every
-  number is approximated as `characters ÷ 4`, which ignores
-  prompt-caching, tool overhead, and model-specific tokenization — real
-  usage is typically higher.
+- **`Estimated` rows are not measured.** No AI tool this framework
+  supports (Claude Code, Copilot, Cursor, Windsurf, or copy-paste "any
+  AI") exposes an API for an agent to introspect its own exact token
+  consumption from inside a prompt — this is what the estimate falls
+  back to. Every number is approximated as `characters ÷ 4`, which
+  ignores prompt-caching, tool overhead, and model-specific
+  tokenization — real usage is typically higher.
+- **Even `Real` rows aren't a substitute for your provider's own
+  usage/billing dashboard** (e.g. Claude Code's `/cost` command or the
+  Anthropic Console) — cache-creation and cache-read tokens are billed
+  at their own rates this file's schema doesn't split out, folded into
+  Input Tokens as one approximation.
 - **Cost is only as current as your pricing file.** If a model has no row,
   or the row still has `null` rates, the cost column shows
   `token-pricing.yml`'s `unknown_model_fallback` text instead of a number.

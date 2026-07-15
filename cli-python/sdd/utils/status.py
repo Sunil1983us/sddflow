@@ -46,8 +46,12 @@ _TASK_HEADING_RE = re.compile(r"^#{2,3}\s+(TASK-\d+)\s*[—–-]+\s*(.+)$")
 _TASK_STATUS_FIELD_RE = re.compile(r"\*\*Status:\*\*\s*(.+)")
 _CHECKBOX_DONE_RE = re.compile(r"^\s*[-*]\s+\[[xX]\]")
 _CHECKBOX_OPEN_RE = re.compile(r"^\s*[-*]\s+\[\s\]")
-_RUNNING_TOTAL_ROW_RE = re.compile(r"\|\s*(Total Est\. Input Tokens|Total Est\. Output Tokens|"
-                                    r"Total Est\. Cost \(USD\)|Commands logged|Last updated)\s*\|\s*(.+?)\s*\|")
+# "Est. " is optional in the label -- token-usage-template.md dropped the
+# prefix when the Source column (Real | Estimated) was added, since a row
+# can now be either; older files created before that change still say
+# "Total Est. Input Tokens" etc. and must keep parsing correctly.
+_RUNNING_TOTAL_ROW_RE = re.compile(r"\|\s*(Total (?:Est\. )?Input Tokens|Total (?:Est\. )?Output Tokens|"
+                                    r"Total (?:Est\. )?Cost \(USD\)|Commands logged|Last updated)\s*\|\s*(.+?)\s*\|")
 
 
 def _doc_status(path: Path) -> str | None:
@@ -58,6 +62,94 @@ def _doc_status(path: Path) -> str | None:
         return None
     m = _STATUS_RE.search(text)
     return m.group(1).strip() if m else None
+
+
+_TABLE_SEP_RE = re.compile(r"^\|(?:-+\|)+$")
+
+
+def _parse_approvals_table(path: Path) -> list[dict]:
+    """Parses a document's own '## Approvals' table -- present in every
+    template, filled in identically regardless of review mode (chat/
+    local/jira) per the review-decision-step shared block. This is the
+    one source of truth for "who approved this / who's still pending"
+    that works the same way in every mode, unlike .local-approvals.yml
+    (local mode only) or a Jira ticket's comments (jira mode only).
+    Tolerates the older 3-column format (Role | Status | Date) from
+    before the Approver column existed, alongside the current 4-column
+    one -- an existing project's docs predate that addition and must
+    still parse. Returns [] if the section/table isn't found or the file
+    is unreadable -- never raises, this is best-effort dashboard sugar.
+    """
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return []
+    lines = text.splitlines()
+    try:
+        heading_idx = next(i for i, l in enumerate(lines) if l.strip() == "## Approvals")
+    except StopIteration:
+        return []
+    sep_idx = None
+    for i in range(heading_idx + 1, len(lines)):
+        stripped = lines[i].strip()
+        if stripped.startswith("## "):
+            return []
+        if _TABLE_SEP_RE.match(stripped):
+            sep_idx = i
+            break
+    if sep_idx is None:
+        return []
+    rows = []
+    for line in lines[sep_idx + 1:]:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("## "):
+            break
+        if not (stripped.startswith("|") and stripped.endswith("|")):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) == 4:
+            role, approver, appr_status, date = cells
+        elif len(cells) == 3:
+            role, appr_status, date = cells
+            approver = ""
+        else:
+            continue
+        if not role or role.startswith("{"):
+            continue  # unfilled template placeholder -- doc was never regenerated
+        rows.append({
+            "role": role,
+            "approver": approver or None,
+            "status": appr_status or None,
+            "date": date or None,
+        })
+    return rows
+
+
+def _load_roles_map(root: Path) -> dict:
+    """roles.yml's top-level `roles:` map (snake_case key -> name filled in
+    once per project), or {} if the file/section is missing/unreadable."""
+    path = root / ".specify" / "memory" / "roles.yml"
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text()) or {}
+    except Exception:
+        return {}
+    roles = data.get("roles")
+    return roles if isinstance(roles, dict) else {}
+
+
+def _normalize_role_key(role_label: str) -> str:
+    """'DevOps/SRE' / 'QA Lead' / 'Tech Lead' -> 'devops_sre' / 'qa_lead' /
+    'tech_lead' -- matches roles.yml's snake_case key convention so a
+    document's human-readable Approvals-table Role column can be looked
+    up directly, without a second hardcoded mapping to keep in sync."""
+    return re.sub(r"[^a-z0-9]+", "_", role_label.strip().lower()).strip("_")
+
+
+def _resolve_expected_approver(role_label: str, roles_map: dict) -> str | None:
+    name = roles_map.get(_normalize_role_key(role_label))
+    return name if isinstance(name, str) and name.strip() else None
 
 
 def _list_feature_names(root: Path) -> list[str]:
@@ -96,6 +188,20 @@ def _dashboard_comments(root: Path, feature: str, doc: str) -> list:
     return data.get(f"{feature}/{doc}", [])
 
 
+def _annotate_approvals(rows: list[dict], roles_map: dict) -> list[dict]:
+    """For each Approvals-table row still Pending with no Approver filled
+    in, resolve who's expected to act from roles.yml — so a document
+    waiting on review names the actual person, not just the role."""
+    annotated = []
+    for row in rows:
+        entry = dict(row)
+        entry["expected_approver"] = (
+            None if entry.get("approver") else _resolve_expected_approver(entry["role"], roles_map)
+        )
+        annotated.append(entry)
+    return annotated
+
+
 def _feature_docs(root: Path, feature: str) -> list[dict]:
     feature_dir = root / ".specify" / "features" / feature
     docs: list[dict] = []
@@ -105,6 +211,7 @@ def _feature_docs(root: Path, feature: str) -> list[dict]:
         key=lambda p: _PIPELINE_ORDER.get(p.stem, 999),
     )
     approvals = _local_approvals(root)
+    roles_map = _load_roles_map(root)
     for path in md_files:
         key = path.stem
         docs.append({
@@ -115,6 +222,7 @@ def _feature_docs(root: Path, feature: str) -> list[dict]:
             "path": str(path),
             "local_approval": approvals.get(key),
             "comments": _dashboard_comments(root, feature, key),
+            "approvals": _annotate_approvals(_parse_approvals_table(path), roles_map),
         })
     return docs
 
@@ -471,6 +579,29 @@ def _parse_tasks(tasks_path: Path) -> dict:
     }
 
 
+def _parse_command_log_sources(text: str) -> dict:
+    """Tally Per-Command Log rows by Source (Real vs Estimated), for the
+    dashboard's Token Usage card. Mirrors token_log.py's _parse_table_row
+    column handling (8-column current format with Source, or legacy
+    7-column rows that pre-date the column and are always Estimated) so
+    the two never drift apart.
+    """
+    real = estimated = 0
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not (stripped.startswith("|") and stripped.endswith("|")):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) not in (7, 8) or not cells[0].isdigit():
+            continue
+        source = cells[6] if len(cells) == 8 else "Estimated"
+        if source.startswith("Real"):
+            real += 1
+        else:
+            estimated += 1
+    return {"real_commands": real, "estimated_commands": estimated}
+
+
 def _parse_token_usage(path: Path) -> dict | None:
     if not path.exists():
         return None
@@ -478,16 +609,19 @@ def _parse_token_usage(path: Path) -> dict | None:
     values: dict[str, str] = {}
     for m in _RUNNING_TOTAL_ROW_RE.finditer(text):
         values[m.group(1)] = m.group(2).strip()
+    sources = _parse_command_log_sources(text)
     if not values:
         return {"exists": True, "total_input": None, "total_output": None,
-                "total_cost": None, "commands_logged": None, "last_updated": None}
+                "total_cost": None, "commands_logged": None, "last_updated": None,
+                **sources}
     return {
         "exists": True,
-        "total_input":     values.get("Total Est. Input Tokens"),
-        "total_output":    values.get("Total Est. Output Tokens"),
-        "total_cost":      values.get("Total Est. Cost (USD)"),
+        "total_input":     values.get("Total Input Tokens") or values.get("Total Est. Input Tokens"),
+        "total_output":    values.get("Total Output Tokens") or values.get("Total Est. Output Tokens"),
+        "total_cost":      values.get("Total Cost (USD)") or values.get("Total Est. Cost (USD)"),
         "commands_logged": values.get("Commands logged"),
         "last_updated":    values.get("Last updated"),
+        **sources,
     }
 
 

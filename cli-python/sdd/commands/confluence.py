@@ -17,6 +17,7 @@ console = Console()
 _DRAFTS_FILE = Path(".specify") / ".confluence-drafts.json"
 
 _CONTEXT_PAGE_TITLE = "{feature} — Context"
+_CONSTITUTION_PAGE_TITLE = "{project} — Constitution"
 
 
 def _load_drafts() -> dict:
@@ -63,10 +64,10 @@ def resolve_feature_parent_id(client: ConfluenceClient, cf_cfg, project_name: st
 def resolve_doc_parent_id(client: ConfluenceClient, cf_cfg, project_name: str,
                            feature_name: str, doc: str) -> str:
     """Like resolve_feature_parent_id(), except living/service-level docs
-    (LIVING_SERVICE_DOCS) nest directly under the Project page instead of
-    a Feature page, since they're shared across every feature, not
-    per-feature."""
-    if doc in LIVING_SERVICE_DOCS:
+    (LIVING_SERVICE_DOCS) and "constitution" nest directly under the
+    Project page instead of a Feature page, since they're shared across
+    every feature, not per-feature."""
+    if doc in LIVING_SERVICE_DOCS or doc == "constitution":
         return _ensure_container_page(client, cf_cfg.space_key, project_name, cf_cfg.parent_page_id)
     return resolve_feature_parent_id(client, cf_cfg, project_name, feature_name)
 
@@ -84,7 +85,37 @@ def upload_diagram_attachments(client: ConfluenceClient, page_id: str,
         try:
             client.upload_attachment(page_id, filename, content, media_type)
         except Exception as e:
-            console.print(f"  [yellow]!  {filename} — diagram attachment upload failed: {e}[/yellow]")
+            console.print(
+                f"  [yellow]!  {filename} — diagram attachment upload failed: "
+                f"{e}{_response_detail(e)}[/yellow]"
+            )
+
+
+def _response_detail(e: Exception) -> str:
+    """Confluence's own error message (the actual reason for a 4xx) lives
+    in the HTTP response body -- requests.HTTPError's default str() only
+    includes the status code and URL, which is why a bare '400 Client
+    Error: Bad Request for url: ...' told the user nothing about WHY.
+    Pulls the real reason out of the JSON error body (Confluence returns
+    {"message": "..."} or {"data": {"errors": [...]}} depending on
+    version) so a failure is actually diagnosable, not just visible."""
+    response = getattr(e, "response", None)
+    if response is None:
+        return ""
+    try:
+        body = response.json()
+    except ValueError:
+        text = (response.text or "").strip()
+        return f" -- {text[:300]}" if text else ""
+    message = body.get("message")
+    if not message:
+        errors = body.get("data", {}).get("errors") if isinstance(body.get("data"), dict) else None
+        if errors:
+            message = "; ".join(
+                err.get("message", str(err)) if isinstance(err, dict) else str(err)
+                for err in errors
+            )
+    return f" -- {message}" if message else ""
 
 
 def _resolve_page_title(doc: str, project_name: str, feature: str,
@@ -108,6 +139,8 @@ def _resolve_page_title(doc: str, project_name: str, feature: str,
     """
     if doc == "context":
         return _CONTEXT_PAGE_TITLE.replace("{project}", project_name).replace("{feature}", feature)
+    if doc == "constitution":
+        return _CONSTITUTION_PAGE_TITLE.replace("{project}", project_name)
     template = page_map.get(doc, f"{{project}} — {doc.upper()}")
     title = template.replace("{project}", project_name)
     if doc in LIVING_SERVICE_DOCS:
@@ -126,8 +159,11 @@ def confluence_command():
 @click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
 @click.option("--doc",     default=None,
               help="Push a single doc only (e.g. hld, brd, arch, runbook)")
+@click.option("--summary", is_flag=True, default=False,
+              help="Push each doc's .summary.md to its own page (title suffixed "
+                   "' — Summary') instead of the full .md")
 @click.option("--dry-run", is_flag=True, help="Print page titles without calling the API")
-def confluence_push(profile, feature, doc, dry_run):
+def confluence_push(profile, feature, doc, summary, dry_run):
     """Publish SDD documents to Confluence pages (create or update)."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
@@ -167,10 +203,14 @@ def confluence_push(profile, feature, doc, dry_run):
         except ValueError as e:
             console.print(f"  [red]✗  {e}[/red]")
             raise SystemExit(1)
+        if summary:
+            md_path = md_path.parent / f"{md_path.stem}.summary.md"
         if not md_path.exists():
-            console.print(f"  [dim]·[/dim]  {key}.md not found — skipped")
+            console.print(f"  [dim]·[/dim]  {md_path.name} not found — skipped")
             continue
         title = _resolve_page_title(key, project_name, feature_name, page_map)
+        if summary:
+            title = f"{title} — Summary"
         available.append((key, md_path, title))
 
     if not available:

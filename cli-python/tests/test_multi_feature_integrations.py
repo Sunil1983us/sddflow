@@ -62,6 +62,18 @@ def test_context_page_title_always_includes_feature():
     assert title == "instant-payment — Context"
 
 
+def test_constitution_page_title_is_project_wide_regardless_of_feature():
+    """constitution.md is project-wide (Part 1 universal, Part 2 amended
+    across every feature) -- its Confluence title must be identical no
+    matter which feature is active, and the page_map value (if any) is
+    ignored in favor of the fixed "{project} — Constitution" title, same
+    treatment as living/service-level docs."""
+    page_map = {"constitution": "Constitution"}
+    title_a = _resolve_page_title("constitution", "MyProj", "instant-payment", page_map)
+    title_b = _resolve_page_title("constitution", "MyProj", "payment-dashboard", page_map)
+    assert title_a == title_b == "MyProj — Constitution"
+
+
 def test_jira_item_label_is_qualified_by_feature():
     """STORY-NNN/TASK-NNN numbering restarts independently per feature, so
     the idempotency label used to find/update a Jira issue must include

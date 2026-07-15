@@ -183,7 +183,7 @@ def _render_fence(lang: str, code: str, diagrams: DiagramsConfig,
             "instead of a diagram"
         )
     if lang == "mermaid" and diagrams.mode == "local-svg":
-        rendered = _render_local_svg(code, attachments, warnings)
+        rendered = _render_local_svg(code, diagrams.local_svg_width, attachments, warnings)
         if rendered is not None:
             return rendered
     escaped = html.escape(code)
@@ -195,7 +195,7 @@ def _render_fence(lang: str, code: str, diagrams: DiagramsConfig,
     )
 
 
-def _render_local_svg(code: str, attachments: list[Attachment],
+def _render_local_svg(code: str, width: int, attachments: list[Attachment],
                        warnings: list[str]) -> str | None:
     """Render Mermaid source to SVG locally and queue it as a page
     attachment. Returns None (never raises) on any failure -- a missing
@@ -203,16 +203,40 @@ def _render_local_svg(code: str, attachments: list[Attachment],
     never fail the whole document push; the caller falls back to a plain
     code block for this one diagram, but the reason is appended to
     `warnings` instead of being discarded, so a misconfigured/missing
-    renderer doesn't look identical to diagrams.mode not being set."""
+    renderer doesn't look identical to diagrams.mode not being set.
+
+    `width` sets the <ac:image ac:width="..."> attribute -- without it,
+    Confluence displays the image at the SVG's own intrinsic size, which
+    Mermaid's renderer typically sets to a few hundred pixels, forcing the
+    reader to open and zoom to read the diagram."""
     from sdd.utils.mermaid_render import render_mermaid_svg
     try:
         svg = render_mermaid_svg(code)
     except Exception as e:
         warnings.append(f"Diagram failed to render ({e}) -- shown as plain code instead")
         return None
+    # mmdr has occasionally been observed to return a well-formed-looking
+    # but empty or truncated result for certain diagram shapes (long
+    # sequenceDiagram message chains in particular) without raising --
+    # uploading that to Confluence produces an opaque 400 Bad Request
+    # with no useful reason in the exception itself. Catching it here,
+    # where the actual diagram source is still available for the warning,
+    # is far more useful than letting a malformed attachment reach the
+    # Confluence API and fail there.
+    stripped = svg.strip()
+    if not stripped.startswith("<"):
+        warnings.append(
+            "Diagram rendered but output was not valid SVG (did not start "
+            "with '<') -- shown as plain code instead"
+        )
+        return None
     filename = f"diagram-{len(attachments) + 1}.svg"
     attachments.append((filename, svg.encode("utf-8"), "image/svg+xml"))
-    return f'<ac:image><ri:attachment ri:filename="{filename}" /></ac:image>'
+    return (
+        f'<ac:image ac:width="{width}">'
+        f'<ri:attachment ri:filename="{filename}" />'
+        f'</ac:image>'
+    )
 
 
 def _diagram_macro(macro_name: str, source: str) -> str:

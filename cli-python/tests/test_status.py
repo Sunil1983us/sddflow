@@ -7,6 +7,7 @@ import sdd.utils.status as status_mod
 from sdd.utils.status import (
     build_project_status, build_feature_status, build_pipeline,
     _current_stage, persona_for,
+    _parse_approvals_table, _normalize_role_key, _resolve_expected_approver,
 )
 
 
@@ -65,6 +66,108 @@ def test_doc_status_header_parsed(tmp_path, monkeypatch):
     by_key = {d["key"]: d for d in feat["docs"]}
     assert by_key["brd"]["status"] == "Approved"
     assert by_key["srd"]["status"] == "Draft"
+
+
+def test_normalize_role_key_matches_roles_yml_convention():
+    assert _normalize_role_key("Product Owner") == "product_owner"
+    assert _normalize_role_key("QA Lead") == "qa_lead"
+    assert _normalize_role_key("DevOps/SRE") == "devops_sre"
+    assert _normalize_role_key("Tech Lead") == "tech_lead"
+
+
+def test_resolve_expected_approver_looks_up_roles_map():
+    roles_map = {"product_owner": "Jane Smith", "tech_lead": ""}
+    assert _resolve_expected_approver("Product Owner", roles_map) == "Jane Smith"
+    assert _resolve_expected_approver("Tech Lead", roles_map) is None  # blank in roles.yml
+    assert _resolve_expected_approver("Unknown Role", roles_map) is None
+
+
+def test_parse_approvals_table_current_4column_format(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\nStatus: Approved\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| Product Owner | Jane Smith | Approved | 2026-07-10 |\n\n"
+        "## Version History\n"
+    )
+    rows = _parse_approvals_table(doc)
+    assert rows == [{"role": "Product Owner", "approver": "Jane Smith",
+                      "status": "Approved", "date": "2026-07-10"}]
+
+
+def test_parse_approvals_table_legacy_3column_format(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\nStatus: Approved\n\n"
+        "## Approvals\n\n"
+        "| Role | Status | Date |\n"
+        "|---|---|---|\n"
+        "| Product Owner | Approved | 2026-06-28 |\n"
+    )
+    rows = _parse_approvals_table(doc)
+    assert rows == [{"role": "Product Owner", "approver": None,
+                      "status": "Approved", "date": "2026-06-28"}]
+
+
+def test_parse_approvals_table_skips_unfilled_placeholder_row(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\nStatus: Draft\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |\n"
+    )
+    assert _parse_approvals_table(doc) == []
+
+
+def test_parse_approvals_table_missing_section_returns_empty(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text("# BRD\nStatus: Draft\n")
+    assert _parse_approvals_table(doc) == []
+
+
+def test_feature_docs_approvals_resolve_expected_approver_when_pending(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "memory").mkdir(parents=True)
+    (tmp_path / ".specify" / "memory" / "roles.yml").write_text(
+        "roles:\n  product_owner: Jane Smith\n  tech_lead: \"\"\n"
+    )
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\nStatus: Draft\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| Product Owner | | Pending | |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    brd = next(d for d in feat["docs"] if d["key"] == "brd")
+    assert brd["approvals"] == [{
+        "role": "Product Owner", "approver": None, "status": "Pending",
+        "date": None, "expected_approver": "Jane Smith",
+    }]
+
+
+def test_feature_docs_approvals_no_expected_approver_when_roles_yml_missing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\nStatus: Draft\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| Product Owner | | Pending | |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    brd = next(d for d in feat["docs"] if d["key"] == "brd")
+    assert brd["approvals"][0]["expected_approver"] is None
 
 
 def test_current_stage_reports_last_doc_and_next(tmp_path, monkeypatch):
@@ -185,6 +288,29 @@ def test_token_usage_parsed_from_running_totals(tmp_path, monkeypatch):
         "## Running Totals\n\n"
         "| Metric | Value |\n"
         "|---|---|\n"
+        "| Total Input Tokens | 12345 |\n"
+        "| Total Output Tokens | 6789 |\n"
+        "| Total Cost (USD) | 0.42 |\n"
+        "| Commands logged | 5 |\n"
+        "| Last updated | 2026-07-08 |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    tu = feat["token_usage"]
+    assert tu["total_input"] == "12345"
+    assert tu["total_output"] == "6789"
+    assert tu["total_cost"] == "0.42"
+    assert tu["commands_logged"] == "5"
+
+
+def test_token_usage_parsed_from_legacy_est_labels(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "token-usage.md").write_text(
+        "## Running Totals\n\n"
+        "| Metric | Value |\n"
+        "|---|---|\n"
         "| Total Est. Input Tokens | 12345 |\n"
         "| Total Est. Output Tokens | 6789 |\n"
         "| Total Est. Cost (USD) | 0.42 |\n"
@@ -197,6 +323,52 @@ def test_token_usage_parsed_from_running_totals(tmp_path, monkeypatch):
     assert tu["total_output"] == "6789"
     assert tu["total_cost"] == "0.42"
     assert tu["commands_logged"] == "5"
+
+
+def test_token_usage_source_mix_counts_real_vs_estimated(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "token-usage.md").write_text(
+        "## Running Totals\n\n"
+        "| Metric | Value |\n"
+        "|---|---|\n"
+        "| Total Input Tokens | 300 |\n"
+        "| Commands logged | 3 |\n\n"
+        "## Per-Command Log\n\n"
+        "| # | Command | Model | Input Tokens | Output Tokens | Cost (USD) | Source | Timestamp |\n"
+        "|---|---|---|---|---|---|---|---|\n"
+        "| 1 | specify | claude-sonnet-5 | 100 | 50 | $0.01 | Real (Claude Code) | 2026-07-08T10:00:00Z |\n"
+        "| 2 | plan | claude-sonnet-5 | 100 | 50 | $0.01 | Real (Claude Code) | 2026-07-08T11:00:00Z |\n"
+        "| 3 | task | gpt-4 | 100 | 50 | n/a | Estimated | 2026-07-08T12:00:00Z |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    tu = feat["token_usage"]
+    assert tu["real_commands"] == 2
+    assert tu["estimated_commands"] == 1
+
+
+def test_token_usage_source_mix_legacy_rows_all_estimated(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "token-usage.md").write_text(
+        "## Running Totals\n\n"
+        "| Metric | Value |\n"
+        "|---|---|\n"
+        "| Total Est. Input Tokens | 200 |\n\n"
+        "## Per-Command Log\n\n"
+        "| # | Command | Model | Input Tokens | Output Tokens | Cost (USD) | Timestamp |\n"
+        "|---|---|---|---|---|---|---|\n"
+        "| 1 | specify | claude-sonnet-5 | 100 | 50 | n/a | 2026-07-08T10:00:00Z |\n"
+        "| 2 | plan | claude-sonnet-5 | 100 | 50 | n/a | 2026-07-08T11:00:00Z |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    tu = feat["token_usage"]
+    assert tu["real_commands"] == 0
+    assert tu["estimated_commands"] == 2
 
 
 def test_token_usage_absent_when_no_file(tmp_path, monkeypatch):

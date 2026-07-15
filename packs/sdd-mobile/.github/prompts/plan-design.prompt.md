@@ -159,7 +159,17 @@ Use the same format as `/change`'s document walk (BEFORE/AFTER blocks,
 one approval, wait before saving). On approval: merge into
 `.specify/service/api-spec.md`, bump its version header, append a
 Version History row naming this feature, regenerate
-`.specify/service/api-spec.summary.md`.
+`.specify/service/api-spec.summary.md`, then re-sync it everywhere it's
+tracked — the edits above only touched the local file, so Confluence and
+the reviewer would otherwise go stale:
+```bash
+sdd review apply --doc api-spec
+```
+This re-pushes the updated content to api-spec.md's own Confluence page
+(if `confluence:` is configured) and posts a "please re-review" comment
+on its own Jira review ticket (if `jira:` is configured and a ticket
+exists) — independent of design.md's own ticket. Skip silently if the
+command fails or neither integration is configured.
 
 **Either way, `design.md` §3 itself contains only:**
 ```

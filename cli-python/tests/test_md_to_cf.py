@@ -216,10 +216,22 @@ class TestLocalSvgMode:
         with patch("sdd.utils.mermaid_render.render_mermaid_svg",
                    return_value="<svg>rendered</svg>"):
             html, attachments, warnings = md_to_storage(md, diagrams)
-        assert '<ac:image><ri:attachment ri:filename="diagram-1.svg" /></ac:image>' in html
+        assert '<ac:image ac:width="900"><ri:attachment ri:filename="diagram-1.svg" /></ac:image>' in html
         assert '<ac:structured-macro ac:name="code">' not in html
         assert attachments == [("diagram-1.svg", b"<svg>rendered</svg>", "image/svg+xml")]
         assert warnings == []
+
+    def test_custom_local_svg_width_is_applied(self):
+        """Confluence displays a local-svg diagram at the SVG's own
+        intrinsic size (often a few hundred pixels) unless ac:width is
+        set -- diagrams.local_svg_width lets a user override the default
+        900px for their own theme/page-width preference."""
+        md = "```mermaid\ngraph TD;\nA-->B;\n```"
+        diagrams = DiagramsConfig(mode="local-svg", local_svg_width=600)
+        with patch("sdd.utils.mermaid_render.render_mermaid_svg",
+                   return_value="<svg>rendered</svg>"):
+            html, _, _ = md_to_storage(md, diagrams)
+        assert 'ac:width="600"' in html
 
     def test_render_failure_falls_back_to_code_block(self):
         """A renderer failure (missing optional dependency, invalid
@@ -240,6 +252,23 @@ class TestLocalSvgMode:
         assert attachments == []
         assert len(warnings) == 1
         assert "bad diagram" in warnings[0]
+
+    def test_empty_or_non_svg_render_output_falls_back_to_code_block(self):
+        """mmdr can return without raising but still produce output that
+        isn't actually SVG (observed for some sequenceDiagram sources) --
+        queueing that for upload sends malformed bytes to Confluence's
+        attachment API, which rejects them with an opaque 400 Bad
+        Request. Catching it here, where the diagram source is still in
+        scope, produces a diagnosable warning instead."""
+        md = "```mermaid\nsequenceDiagram\nA->>B: hi\n```"
+        diagrams = DiagramsConfig(mode="local-svg")
+        with patch("sdd.utils.mermaid_render.render_mermaid_svg",
+                   return_value=""):
+            html, attachments, warnings = md_to_storage(md, diagrams)
+        assert '<ac:structured-macro ac:name="code">' in html
+        assert attachments == []
+        assert len(warnings) == 1
+        assert "not valid SVG" in warnings[0]
 
     def test_missing_mmdr_dependency_warning_names_install_command(self):
         """The single most likely real-world cause: diagrams.mode is set
