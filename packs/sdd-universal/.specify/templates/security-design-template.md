@@ -115,3 +115,9 @@
 |---|---|---|---|
 | Security Officer (accountable — controls adequacy) | | Pending | |
 | Tech Lead (consulted — implementation feasibility) | | Pending | |
+
+## Version History
+
+| Version | Date | Feature | Change | CR |
+|---|---|---|---|---|
+| 1.0 | {date} | {feature that first created this document} | Initial security baseline | — |

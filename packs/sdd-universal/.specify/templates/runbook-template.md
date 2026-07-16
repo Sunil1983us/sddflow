@@ -1,7 +1,13 @@
 # Runbook
-# Feature: {Feature Name}
+# Service: {Service Name}
 > Version: 1.0 | Date: {date}
 > Scope: MVP+ only — skip for pilot
+>
+> **Living artifact** — `docs/runbook/local-setup.md` describes the whole
+> service, not one feature. If it already exists, only add what this
+> feature introduces (new Troubleshooting entries, new Environment
+> Variables, new On-Call mappings) — Local Setup/Profiles/Common
+> Operations/Rollback almost never change and should be left as-is.
 
 ---
 

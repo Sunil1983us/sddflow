@@ -89,23 +89,25 @@
 
 ### 3a. Server-Side Threats
 
-| ID | Component | Threat (STRIDE category) | Description | Mitigation | Residual Risk |
-|---|---|---|---|---|---|
-| THR-{NNN} | {backend component} | Spoofing | {description} | {mitigation} | Low/Med/High |
-| THR-{NNN} | {backend component} | Tampering | {description} | {mitigation} | Low/Med/High |
-| THR-{NNN} | {backend component} | Repudiation | {description} | {mitigation} | Low/Med/High |
-| THR-{NNN} | {backend component} | Information Disclosure | {description} | {mitigation} | Low/Med/High |
-| THR-{NNN} | {backend component} | Denial of Service | {description} | {mitigation} | Low/Med/High |
-| THR-{NNN} | {backend component} | Elevation of Privilege | {description} | {mitigation} | Low/Med/High |
+| ID | Component | Threat (STRIDE category) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
+|---|---|---|---|---|---|---|
+| THR-{NNN} | {backend component} | Spoofing | {description} | {mitigation} | {Critical 9-10 / High 7-8.9 / Med 4-6.9 / Low 0-3.9 or "QA"} | Low/Med/High |
+| THR-{NNN} | {backend component} | Tampering | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {backend component} | Repudiation | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {backend component} | Information Disclosure | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {backend component} | Denial of Service | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {backend component} | Elevation of Privilege | {description} | {mitigation} | {CVSS} | Low/Med/High |
 
 ### 3b. Client-Side Threats
 
-| ID | Component | Threat (STRIDE category) | Description | Mitigation | Residual Risk |
-|---|---|---|---|---|---|
-| THR-{NNN} | {frontend component} | Spoofing | {e.g. phishing via UI clone} | {mitigation} | Low/Med/High |
-| THR-{NNN} | {frontend component} | Tampering | {e.g. DOM/storage tampering} | {mitigation} | Low/Med/High |
-| THR-{NNN} | {frontend component} | Information Disclosure | {e.g. token leak via XSS} | {mitigation, CSP + sanitization} | Low/Med/High |
-| THR-{NNN} | {frontend component} | Elevation of Privilege | {e.g. client-side route guard bypass} | {server-side authZ as source of truth} | Low/Med/High |
+| ID | Component | Threat (STRIDE category) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
+|---|---|---|---|---|---|---|
+| THR-{NNN} | {frontend component} | Spoofing | {e.g. phishing via UI clone} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Tampering | {e.g. DOM/storage tampering} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Information Disclosure | {e.g. token leak via XSS} | {mitigation, CSP + sanitization} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Elevation of Privilege | {e.g. client-side route guard bypass} | {server-side authZ as source of truth} | {CVSS} | Low/Med/High |
+
+> **CVSS column:** Use the [CVSS 3.1 calculator](https://www.first.org/cvss/calculator/3.1) for formal scoring, or use the qualitative band (Critical/High/Med/Low) and mark "QA" if formal scoring is out of scope. Any THR with CVSS ≥ 7.0 (High or Critical) must have a confirmed mitigation before /release.
 
 ### DAST
 | Target | Tool | Frequency |
@@ -146,4 +148,11 @@
 
 | Role | Approver | Status | Date |
 |---|---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |
+| Security Officer (accountable — controls adequacy) | | Pending | |
+| Tech Lead (consulted — implementation feasibility) | | Pending | |
+
+## Version History
+
+| Version | Date | Feature | Change | CR |
+|---|---|---|---|---|
+| 1.0 | {date} | {feature that first created this document} | Initial security baseline | — |

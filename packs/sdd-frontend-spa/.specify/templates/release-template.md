@@ -104,8 +104,19 @@ Choose deployment strategy based on NFR requirements:
 
 ## 7. Rollback Plan
 
-{Summary — full detail in docs/runbook/local-setup.md §6: CDN cache invalidation
-rollback, redeploy previous static build, feature-flag revert}
+> **MVP+ scope:** Full rollback detail is in `docs/runbook/local-setup.md §6` (CDN cache invalidation rollback, redeploy previous static build, feature-flag revert). Summary below for quick reference.
+>
+> **Pilot scope:** Runbook not generated at pilot scope. Document your rollback steps here before proceeding to §5 Go-Live Gate. Minimum required:
+
+| Step | Action | Owner | Time Estimate |
+|---|---|---|---|
+| 1 | Redeploy previous static build artifact to CDN/object storage | {devops_sre} | {N} min |
+| 2 | Invalidate/purge CDN cache for `index.html` | {devops_sre} | {N} min |
+| 3 | Verify app loads with previous build, no console errors | {devops_sre} | {N} min |
+| 4 | Notify stakeholders — rollback complete | {tech_lead} | {N} min |
+
+**Rollback decision owner:** Tech Lead — triggers rollback if smoke test fails or a critical error spike fires within {N} min of go-live.
+**Maximum acceptable rollback time:** {N} minutes (from decision to stable previous state).
 
 ---
 

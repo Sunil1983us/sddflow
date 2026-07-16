@@ -3052,6 +3052,58 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.78"},
     },
+    {
+        "from":        "2.7.78",
+        "to":          "2.7.79",
+        "description": "Fix: runbook-template.md missing living-doc framing in 4 packs, security-design/data-model/api-spec inconsistencies across packs, release-template.md pilot-scope broken rollback reference, sdd-universal had no project-type flavor branching for data-model/security/runbook",
+        "notes": [
+            "runbook-template.md was missing its 'Living artifact' framing "
+            "paragraph and used '# Feature: {Feature Name}' instead of "
+            "'# Service:'/'# App:' in frontend-spa, mobile, fullstack, and "
+            "sdd-universal (only sdd-backend-service had it correct) -- an "
+            "agent following the template literally would treat the "
+            "runbook as a fresh per-feature doc instead of extending the "
+            "living one, silently dropping a prior feature's additions. "
+            "Fixed all four",
+            "security-design-template.md was inconsistent across packs: "
+            "only sdd-backend-service had a Version History table; only "
+            "sdd-universal had the CVSS scoring column and the 2-row "
+            "Security Officer/Tech Lead Approvals table. Reconciled all "
+            "five packs to have all three",
+            "data-model-template.md and api-spec-template.md were missing "
+            "Version History tables in sdd-universal (both docs) and "
+            "sdd-fullstack (api-spec only). Added. Also fixed "
+            "sdd-universal's api-spec-template.md References row, which "
+            "cited 'arch.summary.md ... ports/adapters' -- leftover text "
+            "that didn't match how api-spec.md is actually fed (per "
+            "plan-design.prompt.md Section 3: design.summary.md, which "
+            "feature added/changed which endpoints)",
+            "release-template.md Section 7 Rollback Plan pointed to "
+            "docs/runbook/local-setup.md in sdd-backend-service, "
+            "frontend-spa, mobile, and fullstack even at pilot scope, "
+            "where the runbook is never generated -- a broken reference. "
+            "Backported sdd-universal's pilot-scope fallback rollback "
+            "table (already correct there) to all four packs, plus two "
+            "extra Post-Deploy Smoke Test monitoring rows sdd-universal "
+            "already had",
+            "sdd-universal's specify-doc.prompt.md read one single "
+            "template flavor for data-model and security-design "
+            "regardless of detected project_type -- a frontend-spa or "
+            "mobile project would get the DB-schema/server-side flavor "
+            "instead of state/storage-model or local-cache-model content. "
+            "Added project_type branching (frontend-spa/desktop -> "
+            "*-template-frontend.md, mobile -> *-template-mobile.md, "
+            "else -> default) to the shared specify-doc.prompt.md source "
+            "(safe no-op for the other four packs, which have no "
+            "project_type field) and shipped the new frontend/mobile "
+            "flavor template files for sdd-universal. Same fix applied to "
+            "runbook generation in implement.prompt.md",
+            "Verified: sync-blocks.sh clean, cli-python pytest 648/648, "
+            "assert-output.sh 33/33 on both worked examples, setup smoke "
+            "tests 15/15",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.79"},
+    },
 ]
 
 

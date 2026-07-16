@@ -2105,6 +2105,43 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.78',
+    to:   '2.7.79',
+    description: "Fix: runbook-template.md missing living-doc framing in 4 packs, security-design/data-model/api-spec inconsistencies across packs, release-template.md pilot-scope broken rollback reference, sdd-universal had no project-type flavor branching for data-model/security/runbook",
+    notes: [
+      "runbook-template.md was missing its 'Living artifact' framing " +
+      "paragraph and used '# Feature: {Feature Name}' instead of " +
+      "'# Service:'/'# App:' in frontend-spa, mobile, fullstack, and " +
+      "sdd-universal (only sdd-backend-service had it correct). Fixed " +
+      "all four",
+      "security-design-template.md was inconsistent across packs: only " +
+      "sdd-backend-service had a Version History table; only " +
+      "sdd-universal had the CVSS scoring column and the 2-row Security " +
+      "Officer/Tech Lead Approvals table. Reconciled all five packs",
+      "data-model-template.md and api-spec-template.md were missing " +
+      "Version History tables in sdd-universal (both docs) and " +
+      "sdd-fullstack (api-spec only); also fixed a stale References row " +
+      "in sdd-universal's api-spec-template.md",
+      "release-template.md Section 7 Rollback Plan pointed to " +
+      "docs/runbook/local-setup.md even at pilot scope, where the " +
+      "runbook is never generated -- backported sdd-universal's " +
+      "pilot-scope fallback rollback table to the other four packs",
+      "sdd-universal's specify-doc.prompt.md and implement.prompt.md now " +
+      "branch by project_type for data-model/security-design/runbook " +
+      "template flavor, instead of always using the server-side/backend " +
+      "shape",
+      "This Node CLI does not implement /specify-doc, /implement, or " +
+      "these template prompts -- this migration entry exists so both " +
+      "CLIs report the same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.79';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

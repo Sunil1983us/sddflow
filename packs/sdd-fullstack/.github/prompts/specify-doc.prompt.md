@@ -27,7 +27,27 @@ If no argument given — list the remaining ungenerated documents for this scope
   - `.specify/features/{manifest.project.feature}/brd.summary.md` (or `brd.md`)
   - `.specify/features/{manifest.project.feature}/use-cases.summary.md` (or `use-cases.md`)
   - `.specify/features/{manifest.project.feature}/srd.summary.md` (or `srd.md`)
-- Read `.specify/templates/{doc}-template.md`
+- Read `.specify/templates/{doc}-template.md` — **except for `data-model`
+  and `security`/`security-design` when `manifest.yml` has a
+  `project_type` field (sdd-universal only — the other packs have no
+  such field and always use their own single template as before):
+  content shape for these two living docs differs by target
+  (server-side schema vs. client-side state/storage vs. local device
+  cache), so branch by `project_type` before reading:**
+  - `project_type` = `frontend-spa` or `desktop` → read
+    `.specify/templates/{doc}-template-frontend.md`
+  - `project_type` = `mobile` → read
+    `.specify/templates/{doc}-template-mobile.md`
+  - any other `project_type` (`backend-service`, `fullstack`,
+    `serverless`, `cli`, `library`, `iac`, `data-ml`, ...), or no
+    `project_type` field at all → read
+    `.specify/templates/{doc}-template.md` (the default/server-side
+    flavor) as before
+  - `fullstack` intentionally uses the default (server-side) flavor for
+    both docs — a fullstack service still has one server-side schema and
+    one server-side security baseline; frontend-specific state/XSS
+    concerns belong in that project's own `component-spec.md`/`ux-flow.md`
+    if generated, not in these two living documents
 
 ## Verify Gate
 

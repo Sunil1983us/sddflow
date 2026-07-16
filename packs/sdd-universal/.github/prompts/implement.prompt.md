@@ -88,7 +88,15 @@ Generate delivery artifacts per manifest.project.scope:
 - qa_cases (mvp+) → docs/qa/functional-test-cases.md — finalize
   .specify/features/{manifest.project.feature}/qa-testcases.md (per
   qa-testcases-template.md) with pass/fail results from the paired tests
-- runbook (mvp+) → docs/runbook/local-setup.md (per runbook-template.md)
+- runbook (mvp+) → docs/runbook/local-setup.md — per `project_type`
+  (from `manifest.yml`), since the right operational content shape
+  differs by target:
+  - `project_type` = `frontend-spa` or `desktop` → use
+    `.specify/templates/runbook-template-frontend.md`
+  - `project_type` = `mobile` → use
+    `.specify/templates/runbook-template-mobile.md`
+  - any other `project_type` → use `.specify/templates/runbook-template.md`
+    (the default/server-side flavor) as before
 - openapi (full) → docs/openapi.yaml (per openapi-template.md, from
   api-spec.summary.md)
 

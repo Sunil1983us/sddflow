@@ -1,8 +1,15 @@
 # Runbook
-# Feature: {Feature Name}
+# Service: {Service Name}
 > Version: 1.0 | Date: {date}
 > Scope: MVP+ only — skip for pilot
 > Covers: Backend service ops (§1-7) AND Frontend ops (§1a-7a)
+>
+> **Living artifact** — `docs/runbook/local-setup.md` describes the whole
+> service (both backend and frontend), not one feature. If it already
+> exists, only add what this feature introduces (new Troubleshooting
+> entries, new Environment Variables, new On-Call mappings) — Local
+> Setup/Profiles/Common Operations/Rollback almost never change and
+> should be left as-is.
 
 ---
 

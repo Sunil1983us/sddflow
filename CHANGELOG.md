@@ -4,6 +4,79 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.79] — 2026-07-16 (Fix: runbook-template.md living-doc framing, security-design/data-model/api-spec drift, release-template.md pilot-scope rollback gap, sdd-universal template flavor branching)
+
+Full follow-up on the v2.7.78 pass's "Known gaps not fixed in this pass"
+list, plus one new correctness bug (`runbook-template.md`) found
+independently while re-reviewing every template in every pack.
+
+### Fixed
+
+- **`runbook-template.md` was missing its living-document framing in 4 of
+  5 packs.** `sdd-backend-service`'s copy correctly opens with a
+  "**Living artifact**" paragraph explaining that `docs/runbook/local-setup.md`
+  describes the whole service and should be extended, not regenerated —
+  `sdd-frontend-spa`, `sdd-mobile`, `sdd-fullstack`, and `sdd-universal`
+  had none of that text, and used `# Feature: {Feature Name}` instead of
+  `# Service:`/`# App:` in the header. This directly contradicted each
+  pack's own `CLAUDE.md`, which lists Runbook as a living document for
+  every pack. An agent following the template literally would have
+  treated the runbook as a fresh per-feature doc, silently dropping a
+  prior feature's Troubleshooting/Environment Variable/On-Call additions.
+  Fixed all four.
+- **`security-design-template.md` was inconsistently developed across
+  packs.** Only `sdd-backend-service` had a `## Version History` table;
+  only `sdd-universal` had the CVSS scoring column in its §3 threat
+  model and the 2-row Security Officer/Tech Lead `## Approvals` table
+  (the other four packs had one generic placeholder row). Reconciled all
+  five packs to have all three — the CVSS column, the named Approvals
+  rows, and Version History.
+- **`data-model-template.md` and `api-spec-template.md` were missing
+  `## Version History` tables** in `sdd-universal` (both docs) and
+  `sdd-fullstack` (api-spec only). Added. Also fixed a stale/incorrect
+  `## References` row in `sdd-universal`'s `api-spec-template.md` that
+  cited `arch.summary.md ... refined at /plan-arch: ports/adapters` —
+  leftover text that didn't match how `api-spec.md` is actually fed
+  (per `plan-design.prompt.md` §3: `design.summary.md`, which feature
+  added/changed which endpoints).
+- **`release-template.md` §7 Rollback Plan had a broken reference at
+  pilot scope** in `sdd-backend-service`, `sdd-frontend-spa`,
+  `sdd-mobile`, and `sdd-fullstack` — it pointed to
+  `docs/runbook/local-setup.md §6`, but the runbook is never generated
+  at pilot scope (per each pack's own Scope Reference table), so the
+  pointer was dead. `sdd-universal`'s copy already had the fix: a
+  pilot-scope fallback rollback table used when the runbook doesn't
+  exist. Backported that pattern, plus two extra Post-Deploy Smoke Test
+  monitoring rows `sdd-universal` already had, to the other four packs.
+- **`sdd-universal` had no project-type branching for
+  data-model/security-design/runbook template flavor.** Its
+  `specify-doc.prompt.md` and `implement.prompt.md` always read the
+  default (server-side/DB-schema) template regardless of the detected
+  `project_type` — a `frontend-spa` or `mobile` project would get
+  server-side schema/threat-model content instead of client
+  state/storage-model or local-cache-model content. Added `project_type`
+  branching (`frontend-spa`/`desktop` → `*-template-frontend.md`,
+  `mobile` → `*-template-mobile.md`, else → the existing default) to the
+  **shared** `specify-doc.prompt.md` source (a safe no-op for the other
+  four packs, which have no `project_type` field) and to `sdd-universal`'s
+  own `implement.prompt.md` for runbook generation. Shipped the new
+  frontend/mobile flavor template files:
+  `data-model-template-{frontend,mobile}.md`,
+  `security-design-template-{frontend,mobile}.md`,
+  `runbook-template-{frontend,mobile}.md`.
+
+### Verified
+
+- `sync-blocks.sh` clean after the shared `specify-doc.prompt.md` change
+  propagated correctly to all 5 packs
+- `cli-python` pytest: 648/648 passed
+- `assert-output.sh`: 33/33 passed (both worked examples)
+- `test-setup.sh`: 15/15 passed
+- Migration-chain tests (`test_migration_table_is_a_connected_chain_ending_at_current`,
+  `test_each_migration_stamps_its_own_to_version`): both passed
+
+---
+
 ## [2.7.78] — 2026-07-16 (Fix: sdd-universal missing UI templates, brd-template.md drift, design-template.md numbering gap)
 
 ### Fixed

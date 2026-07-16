@@ -103,8 +103,19 @@ Choose release strategy based on risk and NFR requirements:
 
 ## 7. Rollback Plan
 
-{Summary — full detail in docs/runbook/local-setup.md §6: staged rollout halt, OTA
-rollback, store-listing rollback / emergency hotfix path}
+> **MVP+ scope:** Full rollback detail is in `docs/runbook/local-setup.md §6` (staged rollout halt, OTA rollback, store-listing rollback / emergency hotfix path). Summary below for quick reference.
+>
+> **Pilot scope:** Runbook not generated at pilot scope. Document your rollback steps here before proceeding to §5 Go-Live Gate. Minimum required:
+
+| Step | Action | Owner | Time Estimate |
+|---|---|---|---|
+| 1 | Halt staged rollout (Play Console / App Store Connect) | {devops_sre} | {N} min |
+| 2 | Trigger OTA rollback if available (CodePush/EAS), else prepare expedited hotfix | {devops_sre} | {N} min |
+| 3 | Verify crash-free rate recovers on previous version | {devops_sre} | {N} min |
+| 4 | Notify stakeholders — rollback complete | {tech_lead} | {N} min |
+
+**Rollback decision owner:** Tech Lead — triggers rollback if smoke test fails or crash-free rate drops below target within {N} min of go-live.
+**Maximum acceptable rollback time:** {N} minutes (from decision to stable previous state).
 
 ---
 
