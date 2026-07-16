@@ -132,7 +132,7 @@ an existing shared artifact" instead of "a requirement changed."
 
 **Exception — `component-spec`'s "Shared Components Used" section is
 living, app-level** (packs with a `component-spec-template.md`: frontend-spa,
-fullstack). The rest of `component-spec.md` (component hierarchy, this
+fullstack, sdd-universal). The rest of `component-spec.md` (component hierarchy, this
 feature's own page/container components) stays per-feature as above, but
 any component this feature intends to be **reused by other features**
 (a shared/design-system component, not a one-off page component) is

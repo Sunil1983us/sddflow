@@ -1,4 +1,5 @@
 # Component Specification — {Feature Name}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ## References
 | Source | Sections / IDs Used |
@@ -17,7 +18,7 @@
 
 ## Component Specs
 
-### {ComponentName}
+### COMP-{NNN}: {ComponentName}
 | Property | Value |
 |---|---|
 | Type | Page / Container / Presentational |
@@ -48,7 +49,12 @@ this feature's hierarchy — see the living-doc-update shared block in
 |---|---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |
 
+## Version History
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |
+
 ## Summary
 > Lines: {N} / {SUMMARY_MAX_LINES}
-## Components — {list}
+## Components — {list of COMP-NNN}
 ## State — {global vs local}
