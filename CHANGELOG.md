@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.80] — 2026-07-16 (Fix: data-model-template.md Version History gap in 3 packs, STRIDE column wording drift in sdd-universal)
+
+Found while independently re-verifying the v2.7.79 fix batch's own
+cross-pack consistency (requested review, not a new bug report).
+
+### Fixed
+
+- **`data-model-template.md` was missing `## Version History`** in
+  `sdd-frontend-spa`, `sdd-mobile`, and `sdd-fullstack` — only
+  `sdd-backend-service` and (as of v2.7.79) `sdd-universal` had it. Caught
+  because `sdd-universal`'s new `data-model-template-frontend.md`/
+  `-mobile.md` flavor files (copied verbatim from those packs' own
+  templates) diffed non-empty against their source — the source packs
+  were missing content the copies had. Added Version History to all
+  three.
+- **`security-design-template.md`'s STRIDE threat table column header was
+  inconsistent** — `Threat (STRIDE)` in `sdd-universal`, `Threat (STRIDE
+  category)` in the other four packs. Pre-existing wording drift, not
+  something the v2.7.79 CVSS-column fix introduced. Normalized
+  `sdd-universal` to match.
+
+### Verified
+
+- `sync-blocks.sh` clean
+- `cli-python` pytest: 648/648 passed
+- `assert-output.sh`: 33/33 passed
+- Every pack-specific prompt's `.specify/templates/{doc}-template.md`
+  references checked against actual files on disk — zero broken
+  references found across all 5 packs
+
+---
+
 ## [2.7.79] — 2026-07-16 (Fix: runbook-template.md living-doc framing, security-design/data-model/api-spec drift, release-template.md pilot-scope rollback gap, sdd-universal template flavor branching)
 
 Full follow-up on the v2.7.78 pass's "Known gaps not fixed in this pass"

@@ -3104,6 +3104,29 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.79"},
     },
+    {
+        "from":        "2.7.79",
+        "to":          "2.7.80",
+        "description": "Fix: data-model-template.md missing Version History in frontend-spa/mobile/fullstack, security-design-template.md STRIDE column wording inconsistency in sdd-universal -- found while verifying the v2.7.79 fix batch's own consistency",
+        "notes": [
+            "data-model-template.md was missing '## Version History' in "
+            "sdd-frontend-spa, sdd-mobile, and sdd-fullstack -- only "
+            "sdd-backend-service and (as of 2.7.79) sdd-universal had it. "
+            "Found because sdd-universal's new data-model-template-frontend.md/"
+            "-mobile.md flavor files (copied verbatim from those packs' own "
+            "templates) diffed non-empty against their source -- the "
+            "source packs were the ones missing content, not the copies. "
+            "Added Version History to all three",
+            "security-design-template.md's STRIDE threat table column was "
+            "'Threat (STRIDE)' in sdd-universal but 'Threat (STRIDE "
+            "category)' in the other four packs -- pre-existing wording "
+            "drift, not something the 2.7.79 CVSS-column fix introduced. "
+            "Normalized sdd-universal to match",
+            "Verified: sync-blocks.sh clean, cli-python pytest 648/648, "
+            "assert-output.sh 33/33",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.80"},
+    },
 ]
 
 

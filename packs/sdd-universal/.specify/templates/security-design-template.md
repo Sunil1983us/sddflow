@@ -61,7 +61,7 @@
 
 ## 3. Full — Threat Model (STRIDE)
 
-| ID | Component | Threat (STRIDE) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
+| ID | Component | Threat (STRIDE category) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
 |---|---|---|---|---|---|---|
 | THR-{NNN} | {component} | Spoofing | {description} | {mitigation} | {Critical 9-10 / High 7-8.9 / Med 4-6.9 / Low 0-3.9 or "QA"} | Low/Med/High |
 | THR-{NNN} | {component} | Tampering | {description} | {mitigation} | {CVSS} | Low/Med/High |

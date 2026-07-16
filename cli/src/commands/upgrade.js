@@ -2142,6 +2142,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.79',
+    to:   '2.7.80',
+    description: "Fix: data-model-template.md missing Version History in frontend-spa/mobile/fullstack, security-design-template.md STRIDE column wording inconsistency in sdd-universal",
+    notes: [
+      "data-model-template.md was missing '## Version History' in " +
+      "sdd-frontend-spa, sdd-mobile, and sdd-fullstack -- only " +
+      "sdd-backend-service and sdd-universal had it. Added to all three",
+      "security-design-template.md's STRIDE column header was 'Threat " +
+      "(STRIDE)' in sdd-universal but 'Threat (STRIDE category)' in the " +
+      "other four packs -- normalized sdd-universal to match",
+      "This Node CLI does not implement these template files -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.80';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
