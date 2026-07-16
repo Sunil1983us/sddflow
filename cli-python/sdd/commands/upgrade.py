@@ -3007,6 +3007,51 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.77"},
     },
+    {
+        "from":        "2.7.77",
+        "to":          "2.7.78",
+        "description": "Fix: sdd-universal missing UI templates, brd-template.md drift, design-template.md numbering gap -- template quality review found real gaps beyond docs/CI",
+        "notes": [
+            "sdd-universal was missing ux-flow-template.md, "
+            "screen-spec-template.md, component-spec-template.md, and "
+            "component-library-template.md even though its own "
+            "specify-doc.prompt.md documents /specify-doc "
+            "component-spec|ux-flow|screen-spec as valid commands and "
+            "reads .specify/templates/{doc}-template.md directly -- a "
+            "broken reference for exactly the mobile/frontend project "
+            "types sdd-universal auto-detects. Added all four",
+            "ux-flow-template.md, screen-spec-template.md, and "
+            "component-spec-template.md had no ID scheme or Version "
+            "History table, unlike every other template in the system. "
+            "Added FLOW/ERR/EDGE-NNN, SCR-NNN, and COMP-NNN respectively, "
+            "plus Version History to all three. Enrolled into "
+            "_shared/full/ since they were already byte-identical across "
+            "every pack that ships them",
+            "brd-template.md had drifted uncoordinated: sdd-universal's "
+            "copy had a Section 9 Investment Summary and domain-aware "
+            "regulation pre-seeding (PCI/HIPAA/GDPR) the other four packs "
+            "(byte-identical to each other) never received. Unlike "
+            "api-spec/data-model/security-design/runbook -- which "
+            "legitimately vary by project type -- BRD content has no "
+            "such reason to differ. Enrolled into _shared/full/ using "
+            "sdd-universal's fuller version as canonical",
+            "design-template.md Section 3 skipped from 3.2 to 3.5 with "
+            "no 3.3/3.4 content anywhere in the file -- renumbered to "
+            "3.3",
+            "Known gaps NOT fixed in this pass: sdd-universal's "
+            "specify-doc.prompt.md has no project-type branching for "
+            "which flavor of data-model/security-design template to use "
+            "(a detected frontend/mobile project would get the "
+            "DB-schema/server-side flavor); sdd-universal's api-spec, "
+            "data-model, runbook, and openapi templates are each missing "
+            "content sdd-backend-service's same-flavor copies already "
+            "have; security-design-template.md has a structural (not "
+            "content) mismatch between backend and universal",
+            "This migration only bumps sdd_version -- no manifest.yml "
+            "field changes for any pack",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.78"},
+    },
 ]
 
 

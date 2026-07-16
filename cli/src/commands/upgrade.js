@@ -2070,6 +2070,41 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.77',
+    to:   '2.7.78',
+    description: "Fix: sdd-universal missing UI templates, brd-template.md drift, design-template.md numbering gap -- template quality review found real gaps beyond docs/CI",
+    notes: [
+      "sdd-universal was missing ux-flow-template.md, " +
+      "screen-spec-template.md, component-spec-template.md, and " +
+      "component-library-template.md even though its own " +
+      "specify-doc.prompt.md documents them as valid /specify-doc " +
+      "commands and reads .specify/templates/{doc}-template.md " +
+      "directly -- broken for exactly the mobile/frontend project " +
+      "types sdd-universal auto-detects. Added all four",
+      "ux-flow-template.md, screen-spec-template.md, and " +
+      "component-spec-template.md had no ID scheme or Version History " +
+      "table, unlike every other template in the system. Added " +
+      "FLOW/ERR/EDGE-NNN, SCR-NNN, and COMP-NNN respectively, plus " +
+      "Version History to all three",
+      "brd-template.md had drifted uncoordinated: sdd-universal's copy " +
+      "had a Section 9 Investment Summary and domain-aware regulation " +
+      "pre-seeding the other four packs never received, despite BRD " +
+      "content having no legitimate reason to vary by project type. " +
+      "Reconciled using sdd-universal's fuller version as canonical",
+      "design-template.md Section 3 skipped from 3.2 to 3.5 with no " +
+      "3.3/3.4 content anywhere -- renumbered to 3.3",
+      "This Node CLI does not implement /specify-doc or these template " +
+      "prompts -- this migration entry exists so both CLIs report the " +
+      "same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.78';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

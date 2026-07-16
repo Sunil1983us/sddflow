@@ -121,7 +121,7 @@ Each of the first five packs is **fully self-contained** and built from the shar
 | `/riley` | release |
 | `/morgan` | orchestrate, jira-push |
 
-### 2.4 Document Templates (31 files in `.specify/templates/`; 33 for `sdd-fullstack`)
+### 2.4 Document Templates (31 files in `.specify/templates/` for sdd-backend-service/sdd-mobile; 32 for sdd-frontend-spa; 34 for sdd-fullstack; 35 for sdd-universal — counts vary by which UI/API-flavor templates a pack ships)
 
 Every SDD output is generated from a template. Templates live in `packs/_shared/full/.specify/templates/` and sync to all packs:
 
