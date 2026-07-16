@@ -1,4 +1,5 @@
 # Screen Specification — {Feature Name}
+> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
 
 ## References
 | Source | Sections / IDs Used |
@@ -7,13 +8,13 @@
 | ux-flow.summary.md | {sections/IDs referenced} |
 
 ## Screen Inventory
-| Screen | Route/Stack | Purpose | Auth Required |
-|---|---|---|---|
-| {ScreenName} | {route} | {purpose} | Yes/No |
+| ID | Screen | Route/Stack | Purpose | Auth Required |
+|---|---|---|---|---|
+| SCR-{NNN} | {ScreenName} | {route} | {purpose} | Yes/No |
 
 ## Screen Specs
 
-### {ScreenName}
+### SCR-{NNN}: {ScreenName}
 | Property | Value |
 |---|---|
 | Stack | {navigation stack} |
@@ -33,8 +34,13 @@
 |---|---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |
 
+## Version History
+| Version | Date | Changed By | Summary of Changes | CHG-NNN |
+|---|---|---|---|---|
+| 1.0 | {date} | {author} | Initial draft | — |
+
 ## Summary
 > Lines: {N} / {SUMMARY_MAX_LINES}
-## Screens — {list}
+## Screens — {list of SCR-NNN}
 ## Navigation — {flow}
 ## Offline — {strategy}

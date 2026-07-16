@@ -216,7 +216,7 @@ per-feature, as this isn't something the component itself owns:
 
 {Repeat block per endpoint}
 
-### 3.5 NFR Budget Allocation
+### 3.3 NFR Budget Allocation
 
 > Every measurable NFR target from srd.md is split across the components on
 > its critical path — so "P99 ≤ 500ms" becomes budgets a developer can test

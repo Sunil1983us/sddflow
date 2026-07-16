@@ -5,6 +5,7 @@
 ---
 
 ## References
+
 | Source | Sections / IDs Used |
 |---|---|
 | .specify/contexts/{feature}.md | {sections/IDs referenced} |
@@ -13,6 +14,7 @@
 {2-3 sentences: what is being built, why, and for whom.}
 
 ## 2. Business Objectives
+
 | ID | Objective | Success Metric |
 |---|---|---|
 | BO-{NNN} | {objective} | {how measured} |
@@ -46,15 +48,21 @@ Out of Scope:
 - {item}
 
 ## 5. Business Requirements
+
 | ID | Requirement | Priority |
 |---|---|---|
 | BR-{NNN} | {description} | Must Have |
 | BR-{NNN} | {description} | Should Have |
 
 ## 6. Regulatory and Compliance
-| Regulation | Requirement | Impact |
-|---|---|---|
-| {regulation} | {requirement} | {design impact} |
+
+> **Domain-aware seeding:** Agent pre-populates known regulations from domain signals in `context.md`.
+> Common signals: "payment / card / PCI" → PCI-DSS | "health / patient / PHI" → HIPAA | "EU / GDPR / personal data" → GDPR | "financial / SOX" → SOX | "government / FedRAMP" → FedRAMP.
+> Rows without a confirmed regulation are marked `[NEEDS CLARIFICATION: which regulation applies to {area}?]` — these block /validate.
+
+| Regulation | Requirement | Design Impact | Confirmed? |
+|---|---|---|---|
+| {regulation — pre-seeded from domain or [NEEDS CLARIFICATION]} | {requirement} | {design impact} | [ ] |
 
 ## 7. Assumptions
 
@@ -71,10 +79,30 @@ Out of Scope:
 
 ---
 
+## 9. Investment Summary
+
+> **Purpose:** Gives the executive sponsor the cost and return context needed to sign off on BRD scope and priority.
+> Agent extracts from `context.md` if present; otherwise marks items `[NEEDS CLARIFICATION]`.
+
+| Item | Value | Source / Notes |
+|---|---|---|
+| Delivery scope | {pilot / mvp / full} | manifest.yml |
+| Build effort (T-shirt) | {S < 1 sprint / M 1–3 / L 3–6 / XL 6+} | Derived from analyze.md (filled after /analyze) |
+| Estimated team cost | {currency amount or [NEEDS CLARIFICATION]} | {from context.md or business case at {link}} |
+| Expected ROI / payback period | {e.g. 12-month payback / {N}× ROI or [NEEDS CLARIFICATION]} | {from context.md or business case} |
+| Cost of inaction | {what happens if this is NOT built} | {from context.md problem statement} |
+| Business case reference | {link / document title or N/A} | |
+
+> If cost and ROI are commercially sensitive and not appropriate for this document, state: "Investment details are in the business case at {link} — not reproduced here."
+
+---
+
 ## Approvals
+
 | Role | Approver | Status | Date |
 |---|---|---|---|
-| {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |
+| Product Owner (accountable — business objectives sign-off) | | Pending | |
+| Business Analyst (responsible — requirements accuracy) | | Pending | |
 
 ## Version History
 

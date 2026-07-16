@@ -4,6 +4,64 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.78] — 2026-07-16 (Fix: sdd-universal missing UI templates, brd-template.md drift, design-template.md numbering gap)
+
+### Fixed
+
+- **`sdd-universal` was missing four template files its own prompt
+  documents as valid.** `specify-doc.prompt.md` lists `/specify-doc
+  component-spec | ux-flow | screen-spec` as commands and reads
+  `.specify/templates/{doc}-template.md` directly with no fallback —
+  but `sdd-universal/.specify/templates/` had none of
+  `ux-flow-template.md`, `screen-spec-template.md`,
+  `component-spec-template.md`, or `component-library-template.md`.
+  Since `sdd-universal` is the pack that auto-detects mobile/frontend
+  project types, this broke exactly for the types it claims to
+  support. Added all four; `specify-doc.prompt.md`'s pack list for
+  `component-spec-template.md` now includes `sdd-universal`.
+- **`ux-flow-template.md`, `screen-spec-template.md`, and
+  `component-spec-template.md` had no ID scheme or `Version History`
+  table** — every other template in the system has both. Added
+  `FLOW-NNN`/`ERR-NNN`/`EDGE-NNN` IDs to `ux-flow-template.md`,
+  `SCR-NNN` to `screen-spec-template.md`, `COMP-NNN` to
+  `component-spec-template.md`, plus `Version History` to all three.
+  Since these three were already byte-identical across every pack
+  that ships them, enrolled them into `_shared/full/` so they're
+  sync-governed going forward.
+- **`brd-template.md` had drifted uncoordinated, not deliberately.**
+  `sdd-universal`'s copy had gained a `§9 Investment Summary` section
+  and domain-aware regulation pre-seeding (PCI/HIPAA/GDPR signal
+  detection) that the other four packs — byte-identical to each
+  other — never received. `brd-template.md` was not part of
+  `_shared/full/` despite BRD content having no legitimate reason to
+  vary by project type (unlike `api-spec`/`data-model`/
+  `security-design`/`runbook`, which correctly do). Enrolled into
+  `_shared/full/` using `sdd-universal`'s fuller version as canonical.
+- **`design-template.md` §3 skipped from 3.2 to 3.5** with no §3.3/
+  §3.4 content anywhere in the file — a leftover from prior editing,
+  not intentional. Renumbered to §3.3.
+
+### Known gaps not fixed in this pass
+
+- `sdd-universal`'s `specify-doc.prompt.md` has no project-type
+  branching for which *flavor* of `data-model-template.md`/
+  `security-design-template.md` to use — a detected frontend/mobile
+  project would currently get the DB-schema/server-side flavor
+  instead of a state-storage/client-side one. Needs prompt-level
+  type branching, not a file copy — scoping separately.
+- `sdd-universal`'s copies of `api-spec-template.md`,
+  `data-model-template.md`, `runbook-template.md`, and
+  `openapi-template.md` are each missing "Living artifact" callouts
+  or `Version History` tables that `sdd-backend-service`'s
+  same-flavor copies already have.
+- `security-design-template.md`: `sdd-backend-service` is missing the
+  CVSS-scoring column `sdd-universal` has; `sdd-universal` is missing
+  the `Version History` table `sdd-backend-service` has. Content
+  should stay pack-specific; structure should not.
+- `release-template.md`: `sdd-universal` has deploy-health alerting
+  checks and an expanded pilot-scope rollback section never
+  backported to the other packs.
+
 ## [2.7.77] — 2026-07-15 (Fix: self-approval risk undocumented, coverage gate was a bare echo, no test caught either)
 
 ### Fixed
