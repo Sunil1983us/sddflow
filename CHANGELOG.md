@@ -4,6 +4,50 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.81] — 2026-07-17 (Fix: sdd-micro/setup.sh had zero CI test coverage)
+
+Found during a full end-to-end review of the `sdd-micro` pack.
+
+### Fixed
+
+- **`sdd-micro/setup.sh` was never exercised by any test.**
+  `packs/_shared/tests/test-setup.sh`'s own header says "Smoke tests for
+  sdd-universal/setup.sh" and hardcodes `PACK_DIR=packs/sdd-universal` —
+  `sdd-micro/setup.sh` (a materially different script: `--project`/
+  `--feature` only, no `--type`/`--scope`, its own non-interactive
+  default fallback to `"untitled-project"`/`"main"`) has never been run
+  by CI, despite root `CLAUDE.md` describing the smoke-test suite as
+  covering "injection-class names, all project types, and
+  non-interactive execution" in a way that read as a blanket guarantee.
+
+### Added
+
+- `packs/_shared/tests/test-setup-micro.sh` — mirrors `test-setup.sh`'s
+  `ok()`/`nok()` structure, covering the same injection classes (single
+  quote, double quote, backslash, ampersand, slash, unicode) plus two
+  cases specific to this script: the no-args non-interactive default
+  path, and "unknown option" rejection (`sdd-micro`'s `setup.sh` has no
+  `--type` flag, unlike `sdd-universal`'s). Wired into
+  `.github/workflows/ci.yml`'s existing `setup-smoke-tests` job as a
+  second step, and documented in root `CLAUDE.md`'s "Testing Setup
+  Scripts" section.
+
+### Verified
+
+- Confirmed the new suite has teeth: temporarily disabled
+  `sdd-micro/setup.sh`'s double-quote validation guard, confirmed the 2
+  double-quote-rejection test cases failed as expected (exit 1), then
+  restored the original file (`git diff` clean) and re-ran clean
+  (12/12).
+- `test-setup.sh`: 15/15, `test-setup-micro.sh`: 12/12,
+  `assert-output.sh`: 33/33, `cli-python` pytest: 648/648 — all passed.
+- `sdd-micro`'s own `manifest.yml` `sdd_version` deliberately left
+  untouched (still `2.7.41`) — this fix only adds test/CI
+  infrastructure in this repo; it changes nothing `sdd-micro` itself
+  ships to a user's project via `sdd init --pack sdd-micro`.
+
+---
+
 ## [2.7.80] — 2026-07-16 (Fix: data-model-template.md Version History gap in 3 packs, STRIDE column wording drift in sdd-universal)
 
 Found while independently re-verifying the v2.7.79 fix batch's own

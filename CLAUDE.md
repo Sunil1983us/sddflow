@@ -181,6 +181,12 @@ bash packs/_shared/tests/test-setup.sh
 
 The suite runs setup with stdin from `/dev/null` — setup scripts must never hang or crash when run non-interactively (CI, piped input): optional prompts fall back to defaults, required ones fail fast with a message naming the missing flag.
 
+`sdd-micro/setup.sh` is a separate, structurally different script (its own `--project`/`--feature` arg surface, no `--type`/`--scope`, its own non-interactive default fallback) — it is **not** covered by `test-setup.sh` above (that suite is hardcoded to `packs/sdd-universal`). After changing `packs/sdd-micro/setup.sh`, run its own suite, also wired into the same `setup-smoke-tests` CI job:
+
+```bash
+bash packs/_shared/tests/test-setup-micro.sh
+```
+
 A second harness, `packs/_shared/tests/assert-output.sh`, makes structural
 assertions (BO/FR/UC/ACT markers, traceability, sign-offs) against a generated
 feature directory. CI runs it against `examples/todo-api` (`output-assertions`

@@ -2164,6 +2164,28 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.80',
+    to:   '2.7.81',
+    description: "Fix: sdd-micro/setup.sh had zero test coverage -- test-setup.sh only ever tested sdd-universal's setup.sh (hardcoded PACK_DIR); no manifest.yml field changes for any pack",
+    notes: [
+      "packs/_shared/tests/test-setup.sh was hardcoded to " +
+      "packs/sdd-universal -- sdd-micro/setup.sh (a materially " +
+      "different script) was never exercised by CI",
+      "Added packs/_shared/tests/test-setup-micro.sh mirroring " +
+      "test-setup.sh's structure, wired into the same setup-smoke-tests " +
+      "CI job",
+      "This Node CLI does not implement setup.sh testing -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.81';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

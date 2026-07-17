@@ -3127,6 +3127,45 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.80"},
     },
+    {
+        "from":        "2.7.80",
+        "to":          "2.7.81",
+        "description": "Fix: sdd-micro/setup.sh had zero test coverage -- test-setup.sh only ever tested sdd-universal's setup.sh (hardcoded PACK_DIR); no manifest.yml field changes for any pack, including sdd-micro (this is a CI/test-harness fix, not a pack-content change)",
+        "notes": [
+            "Found while reviewing sdd-micro end-to-end: "
+            "packs/_shared/tests/test-setup.sh's own header says 'Smoke "
+            "tests for sdd-universal/setup.sh' and hardcodes "
+            "PACK_DIR=packs/sdd-universal -- sdd-micro/setup.sh (a "
+            "materially different script: --project/--feature only, no "
+            "--type/--scope, its own non-interactive default fallback to "
+            "'untitled-project'/'main') was never exercised by CI despite "
+            "root CLAUDE.md describing the smoke-test suite as covering "
+            "'injection-class names, all project types, and "
+            "non-interactive execution' in a way that read as a blanket "
+            "guarantee",
+            "Added packs/_shared/tests/test-setup-micro.sh, mirroring "
+            "test-setup.sh's ok()/nok() structure and covering the same "
+            "injection classes (quotes, backslash, ampersand, slash, "
+            "unicode) plus two cases specific to this script: the "
+            "no-args non-interactive default path, and the 'unknown "
+            "option' rejection (sdd-micro's setup.sh has no --type flag, "
+            "unlike sdd-universal's)",
+            "Wired into .github/workflows/ci.yml's existing "
+            "setup-smoke-tests job as a second step, and documented in "
+            "root CLAUDE.md's Testing Setup Scripts section",
+            "Verified the new test actually has teeth: temporarily "
+            "disabled sdd-micro/setup.sh's double-quote validation guard, "
+            "confirmed the 2 double-quote-rejection cases failed as "
+            "expected (exit 1), then restored the original file (git "
+            "diff clean) and re-ran clean (12/12)",
+            "Deliberately kept sdd-micro's own manifest.yml sdd_version "
+            "untouched (still 2.7.41) -- this fix only adds test/CI "
+            "infrastructure in this repo, it does not change any file "
+            "sdd-micro itself ships to a user's project via `sdd init "
+            "--pack sdd-micro`",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.81"},
+    },
 ]
 
 
