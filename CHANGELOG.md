@@ -4,6 +4,58 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.82] — 2026-07-18 (Feature: Business Objectives traceability + dashboard rollup)
+
+`brd.md`'s Business Objectives (§2) and Business Requirements (§5) were
+previously unlinked siblings — nothing in the SDD chain actually connected
+"why we're building this" to "what implements it." Requested directly: "can
+we have BO and mapped use case and show in the dashboard? What is
+implemented under which feature and which status are we in?"
+
+### Added
+
+- **`brd-template.md` §5 gets a "Serves BO" column** (all 5 non-micro
+  packs) — every `BR-NNN` must now cite which `BO-NNN` from §2 it serves.
+  `specify-brd.prompt.md` updated with fill instructions: an unlinked BR
+  is either scope creep or a missing objective, and either way it should
+  be surfaced, not left blank.
+- **`status.py` traceability parsers** — `_parse_brd_bo` (brd.md §2/§5,
+  tolerant of 3- or 4-column Business Objectives tables and legacy
+  `Satisfies` column headers seen in real generated docs),
+  `_parse_uc_traces` (use-cases.md's Use Case Index table, falling back
+  to scanning narrative `### UC-NNN` sections' `**Trace:**`/`**BR
+  Traces:**` lines when no Index table exists), `_parse_srd_fr` (srd.md's
+  Functional Requirements table, tolerant of the 5-column canonical shape
+  and a 4-column `Satisfies` variant, plus §4 Use Case Coverage as a
+  UC-link fallback).
+- **`build_bo_rollup()`** chains BO → BR (brd.md "Serves BO") → FR
+  (srd.md "Source"/"Satisfies" — the reliable bridge, since
+  use-cases.md's FR Traces column is only backfilled by a manual
+  `/specify-srd` re-run and is often skipped in practice) → TASK
+  (tasks.md "Satisfies:" field + completion status). UC-NNN is gathered
+  from both use-cases.md and srd.md for display; status/percent-done is
+  computed from the BR→FR→TASK bridge. Status: task completion 0% → Not
+  Started, partial → In Progress, 100% → Done (not `release.md`'s BO
+  closure field, so the dashboard reflects live task state).
+- **Dashboard "Business Objectives" card** — a cross-feature rollup
+  (BO, Objective, Feature, Use Cases, Status, Progress) above the
+  per-feature blocks, plus a per-feature card inside each feature's
+  block.
+
+### Verified
+
+- End-to-end against `examples/todo-api`'s real
+  brd.md/use-cases.md/srd.md/tasks.md (which deviate from the raw
+  templates in exactly the ways the tolerant parsing above accounts for)
+  via the dashboard's live HTTP server, screenshotted in both light and
+  dark mode.
+- 20 new pytest cases covering 3-vs-4-column BO tables, legacy
+  `Satisfies` headers, unfilled template placeholders, the Use Case Index
+  fallback, orphaned BRs, and the flattened cross-feature rollup.
+- `sync-blocks.sh` clean, cli-python pytest 664/664.
+
+---
+
 ## [2.7.81] — 2026-07-17 (Fix: sdd-micro/setup.sh had zero CI test coverage)
 
 Found during a full end-to-end review of the `sdd-micro` pack.
