@@ -350,6 +350,44 @@ function renderTasks(tasks) {
   `;
 }
 
+function renderBusinessObjectives(bos, opts) {
+  opts = opts || {};
+  if (!bos || bos.length === 0) {
+    return '<div class="empty">No BO-NNN rows in brd.md yet, or its Business Requirements section doesn’t cite a Serves BO column.</div>';
+  }
+  const rows = bos.map(bo => {
+    const ucCell = (bo.uc_ids && bo.uc_ids.length) ? escapeHtml(bo.uc_ids.join(', ')) : '<span class="sub">none linked</span>';
+    const progressCell = bo.task_count
+      ? `${bo.percent_done}% <span class="sub">(${bo.tasks_done}/${bo.task_count})</span>`
+      : '<span class="sub">no tasks linked</span>';
+    const featureCell = opts.showFeature
+      ? `<td><a href="#${featureAnchorId(bo.feature)}">${escapeHtml(bo.feature)}</a></td>`
+      : '';
+    return `
+      <tr>
+        <td>${bo.bo_id}</td>
+        <td>${escapeHtml(bo.objective)}${bo.metric ? `<div class="sub">${escapeHtml(bo.metric)}</div>` : ''}</td>
+        ${featureCell}
+        <td>${ucCell}</td>
+        <td>${badge(bo.status, 'task')}</td>
+        <td>${progressCell}</td>
+      </tr>`;
+  }).join('');
+  const featureHeader = opts.showFeature ? '<th>Feature</th>' : '';
+  return `
+    <table><thead><tr><th>BO</th><th>Objective</th>${featureHeader}<th>Use Cases</th><th>Status</th><th>Progress</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderBusinessObjectivesOverview(businessObjectives) {
+  if (!businessObjectives || businessObjectives.length === 0) return '';
+  return `
+    <div class="card card-wide" style="margin-bottom:1.5rem">
+      <h2>Business Objectives</h2>
+      <div class="sub" style="margin-bottom:.5rem">Rolled up from each feature's brd.md (§2 Business Objectives → §5 Serves BO) through srd.md and tasks.md — which use cases implement each objective, and how much of that work is done.</div>
+      ${renderBusinessObjectives(businessObjectives, {showFeature: true})}
+    </div>`;
+}
+
 function linkPill(kind, link) {
   if (!link) return '';
   if (link.error) return `<span class="pill pill-bad" title="${escapeHtml(link.error)}">${kind} ⚠</span>`;
@@ -673,6 +711,7 @@ function renderFeature(f, project) {
     <div class="grid feature-grid">
       <div class="card card-wide"><h2>Full Pipeline</h2>${renderPipelineFlow(f, project)}</div>
       <div class="card card-wide"><h2>Documents</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence, local.jira_review)}</div>
+      <div class="card card-wide"><h2>Business Objectives</h2>${renderBusinessObjectives(f.business_objectives)}</div>
       <div class="card"><h2>Tasks</h2>${renderTasks(f.tasks)}</div>
       <div class="card"><h2>Token Usage</h2>${renderTokenUsage(f.token_usage)}</div>
       <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira, exportEntry)}</div>
@@ -712,6 +751,7 @@ function render() {
   const data = lastData;
   document.getElementById('generated-at').textContent = 'Generated ' + data.generated_at;
   const overview = renderFeatureOverview(data.features);
+  const boOverview = renderBusinessObjectivesOverview(data.business_objectives);
   const features = data.features.length
     ? data.features.map(f => renderFeature(f, data.project)).join('')
     : '<div class="empty">No features under .specify/features/ yet — run <code>/specify</code> (or <code>sdd specify</code>) to create your first one.</div>';
@@ -737,7 +777,7 @@ function render() {
     };
   }
 
-  root.innerHTML = renderProject(data.project, data.constitution) + overview + features;
+  root.innerHTML = renderProject(data.project, data.constitution) + overview + boOverview + features;
 
   if (focus) {
     const selector = `.${focus.cls}[data-feature="${CSS.escape(focus.feature)}"][data-doc="${CSS.escape(focus.doc)}"]`;

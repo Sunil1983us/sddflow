@@ -46,6 +46,65 @@ _TASK_HEADING_RE = re.compile(r"^#{2,3}\s+(TASK-\d+)\s*[—–-]+\s*(.+)$")
 _TASK_STATUS_FIELD_RE = re.compile(r"\*\*Status:\*\*\s*(.+)")
 _CHECKBOX_DONE_RE = re.compile(r"^\s*[-*]\s+\[[xX]\]")
 _CHECKBOX_OPEN_RE = re.compile(r"^\s*[-*]\s+\[\s\]")
+_SATISFIES_RE = re.compile(r"Satisfies:\s*(.+)")
+
+
+def _norm_task_status(s: str) -> str:
+    """Collapses a task's free-text/checkbox-derived status label into one
+    of done/in_progress/not_started/unknown. Shared by _parse_tasks and
+    build_bo_rollup so a task counts the same way in both places."""
+    s = s.lower()
+    if "done" in s or "complete" in s:
+        return "done"
+    if "progress" in s:
+        return "in_progress"
+    if "not started" in s or s == "":
+        return "not_started"
+    return "unknown"
+
+
+def _extract_ids(text: str, prefix: str) -> list[str]:
+    """All '{prefix}-NNN' tokens in free text, in order, deduped. Used to
+    read BO-NNN/BR-NNN/UC-NNN/FR-NNN references out of table cells that
+    are themselves free text (e.g. 'BR-002, BR-003' or 'FR-{NNN}' still
+    unfilled)."""
+    seen: list[str] = []
+    for m in re.finditer(rf"\b{prefix}-(\d+)\b", text):
+        tok = f"{prefix}-{m.group(1)}"
+        if tok not in seen:
+            seen.append(tok)
+    return seen
+
+
+def _table_rows_after_heading(lines: list[str], contains: str) -> list[list[str]]:
+    """Finds the first '## ...' heading whose text contains `contains`,
+    then parses the pipe-table immediately following it (header + separator
+    row skipped). Returns [] if the heading or a table under it isn't
+    found -- never raises; every caller treats this as best-effort, the
+    doc may not exist yet or may predate a template change."""
+    try:
+        heading_idx = next(i for i, l in enumerate(lines) if l.strip().startswith("##") and contains in l)
+    except StopIteration:
+        return []
+    sep_idx = None
+    for i in range(heading_idx + 1, len(lines)):
+        stripped = lines[i].strip()
+        if stripped.startswith("## "):
+            return []
+        if _TABLE_SEP_RE.match(stripped):
+            sep_idx = i
+            break
+    if sep_idx is None:
+        return []
+    rows = []
+    for line in lines[sep_idx + 1:]:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("## "):
+            break
+        if not (stripped.startswith("|") and stripped.endswith("|")):
+            continue
+        rows.append([c.strip() for c in stripped.strip("|").split("|")])
+    return rows
 # "Est. " is optional in the label -- token-usage-template.md dropped the
 # prefix when the Source column (Real | Estimated) was added, since a row
 # can now be either; older files created before that change still say
@@ -553,21 +612,14 @@ def _parse_tasks(tasks_path: Path) -> dict:
             else:
                 status = "In Progress"
 
-        items.append({"id": task_id, "title": title, "status": status})
+        satisfies_match = _SATISFIES_RE.search(block)
+        fr_ids = _extract_ids(satisfies_match.group(1), "FR") if satisfies_match else []
 
-    def _norm(s: str) -> str:
-        s = s.lower()
-        if "done" in s or "complete" in s:
-            return "done"
-        if "progress" in s:
-            return "in_progress"
-        if "not started" in s or s == "":
-            return "not_started"
-        return "unknown"
+        items.append({"id": task_id, "title": title, "status": status, "fr_ids": fr_ids})
 
     counts = {"done": 0, "in_progress": 0, "not_started": 0, "unknown": 0}
     for it in items:
-        counts[_norm(it["status"])] += 1
+        counts[_norm_task_status(it["status"])] += 1
 
     return {
         "format": fmt if items else "none",
@@ -577,6 +629,265 @@ def _parse_tasks(tasks_path: Path) -> dict:
         "not_started": counts["not_started"] + counts["unknown"],
         "items": items,
     }
+
+
+def _parse_brd_bo(brd_path: Path) -> dict:
+    """Reads brd.md's §2 Business Objectives and §5 Business Requirements
+    (Serves BO column) tables. Returns {'objectives': {BO-NNN: {objective,
+    metric}}, 'br_to_bo': {BR-NNN: [BO-NNN, ...]}}. Both empty if brd.md
+    doesn't exist yet, or still has unfilled template placeholders (a row
+    starting with '{' is treated as never-generated, not a real BO/BR)."""
+    try:
+        text = brd_path.read_text(errors="replace")
+    except OSError:
+        return {"objectives": {}, "br_to_bo": {}}
+    lines = text.splitlines()
+
+    objectives: dict[str, dict] = {}
+    for cells in _table_rows_after_heading(lines, "Business Objectives"):
+        # Template's canonical shape is 3 columns (ID | Objective | Success
+        # Metric); some real docs split that into Metric + Target (4
+        # columns). Accept either rather than assume one exact shape.
+        if len(cells) not in (3, 4):
+            continue
+        bo_id, objective = cells[0], cells[1]
+        metric = " / ".join(c for c in cells[2:] if c)
+        if not bo_id.startswith("BO-") or "{" in bo_id:
+            continue
+        objectives[bo_id] = {"objective": objective, "metric": metric}
+
+    br_to_bo: dict[str, list[str]] = {}
+    for cells in _table_rows_after_heading(lines, "Business Requirements"):
+        # Last column carries the BO reference regardless of its header
+        # text ('Serves BO' in the current template, 'Satisfies' in some
+        # existing docs) -- extracting BO-NNN tokens from it either way.
+        if len(cells) != 4:
+            continue
+        br_id, serves_bo = cells[0], cells[3]
+        if not br_id.startswith("BR-") or "{" in br_id:
+            continue
+        br_to_bo[br_id] = _extract_ids(serves_bo, "BO")
+
+    return {"objectives": objectives, "br_to_bo": br_to_bo}
+
+
+_UC_SECTION_RE = re.compile(r"^###\s+(UC-\d+)\b")
+_UC_BR_LINE_RE = re.compile(r"\*\*(?:BR Traces|Trace|Business Rules Applied)\s*:?\*\*\s*(.+)", re.IGNORECASE)
+_UC_FR_LINE_RE = re.compile(r"\*\*(?:FR Traces[^*]*|Linked FR-NNN)\s*:?\*\*\s*(.+)", re.IGNORECASE)
+
+
+def _parse_uc_traces(uc_path: Path) -> dict:
+    """Reads use-cases.md. Prefers the §2 Use Case Index table (BR Traces /
+    FR Traces (SRD) columns). Real, hand-evolved docs sometimes lack that
+    table entirely (older generations, or a narrative-only §3) -- in that
+    case falls back to scanning each '### UC-NNN' section for a trace line
+    ('**BR Traces:**', '**Trace:**', or '**Business Rules Applied:**' for
+    BRs; '**FR Traces...**' or '**Linked FR-NNN:**' for FRs). Returns
+    {UC-NNN: {'br_ids': [...], 'fr_ids': [...]}} -- fr_ids is [] until
+    /specify-srd has backfilled the FR trace."""
+    try:
+        text = uc_path.read_text(errors="replace")
+    except OSError:
+        return {}
+    lines = text.splitlines()
+    result: dict[str, dict] = {}
+    for cells in _table_rows_after_heading(lines, "Use Case Index"):
+        if len(cells) != 6:
+            continue
+        uc_id, _title, _actors, _priority, br_traces, fr_traces = cells
+        if not uc_id.startswith("UC-") or "{" in uc_id:
+            continue
+        result[uc_id] = {
+            "br_ids": _extract_ids(br_traces, "BR"),
+            "fr_ids": _extract_ids(fr_traces, "FR"),
+        }
+    if result:
+        return result
+
+    current: str | None = None
+    section_lines: list[str] = []
+
+    def _flush() -> None:
+        if current is None:
+            return
+        br_ids: list[str] = []
+        fr_ids: list[str] = []
+        for line in section_lines:
+            m = _UC_BR_LINE_RE.search(line)
+            if m:
+                br_ids.extend(i for i in _extract_ids(m.group(1), "BR") if i not in br_ids)
+            m = _UC_FR_LINE_RE.search(line)
+            if m:
+                fr_ids.extend(i for i in _extract_ids(m.group(1), "FR") if i not in fr_ids)
+        if current not in result:
+            result[current] = {"br_ids": br_ids, "fr_ids": fr_ids}
+        else:
+            result[current]["br_ids"].extend(i for i in br_ids if i not in result[current]["br_ids"])
+            result[current]["fr_ids"].extend(i for i in fr_ids if i not in result[current]["fr_ids"])
+
+    for line in lines:
+        m = _UC_SECTION_RE.match(line.strip())
+        if m:
+            _flush()
+            current = m.group(1)
+            section_lines = []
+        elif current is not None:
+            section_lines.append(line)
+    _flush()
+    return result
+
+
+def _parse_srd_fr(srd_path: Path) -> dict:
+    """Reads srd.md's Functional Requirements table plus (if present) its
+    §4 Use Case Coverage table. Handles both the canonical 5-column §2
+    shape (ID | Requirement | UC Trace | Source | Priority -- 'Source'
+    carries BR-NNN, 'UC Trace' carries UC-NNN) and a 4-column variant seen
+    in some existing docs (ID | Requirement | Priority | Satisfies --
+    'Satisfies' carries BR-NNN, no UC Trace column). Use Case Coverage
+    rows (FR-NNN | UC Trace | Coverage Confirmed?) supplement FR->UC links
+    when §2 lacks one. Returns {FR-NNN: {'br_ids': [...], 'uc_ids': [...]}}."""
+    try:
+        text = srd_path.read_text(errors="replace")
+    except OSError:
+        return {}
+    lines = text.splitlines()
+    result: dict[str, dict] = {}
+    for cells in _table_rows_after_heading(lines, "Functional Requirements"):
+        if len(cells) == 5:
+            fr_id, _req, uc_trace, source, _priority = cells
+        elif len(cells) == 4:
+            fr_id, _req, _priority, source = cells
+            uc_trace = ""
+        else:
+            continue
+        if not fr_id.startswith("FR-") or "{" in fr_id:
+            continue
+        result[fr_id] = {
+            "br_ids": _extract_ids(source, "BR"),
+            "uc_ids": _extract_ids(uc_trace, "UC"),
+        }
+    for cells in _table_rows_after_heading(lines, "Use Case Coverage"):
+        if len(cells) != 3:
+            continue
+        fr_id, uc_trace, _confirmed = cells
+        if not fr_id.startswith("FR-") or "{" in fr_id:
+            continue
+        entry = result.setdefault(fr_id, {"br_ids": [], "uc_ids": []})
+        for uc_id in _extract_ids(uc_trace, "UC"):
+            if uc_id not in entry["uc_ids"]:
+                entry["uc_ids"].append(uc_id)
+    return result
+
+
+def build_bo_rollup(root: Path, feature: str) -> list[dict]:
+    """Chains BO (brd.md §2) -> BR (brd.md §5 'Serves BO' column) -> FR
+    (srd.md Functional Requirements 'Source'/'Satisfies' column, which
+    cites the BR it implements) -> TASK (tasks.md 'Satisfies:' field +
+    completion status) to compute how much of a business objective's work
+    is actually done. UC-NNN for display is gathered from both directions
+    -- use-cases.md's own 'BR Traces' column, and srd.md's 'UC Trace'
+    column/§4 Use Case Coverage table -- since real documents don't
+    reliably backfill use-cases.md's FR Traces column (that's a manual
+    /specify-uc re-run after /specify-srd, and it's often skipped), so the
+    BR->FR link from srd.md is the more reliable bridge to task
+    completion; the UC->FR link is used only when present, as a bonus.
+
+    Read-only, best-effort: any link not yet generated (use-cases.md or
+    srd.md not written yet, tasks.md doesn't exist yet) just means fewer
+    tasks are counted, never an error. Returns [] if brd.md has no BO-NNN
+    rows yet (nothing to roll up)."""
+    feature_dir = root / ".specify" / "features" / feature
+    brd = _parse_brd_bo(feature_dir / "brd.md")
+    if not brd["objectives"]:
+        return []
+
+    uc_traces = _parse_uc_traces(feature_dir / "use-cases.md")
+    fr_meta = _parse_srd_fr(feature_dir / "srd.md")
+    tasks = _parse_tasks(feature_dir / "tasks.md")
+
+    bo_to_br: dict[str, list[str]] = {bo_id: [] for bo_id in brd["objectives"]}
+    for br_id, bo_ids in brd["br_to_bo"].items():
+        for bo_id in bo_ids:
+            if bo_id in bo_to_br:
+                bo_to_br[bo_id].append(br_id)
+
+    br_to_uc: dict[str, list[str]] = {}
+    for uc_id, trace in uc_traces.items():
+        for br_id in trace["br_ids"]:
+            br_to_uc.setdefault(br_id, []).append(uc_id)
+
+    br_to_fr: dict[str, list[str]] = {}
+    fr_to_uc: dict[str, list[str]] = {}
+    for fr_id, meta in fr_meta.items():
+        for br_id in meta["br_ids"]:
+            br_to_fr.setdefault(br_id, []).append(fr_id)
+        for uc_id in meta["uc_ids"]:
+            fr_to_uc.setdefault(fr_id, []).append(uc_id)
+
+    fr_to_tasks: dict[str, list[dict]] = {}
+    for item in tasks["items"]:
+        for fr_id in item.get("fr_ids", []):
+            fr_to_tasks.setdefault(fr_id, []).append(item)
+
+    rollup = []
+    for bo_id, meta in brd["objectives"].items():
+        br_ids = bo_to_br.get(bo_id, [])
+
+        uc_ids: list[str] = []
+        for br_id in br_ids:
+            for uc_id in br_to_uc.get(br_id, []):
+                if uc_id not in uc_ids:
+                    uc_ids.append(uc_id)
+
+        fr_ids: list[str] = []
+        for br_id in br_ids:
+            for fr_id in br_to_fr.get(br_id, []):
+                if fr_id not in fr_ids:
+                    fr_ids.append(fr_id)
+        # Bonus: FR Traces already backfilled in use-cases.md for one of
+        # this BO's UCs -- catches an FR that srd.md's own table missed.
+        for uc_id in uc_ids:
+            for fr_id in uc_traces.get(uc_id, {}).get("fr_ids", []):
+                if fr_id not in fr_ids:
+                    fr_ids.append(fr_id)
+        for fr_id in fr_ids:
+            for uc_id in fr_to_uc.get(fr_id, []):
+                if uc_id not in uc_ids:
+                    uc_ids.append(uc_id)
+
+        related_tasks: dict[str, dict] = {}
+        for fr_id in fr_ids:
+            for t in fr_to_tasks.get(fr_id, []):
+                related_tasks[t["id"]] = t
+
+        total = len(related_tasks)
+        norm_counts = {"done": 0, "in_progress": 0}
+        for t in related_tasks.values():
+            n = _norm_task_status(t["status"])
+            if n in norm_counts:
+                norm_counts[n] += 1
+        done = norm_counts["done"]
+
+        if total == 0:
+            status_label = "Not Started"
+        elif done == total:
+            status_label = "Done"
+        elif done > 0 or norm_counts["in_progress"] > 0:
+            status_label = "In Progress"
+        else:
+            status_label = "Not Started"
+
+        rollup.append({
+            "bo_id": bo_id,
+            "objective": meta["objective"],
+            "metric": meta["metric"],
+            "uc_ids": uc_ids,
+            "task_count": total,
+            "tasks_done": done,
+            "percent_done": round(100 * done / total) if total else 0,
+            "status": status_label,
+        })
+    return rollup
 
 
 def _parse_command_log_sources(text: str) -> dict:
@@ -788,6 +1099,7 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
         "docs": docs,
         "current_stage": _current_stage(docs, feature, scope),
         "tasks": tasks,
+        "business_objectives": build_bo_rollup(root, feature),
         "token_usage": _parse_token_usage(feature_dir / "token-usage.md"),
         "local_links": {
             "jira": _local_jira_links(root, feature, base_url),
@@ -811,6 +1123,23 @@ def build_project_status(root: str | Path = ".") -> dict:
     plan_mode = manifest.get("plan_mode") or "unified"
     constitution = _constitution_status(root)
 
+    features = [
+        build_feature_status(root, f, constitution=constitution, plan_mode=plan_mode, scope=scope)
+        for f in _list_feature_names(root)
+    ]
+
+    # Cross-feature Business Objectives rollup: each feature's brd.md has
+    # its own independent BO-NNN numbering (no service-level BRD -- every
+    # feature is deliberately self-contained), so BO-002 in one feature and
+    # BO-002 in another are unrelated. Tag each with its feature so the
+    # dashboard can show one consolidated list without id collisions --
+    # same trick a Jira key (PROJ-123) uses for the same reason.
+    business_objectives = [
+        {**bo, "feature": f["name"]}
+        for f in features
+        for bo in f["business_objectives"]
+    ]
+
     return {
         "project": {
             "name":            proj.get("name") or None,
@@ -822,9 +1151,7 @@ def build_project_status(root: str | Path = ".") -> dict:
             "sdd_version":     manifest.get("sdd_version"),
         },
         "constitution": constitution,
-        "features": [
-            build_feature_status(root, f, constitution=constitution, plan_mode=plan_mode, scope=scope)
-            for f in _list_feature_names(root)
-        ],
+        "features": features,
+        "business_objectives": business_objectives,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }

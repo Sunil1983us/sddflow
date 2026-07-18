@@ -1052,4 +1052,294 @@ def test_persona_for_public_wrapper_matches_internal_lookup():
         "ask": "write the SRD for payments",
     }
     assert persona_for("srd", "payments", None) is None
+
+
+# ── BO → BR → FR → TASK Rollup (build_bo_rollup) ─────────────────────────
+# Chains brd.md §2 Business Objectives -> §5 "Serves BO" -> srd.md
+# Functional Requirements "Source"/"Satisfies" column -> tasks.md
+# "Satisfies:" field + completion status. use-cases.md/srd.md UC Trace
+# columns are display-only (which UCs implement a BO), not part of the
+# completion count.
+
+from sdd.utils.status import (
+    build_bo_rollup, _parse_brd_bo, _parse_uc_traces, _parse_srd_fr,
+)
+
+
+def _write_brd_bo(feature_dir: Path, four_col_objectives: bool = False) -> None:
+    if four_col_objectives:
+        obj_table = (
+            "| ID | Objective | Metric | Target |\n"
+            "|---|---|---|---|\n"
+            "| BO-001 | Increase conversion | Conversion rate | +5% |\n"
+        )
+    else:
+        obj_table = (
+            "| ID | Objective | Success Metric |\n"
+            "|---|---|---|\n"
+            "| BO-001 | Increase conversion | Conversion rate +5% |\n"
+        )
+    (feature_dir / "brd.md").write_text(
+        "# BRD\n"
+        "## 2. Business Objectives\n"
+        f"{obj_table}\n"
+        "## 5. Business Requirements\n"
+        "| ID | Requirement | Priority | Serves BO |\n"
+        "|---|---|---|---|\n"
+        "| BR-001 | Allow signup | Must Have | BO-001 |\n"
+        "| BR-002 | Allow checkout | Must Have | BO-001 |\n"
+    )
+
+
+def test_parse_brd_bo_canonical_3_column_objectives(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    _write_brd_bo(feature_dir)
+    result = _parse_brd_bo(feature_dir / "brd.md")
+    assert result["objectives"]["BO-001"]["objective"] == "Increase conversion"
+    assert result["br_to_bo"]["BR-001"] == ["BO-001"]
+    assert result["br_to_bo"]["BR-002"] == ["BO-001"]
+
+
+def test_parse_brd_bo_tolerates_4_column_objectives_table(tmp_path):
+    """Real generated docs sometimes split Success Metric into Metric +
+    Target (4 cells instead of the template's 3) -- must not come back
+    empty just because of that."""
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    _write_brd_bo(feature_dir, four_col_objectives=True)
+    result = _parse_brd_bo(feature_dir / "brd.md")
+    assert "BO-001" in result["objectives"]
+    assert "Conversion rate" in result["objectives"]["BO-001"]["metric"]
+    assert "+5%" in result["objectives"]["BO-001"]["metric"]
+
+
+def test_parse_brd_bo_tolerates_legacy_satisfies_header(tmp_path):
+    """Some existing docs header the BR->BO column 'Satisfies' (with
+    free-text annotations) instead of the newer 'Serves BO' -- the BO-NNN
+    token must still be extracted regardless of header wording."""
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\n"
+        "## 2. Business Objectives\n"
+        "| ID | Objective | Success Metric |\n"
+        "|---|---|---|\n"
+        "| BO-001 | Increase conversion | +5% |\n\n"
+        "## 5. Business Requirements\n"
+        "| ID | Requirement | Priority | Satisfies |\n"
+        "|---|---|---|---|\n"
+        "| BR-001 | Allow signup | Must Have | BO-001 (trust/compliance) |\n"
+    )
+    result = _parse_brd_bo(feature_dir / "brd.md")
+    assert result["br_to_bo"]["BR-001"] == ["BO-001"]
+
+
+def test_parse_brd_bo_ignores_unfilled_template_placeholders(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\n"
+        "## 2. Business Objectives\n"
+        "| ID | Objective | Success Metric |\n"
+        "|---|---|---|\n"
+        "| BO-{NNN} | {objective} | {metric} |\n"
+    )
+    result = _parse_brd_bo(feature_dir / "brd.md")
+    assert result["objectives"] == {}
+
+
+def test_parse_brd_bo_missing_file_returns_empty(tmp_path):
+    result = _parse_brd_bo(tmp_path / "nonexistent" / "brd.md")
+    assert result == {"objectives": {}, "br_to_bo": {}}
+
+
+def test_parse_uc_traces_from_index_table(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "use-cases.md").write_text(
+        "## §2 Use Case Index\n"
+        "| UC-ID | Title | Actor(s) | Priority | BR Traces | FR Traces (SRD) |\n"
+        "|---|---|---|---|---|---|\n"
+        "| UC-001 | Sign up | ACT-001 | High | BR-001 | FR-001 |\n"
+    )
+    result = _parse_uc_traces(feature_dir / "use-cases.md")
+    assert result["UC-001"] == {"br_ids": ["BR-001"], "fr_ids": ["FR-001"]}
+
+
+def test_parse_uc_traces_falls_back_to_narrative_sections(tmp_path):
+    """Real docs sometimes never had a '## Use Case Index' table at all
+    (older generations) -- falls back to scanning each '### UC-NNN'
+    section's '**Trace:**' line."""
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "use-cases.md").write_text(
+        "## 2. Use Cases\n"
+        "### UC-001 — Create Task\n"
+        "**Actor:** ACT-001\n"
+        "**Trace:** BR-001, BR-002\n"
+        "### UC-002 — List Tasks\n"
+        "**Actor:** ACT-001\n"
+        "**Trace:** BR-002\n"
+    )
+    result = _parse_uc_traces(feature_dir / "use-cases.md")
+    assert result["UC-001"]["br_ids"] == ["BR-001", "BR-002"]
+    assert result["UC-002"]["br_ids"] == ["BR-002"]
+    assert result["UC-001"]["fr_ids"] == []
+
+
+def test_parse_uc_traces_missing_file_returns_empty(tmp_path):
+    assert _parse_uc_traces(tmp_path / "nonexistent" / "use-cases.md") == {}
+
+
+def test_parse_srd_fr_canonical_5_column(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "srd.md").write_text(
+        "## 2. Functional Requirements\n"
+        "| ID | Requirement | UC Trace | Source | Priority |\n"
+        "|---|---|---|---|---|\n"
+        "| FR-001 | Create task | UC-001 | BR-001 | Must Have |\n"
+    )
+    result = _parse_srd_fr(feature_dir / "srd.md")
+    assert result["FR-001"] == {"br_ids": ["BR-001"], "uc_ids": ["UC-001"]}
+
+
+def test_parse_srd_fr_tolerates_4_column_satisfies_variant(tmp_path):
+    """Some existing docs skip the UC Trace column entirely (ID |
+    Requirement | Priority | Satisfies)."""
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "srd.md").write_text(
+        "## Functional Requirements\n"
+        "| ID | Requirement | Priority | Satisfies |\n"
+        "|---|---|---|---|\n"
+        "| FR-001 | Create task | HIGH | BR-001, BR-002 |\n"
+    )
+    result = _parse_srd_fr(feature_dir / "srd.md")
+    assert result["FR-001"]["br_ids"] == ["BR-001", "BR-002"]
+    assert result["FR-001"]["uc_ids"] == []
+
+
+def test_parse_srd_fr_use_case_coverage_supplements_uc_ids(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "srd.md").write_text(
+        "## Functional Requirements\n"
+        "| ID | Requirement | Priority | Satisfies |\n"
+        "|---|---|---|---|\n"
+        "| FR-001 | Create task | HIGH | BR-001 |\n\n"
+        "## 4. Use Case Coverage\n"
+        "| FR-NNN | UC Trace | Coverage Confirmed? |\n"
+        "|---|---|---|\n"
+        "| FR-001 | UC-001 | [x] |\n"
+    )
+    result = _parse_srd_fr(feature_dir / "srd.md")
+    assert result["FR-001"]["uc_ids"] == ["UC-001"]
+
+
+def _write_full_chain(root: Path, feature: str, task_status_line: str) -> Path:
+    feature_dir = root / ".specify" / "features" / feature
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    _write_brd_bo(feature_dir)
+    (feature_dir / "use-cases.md").write_text(
+        "## §2 Use Case Index\n"
+        "| UC-ID | Title | Actor(s) | Priority | BR Traces | FR Traces (SRD) |\n"
+        "|---|---|---|---|---|---|\n"
+        "| UC-001 | Sign up | ACT-001 | High | BR-001 | |\n"
+    )
+    (feature_dir / "srd.md").write_text(
+        "## 2. Functional Requirements\n"
+        "| ID | Requirement | UC Trace | Source | Priority |\n"
+        "|---|---|---|---|---|\n"
+        "| FR-001 | Create account | UC-001 | BR-001 | Must Have |\n"
+    )
+    (feature_dir / "tasks.md").write_text(
+        "### TASK-001 — Build signup\n"
+        "**Satisfies:** FR-001\n"
+        f"{task_status_line}\n"
+        "  - [x] done marker\n"
+    )
+    return feature_dir
+
+
+def test_build_bo_rollup_full_chain_done(tmp_path):
+    _write_full_chain(tmp_path, "payments", "")
+    rollup = build_bo_rollup(tmp_path, "payments")
+    assert len(rollup) == 1
+    bo = rollup[0]
+    assert bo["bo_id"] == "BO-001"
+    assert bo["uc_ids"] == ["UC-001"]
+    assert bo["task_count"] == 1
+    assert bo["tasks_done"] == 1
+    assert bo["percent_done"] == 100
+    assert bo["status"] == "Done"
+
+
+def test_build_bo_rollup_not_started_when_task_incomplete(tmp_path):
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    _write_brd_bo(feature_dir)
+    (feature_dir / "srd.md").write_text(
+        "## 2. Functional Requirements\n"
+        "| ID | Requirement | UC Trace | Source | Priority |\n"
+        "|---|---|---|---|---|\n"
+        "| FR-001 | Create account | UC-001 | BR-001 | Must Have |\n"
+    )
+    (feature_dir / "tasks.md").write_text(
+        "### TASK-001 — Build signup\n"
+        "**Satisfies:** FR-001\n"
+        "  - [ ] not done yet\n"
+    )
+    rollup = build_bo_rollup(tmp_path, "payments")
+    assert rollup[0]["tasks_done"] == 0
+    assert rollup[0]["status"] == "Not Started"
+
+
+def test_build_bo_rollup_empty_when_no_brd(tmp_path):
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    assert build_bo_rollup(tmp_path, "payments") == []
+
+
+def test_build_bo_rollup_orphaned_br_not_served_by_any_bo_contributes_nothing(tmp_path):
+    """A BR-NNN whose 'Serves BO' cell is blank (or cites a BO not in §2)
+    must not silently attach its tasks to some other objective."""
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\n"
+        "## 2. Business Objectives\n"
+        "| ID | Objective | Success Metric |\n"
+        "|---|---|---|\n"
+        "| BO-001 | Increase conversion | +5% |\n\n"
+        "## 5. Business Requirements\n"
+        "| ID | Requirement | Priority | Serves BO |\n"
+        "|---|---|---|---|\n"
+        "| BR-001 | Orphan requirement | Must Have | |\n"
+    )
+    (feature_dir / "srd.md").write_text(
+        "## 2. Functional Requirements\n"
+        "| ID | Requirement | UC Trace | Source | Priority |\n"
+        "|---|---|---|---|---|\n"
+        "| FR-001 | Orphan FR | | BR-001 | Must Have |\n"
+    )
+    (feature_dir / "tasks.md").write_text(
+        "### TASK-001 — Orphan task\n"
+        "**Satisfies:** FR-001\n"
+        "  - [x] done\n"
+    )
+    rollup = build_bo_rollup(tmp_path, "payments")
+    assert rollup[0]["task_count"] == 0
+    assert rollup[0]["status"] == "Not Started"
+
+
+def test_build_project_status_flattens_bo_rollup_with_feature_tag(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    _write_full_chain(tmp_path, "payments", "")
+    status = build_project_status(".")
+    assert len(status["business_objectives"]) == 1
+    assert status["business_objectives"][0]["feature"] == "payments"
+    assert status["business_objectives"][0]["bo_id"] == "BO-001"
     assert persona_for("specify", "payments", "pilot") is None

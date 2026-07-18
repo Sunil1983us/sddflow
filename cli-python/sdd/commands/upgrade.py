@@ -3166,6 +3166,60 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.81"},
     },
+    {
+        "from":        "2.7.81",
+        "to":          "2.7.82",
+        "description": "Feature: Business Objectives traceability + dashboard rollup -- brd.md's Business Objectives (§2) and Business Requirements (§5) were previously unlinked siblings; adds a 'Serves BO' column to §5 and rolls BO -> BR -> FR -> TASK up into a per-feature and cross-feature Business Objectives view in `sdd dashboard`",
+        "notes": [
+            "Added 'Serves BO' column to brd-template.md's §5 Business "
+            "Requirements table (all 5 non-micro packs) -- every BR-NNN "
+            "must now cite which BO-NNN from §2 it serves. Updated "
+            "specify-brd.prompt.md with fill instructions",
+            "Added status.py parsers: _parse_brd_bo (brd.md §2/§5, "
+            "tolerant of 3- or 4-column Business Objectives tables and "
+            "legacy 'Satisfies' column headers), _parse_uc_traces "
+            "(use-cases.md Use Case Index table, falls back to scanning "
+            "narrative '### UC-NNN' sections' '**Trace:**'/'**BR "
+            "Traces:**' lines when no Index table exists), _parse_srd_fr "
+            "(srd.md Functional Requirements table, tolerant of the "
+            "5-column canonical shape and a 4-column 'Satisfies' "
+            "variant, plus §4 Use Case Coverage as a UC-link fallback)",
+            "Added build_bo_rollup(): chains BO -> BR (brd.md 'Serves "
+            "BO') -> FR (srd.md 'Source'/'Satisfies', the reliable "
+            "bridge since use-cases.md's FR Traces column is only "
+            "backfilled by a manual /specify-srd re-run and is often "
+            "skipped in practice) -> TASK (tasks.md 'Satisfies:' field + "
+            "completion status). UC-NNN is gathered from both "
+            "use-cases.md and srd.md for display, but status/percent-done "
+            "is computed from the BR->FR->TASK bridge only",
+            "Wired into build_feature_status() (per-feature "
+            "'business_objectives' key) and build_project_status() (flat "
+            "cross-feature 'business_objectives' list, each row tagged "
+            "with its feature name -- BO-NNN numbering is local to each "
+            "feature's brd.md, same as the existing Actor Registry "
+            "pattern)",
+            "Added a 'Business Objectives' card to `sdd dashboard`: a "
+            "cross-feature rollup card (BO, Objective, Feature, Use "
+            "Cases, Status, Progress) shown above the per-feature blocks, "
+            "plus a per-feature card in each feature's block",
+            "Status computed by task completion percentage (0 done -> "
+            "Not Started, some done or in-progress -> In Progress, all "
+            "done -> Done), not release.md's BO closure field -- picked "
+            "so the dashboard reflects live task state rather than a "
+            "field only updated at /release time",
+            "Verified end-to-end against examples/todo-api's real "
+            "brd.md/use-cases.md/srd.md/tasks.md (which deviate from the "
+            "raw templates in exactly the ways the tolerant parsing "
+            "above accounts for) via the dashboard's live HTTP server, "
+            "screenshotted in both light and dark mode",
+            "Added 20 pytest cases covering 3-vs-4-column BO tables, "
+            "legacy 'Satisfies' headers, unfilled template placeholders, "
+            "the Use Case Index fallback, orphaned BRs, and the flattened "
+            "cross-feature rollup",
+            "Verified: sync-blocks.sh clean, cli-python pytest 664/664",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.82"},
+    },
 ]
 
 

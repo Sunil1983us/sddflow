@@ -49,10 +49,15 @@ Out of Scope:
 
 ## 5. Business Requirements
 
-| ID | Requirement | Priority |
-|---|---|---|
-| BR-{NNN} | {description} | Must Have |
-| BR-{NNN} | {description} | Should Have |
+| ID | Requirement | Priority | Serves BO |
+|---|---|---|---|
+| BR-{NNN} | {description} | Must Have | BO-{NNN} |
+| BR-{NNN} | {description} | Should Have | BO-{NNN} |
+
+> **Serves BO** — every BR-NNN must trace to at least one BO-{NNN} from §2. This is
+> what lets a later rollup (across features) answer "what's actually delivering on
+> this business objective" — a BR with no BO it serves is either scope creep or a
+> missed objective in §2; resolve one or the other before /validate.
 
 ## 6. Regulatory and Compliance
 

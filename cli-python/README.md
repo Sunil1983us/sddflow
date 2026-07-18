@@ -539,6 +539,7 @@ Shows, per feature under `.specify/features/`:
     BRD"), which would misleadingly suggest the doc doesn't exist yet.
     sdd-micro has no Virtual Team, so none of this ever appears there.
 - **Documents** — every generated doc and its `Status:` (Draft/Approved/etc.), with a best-effort "what's next" guess, including the same persona ask shown on the Full Pipeline's Next box when the next doc has an owner. Each doc has a **View** button that reads the raw `.md` straight from disk into the page — no need to leave the browser to check content.
+- **Business Objectives** — chains `brd.md` §2 Business Objectives → §5's `Serves BO` column → `srd.md`'s Functional Requirements → `tasks.md`'s completion status, so each `BO-NNN` shows which `UC-NNN`s implement it and how much of that work is actually done (0% → Not Started, partial → In Progress, 100% → Done). Shown per-feature, plus a **cross-feature rollup card** above all the feature blocks — "of these business objectives across all features, which are met, which are pending, and where." Empty until `brd.md` §5 rows cite a `Serves BO`.
 - **Tasks** — parsed from `tasks.md` (works with both the full packs' checkbox-based tasks and sdd-micro's `**Status:**` field)
 - **Token Usage** — the running totals from `token-usage.md`, if token usage logging is enabled for that feature
 - **Jira Export** — the Epic/Story/Task links from the progressive export (`docs/jira/{feature}/keys.yml`), if you've run `/jira-push` or `sdd jira push`

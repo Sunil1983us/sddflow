@@ -2186,6 +2186,25 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.81',
+    to:   '2.7.82',
+    description: "Feature: Business Objectives traceability + dashboard rollup -- brd.md's Business Objectives (§2) and Business Requirements (§5) were previously unlinked siblings; adds a 'Serves BO' column to §5 and rolls BO -> BR -> FR -> TASK up into a per-feature and cross-feature Business Objectives view in `sdd dashboard`",
+    notes: [
+      "Added 'Serves BO' column to brd-template.md's §5 Business " +
+      "Requirements table (all 5 non-micro packs) -- every BR-NNN must " +
+      "now cite which BO-NNN from §2 it serves",
+      "This Node CLI does not implement the dashboard or status.py " +
+      "parsers -- this migration entry exists so both CLIs report the " +
+      "same sdd_version chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.82';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

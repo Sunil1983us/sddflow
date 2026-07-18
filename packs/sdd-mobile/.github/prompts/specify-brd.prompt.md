@@ -32,6 +32,11 @@ Generate `brd.md` for the current feature:
   identifiers are assigned when actors are defined. Omit roles not present in `roles.yml`.
 - Every business goal: **BG-NNN**
 - Every non-functional requirement: **NFR-NNN** — must include a measurable target (e.g. "< 200ms p99", "99.9% uptime")
+- **§5 Business Requirements — Serves BO column:** every `BR-NNN` must cite
+  which `BO-NNN` from §2 it serves. If a requirement doesn't trace to any
+  stated objective, either it's scope creep (flag it, don't silently include
+  it) or §2 is missing an objective — surface this rather than leaving the
+  column blank. A BR may serve more than one BO; list all that apply.
 - Marker discipline:
   - `[ASSUMPTION-NNN: {what}]` — safe default applied; needs sign-off
   - `[NEEDS CLARIFICATION-NNN: {question}]` — no safe default; human decision
