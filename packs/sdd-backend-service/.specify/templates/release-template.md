@@ -78,6 +78,8 @@ Choose deployment strategy based on NFR requirements:
 | {key happy-path endpoint} | {expected response} | [ ] |
 | Logs show no ERROR within {N} min | true | [ ] |
 | {key NFR — e.g. P99 latency} | within target (NFR-{NNN}) | [ ] |
+| No new P1/P2 alerts in monitoring system within {N} min of deploy | Zero new alerts | [ ] |
+| Error rate in APM/dashboard | < 1% baseline | [ ] |
 
 ---
 
@@ -109,7 +111,19 @@ Choose deployment strategy based on NFR requirements:
 
 ## 7. Rollback Plan
 
-{Summary — full detail in docs/runbook/local-setup.md §6}
+> **MVP+ scope:** Full rollback detail is in `docs/runbook/local-setup.md §6`. Summary below for quick reference.
+>
+> **Pilot scope:** Runbook not generated at pilot scope. Document your rollback steps here before proceeding to §5 Go-Live Gate. Minimum required:
+
+| Step | Action | Owner | Time Estimate |
+|---|---|---|---|
+| 1 | Revert application to previous image / deployment | {devops_sre} | {N} min |
+| 2 | Roll back DB migrations if any were applied (run V{NNN}__down.sql) | {devops_sre} | {N} min |
+| 3 | Verify health endpoint returns 200 on previous version | {devops_sre} | {N} min |
+| 4 | Notify stakeholders — rollback complete | {tech_lead} | {N} min |
+
+**Rollback decision owner:** Tech Lead — triggers rollback if smoke test fails or P1 alert fires within {N} min of go-live.
+**Maximum acceptable rollback time:** {N} minutes (from decision to stable previous state).
 
 ---
 

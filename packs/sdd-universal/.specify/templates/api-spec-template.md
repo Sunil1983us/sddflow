@@ -16,7 +16,7 @@
 | Source | Sections / IDs Used |
 |---|---|
 | srd.summary.md | {sections/IDs referenced — drafted at /specify} |
-| arch.summary.md | {sections/IDs referenced — refined at /plan-arch: ports/adapters} |
+| design.summary.md | {which feature added/changed which endpoints} |
 
 ## 1. Base URL
 ```
@@ -146,3 +146,9 @@
 | Role | Approver | Status | Date |
 |---|---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |
+
+## Version History
+
+| Version | Date | Feature | Change | CR |
+|---|---|---|---|---|
+| 1.0 | {date} | {feature that first created this document} | Initial API surface | — |

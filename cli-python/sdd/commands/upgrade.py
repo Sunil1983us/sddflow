@@ -3052,6 +3052,120 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.78"},
     },
+    {
+        "from":        "2.7.78",
+        "to":          "2.7.79",
+        "description": "Fix: runbook-template.md missing living-doc framing in 4 packs, security-design/data-model/api-spec inconsistencies across packs, release-template.md pilot-scope broken rollback reference, sdd-universal had no project-type flavor branching for data-model/security/runbook",
+        "notes": [
+            "runbook-template.md was missing its 'Living artifact' framing "
+            "paragraph and used '# Feature: {Feature Name}' instead of "
+            "'# Service:'/'# App:' in frontend-spa, mobile, fullstack, and "
+            "sdd-universal (only sdd-backend-service had it correct) -- an "
+            "agent following the template literally would treat the "
+            "runbook as a fresh per-feature doc instead of extending the "
+            "living one, silently dropping a prior feature's additions. "
+            "Fixed all four",
+            "security-design-template.md was inconsistent across packs: "
+            "only sdd-backend-service had a Version History table; only "
+            "sdd-universal had the CVSS scoring column and the 2-row "
+            "Security Officer/Tech Lead Approvals table. Reconciled all "
+            "five packs to have all three",
+            "data-model-template.md and api-spec-template.md were missing "
+            "Version History tables in sdd-universal (both docs) and "
+            "sdd-fullstack (api-spec only). Added. Also fixed "
+            "sdd-universal's api-spec-template.md References row, which "
+            "cited 'arch.summary.md ... ports/adapters' -- leftover text "
+            "that didn't match how api-spec.md is actually fed (per "
+            "plan-design.prompt.md Section 3: design.summary.md, which "
+            "feature added/changed which endpoints)",
+            "release-template.md Section 7 Rollback Plan pointed to "
+            "docs/runbook/local-setup.md in sdd-backend-service, "
+            "frontend-spa, mobile, and fullstack even at pilot scope, "
+            "where the runbook is never generated -- a broken reference. "
+            "Backported sdd-universal's pilot-scope fallback rollback "
+            "table (already correct there) to all four packs, plus two "
+            "extra Post-Deploy Smoke Test monitoring rows sdd-universal "
+            "already had",
+            "sdd-universal's specify-doc.prompt.md read one single "
+            "template flavor for data-model and security-design "
+            "regardless of detected project_type -- a frontend-spa or "
+            "mobile project would get the DB-schema/server-side flavor "
+            "instead of state/storage-model or local-cache-model content. "
+            "Added project_type branching (frontend-spa/desktop -> "
+            "*-template-frontend.md, mobile -> *-template-mobile.md, "
+            "else -> default) to the shared specify-doc.prompt.md source "
+            "(safe no-op for the other four packs, which have no "
+            "project_type field) and shipped the new frontend/mobile "
+            "flavor template files for sdd-universal. Same fix applied to "
+            "runbook generation in implement.prompt.md",
+            "Verified: sync-blocks.sh clean, cli-python pytest 648/648, "
+            "assert-output.sh 33/33 on both worked examples, setup smoke "
+            "tests 15/15",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.79"},
+    },
+    {
+        "from":        "2.7.79",
+        "to":          "2.7.80",
+        "description": "Fix: data-model-template.md missing Version History in frontend-spa/mobile/fullstack, security-design-template.md STRIDE column wording inconsistency in sdd-universal -- found while verifying the v2.7.79 fix batch's own consistency",
+        "notes": [
+            "data-model-template.md was missing '## Version History' in "
+            "sdd-frontend-spa, sdd-mobile, and sdd-fullstack -- only "
+            "sdd-backend-service and (as of 2.7.79) sdd-universal had it. "
+            "Found because sdd-universal's new data-model-template-frontend.md/"
+            "-mobile.md flavor files (copied verbatim from those packs' own "
+            "templates) diffed non-empty against their source -- the "
+            "source packs were the ones missing content, not the copies. "
+            "Added Version History to all three",
+            "security-design-template.md's STRIDE threat table column was "
+            "'Threat (STRIDE)' in sdd-universal but 'Threat (STRIDE "
+            "category)' in the other four packs -- pre-existing wording "
+            "drift, not something the 2.7.79 CVSS-column fix introduced. "
+            "Normalized sdd-universal to match",
+            "Verified: sync-blocks.sh clean, cli-python pytest 648/648, "
+            "assert-output.sh 33/33",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.80"},
+    },
+    {
+        "from":        "2.7.80",
+        "to":          "2.7.81",
+        "description": "Fix: sdd-micro/setup.sh had zero test coverage -- test-setup.sh only ever tested sdd-universal's setup.sh (hardcoded PACK_DIR); no manifest.yml field changes for any pack, including sdd-micro (this is a CI/test-harness fix, not a pack-content change)",
+        "notes": [
+            "Found while reviewing sdd-micro end-to-end: "
+            "packs/_shared/tests/test-setup.sh's own header says 'Smoke "
+            "tests for sdd-universal/setup.sh' and hardcodes "
+            "PACK_DIR=packs/sdd-universal -- sdd-micro/setup.sh (a "
+            "materially different script: --project/--feature only, no "
+            "--type/--scope, its own non-interactive default fallback to "
+            "'untitled-project'/'main') was never exercised by CI despite "
+            "root CLAUDE.md describing the smoke-test suite as covering "
+            "'injection-class names, all project types, and "
+            "non-interactive execution' in a way that read as a blanket "
+            "guarantee",
+            "Added packs/_shared/tests/test-setup-micro.sh, mirroring "
+            "test-setup.sh's ok()/nok() structure and covering the same "
+            "injection classes (quotes, backslash, ampersand, slash, "
+            "unicode) plus two cases specific to this script: the "
+            "no-args non-interactive default path, and the 'unknown "
+            "option' rejection (sdd-micro's setup.sh has no --type flag, "
+            "unlike sdd-universal's)",
+            "Wired into .github/workflows/ci.yml's existing "
+            "setup-smoke-tests job as a second step, and documented in "
+            "root CLAUDE.md's Testing Setup Scripts section",
+            "Verified the new test actually has teeth: temporarily "
+            "disabled sdd-micro/setup.sh's double-quote validation guard, "
+            "confirmed the 2 double-quote-rejection cases failed as "
+            "expected (exit 1), then restored the original file (git "
+            "diff clean) and re-ran clean (12/12)",
+            "Deliberately kept sdd-micro's own manifest.yml sdd_version "
+            "untouched (still 2.7.41) -- this fix only adds test/CI "
+            "infrastructure in this repo, it does not change any file "
+            "sdd-micro itself ships to a user's project via `sdd init "
+            "--pack sdd-micro`",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.81"},
+    },
 ]
 
 

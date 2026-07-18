@@ -140,3 +140,9 @@
 | Role | Approver | Status | Date |
 |---|---|---|---|
 | {Reviewer — see this command's Review: gate in CLAUDE.md} | | Pending | |
+
+## Version History
+
+| Version | Date | Feature | Change | CR |
+|---|---|---|---|---|
+| 1.0 | {date} | {feature that first created this document} | Initial API surface | — |

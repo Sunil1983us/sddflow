@@ -108,7 +108,20 @@ Choose deployment strategy based on NFR requirements:
 
 ## 7. Rollback Plan
 
-{Summary — full detail in docs/runbook/local-setup.md §6 (backend) and §6a (frontend)}
+> **MVP+ scope:** Full rollback detail is in `docs/runbook/local-setup.md §6` (backend) and `§6a` (frontend). Summary below for quick reference.
+>
+> **Pilot scope:** Runbook not generated at pilot scope. Document your rollback steps here before proceeding to §5 Go-Live Gate. Minimum required:
+
+| Step | Action | Owner | Time Estimate |
+|---|---|---|---|
+| 1 | Revert backend application to previous image / deployment | {devops_sre} | {N} min |
+| 2 | Roll back DB migrations if any were applied (run V{NNN}__down.sql) | {devops_sre} | {N} min |
+| 3 | Redeploy previous frontend static build / revert CDN deploy | {devops_sre} | {N} min |
+| 4 | Verify health endpoint + frontend app both return to previous version | {devops_sre} | {N} min |
+| 5 | Notify stakeholders — rollback complete | {tech_lead} | {N} min |
+
+**Rollback decision owner:** Tech Lead — triggers rollback if smoke test fails or a P1 alert fires within {N} min of go-live.
+**Maximum acceptable rollback time:** {N} minutes (from decision to stable previous state).
 
 ---
 
