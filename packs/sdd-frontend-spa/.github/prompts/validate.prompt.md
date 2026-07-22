@@ -37,29 +37,9 @@ Produce a business sign-off report:
    These should be resolved before sign-off — proceeding anyway will risk
    finding ambiguities during /plan-design."
    (Do NOT block validate — /checklist is optional. Only NEEDS CLARIFICATION
-   markers from Item 2 above are hard-blocking.)
+   markers from Item 0a below are hard-blocking.)
 
-1. BUSINESS OBJECTIVE TRACE
-   For each BO-NNN in brd.md: objective, success metric, which FR-NNN
-   in srd.md addresses it. Flag any BO-NNN with no FR-NNN.
-
-2. BUSINESS REQUIREMENTS REVIEW
-   For each BR-NNN in brd.md: is it correctly reflected in srd.md?
-   Flag any BR-NNN not reflected.
-
-3. ASSUMPTIONS SIGN-OFF
-   List every `[ASSUMPTION-NNN]` from brd.md and srd.md for the business
-   owner to confirm or reject.
-
-**When the user corrects or rejects an assumption (§3):**
-For each `[ASSUMPTION-NNN]` the owner marks as incorrect:
-1. Update the source spec document (brd.md or srd.md) — replace the assumption with the confirmed value
-2. Increment the document's version in its header (e.g. 1.0 → 1.1)
-3. Append to the document's `## Version History`:
-   `| {new version} | {today} | /validate | ASSUMPTION-{NNN} corrected during business sign-off: {what changed} | — |`
-4. Regenerate the document's `.summary.md` (max SUMMARY_MAX_LINES lines)
-
-3a. NEEDS CLARIFICATION SCAN (blocking)
+0a. NEEDS CLARIFICATION SCAN (blocking)
    **Before scanning**: if `.specify/integrations.yml` has `document_reviews.validate`
    configured, run `sdd review pull-answers --doc validate` first — this
    applies any new Jira/Confluence comments to brd.md/use-cases.md/srd.md
@@ -99,6 +79,26 @@ For each `[ASSUMPTION-NNN]` the owner marks as incorrect:
    patch the docs, and re-check automatically."
    If the command fails or isn't configured, just present the table above
    for the user/agent to resolve directly (unchanged fallback behavior).
+
+1. BUSINESS OBJECTIVE TRACE
+   For each BO-NNN in brd.md: objective, success metric, which FR-NNN
+   in srd.md addresses it. Flag any BO-NNN with no FR-NNN.
+
+2. BUSINESS REQUIREMENTS REVIEW
+   For each BR-NNN in brd.md: is it correctly reflected in srd.md?
+   Flag any BR-NNN not reflected.
+
+3. ASSUMPTIONS SIGN-OFF
+   List every `[ASSUMPTION-NNN]` from brd.md and srd.md for the business
+   owner to confirm or reject.
+
+**When the user corrects or rejects an assumption (§3):**
+For each `[ASSUMPTION-NNN]` the owner marks as incorrect:
+1. Update the source spec document (brd.md or srd.md) — replace the assumption with the confirmed value
+2. Increment the document's version in its header (e.g. 1.0 → 1.1)
+3. Append to the document's `## Version History`:
+   `| {new version} | {today} | /validate | ASSUMPTION-{NNN} corrected during business sign-off: {what changed} | — |`
+4. Regenerate the document's `.summary.md` (max SUMMARY_MAX_LINES lines)
 
 4. SCOPE CONFIRMATION
    List in-scope and out-of-scope items from brd.md for confirmation.

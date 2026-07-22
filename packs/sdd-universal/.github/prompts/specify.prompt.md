@@ -283,6 +283,17 @@ version bump + change-rules.md Change Impact Matrix cross-reference) and WAIT fo
 user confirmation before applying any change. On confirmation, apply the change,
 then re-push the same way as above if `confluence:` is configured.
 
+Save the amendment record: `.specify/memory/constitution-amendments/CA-{NNN}.md`
+(create the `constitution-amendments/` directory if it doesn't exist — `{NNN}`
+is the next sequential number, CA-001 for this project's first amendment). Use
+`.specify/templates/constitution-amendment-template.md`, populating §1 Version
+Change and §2 Changed Rows from the summary above and §3 Change Impact Matrix
+from the change-rules.md lookup already done; leave §4/§5 as-is (this record
+documents what changed — GATE-1's manual confirmation above is the approval,
+not a new review gate). This is the permanent audit trail change-rules.md
+refers to when it says "Constitution amendments: saved separately via
+constitution-amendment-template.md".
+
 ---
 
 ## After GATE-1 — Generate Spec Documents

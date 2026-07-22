@@ -61,27 +61,44 @@
 
 > Populate this table from the Exception Paths in `use-cases.md §3`. Every EP that involves auth, data access, or external system failure is a candidate audit event.
 
+**OWASP Top 10 Controls Mapping** — for each category, state the concrete control (or `N/A — {why}` if genuinely inapplicable). Several map directly to the rows above:
+
+| OWASP Top 10 (2021) | Applies? | Control |
+|---|---|---|
+| A01 Broken Access Control | Yes/No | {control — ties to Authorization denied row above} |
+| A02 Cryptographic Failures | Yes/No | {control, e.g. TLS-only API calls, no sensitive data in localStorage} |
+| A03 Injection (XSS) | Yes/No | {control, e.g. framework auto-escaping, no dangerouslySetInnerHTML/v-html without sanitization} |
+| A04 Insecure Design | Yes/No | {control} |
+| A05 Security Misconfiguration | Yes/No | {control — ties to Clickjacking/CSP rows above} |
+| A06 Vulnerable and Outdated Components | Yes/No | {control — ties to Dependency scan row above} |
+| A07 Identification and Authentication Failures | Yes/No | {control} |
+| A08 Software and Data Integrity Failures | Yes/No | {control — ties to Third-party scripts/SRI row above} |
+| A09 Security Logging and Monitoring Failures | Yes/No | {control — ties to Audit logging row above} |
+| A10 Server-Side Request Forgery (SSRF) | N/A — client only, no server-side fetch on this component's behalf | — |
+
 ---
 
-## 3. Full — Threat Model (STRIDE)
+## 3. Threat Model (STRIDE) — mvp+
 
-| ID | Component | Threat (STRIDE category) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
+> STRIDE threat enumeration + DREAD scoring applies at mvp and full scope. DAST and the Penetration Test Plan below are full scope only — skip those two subsections entirely at mvp.
+
+| ID | Component | Threat (STRIDE category) | Description | Mitigation | DREAD (sum, /15) | Residual Risk |
 |---|---|---|---|---|---|---|
-| THR-{NNN} | {component} | Spoofing | {description, e.g. token theft via XSS} | {mitigation, e.g. httpOnly cookie + CSP} | {Critical 9-10 / High 7-8.9 / Med 4-6.9 / Low 0-3.9 or "QA"} | Low/Med/High |
-| THR-{NNN} | {component} | Tampering | {description, e.g. tampered client-side state/localStorage} | {mitigation, e.g. server-side re-validation, SEC-7 classification} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {component} | Repudiation | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {component} | Information Disclosure | {description, e.g. sensitive data cached in browser storage} | {mitigation, e.g. data-model.md §6 classification — no sensitive data in localStorage} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {component} | Denial of Service | {description, e.g. third-party script outage blocking render} | {mitigation, e.g. resilience.md error boundary + async loading} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {component} | Elevation of Privilege | {description, e.g. client-side-only route guard bypass} | {mitigation, e.g. server-side authZ enforcement — never trust client routing} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {component} | Spoofing | {description, e.g. token theft via XSS} | {mitigation, e.g. httpOnly cookie + CSP} | {sum 5-15, e.g. 8 — High} | Low/Med/High |
+| THR-{NNN} | {component} | Tampering | {description, e.g. tampered client-side state/localStorage} | {mitigation, e.g. server-side re-validation, SEC-7 classification} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {component} | Repudiation | {description} | {mitigation} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {component} | Information Disclosure | {description, e.g. sensitive data cached in browser storage} | {mitigation, e.g. data-model.md §6 classification — no sensitive data in localStorage} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {component} | Denial of Service | {description, e.g. third-party script outage blocking render} | {mitigation, e.g. resilience.md error boundary + async loading} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {component} | Elevation of Privilege | {description, e.g. client-side-only route guard bypass} | {mitigation, e.g. server-side authZ enforcement — never trust client routing} | {DREAD} | Low/Med/High |
 
-> **CVSS column:** Use the [CVSS 3.1 calculator](https://www.first.org/cvss/calculator/3.1) for formal scoring, or use the qualitative band (Critical/High/Med/Low) and mark "QA" if formal scoring is out of scope. Any THR with CVSS ≥ 7.0 (High or Critical) must have a confirmed mitigation before /release.
+> **DREAD column:** sum of Damage + Reproducibility + Exploitability + Affected users + Discoverability, each rated 1 (Low) / 2 (Medium) / 3 (High) per specify-doc.prompt.md's rubric (total range 5-15; bands: ≥10 Critical, 7-9 High, 4-6 Medium, 1-3 Low). Any THR scoring High or Critical must have a confirmed mitigation before `/plan-design` — earlier than a `/release`-time gate would catch it, so architecture work never builds on top of an unmitigated threat.
 
-### DAST
+### DAST (full scope only)
 | Target | Tool | Frequency |
 |---|---|---|
 | {staging URL} | {tool, e.g. OWASP ZAP} | {e.g. every release} |
 
-### Penetration Test Plan
+### Penetration Test Plan (full scope only)
 | Scope | Trigger | Owner |
 |---|---|---|
 | {in-scope app + consumed APIs} | {e.g. before go-live, annually} | {team} |
@@ -110,7 +127,7 @@
   placeholders only; no API keys baked into the bundle
 
 ---
-*Pilot: section 1 only | MVP: + section 2 | Full: + sections 3-4*
+*Pilot: section 1 only | MVP: + section 2 + §3 STRIDE/DREAD threat table | Full: + §3 DAST/Pen Test + section 4*
 
 ## Approvals
 <!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->

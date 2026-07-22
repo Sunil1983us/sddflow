@@ -2244,6 +2244,43 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.84',
+    to:   '2.7.85',
+    description: "Fix batch: full template/parser audit found tasks.md checkboxes never flipped by /implement (neutering the BO rollup dashboard), CHG-NNN tasks invisible to the task-heading regex, validate.prompt.md's own step numbering colliding with its template, security-design.md mixing CVSS into a doc that always intended DREAD, CF-NNN consistency findings never reaching clarify.md's gate, and release.md/qa-testcases.md data never feeding back into anything downstream",
+    notes: [
+      "Tier 1 (7 fixes): implement.prompt.md now flips tasks.md's own " +
+      "checkboxes instead of only reporting completion in chat; " +
+      "_TASK_HEADING_RE (status.py + sdd_parser.py) widened to " +
+      "TASK-NNN|PERF-NNN|CHG-NNN, plus change.prompt.md's CHG-NNN " +
+      "template rewritten to an actual heading block so the regex fix " +
+      "isn't a no-op; validate.prompt.md's '3a' clarification-scan step " +
+      "renumbered to '0a' to stop colliding with the template's real " +
+      "§3a section; use-cases-template.md gained an Independent Test " +
+      "field per UC; security-design-template.md reconciled to DREAD " +
+      "scoring everywhere (was mixing in CVSS) plus a new OWASP Top 10 " +
+      "Controls Mapping table; CF-NNN consistency findings now flow " +
+      "from analyze.md into clarify.md's own gate; " +
+      "constitution-amendment-template.md (previously dead) wired into " +
+      "every pack's /specify GATE-1 re-run flow",
+      "Tier 2 (4 fixes): release.md's BO Closure 'Met?' checkbox gained " +
+      "a No state and now feeds status.py's build_bo_rollup() as new " +
+      "outcome/measured_result fields (surfaced in sdd dashboard as a " +
+      "Business Outcome column); release.prompt.md's UAT Plan now pairs " +
+      "each UC-NNN with its qa-testcases.md/smoke-tests.md TC-NNN(s); " +
+      "jira-export-template.md's manual CSV gained a TC Reference " +
+      "column; jira.py's parse_changeset() no longer silently drops the " +
+      "PR/Status columns from changesets/{CR}.md's §4 table",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: cli-python pytest 682/682, assert-output.sh clean on " +
+      "both worked examples",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.85';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

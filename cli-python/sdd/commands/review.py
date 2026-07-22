@@ -490,7 +490,7 @@ def _patch_marker(md_path: Path, nnn: str, answer: str) -> bool:
 # Jira for answers the way validate.md already could -- this second, parallel
 # parse/patch pair gives it the same workflow.
 
-_CLARIFY_ITEM_CODE = r'(?:AMB|GAP|CON|ASM|OQ|R)-\d+'
+_CLARIFY_ITEM_CODE = r'(?:AMB|GAP|CON|ASM|OQ|CF|R)-\d+'
 _CLARIFY_STATUS_ROW_RE = re.compile(
     r'^\|\s*(' + _CLARIFY_ITEM_CODE + r')\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*OPEN\s*\|\s*$',
     re.MULTILINE | re.IGNORECASE,

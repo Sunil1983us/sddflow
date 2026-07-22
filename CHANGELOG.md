@@ -4,6 +4,108 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.85] — 2026-07-22 (Fix batch: template/parser audit — 11 fixes across the pipeline)
+
+A full audit of all 31 templates in `sdd-backend-service` (representative of
+the 5 non-micro packs) asked two questions per document: what's written but
+never read downstream, and what's read but never actually generated. Found
+20+ issues; this release fixes the 7 critical (Tier 1) and 4 follow-up
+(Tier 2) items.
+
+### Fixed — Tier 1 (critical)
+
+- **`/implement` never flipped `tasks.md`'s own checkboxes.** It reported
+  completion in chat but left every `- [ ]` unchanged — `sdd dashboard`'s
+  task progress and Business Objectives rollup are computed purely by
+  counting checked boxes, so a task could ship and still read as
+  "Not Started" forever. `implement.prompt.md` (all 5 packs) now instructs
+  flipping the acceptance-criteria checkboxes for the task just confirmed.
+- **`CHG-NNN` tasks were invisible to the task-completion parser.**
+  `_TASK_HEADING_RE` in both `status.py` and `sdd_parser.py` only matched
+  `TASK-NNN`/`PERF-NNN` headings — `status.py` was additionally missing
+  `PERF-NNN` outright (an inconsistency between the two regex locations).
+  Widened both to `TASK-NNN|PERF-NNN|CHG-NNN`. Also found mid-fix:
+  `change.prompt.md`'s own CHG-NNN generation template used a
+  colon/indented format with no markdown heading at all — the regex
+  widening alone would have been a no-op, so the template was rewritten to
+  match `tasks-template.md`'s real `###` heading-block shape.
+- **`validate.prompt.md`'s own step numbering collided with its
+  template.** The blocking "3a. NEEDS CLARIFICATION SCAN" step shared a
+  number with the template's real "§3a Use Case Business Review" section.
+  Renumbered to "0a" (right after the existing "0. CHECKLIST GATE"
+  pre-flight), and `validate-template.md` gained the missing
+  `## 0a. Needs Clarification Scan` table it never actually had.
+- **`use-cases-template.md` had no Independent Test field**, despite
+  `/checklist`'s own spec-quality rubric checking for "UCs without
+  Independent Test." Added the field to both UC blocks;
+  `specify-uc.prompt.md` fills it.
+- **`security-design-template.md` mixed CVSS scoring into a threat table
+  that always intended DREAD** (per `specify-doc.prompt.md`'s own 5-factor
+  rubric), with a mismatched `/release`-time gate instead of the intended
+  `/plan-design`-time gate. Reconciled to DREAD everywhere, corrected the
+  gate, fixed the STRIDE section's scope gating (`mvp+`, with DAST/Pen
+  Test explicitly `full` only), and added a new OWASP Top 10 Controls
+  Mapping table to §2 (mobile's existing OWASP MASVS table was moved into
+  scope rather than duplicated).
+- **CF-NNN (Consistency Findings) never reached `/clarify`'s gate**,
+  despite `analyze.prompt.md`'s own severity guide already saying
+  "CRITICAL — block /clarify." Added a CF-NNN section + STATUS TABLE row
+  to `clarify-template.md`, an instruction to `clarify.prompt.md` to
+  include every CRITICAL finding, and widened `review.py`'s
+  `_CLARIFY_ITEM_CODE` regex to recognize the `CF` prefix end-to-end
+  (parse, patch, push-questions/pull-answers).
+- **`constitution-amendment-template.md` was entirely dead** — referenced
+  only as "the save location" by `change-rules.md`, nothing ever generated
+  it. Wired into every pack's `/specify` GATE-1 re-run flow: confirming a
+  proposed amendment now saves a record to
+  `.specify/memory/constitution-amendments/CA-{NNN}.md`.
+
+### Fixed — Tier 2 (follow-up)
+
+- **`release.md`'s §6 Business Objective Closure had no way to record "not
+  met"** — only `[ ] Yes [ ] Pending`. Added `[ ] No` across all 5 packs,
+  and `status.py` gained `_parse_release_bo_closure()` wired into
+  `build_bo_rollup()` as new `outcome`/`measured_result` fields —
+  additive, alongside (not replacing) the existing task-completion-derived
+  `status` field. `sdd dashboard`'s Business Objectives table gained a
+  Business Outcome column showing Met/Not Met/Pending once `/release` has
+  run.
+- **`qa-testcases.md`'s `UAT Relevant: Yes` rows never reached the UAT
+  plan** — `/release`'s UAT Plan step derived scenarios purely from
+  `use-cases.md`, with no link to which TC-NNN actually gets executed for
+  sign-off. `release-template.md`'s UAT Plan table gained a TC-NNN column
+  (all 5 packs, adapted per pack's existing column set), and
+  `release.prompt.md` now pairs each UC-NNN row with its
+  `qa-testcases.md` TC-NNN(s) at mvp+, or `smoke-tests.md`'s TC-S-NNN at
+  pilot.
+- **`jira-export-template.md`'s manual-import CSV had no test-case
+  traceability** — FR/UC references were carried into the CSV fallback
+  path, but TC-NNN wasn't. Added a TC Reference column (Task rows only) to
+  both CSV samples and the manual-mapping instructions.
+- **`jira.py`'s `parse_changeset()` silently dropped the PR and Status
+  columns** from a changeset's §4 `CHG-NNN Implementation Tasks` table —
+  only `sdd_id`/`description`/`satisfies`/`est_lines` were ever captured.
+  Rewritten to a tolerant per-line cell parser that captures both
+  (`pr`/`status` default to `None` for older 4-column rows, never
+  dropping the row), and surfaces them in the pushed CHG issue's
+  description.
+
+### Added
+
+- New pytest coverage for every fix above: task-heading PERF/CHG counting,
+  CF-NNN parse/patch round-trip, `_parse_release_bo_closure`
+  (met/not_met/pending/unfilled-placeholder), `build_bo_rollup` outcome
+  wiring, and `parse_changeset`'s PR/Status/legacy-4-column/placeholder-row
+  handling.
+
+### Verified
+
+- `cli-python` pytest 682/682 (was 672 before this batch).
+- `packs/_shared/tests/assert-output.sh` clean on both worked examples
+  (`examples/todo-api`, `examples/habit-tracker-web`).
+
+---
+
 ## [2.7.84] — 2026-07-18 (Docs: HOW-TO-USE.md Phase 0 never mentioned `sdd config init`)
 
 Asked directly, right after the v2.7.83 `sdd config init` fix: "is that all

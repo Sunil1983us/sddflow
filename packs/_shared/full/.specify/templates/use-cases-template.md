@@ -92,7 +92,8 @@
 
 **Business Rules Applied:** BR-{NNN}, BR-{NNN}  
 **Linked FR-NNN:** _(filled by /specify-srd)_  
-**Non-Functional Constraints:** NFR-{NNN}
+**Non-Functional Constraints:** NFR-{NNN}  
+**Independent Test:** {one sentence — how this UC can be verified in isolation}
 
 ---
 
@@ -136,7 +137,8 @@
 
 **Business Rules Applied:** BR-{NNN}  
 **Linked FR-NNN:** _(filled by /specify-srd)_  
-**Non-Functional Constraints:** NFR-{NNN}
+**Non-Functional Constraints:** NFR-{NNN}  
+**Independent Test:** {one sentence — how this UC can be verified in isolation}
 
 ---
 

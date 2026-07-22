@@ -3309,6 +3309,81 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.84"},
     },
+    {
+        "from":        "2.7.84",
+        "to":          "2.7.85",
+        "description": "Fix batch: full template/parser audit found tasks.md checkboxes never flipped by /implement (silently neutering the BO rollup dashboard), CHG-NNN tasks invisible to the task-heading regex, validate.prompt.md's own step numbering colliding with its template, security-design.md mixing CVSS scoring into a doc that always intended DREAD, CF-NNN consistency findings never reaching clarify.md's gate, and release.md's BO Closure/qa-testcases.md's UAT-relevant rows never feeding back into anything downstream",
+        "notes": [
+            "Tier 1 (7 fixes): (1) implement.prompt.md now instructs "
+            "flipping tasks.md's own acceptance-criteria checkboxes from "
+            "[ ] to [x], not just reporting completion in chat -- "
+            "'sdd dashboard' counts checked boxes, an unflipped box read "
+            "as not-done no matter what shipped; (2) status.py's and "
+            "sdd_parser.py's _TASK_HEADING_RE widened to accept "
+            "TASK-NNN|PERF-NNN|CHG-NNN (status.py was missing PERF-NNN "
+            "entirely -- a latent inconsistency between the two regex "
+            "locations found mid-fix), plus change.prompt.md's CHG-NNN "
+            "generation template rewritten to an actual ### heading block "
+            "matching tasks-template.md's shape (it previously had no "
+            "markdown heading at all, so the regex widening alone would "
+            "have been a no-op); (3) validate.prompt.md's blocking '3a. "
+            "NEEDS CLARIFICATION SCAN' step renumbered to '0a' (it "
+            "collided with the template's real '§3a Use Case Business "
+            "Review' section) and validate-template.md gained the "
+            "missing '## 0a. Needs Clarification Scan' table; (4) "
+            "use-cases-template.md gained an Independent Test field per "
+            "UC (specify-uc.prompt.md updated to fill it); (5) "
+            "security-design-template.md's Threat Model reconciled to "
+            "DREAD scoring everywhere (was mixing in CVSS with a "
+            "mismatched /release gate) with the STRIDE section correctly "
+            "scoped to mvp+, plus a new OWASP Top 10 Controls Mapping "
+            "table (mobile's existing OWASP MASVS table moved into scope "
+            "instead of duplicated); (6) CF-NNN (Consistency Findings) "
+            "from analyze.md's own CRITICAL severity gate now actually "
+            "reach clarify.md -- new template section, clarify.prompt.md "
+            "instruction, and review.py's _CLARIFY_ITEM_CODE regex "
+            "widened to recognize the CF prefix; (7) "
+            "constitution-amendment-template.md (previously entirely "
+            "dead -- referenced only as 'the save location', nothing "
+            "ever generated it) wired into every pack's /specify GATE-1 "
+            "re-run flow, saving CA-{NNN}.md amendment records",
+            "Tier 2 (4 fixes): (1) release.md's §6 Business Objective "
+            "Closure 'Met?' checkbox widened from Yes/Pending to "
+            "Yes/No/Pending (there was previously no way to record a "
+            "missed objective at all), and status.py gained "
+            "_parse_release_bo_closure() wired into build_bo_rollup() as "
+            "new 'outcome'/'measured_result' fields alongside (not "
+            "replacing) the existing task-completion-derived 'status' -- "
+            "surfaced in sdd dashboard's Business Objectives table as a "
+            "new Business Outcome column; (2) release.prompt.md's UAT "
+            "Plan step now pairs each UC-NNN row with the TC-NNN(s) that "
+            "actually exercise it (qa-testcases.md's UAT Relevant: Yes "
+            "rows at mvp+, smoke-tests.md's TC-S-NNN at pilot) instead of "
+            "restating the UC with no test-case traceability at all -- "
+            "release-template.md's UAT Plan table gained a TC-NNN column "
+            "in all 5 packs; (3) jira-export-template.md's manual-import "
+            "CSV gained a TC Reference column (Task rows only) so the "
+            "CSV fallback path doesn't silently drop qa-testcases.md "
+            "traceability the way it already carries FR/UC references; "
+            "(4) jira.py's parse_changeset() was silently dropping the "
+            "PR and Status columns from changesets/{CR}.md's §4 table -- "
+            "rewritten to a tolerant per-line cell parser that captures "
+            "both (defaulting to None for older 4-column rows) and "
+            "surfaces them in the CHG Jira issue's description",
+            "New pytest coverage for every fix: task-heading PERF/CHG "
+            "counting, CF-NNN parse/patch round-trip, "
+            "_parse_release_bo_closure (met/not_met/pending/unfilled-"
+            "placeholder), build_bo_rollup outcome wiring, and "
+            "parse_changeset's PR/Status/legacy-4-column/placeholder-row "
+            "handling",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 682/682, assert-output.sh clean "
+            "on both worked examples",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.85"},
+    },
 ]
 
 

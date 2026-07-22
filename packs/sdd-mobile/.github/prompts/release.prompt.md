@@ -41,7 +41,13 @@ Produce the release plan:
 
 2. UAT PLAN
    One row per UC-NNN from use-cases.md: scenario, tester role (from
-   roles.yml), device/OS target, environment, result checkbox
+   roles.yml), device/OS target, environment, result checkbox. Pair
+   each row with the TC-NNN(s) that actually exercise it: mvp+ — from
+   qa-testcases.md §1 Test Coverage Summary rows marked
+   `UAT Relevant: Yes`; pilot — from smoke-tests.md's TC-S-NNN list
+   (already curated to the UAT-worthy flows). Every UAT-relevant
+   TC-NNN/TC-S-NNN must land in exactly one row — this is what actually
+   gets executed for sign-off, not a UC restated from scratch.
 
 3. STORE RELEASE PLAN
    **The release strategy and rollback steps are standard for this app,
@@ -71,7 +77,7 @@ Produce the release plan:
 
 6. BUSINESS OBJECTIVE CLOSURE
    For each BO-NNN from brd.md: success metric, measured result or
-   "measure after N days", met? yes/pending
+   "measure after N days", met? yes/no/pending
 
 7. ROLLBACK PLAN
    Summary — point to docs/runbook/local-setup.md §6 for full detail

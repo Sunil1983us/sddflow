@@ -222,7 +222,7 @@ def parse_tasks(path: str | Path = ".specify/features") -> list[Task]:
 # TASK-{NNN}/PERF-{NNN} heading: the shipped tasks-template.md uses "###"
 # (H3) with an em-dash ("### TASK-001 — Title"); accept "##" too (older
 # style) and any colon/dash separator.
-_TASK_HEADING_RE = re.compile(r'^#{2,3}\s+(TASK-\d+|PERF-\d+)\s*[:—–-]+\s*(.+)')
+_TASK_HEADING_RE = re.compile(r'^#{2,3}\s+(TASK-\d+|PERF-\d+|CHG-\d+)\s*[:—–-]+\s*(.+)')
 
 # Field labels used as plain (unbolded) lines in tasks.md -- stops a
 # multi-line block (e.g. Files:) from swallowing the next field.

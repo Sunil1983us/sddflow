@@ -12,6 +12,15 @@
 | use-cases.summary.md | {UC-NNN actor + flow confirmed} |
 | srd.summary.md | {sections/IDs referenced} |
 
+## 0a. Needs Clarification Scan (blocking)
+
+> Every `[NEEDS CLARIFICATION-NNN: ...]` marker in brd.md, use-cases.md, or
+> srd.md must be answered before business sign-off. Empty table = none found.
+
+| ID | Locations | Question |
+|---|---|---|
+| {doc}:NC-{NNN} | {doc}:NC-{NNN}{, other-doc:NC-{NNN} if duplicated} | {marker text, verbatim} |
+
 ## 1. Business Objective Trace
 
 | BO-NNN (from BRD) | Objective | Success Metric | Addressed By (FR-NNN) | Reviewer Confirms |

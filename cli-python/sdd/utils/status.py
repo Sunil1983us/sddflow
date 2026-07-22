@@ -42,7 +42,7 @@ _PIPELINE_ORDER = {key: i for i, (key, _label) in enumerate(PIPELINE_DOCS)}
 _PIPELINE_LABELS = dict(PIPELINE_DOCS)
 
 _STATUS_RE = re.compile(r"Status:\s*([A-Za-z][\w -]*)")
-_TASK_HEADING_RE = re.compile(r"^#{2,3}\s+(TASK-\d+)\s*[—–-]+\s*(.+)$")
+_TASK_HEADING_RE = re.compile(r"^#{2,3}\s+(TASK-\d+|PERF-\d+|CHG-\d+)\s*[—–-]+\s*(.+)$")
 _TASK_STATUS_FIELD_RE = re.compile(r"\*\*Status:\*\*\s*(.+)")
 _CHECKBOX_DONE_RE = re.compile(r"^\s*[-*]\s+\[[xX]\]")
 _CHECKBOX_OPEN_RE = re.compile(r"^\s*[-*]\s+\[\s\]")
@@ -779,6 +779,40 @@ def _parse_srd_fr(srd_path: Path) -> dict:
     return result
 
 
+_BO_CLOSURE_CHECKBOX_RE = re.compile(r'\[([ xX])\]\s*(Yes|No|Pending)')
+
+
+def _parse_release_bo_closure(release_path: Path) -> dict:
+    """Parses release.md 'Business Objective Closure' table -- the actual
+    measured business outcome, as opposed to build_bo_rollup's own
+    task-completion-derived status. Returns {BO-NNN: {"outcome": "met" /
+    "not_met" / "pending" / None, "measured_result": str}}. Best-effort:
+    {} if release.md doesn't exist yet or the table isn't found -- most
+    features haven't reached /release yet, that's normal, not an error."""
+    try:
+        text = release_path.read_text(errors="replace")
+    except OSError:
+        return {}
+    lines = text.splitlines()
+    result: dict[str, dict] = {}
+    for cells in _table_rows_after_heading(lines, "Business Objective Closure"):
+        if len(cells) != 4:
+            continue
+        bo_id, _metric, measured_result, met = cells
+        if not bo_id.startswith("BO-") or "{" in bo_id:
+            continue
+        outcome = None
+        checked = [label for box, label in _BO_CLOSURE_CHECKBOX_RE.findall(met) if box.lower() == "x"]
+        if "Yes" in checked:
+            outcome = "met"
+        elif "No" in checked:
+            outcome = "not_met"
+        elif "Pending" in checked:
+            outcome = "pending"
+        result[bo_id] = {"outcome": outcome, "measured_result": measured_result}
+    return result
+
+
 def build_bo_rollup(root: Path, feature: str) -> list[dict]:
     """Chains BO (brd.md §2) -> BR (brd.md §5 'Serves BO' column) -> FR
     (srd.md Functional Requirements 'Source'/'Satisfies' column, which
@@ -792,6 +826,13 @@ def build_bo_rollup(root: Path, feature: str) -> list[dict]:
     BR->FR link from srd.md is the more reliable bridge to task
     completion; the UC->FR link is used only when present, as a bonus.
 
+    Each rollup dict also carries "outcome"/"measured_result", read
+    separately from release.md's own Business Objective Closure table
+    (see _parse_release_bo_closure) -- the actual measured business
+    result, once /release has run, alongside (never replacing) "status"
+    which stays purely task-completion-derived so existing Done/In
+    Progress/Not Started badge logic keeps working unchanged.
+
     Read-only, best-effort: any link not yet generated (use-cases.md or
     srd.md not written yet, tasks.md doesn't exist yet) just means fewer
     tasks are counted, never an error. Returns [] if brd.md has no BO-NNN
@@ -804,6 +845,7 @@ def build_bo_rollup(root: Path, feature: str) -> list[dict]:
     uc_traces = _parse_uc_traces(feature_dir / "use-cases.md")
     fr_meta = _parse_srd_fr(feature_dir / "srd.md")
     tasks = _parse_tasks(feature_dir / "tasks.md")
+    bo_closure = _parse_release_bo_closure(feature_dir / "release.md")
 
     bo_to_br: dict[str, list[str]] = {bo_id: [] for bo_id in brd["objectives"]}
     for br_id, bo_ids in brd["br_to_bo"].items():
@@ -877,6 +919,7 @@ def build_bo_rollup(root: Path, feature: str) -> list[dict]:
         else:
             status_label = "Not Started"
 
+        closure = bo_closure.get(bo_id, {})
         rollup.append({
             "bo_id": bo_id,
             "objective": meta["objective"],
@@ -886,6 +929,8 @@ def build_bo_rollup(root: Path, feature: str) -> list[dict]:
             "tasks_done": done,
             "percent_done": round(100 * done / total) if total else 0,
             "status": status_label,
+            "outcome": closure.get("outcome"),
+            "measured_result": closure.get("measured_result"),
         })
     return rollup
 

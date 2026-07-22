@@ -61,6 +61,7 @@ Execute ONE task at a time. Never batch.
 - List every file changed
 - State total lines added
 - Confirm each acceptance criterion: ✅ {criterion text}
+- **Update `tasks.md` itself** — flip this task's acceptance-criteria checkboxes from `- [ ]` to `- [x]` for every one just confirmed above. Do not just report completion in chat: `sdd dashboard`'s task progress and Business Objectives rollup are computed purely by counting checked boxes in this file — an unflipped box reads as not-done no matter what actually shipped.
 - If manifest.workflow_mode == "local":
   - Run build + test + lint + coverage commands locally (per
     constitution Part 2 Tech Stack) — report ✅/❌ for each

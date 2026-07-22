@@ -246,6 +246,34 @@ def test_tasks_full_pack_format_uses_checkboxes(tmp_path, monkeypatch):
     assert tasks["not_started"] == 1
 
 
+def test_tasks_full_pack_format_counts_perf_and_chg_headings(tmp_path, monkeypatch):
+    """PERF-NNN (perf tasks from /task) and CHG-NNN (post-approval /change
+    work appended to tasks.md) must count toward progress the same way
+    TASK-NNN does -- previously _TASK_HEADING_RE only matched TASK-\\d+."""
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text(
+        "### TASK-001 — Scaffold\n"
+        "Acceptance criteria:\n"
+        "  - [x] one\n"
+        "### PERF-001 — Load test checkout\n"
+        "Acceptance criteria:\n"
+        "  - [x] one\n"
+        "## Change Set: CR-001 — 2026-01-01\n"
+        "### CHG-001 — Add retry to payment call\n"
+        "Satisfies: FR-010\n"
+        "Acceptance criteria:\n"
+        "  - [ ] one\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    tasks = feat["tasks"]
+    assert tasks["total"] == 3
+    assert tasks["done"] == 2
+    assert tasks["not_started"] == 1
+
+
 def test_tasks_micro_format_uses_status_field(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)
@@ -1063,6 +1091,7 @@ def test_persona_for_public_wrapper_matches_internal_lookup():
 
 from sdd.utils.status import (
     build_bo_rollup, _parse_brd_bo, _parse_uc_traces, _parse_srd_fr,
+    _parse_release_bo_closure,
 )
 
 
@@ -1332,6 +1361,84 @@ def test_build_bo_rollup_orphaned_br_not_served_by_any_bo_contributes_nothing(tm
     rollup = build_bo_rollup(tmp_path, "payments")
     assert rollup[0]["task_count"] == 0
     assert rollup[0]["status"] == "Not Started"
+
+
+def test_parse_release_bo_closure_reads_checked_yes(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-001 | Conversion +5% | Measured +6% | [x] Yes  [ ] No  [ ] Pending |\n"
+    )
+    result = _parse_release_bo_closure(feature_dir / "release.md")
+    assert result["BO-001"] == {"outcome": "met", "measured_result": "Measured +6%"}
+
+
+def test_parse_release_bo_closure_reads_checked_no(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-001 | Conversion +5% | Measured +1% | [ ] Yes  [x] No  [ ] Pending |\n"
+    )
+    result = _parse_release_bo_closure(feature_dir / "release.md")
+    assert result["BO-001"]["outcome"] == "not_met"
+
+
+def test_parse_release_bo_closure_reads_checked_pending(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-001 | Conversion +5% | measure after 30 days | [ ] Yes  [ ] No  [X] Pending |\n"
+    )
+    result = _parse_release_bo_closure(feature_dir / "release.md")
+    assert result["BO-001"]["outcome"] == "pending"
+
+
+def test_parse_release_bo_closure_unfilled_checkbox_is_none(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-{NNN} | {metric} | {result} | [ ] Yes  [ ] No  [ ] Pending |\n"
+    )
+    result = _parse_release_bo_closure(feature_dir / "release.md")
+    assert result == {}
+
+
+def test_parse_release_bo_closure_missing_file_returns_empty(tmp_path):
+    assert _parse_release_bo_closure(tmp_path / "nonexistent" / "release.md") == {}
+
+
+def test_build_bo_rollup_wires_release_outcome(tmp_path):
+    feature_dir = _write_full_chain(tmp_path, "payments", "")
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-001 | Conversion +5% | Measured +6% | [x] Yes  [ ] No  [ ] Pending |\n"
+    )
+    rollup = build_bo_rollup(tmp_path, "payments")
+    assert rollup[0]["outcome"] == "met"
+    assert rollup[0]["measured_result"] == "Measured +6%"
+    # task-completion-derived status is untouched by release outcome
+    assert rollup[0]["status"] == "Done"
+
+
+def test_build_bo_rollup_outcome_none_when_no_release_yet(tmp_path):
+    _write_full_chain(tmp_path, "payments", "")
+    rollup = build_bo_rollup(tmp_path, "payments")
+    assert rollup[0]["outcome"] is None
+    assert rollup[0]["measured_result"] is None
 
 
 def test_build_project_status_flattens_bo_rollup_with_feature_tag(tmp_path, monkeypatch):

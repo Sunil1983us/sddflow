@@ -65,6 +65,9 @@ Generate `use-cases.md` for the current feature:
   - **Business Rules Applied:** BR-NNN list (from BRD)
   - **Linked FR-NNN:** leave as `_(filled by /specify-srd)_` — SRD populates this
   - **Non-Functional Constraints:** NFR-NNN if a specific NFR governs this UC's behaviour
+  - **Independent Test:** one sentence stating how this UC can be verified in
+    isolation (a test scenario, not just a restatement of the Main Path) —
+    `/checklist`'s spec-quality rubric flags a UC without one
 - §4 Use Case Relationships — generate a Mermaid `graph LR` diagram showing all
   `includes` (solid `-->`) and `extends` (dashed `-.->`) relationships across all
   UC-NNN, plus a relationship table with trigger/condition for each link; if no

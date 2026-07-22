@@ -350,6 +350,13 @@ function renderTasks(tasks) {
   `;
 }
 
+function outcomeBadge(outcome) {
+  const map = {met: ['Met', 'b-ok'], not_met: ['Not Met', 'b-bad'], pending: ['Pending', 'b-warn']};
+  if (!outcome || !map[outcome]) return '<span class="sub">—</span>';
+  const [label, cls] = map[outcome];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
 function renderBusinessObjectives(bos, opts) {
   opts = opts || {};
   if (!bos || bos.length === 0) {
@@ -363,6 +370,7 @@ function renderBusinessObjectives(bos, opts) {
     const featureCell = opts.showFeature
       ? `<td><a href="#${featureAnchorId(bo.feature)}">${escapeHtml(bo.feature)}</a></td>`
       : '';
+    const outcomeCell = `${outcomeBadge(bo.outcome)}${bo.measured_result ? `<div class="sub">${escapeHtml(bo.measured_result)}</div>` : ''}`;
     return `
       <tr>
         <td>${bo.bo_id}</td>
@@ -371,11 +379,12 @@ function renderBusinessObjectives(bos, opts) {
         <td>${ucCell}</td>
         <td>${badge(bo.status, 'task')}</td>
         <td>${progressCell}</td>
+        <td>${outcomeCell}</td>
       </tr>`;
   }).join('');
   const featureHeader = opts.showFeature ? '<th>Feature</th>' : '';
   return `
-    <table><thead><tr><th>BO</th><th>Objective</th>${featureHeader}<th>Use Cases</th><th>Status</th><th>Progress</th></tr></thead><tbody>${rows}</tbody></table>`;
+    <table><thead><tr><th>BO</th><th>Objective</th>${featureHeader}<th>Use Cases</th><th>Status</th><th>Progress</th><th>Business Outcome</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function renderBusinessObjectivesOverview(businessObjectives) {
