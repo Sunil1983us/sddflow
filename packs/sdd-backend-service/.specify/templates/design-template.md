@@ -23,26 +23,26 @@
 
 ### 1.2 System Layers
 
-| Layer | Package / Path | Responsibility |
-|---|---|---|
-| {e.g. Controller} | {e.g. controller/} | {responsibility} |
-| {e.g. Use Case} | {e.g. port/in/} | {responsibility} |
-| {e.g. Service} | {e.g. service/} | {responsibility} |
-| {e.g. Adapter} | {e.g. adapter/out/} | {responsibility} |
-| {e.g. Domain} | {e.g. domain/} | {responsibility} |
+| Layer | Package / Path | Responsibility | What it must NOT do |
+|---|---|---|---|
+| {e.g. Controller} | {e.g. controller/} | {responsibility} | {e.g. business logic, DB calls} |
+| {e.g. Use Case} | {e.g. port/in/} | {responsibility} | {e.g. implementation} |
+| {e.g. Service} | {e.g. service/} | {responsibility} | {e.g. direct DB/HTTP calls} |
+| {e.g. Adapter} | {e.g. adapter/out/} | {responsibility} | {e.g. business logic} |
+| {e.g. Domain} | {e.g. domain/} | {responsibility} | {e.g. framework dependencies} |
 
 ### 1.3 Key Design Decisions
 
-| ID | Decision | Rationale |
-|---|---|---|
-| DEC-{NNN} | {decision} | {why} |
-| DEC-{NNN} | {decision} | {why} |
+| ID | Decision | Rationale | Alternatives Rejected |
+|---|---|---|---|
+| DEC-{NNN} | {decision} | {why} | {what was rejected and why} |
+| DEC-{NNN} | {decision} | {why} | {what was rejected and why} |
 
 ### 1.4 NFR → Architecture Mapping
 
-| NFR-NNN | Requirement | Design Constraint Applied |
-|---|---|---|
-| NFR-{NNN} | {requirement} | {what design decision satisfies it} |
+| NFR-NNN | Requirement | Design Constraint Applied | Decision (DEC-NNN) |
+|---|---|---|---|
+| NFR-{NNN} | {requirement} | {what design decision satisfies it} | DEC-{NNN} |
 
 ### 1.5 Cross-Cutting Concerns
 
@@ -241,15 +241,24 @@ per-feature, as this isn't something the component itself owns:
 **Context:**
 {What situation required this decision? What forces were at play?}
 
+**Options Considered:**
+
+*Option A: {Option Name}*
+- Pros: {pro}, {pro}
+- Cons: {con}, {con}
+
+*Option B: {Option Name}*
+- Pros: {pro}
+- Cons: {con}
+
+*Option C: {Option Name}* (if applicable)
+- Pros/Cons: {brief}
+
 **Decision:**
-{What was decided — one clear statement.}
+Chosen: Option {A|B|C} — {what was decided, one clear statement}
 
 **Rationale:**
-{Why this option over the alternatives.}
-
-**Alternatives Considered:**
-- **{Option A}:** rejected because {reason}
-- **{Option B}:** rejected because {reason}
+{Why this option over the alternatives — specific reasons.}
 
 **Consequences:**
 - Positive: {benefit}

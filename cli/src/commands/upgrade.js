@@ -2281,6 +2281,48 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.85',
+    to:   '2.7.86',
+    description: "Fix: separate plan_mode (arch.md -> hld.md -> adr.md) had no path to generate the living .specify/service/api-spec.md at all -- unified plan_mode's design.md was the only route -- plus several structural columns had drifted between the two modes",
+    notes: [
+      "hld-template.md gained a new '## 6. API Design' section " +
+      "(renumbered Technology Stack -> 7, NFR Summary -> 8) -- ported " +
+      "from design.md's own §3 nearly verbatim, including its skip-list " +
+      "and provides/consumes branch",
+      "hld-template.md gained a new '## 4. Error / Failure Paths' " +
+      "sequence diagram -- design.md §2.5 already generates this " +
+      "unconditionally today; separate mode had no equivalent anywhere",
+      "plan-hld.prompt.md updated to match: new Diagram 4 and Section 6 " +
+      "instructions (API Design ported from plan-design.prompt.md §3, " +
+      "including the living-doc api-spec.md walk); Section 8 NFR " +
+      "instruction fixed to list all 4 columns its own template defines " +
+      "(was only listing 2)",
+      "Fixed 3 hardcoded design.md-only references that never branched " +
+      "by plan_mode: task.prompt.md's QA-endpoint-source line, " +
+      "lld-template.md's References table, and ava.prompt.md's dead " +
+      "'api spec' routing row",
+      "design-template.md's §1.2/§1.3/§1.4 tables gained columns " +
+      "arch-template.md (separate mode's equivalent) already had -- " +
+      "'what it must NOT do', 'Alternatives Rejected', " +
+      "'Decision (DEC-NNN)'",
+      "design.md's §4 ADR block expanded to match adr-template.md's " +
+      "Options A/B/C + pros/cons depth",
+      "Deleted adr-template.md's dead 'ADR Index' pointer",
+      "All 5 packs' CLAUDE.md hld.md description updated to mention API " +
+      "design",
+      "Template/prompt-only change -- no manifest.yml field changes, no " +
+      "CLI behavior change",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: cli-python pytest 682/682 (unaffected), assert-output.sh " +
+      "clean on both worked examples, test-setup.sh 15/15",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.86';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

@@ -3384,6 +3384,63 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.85"},
     },
+    {
+        "from":        "2.7.85",
+        "to":          "2.7.86",
+        "description": "Fix: separate plan_mode (arch.md -> hld.md -> adr.md) had no path to generate the living .specify/service/api-spec.md at all -- unified plan_mode's design.md was the only route -- plus the two mode's document sets had drifted apart on several structural columns",
+        "notes": [
+            "Found via direct question: user asked whether unified design.md "
+            "and separate arch.md/hld.md/adr.md actually cover the same "
+            "ground. Verified against the real template/prompt files rather "
+            "than from memory (the first pass had wrongly claimed "
+            "design-template.md needed 'promoting' into the shared-sync "
+            "system -- it was already there, confirmed by re-checking with "
+            "md5sum across shared + all 5 packs)",
+            "hld-template.md gained a new '## 6. API Design' section "
+            "(renumbered Technology Stack -> 7, NFR Summary -> 8) -- ported "
+            "from design.md's own §3 nearly verbatim, including its "
+            "skip-list and provides/consumes branch, so it inherits the "
+            "same per-project-type safety already proven there",
+            "hld-template.md gained a new '## 4. Error / Failure Paths' "
+            "sequence diagram (renumbering State Machine 4->5) -- design.md "
+            "§2.5 already generates this unconditionally across all 5 "
+            "packs today; separate mode had no equivalent anywhere",
+            "plan-hld.prompt.md updated to match: new Diagram 4 (Error/"
+            "Failure Paths) and Section 6 (API Design, with the full "
+            "living-doc api-spec.md walk logic ported from "
+            "plan-design.prompt.md §3); preview list and Section 8 NFR "
+            "instruction fixed to list all 4 columns its own template "
+            "defines (was only listing 2)",
+            "Fixed 3 hardcoded design.md-only references that never "
+            "branched by plan_mode even though the rest of their files "
+            "did: task.prompt.md's QA-endpoint-source line, "
+            "lld-template.md's References table, and ava.prompt.md's "
+            "dead 'api spec' routing row (pointed at specify-doc.prompt.md, "
+            "which explicitly refuses to generate api-spec)",
+            "design-template.md's §1.2/§1.3/§1.4 tables gained the "
+            "'what it must NOT do' / 'Alternatives Rejected' / "
+            "'Decision (DEC-NNN)' columns that arch-template.md (separate "
+            "mode's equivalent) already had -- plan-design.prompt.md's §1 "
+            "instruction updated to match",
+            "design.md's §4 ADR block expanded from a compact bullet list "
+            "to the same Options A/B/C + pros/cons depth adr-template.md "
+            "already uses -- plan-design.prompt.md §4 updated to match",
+            "Deleted adr-template.md's dead 'ADR Index: docs/architecture/"
+            "decisions.md' pointer -- no command ever generated that file",
+            "All 5 packs' CLAUDE.md 'PLAN Sub-Commands' hld.md description "
+            "updated to mention API design (was diagrams-only)",
+            "Every edited file confirmed byte-identical across "
+            "_shared/full + all 5 packs via md5sum after sync-blocks.sh",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Template/prompt-only change -- no manifest.yml field changes, "
+            "no CLI behavior change. Verified: cli-python pytest 682/682 "
+            "(unaffected), assert-output.sh clean on both worked examples, "
+            "test-setup.sh 15/15",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.86"},
+    },
 ]
 
 

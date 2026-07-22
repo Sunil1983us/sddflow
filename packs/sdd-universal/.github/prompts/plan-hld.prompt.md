@@ -36,11 +36,15 @@ State this to the user before starting:
 
 > **Step 2 of 3 — System Diagrams**
 >
-> I will generate `hld.md` with all system diagrams in Mermaid:
+> I will generate `hld.md` with all system diagrams in Mermaid, plus the
+> feature's API contribution:
 > - System Context (C4 Level 1) — actors, this service, external systems
 > - Container Diagram (C4 Level 2) — service, database, cache, broker
 > - Happy Path Sequence — primary use case flow end-to-end
+> - Error / Failure Paths — validation errors, downstream failures, retries
 > - State Machine — entity lifecycle (if your feature has stateful data)
+> - API Design — this feature's contribution to `.specify/service/api-spec.md`
+>   (or the full consumed contract, for consumer-only project types)
 >
 > After you review and approve `hld.md`:
 > - mvp+ scope → run `/plan-adr` for Architecture Decision Records
@@ -89,17 +93,97 @@ sequenceDiagram
 ```
 The primary UC Main Path from `use-cases.summary.md`, traced end-to-end through all components. Every service call shown. Use actual participant names.
 
-### Diagram 4 — State Machine (include if applicable)
+### Diagram 4 — Error / Failure Paths
+```mermaid
+sequenceDiagram
+```
+UC Exception Paths (EP-NNN-X) from `use-cases.summary.md` — validation errors, downstream failures, retries. Always feature-specific.
+
+### Diagram 5 — State Machine (include if applicable)
 ```mermaid
 stateDiagram-v2
 ```
 If the feature has stateful entities (orders, payments, bookings, etc.) — show every state and transition. If no stateful entity exists, state: "No state machine — this feature has no stateful entity."
 
-### Section 5 — Tech Stack Summary
+### Section 6 — API Design
+
+> Skip for: `iac`, `library` (replace with Public Library API section), `desktop` with no backend calls.
+> For `frontend-spa` and `mobile`: use `.specify/templates/api-spec-template.md` (this pack's "Backend API Contract — Consumer" version) as the structure, and document the API contract this component **consumes** (consumer view) — write this directly into `hld.md` §6 as before, per-feature, never `.specify/service/`. The living-doc treatment below applies only when this service **provides** the API (backend-service, fullstack backend, universal).
+
+**The API surface is a living, service-level document, not per-feature** —
+`.specify/service/api-spec.md` is the one current API surface for the
+whole service. `hld.md` §6 never contains the full API design inline; it
+contains only this feature's contribution to it.
+
+Check whether `.specify/service/api-spec.md` already exists:
+
+**If it does NOT exist yet** (first feature in this service with a backend
+API): Generate it fresh at `.specify/service/api-spec.md`, using
+`.specify/templates/api-spec-template.md`:
+- State API style, base URL, auth method, versioning from `constitution.md`
+- Define every endpoint: method, path, purpose, request schema, response schema, all error codes
+- Trace each endpoint back to FR-NNN / UC-NNN
+- Define the shared error envelope format
+- Define async/event contracts if the feature uses messaging
+
+**All endpoints must be complete** — request body, response body, all HTTP status codes, error codes. No placeholders.
+
+For **GraphQL**: define queries, mutations, subscriptions, and types.
+For **gRPC**: define proto service, RPCs, message types.
+For **AsyncAPI**: define topics, message schemas, retention.
+
+Write `.specify/service/api-spec.summary.md` alongside it.
+
+**If it already exists** (a prior feature already created it): read the
+full current file and work through it one endpoint/schema at a time:
+- **No change needed** — note `{endpoint}: unchanged`, move on
+- **New endpoint** — show only the new endpoint's full definition (method,
+  path, request/response schema, error codes, FR-NNN/UC-NNN trace), not
+  the whole file
+- **Change to an existing endpoint** — show BEFORE/AFTER for only that
+  endpoint
+
+Use the same format as `/change`'s document walk (BEFORE/AFTER blocks,
+one approval, wait before saving). On approval: merge into
+`.specify/service/api-spec.md`, bump its version header, append a
+Version History row naming this feature, regenerate
+`.specify/service/api-spec.summary.md`, then re-sync it everywhere it's
+tracked — the edits above only touched the local file, so Confluence and
+the reviewer would otherwise go stale:
+```bash
+sdd review apply --doc api-spec
+```
+This re-pushes the updated content to api-spec.md's own Confluence page
+(if `confluence:` is configured) and posts a "please re-review" comment
+on its own Jira review ticket (if `jira:` is configured and a ticket
+exists) — independent of hld.md's own ticket. Skip silently if the
+command fails or neither integration is configured.
+
+**Either way, `hld.md` §6 itself contains only:**
+```
+## 6. API Design
+This feature's API surface — see `.specify/service/api-spec.md` for the
+full, current API (version {N}).
+
+New in this feature:
+- {METHOD} {path} — {1-line purpose}
+- {METHOD} {path} — {1-line purpose}
+
+Changed in this feature:
+- {METHOD} {path} — {1-line description of the change}
+
+(none, if this feature adds no new/changed endpoints)
+```
+
+### Section 7 — Tech Stack Summary
 Table: Layer | Technology | Version — pulled from `constitution.md` Part 2.
 
-### Section 6 — NFR Summary
-Table: NFR-NNN | Target — the measurable targets from `srd.summary.md`.
+### Section 8 — NFR Summary
+Table: NFR-NNN | Category | Target | Component budget allocation — split
+the target across the critical-path components from Diagrams 1-3 so each
+has a testable share; budgets sum to ≤ the target from `srd.summary.md`.
+Skip this section entirely if this project type only consumes an API
+(frontend-spa, mobile) and Section 6.3 already covered NFR budgets.
 
 ### Diagram Self-Check
 After completing all diagrams, verify each:

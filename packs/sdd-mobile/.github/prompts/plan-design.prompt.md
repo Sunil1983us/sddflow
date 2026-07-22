@@ -31,7 +31,7 @@ State the following to the user:
 > | Step | Command | Document | What it covers |
 > |---|---|---|---|
 > | 1 | `/plan-arch` | `arch.md` | Architecture pattern, layers, key decisions |
-> | 2 | `/plan-hld` | `hld.md` | System diagrams (C4 context, sequence, state) |
+> | 2 | `/plan-hld` | `hld.md` | System diagrams (C4 context, sequence, state) + API design |
 > | 3 | `/plan-adr` | `adr.md` | Architecture Decision Records (mvp+ only) |
 >
 > Run `/plan-arch` to begin, or reply **"unified"** to switch to the combined approach.
@@ -80,10 +80,12 @@ the whole service, not this feature — they're established once and
 reused, not re-derived every time.**
 - **If this is the first feature to reach `/plan-design`:** choose and
   state the architecture pattern (hexagonal, layered, event-driven, CQRS,
-  microservices, etc.), define system layers with package paths and
-  responsibilities, and cover cross-cutting concerns (auth, logging,
-  error handling, idempotency, observability) as normal — this
-  establishes the shell every later feature reuses.
+  microservices, etc.), define system layers with package paths,
+  responsibilities, and **what each layer must NOT do** (its boundary —
+  e.g. "Controller: never contains business logic or DB calls"), and
+  cover cross-cutting concerns (auth, logging, error handling,
+  idempotency, observability) as normal — this establishes the shell
+  every later feature reuses.
 - **If a prior feature already established them:** write "Architecture
   pattern, system layers, and cross-cutting concerns — unchanged from
   {prior-feature}/design.md §1, see there" instead of re-deriving them.
@@ -93,8 +95,11 @@ reused, not re-derived every time.**
 
 From `analyze.summary.md` + `constitution.md` (always feature-specific,
 every feature, never reused):
-- Document every key design decision as DEC-NNN
-- Map every NFR from `analyze.summary.md §5` to the design decision that satisfies it
+- Document every key design decision as DEC-NNN, stating what was
+  decided, why, and **what was rejected and why** (Alternatives Rejected
+  column) — always at least one real alternative, not a strawman
+- Map every NFR from `analyze.summary.md §5` to the design decision
+  (DEC-NNN) that satisfies it — no NFR left unmapped
 
 ### Section 2 — Diagrams
 
@@ -191,9 +196,10 @@ Changed in this feature:
 
 One ADR per key decision identified in §1.3 DEC-NNN:
 - Context: what forced this decision
-- Decision: what was chosen (one clear statement)
-- Rationale: why this over alternatives
-- Alternatives: at least 2 alternatives with concrete rejection reasons
+- Options Considered: **minimum 2** real alternatives (not strawmen), each
+  with concrete pros and cons — not just a rejection reason
+- Decision: which option was chosen, one clear statement
+- Rationale: why this option over the others — specific reasons
 - Consequences: positive, negative, risks + mitigations
 - Review date
 

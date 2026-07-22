@@ -4,6 +4,76 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.86] — 2026-07-22 (Fix: separate plan_mode had no API Design path at all)
+
+Asked directly whether unified `design.md` and separate `arch.md`/`hld.md`/
+`adr.md` actually cover the same ground. They didn't — separate mode was
+silently missing an entire pipeline stage, not just a formatting gap.
+Findings were verified against the real template/prompt files (not
+memory) before fixing, after an initial pass wrongly claimed
+`design-template.md` needed "promoting" into the shared-sync system — it
+was already there, confirmed by re-checking with `md5sum` across
+`_shared/full` and all 5 packs.
+
+### Fixed
+
+- **Separate `plan_mode` (`/plan-arch` → `/plan-hld` → `/plan-adr`) never
+  generated `.specify/service/api-spec.md` at all.** No mention of "API
+  Design" or "api-spec" existed anywhere in `arch-template.md`,
+  `hld-template.md`, `adr-template.md`, or their three prompts.
+  `task.prompt.md`'s QA-endpoint-source line, `lld-template.md`'s
+  References table, and `ava.prompt.md`'s "api spec" routing row all
+  hardcoded `design.md`/`design.summary.md` with zero `plan_mode`
+  branching — even though every other read in those same files correctly
+  branched. `ava.prompt.md` even routed to `specify-doc.prompt.md`, which
+  explicitly refuses to generate `api-spec` ("has moved to
+  `/plan-design`"). Net effect: a `backend-service`/`fullstack`/
+  `universal` project on `plan_mode: separate` never produced a working
+  API design at all — `openapi.yaml` generation (which reads
+  `api-spec.summary.md`) would come up empty too.
+- **`hld-template.md` had no Error/Failure Paths diagram**, despite
+  `design.md` §2.5 generating one unconditionally today, across all 5
+  packs, for every unified-mode feature.
+- **Structural columns had drifted between the two modes**:
+  `design.md`'s Key Design Decisions table had no "Alternatives
+  Rejected" column, its System Layers table had no "what it must NOT
+  do" boundary column, and its NFR mapping had no `Decision (DEC-NNN)`
+  traceability link — `arch-template.md` (separate mode's equivalent)
+  already had all three. `design.md`'s ADR block used a compact bullet
+  list while `adr-template.md` used a full Options A/B/C + pros/cons
+  structure.
+- **`plan-hld.prompt.md`'s own NFR Summary instruction only listed 2
+  columns** (`NFR-NNN | Target`) while its own template defines 4
+  (`NFR-NNN | Category | Target | Component budget allocation`).
+- **`adr-template.md` had a dead `*ADR Index: docs/architecture/
+  decisions.md*` pointer** — no command ever generated that file.
+
+### Added
+
+- `hld-template.md` gained `## 6. API Design` (ported from `design.md`
+  §3, including its skip-list and provides/consumes branch — the same
+  guard logic already proven safe across all 10 `sdd-universal` project
+  types) and `## 4. Error / Failure Paths`; sections renumbered
+  accordingly (Technology Stack → 7, NFR Summary → 8).
+- `plan-hld.prompt.md` gained matching Diagram 4 and Section 6
+  instructions, including the full living-doc `api-spec.md` walk logic
+  ported from `plan-design.prompt.md` §3.
+- `design-template.md` §1.2/§1.3/§1.4 gained the three missing columns;
+  §4 ADR block expanded to Options A/B/C depth. `plan-design.prompt.md`
+  §1 and §4 instructions updated to match.
+- All 5 packs' `CLAUDE.md` "PLAN Sub-Commands" section updated to note
+  `hld.md` now also covers API design.
+
+### Verified
+
+- Every edited file confirmed byte-identical across `_shared/full` and
+  all 5 packs via `md5sum` after `sync-blocks.sh`.
+- Template/prompt-only change — no manifest.yml field changes, no CLI
+  behavior change. `cli-python` pytest 682/682 (unaffected),
+  `assert-output.sh` clean on both worked examples, `test-setup.sh` 15/15.
+
+---
+
 ## [2.7.85] — 2026-07-22 (Fix batch: template/parser audit — 11 fixes across the pipeline)
 
 A full audit of all 31 templates in `sdd-backend-service` (representative of

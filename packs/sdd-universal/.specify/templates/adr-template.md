@@ -59,7 +59,6 @@ Key factors that led to this decision.}
 {When should this decision be revisited? e.g. "After pilot — reassess for MVP"}
 
 ---
-*ADR Index: docs/architecture/decisions.md*
 
 ## Approvals
 | Role | Approver | Status | Date |
