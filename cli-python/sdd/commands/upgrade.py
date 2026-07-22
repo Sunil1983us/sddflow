@@ -3220,6 +3220,63 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.82"},
     },
+    {
+        "from":        "2.7.82",
+        "to":          "2.7.83",
+        "description": "Fix: `sdd config init`'s .specify/integrations.yml scaffold was built from a small hand-maintained template string in config.py that had drifted far behind the real integrations.yml.example -- missing project_keys, parent_field_by_level, custom_fields_by_level, diagrams, document_reviews, pr_automation, and code_review entirely, plus most of page_map",
+        "notes": [
+            "Reported directly: 'while creating integration file, it "
+            "does not fill the full information ... we have made many "
+            "changes to integrations.yml file'. Confirmed: "
+            "_integrations_template() in cli-python/sdd/commands/"
+            "config.py only ever produced profile + a 9-key page_map + "
+            "jira.custom_fields.story_points -- every section added to "
+            "integrations.yml.example over the life of this project "
+            "(project_keys, parent_field_by_level, "
+            "custom_fields_by_level, diagrams, document_reviews, "
+            "pr_automation, code_review) was never ported into the "
+            "wizard's own template, so a user running `sdd config init` "
+            "got a materially smaller file than what the pack actually "
+            "supports, with no indication anything was missing",
+            "Root cause: two independent sources of truth for the same "
+            "file shape (a Python string vs. the shipped .example) that "
+            "nothing enforced staying in sync -- every feature added "
+            "sections to integrations.yml.example and none to "
+            "config.py's template, since there is no automated diff "
+            "between the two",
+            "Fix: `sdd config init` now fills profile/project_key/"
+            "space_key/parent_page_id into the project's own shipped "
+            "`.specify/integrations.yml.example` (present in every "
+            "project since `sdd init`) instead of a separate template "
+            "string -- every section the current pack version documents "
+            "is present in the scaffolded file, most left commented out "
+            "exactly as the .example ships them. Falls back to the old "
+            "minimal built-in template only if no .example file exists "
+            "in the project (very old init, or a pack without one, e.g. "
+            "sdd-micro)",
+            "document_reviews: carries the example's placeholder Jira "
+            "accountIds verbatim (same as the .example itself ships) -- "
+            "the wizard now prints an explicit warning telling the user "
+            "to replace them with real reviewers, or delete entries they "
+            "don't want routed through Jira, before `sdd review submit`",
+            "{feature}/{project} template variables in page_map are "
+            "runtime substitutions (filled by _push_doc_page at push "
+            "time) and are deliberately left untouched by the new "
+            "substitution logic -- only the four wizard-collected values "
+            "are replaced",
+            "This Node CLI does not implement `sdd config init` -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "This migration only bumps sdd_version — no manifest.yml "
+            "field changes for any pack",
+            "Added 6 pytest cases: placeholder substitution, every "
+            "optional section present, blank parent_page_id stays "
+            "commented, {feature}/{project} vars untouched, and two "
+            "CliRunner end-to-end tests (example present / absent)",
+            "Verified: cli-python pytest 670/670",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.83"},
+    },
 ]
 
 

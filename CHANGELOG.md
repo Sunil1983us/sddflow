@@ -4,6 +4,49 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.83] — 2026-07-18 (Fix: `sdd config init` scaffold missing most of integrations.yml)
+
+Reported directly: "while creating integration file, it does not fill the
+full information ... we have made many changes to integrations.yml file."
+
+### Fixed
+
+- **`sdd config init`'s `.specify/integrations.yml` scaffold was built
+  from a small hand-maintained template string** in `cli-python/sdd/
+  commands/config.py` that had drifted far behind the real
+  `integrations.yml.example`. Confirmed: the wizard's template only ever
+  produced `profile` + a 9-key `page_map` + `jira.custom_fields.
+  story_points` — every section added to `integrations.yml.example` over
+  the life of this project (`project_keys`, `parent_field_by_level`,
+  `custom_fields_by_level`, `diagrams`, `document_reviews`,
+  `pr_automation`, `code_review`) was never ported into the wizard's own
+  template. Root cause: two independent sources of truth for the same file
+  shape, nothing enforcing they stay in sync.
+
+### Changed
+
+- `sdd config init` now fills `profile`/`project_key`/`space_key`/
+  `parent_page_id` into the project's own shipped `.specify/
+  integrations.yml.example` (present in every project since `sdd init`)
+  instead of a separate template string — every section the current pack
+  version documents is present in the scaffolded file, most left commented
+  out exactly as the `.example` ships them. Falls back to the old minimal
+  built-in template only if no `.example` file exists in the project.
+- `document_reviews:` carries the example's placeholder Jira accountIds
+  verbatim — the wizard now prints an explicit warning to replace them
+  with real reviewers (or delete entries you don't want routed through
+  Jira) before `sdd review submit`.
+
+### Verified
+
+- 6 new pytest cases: placeholder substitution, every optional section
+  present, blank `parent_page_id` stays commented, `{feature}`/`{project}`
+  template vars left untouched, and two end-to-end CliRunner tests
+  (`.example` present / absent).
+- cli-python pytest 670/670.
+
+---
+
 ## [2.7.82] — 2026-07-18 (Feature: Business Objectives traceability + dashboard rollup)
 
 `brd.md`'s Business Objectives (§2) and Business Requirements (§5) were

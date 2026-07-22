@@ -2205,6 +2205,27 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.82',
+    to:   '2.7.83',
+    description: "Fix: `sdd config init`'s .specify/integrations.yml scaffold was built from a small hand-maintained template string that had drifted far behind the real integrations.yml.example -- missing project_keys, parent_field_by_level, custom_fields_by_level, diagrams, document_reviews, pr_automation, and code_review entirely, plus most of page_map",
+    notes: [
+      "`sdd config init` now fills profile/project_key/space_key/" +
+      "parent_page_id into the project's own shipped " +
+      "integrations.yml.example instead of a separate, drifted template " +
+      "string -- every section the current pack version documents is " +
+      "present in the scaffolded file",
+      "This Node CLI does not implement `sdd config init` -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.83';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
