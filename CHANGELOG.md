@@ -4,6 +4,36 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.84] — 2026-07-18 (Docs: HOW-TO-USE.md Phase 0 never mentioned `sdd config init`)
+
+Asked directly, right after the v2.7.83 `sdd config init` fix: "is that all
+document in how to use?"
+
+### Fixed
+
+- **`HOW-TO-USE.md`'s "Phase 0 — Setup (before any command)" section listed
+  `/create-context` and `sdd init`/`setup.sh`, but never mentioned `sdd
+  config init`/`sdd config test` at all.** A reader following that section
+  top to bottom for the full pre-flight checklist would not discover
+  Jira/Confluence setup exists until a much later, unrelated section
+  mentioned it in passing (e.g. "Configure reviewers... Run `sdd config
+  init`" inside Document Review Gates).
+
+### Added
+
+- A new `#### Jira/Confluence integration — sdd config init (optional)`
+  subsection, immediately after the existing `sdd init`/`setup.sh`
+  subsection in Phase 0, in all 5 non-micro packs' `HOW-TO-USE.md`. States
+  it's optional and skippable for chat-mode approvals, shows `sdd config
+  init` + `sdd config test`, and notes it can be run at any later point,
+  not just here.
+
+### Verified
+
+- Docs-only change — cli-python pytest 670/670 (unaffected).
+
+---
+
 ## [2.7.83] — 2026-07-18 (Fix: `sdd config init` scaffold missing most of integrations.yml)
 
 Reported directly: "while creating integration file, it does not fill the

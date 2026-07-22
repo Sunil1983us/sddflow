@@ -2226,6 +2226,24 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.83',
+    to:   '2.7.84',
+    description: "Docs: HOW-TO-USE.md's 'Phase 0 -- Setup' section never mentioned sdd config init/sdd config test -- added as an explicit optional step right after sdd init/setup.sh, in all 5 non-micro packs",
+    notes: [
+      "A reader following 'Phase 0 -- Setup (before any command)' top " +
+      "to bottom would not discover Jira/Confluence setup exists until " +
+      "a much later, unrelated section mentioned it in passing",
+      "Docs-only change -- no manifest.yml field changes, no CLI " +
+      "behavior change",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.84';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

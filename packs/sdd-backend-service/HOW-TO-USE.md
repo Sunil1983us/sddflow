@@ -203,6 +203,31 @@ Does the same as `sdd init` except it does not set `sdd_version` (set by the CLI
 
 ---
 
+#### Jira/Confluence integration — `sdd config init` (optional)
+
+Skip this if chat-mode approvals are fine for now — nothing else in this
+pack requires it, and you can run it later at any point, not just here.
+
+```bash
+sdd config init
+```
+
+Interactive wizard: Atlassian base URL, auth mode, and credential storage
+(OS keychain recommended), then optionally scaffolds
+`.specify/integrations.yml` (Jira project key, Confluence space key,
+parent page ID) from this pack's own `.specify/integrations.yml.example`
+— every section it documents (reviewer routing, diagrams, PR automation,
+...) is included, most left commented out until you need them.
+
+Verify it actually connects:
+```bash
+sdd config test
+```
+
+**When:** Any time before your first `sdd review submit` / `sdd jira push` / `sdd confluence push` — not required to run `/specify`.
+
+---
+
 ### Phase 1 — SPECIFY
 
 #### `/specify` — Constitution Part 2 (DRAFT)

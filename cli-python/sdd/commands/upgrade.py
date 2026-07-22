@@ -3277,6 +3277,38 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.83"},
     },
+    {
+        "from":        "2.7.83",
+        "to":          "2.7.84",
+        "description": "Docs: HOW-TO-USE.md's 'Phase 0 -- Setup (before any command)' section listed /create-context and sdd init/setup.sh but never mentioned sdd config init/sdd config test at all -- a reader following that section top to bottom for the full pre-flight checklist would not discover Jira/Confluence setup exists until a much later, unrelated section mentioned it in passing",
+        "notes": [
+            "Asked directly, after the v2.7.83 config-init fix: 'is that "
+            "all document in how to use?' -- confirmed no. Phase 0 only "
+            "covered /create-context and sdd init/setup.sh; sdd config "
+            "init and sdd config test were documented elsewhere in the "
+            "same file (their own reference entries, cross-referenced "
+            "only from unrelated later sections like Document Review "
+            "Gates), never listed as part of the sequential pre-flight "
+            "checklist itself",
+            "Added a new '#### Jira/Confluence integration -- sdd config "
+            "init (optional)' subsection immediately after the existing "
+            "sdd init/setup.sh subsection in Phase 0, in all 5 non-micro "
+            "packs' HOW-TO-USE.md -- states it's optional and skippable "
+            "for chat-mode approvals, shows sdd config init + sdd config "
+            "test, and notes it can be run at any point later, not just "
+            "at this step",
+            "sdd-micro intentionally excluded (no Jira/Confluence "
+            "integration in that pack, not part of the shared-block sync "
+            "system)",
+            "Docs-only change -- no manifest.yml field changes, no CLI "
+            "behavior change",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 670/670 (unaffected, docs-only)",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.84"},
+    },
 ]
 
 
