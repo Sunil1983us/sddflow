@@ -130,6 +130,25 @@ Once constitution Part 2 is finalized, generate spec documents **one at a time**
 
 Run each command, review the output, get approval, then run the next one.
 
+## Action 2 — Extended Document Set (`/specify-doc {name}`)
+
+When `/specify-doc` is run with no argument, cross-reference this table
+against `.specify/service/` and `.specify/features/{feature}/` to list
+which of these are still missing for `manifest.project.scope`, then ask
+the user which to generate next. This table is also the scope-check this
+pack's own `specify-doc.prompt.md` Verify Gate refers to.
+
+| `{name}` | Generates | Required at | Notes |
+|---|---|---|---|
+| `security` | `.specify/service/security-design.md` | pilot (§1 only) · mvp (§1–2) · full (§1–4) | living, service-level |
+| `data-model` | `.specify/service/data-model.md` | mvp+ | living, service-level |
+| `resilience` | `resilience.md` | full | per-feature |
+| `investigation` | `investigation.md` | full | per-feature |
+
+`api-spec` is **not** generated via `/specify-doc` — it's produced by
+`/plan-design` §3 (unified mode) or `/plan-hld` §6 (separate mode), since
+it depends on the architecture decisions made there.
+
 <!-- shared:epic-bootstrap-step:start -->
 ## Jira Epic/Feature — Created Now, Not Later
 

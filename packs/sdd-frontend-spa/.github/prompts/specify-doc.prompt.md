@@ -16,7 +16,12 @@ Document name passed as argument — e.g.:
 
 > **Note:** `api-spec` has moved to `/plan-design` (§3 API Design). Do not generate it here.
 
-If no argument given — list the remaining ungenerated documents for this scope and ask which to generate.
+If no argument given — read the Action 2 doc-set table in
+`.github/prompts/specify.prompt.md`, filter it to this project's
+`manifest.project.scope` (and `project_type` for sdd-universal), check
+which of those documents already exist under `.specify/service/` or
+`.specify/features/{feature}/`, list the ones still missing, and ask
+which to generate.
 
 ## Before Starting
 - Read `.specify/manifest.yml`

@@ -2353,6 +2353,46 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.87',
+    to:   '2.7.88',
+    description: "Fix: /specify-doc's own 'Action 2 doc-set table' cross-reference pointed at a table that didn't exist in specify.prompt.md in any pack -- broke discoverability of which extended docs (data-model, security, component-spec, etc.) a project actually needs",
+    notes: [
+      "specify-doc.prompt.md, specify-srd.prompt.md, and " +
+      "orchestrate.prompt.md (all fully shared across all 5 packs) " +
+      "repeatedly said 'refer to the doc-set table in specify.prompt.md " +
+      "(Action 2)' -- but no pack's specify.prompt.md had an 'Action 2' " +
+      "heading at all, only 'Action 1' (Constitution Part 2). Dead " +
+      "pointer in all 5 packs",
+      "The gap was papered over in Claude Code specifically because each " +
+      "pack's own CLAUDE.md (auto-loaded at session start) already lists " +
+      "the real doc names + scope gates, but that fallback doesn't apply " +
+      "to non-Claude-Code tools, and sdd-universal's own CLAUDE.md " +
+      "punted with 'any other extended doc' instead of enumerating which " +
+      "extended docs apply to which of its 10 project_types",
+      "Fix: added a real '## Action 2 -- Extended Document Set' table to " +
+      "specify.prompt.md in each of the 4 single-type packs, sourced " +
+      "from that pack's own CLAUDE.md. sdd-universal got a " +
+      "project_type-grouped matrix (consumer-view / mobile / " +
+      "server-service / no-runtime-service) rather than a false-precision " +
+      "10-type table, since the framework doesn't cleanly define " +
+      "per-type applicability for cli/library/iac -- those are marked " +
+      "ask-the-user-first instead of a guessed yes/no",
+      "specify-doc.prompt.md's no-argument instruction now explicitly " +
+      "reads the Action 2 table (filtered by scope/project_type) and " +
+      "diffs it against what's already on disk",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Prompt/doc-only change -- no manifest.yml field changes, no CLI " +
+      "behavior change. Verified: cli-python pytest 682/682 (unaffected), " +
+      "assert-output.sh clean on both worked examples, every 'Action 2' " +
+      "reference across all 5 packs now resolves to a real heading",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.88';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

@@ -103,6 +103,29 @@ Once constitution Part 2 is finalized, generate spec documents **one at a time**
 
 Run each command, review the output, get approval, then run the next one.
 
+## Action 2 — Extended Document Set (`/specify-doc {name}`)
+
+When `/specify-doc` is run with no argument, cross-reference this table
+against `.specify/service/` and `.specify/features/{feature}/` to list
+which of these are still missing for `manifest.project.scope`, then ask
+the user which to generate next. This table is also the scope-check this
+pack's own `specify-doc.prompt.md` Verify Gate refers to.
+
+| `{name}` | Generates | Required at | Notes |
+|---|---|---|---|
+| `screen-spec` | `screen-spec.md` | mvp+ | per-feature |
+| `ux-flow` | `ux-flow.md` | mvp+ | per-feature |
+| `data-model` | `.specify/service/data-model.md` | mvp+ | living, app-level (local cache model — mobile flavor) |
+| `security` | `.specify/service/security-design.md` | pilot (§1 only) · mvp (§1–2) · full (§1–4) | living, app-level |
+| `resilience` | `resilience.md` | full | per-feature |
+| `investigation` | `investigation.md` | full | per-feature |
+
+This pack only **consumes** APIs — its per-feature contract lives in
+`design.md` §3 (or `hld.md` §6 in separate mode), not through
+`/specify-doc`.
+
+Run each command, review the output, get approval, then run the next one.
+
 <!-- shared:epic-bootstrap-step:start -->
 ## Jira Epic/Feature — Created Now, Not Later
 

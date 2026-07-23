@@ -4,6 +4,67 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.88] — 2026-07-23 (Fix: dead "Action 2 doc-set table" pointer broke /specify-doc discoverability)
+
+Asked how an end user is supposed to know which `/specify-doc {name}` to
+run, given something like a database schema is needed by almost every
+project. Checked the real files instead of trusting memory — the answer
+turned out to be a genuine bug, not just a UX gap.
+
+### Fixed
+
+- **`specify-doc.prompt.md`, `specify-srd.prompt.md`, and
+  `orchestrate.prompt.md`** (all three fully shared, byte-identical
+  across all 5 packs) repeatedly pointed at "the doc-set table in
+  `specify.prompt.md` (Action 2)" for two jobs: listing what's left to
+  generate when `/specify-doc` runs with no argument, and gate-checking
+  whether a doc applies to the project's scope/`project_type`. That table
+  didn't exist — `grep '^## Action'` across every pack's
+  `specify.prompt.md` found only `Action 1` (Constitution Part 2)
+  anywhere. Dead pointer in all 5 packs.
+- The gap was invisible in Claude Code specifically because each pack's
+  own `CLAUDE.md` (auto-loaded at session start) already lists the real
+  doc names and their scope gates, so the agent quietly fell back on
+  that. It isn't invisible for tools that enter through
+  `copilot-instructions.md` instead, and `sdd-universal`'s own
+  `CLAUDE.md` didn't have a working fallback either — it punted with
+  "any other extended doc" instead of saying which of
+  `component-spec`/`ux-flow`/`screen-spec`/`resilience`/`investigation`
+  apply to which of its 10 `project_type`s.
+
+### Added
+
+- A real `## Action 2 — Extended Document Set` table in `specify.prompt.md`
+  for `sdd-backend-service`, `sdd-frontend-spa`, `sdd-mobile`, and
+  `sdd-fullstack`, each sourced from that pack's own `CLAUDE.md` so the
+  two stay consistent.
+- A project_type-grouped Action 2 matrix for `sdd-universal`
+  (consumer-view / mobile / server-service / no-runtime-service) instead
+  of a false-precision 10-type table — the framework doesn't itself
+  define per-type applicability for `cli`/`library`/`iac` cleanly, so
+  those are marked ask-the-user-first rather than a guessed yes/no.
+- `specify-doc.prompt.md`'s no-argument behavior now explicitly reads
+  the Action 2 table (filtered by scope/`project_type`), diffs it
+  against what already exists on disk, and lists only what's missing —
+  instead of vaguely "listing remaining documents" with nothing concrete
+  to check against.
+- `sdd-universal CLAUDE.md`'s vague `/specify-doc {name} → any other
+  extended doc` line now points at the Action 2 table instead of leaving
+  it to guesswork.
+
+### Verified
+
+- Every `Action 2` reference across all 5 packs now resolves to a real
+  heading (grepped and confirmed after the fix).
+- `specify-doc.prompt.md` confirmed byte-identical across `_shared/full`
+  and all 5 packs via `md5sum` after `sync-blocks.sh`.
+- `cli-python` `pytest tests/ -q`: 682/682 passed (unaffected —
+  prompt/doc-only change).
+- `assert-output.sh` clean on both worked examples (`todo-api`,
+  `habit-tracker-web`), 33/33.
+
+---
+
 ## [2.7.87] — 2026-07-22 (Fix: specify-doc's living-doc walk never re-synced Confluence)
 
 Asked directly whether *all* living-document updates get pushed to

@@ -3481,6 +3481,67 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.87"},
     },
+    {
+        "from":        "2.7.87",
+        "to":          "2.7.88",
+        "description": "Fix: /specify-doc's own 'Action 2 doc-set table' cross-reference pointed at a table that didn't exist in specify.prompt.md in any pack -- broke discoverability of which extended docs (data-model, security, component-spec, etc.) a project actually needs",
+        "notes": [
+            "User asked how an end user is supposed to know which "
+            "`/specify-doc {name}` to run, given something like a "
+            "database schema is needed by almost every project -- "
+            "isn't that overly complicated?",
+            "Verified against the real files, not memory: "
+            "specify-doc.prompt.md, specify-srd.prompt.md, and "
+            "orchestrate.prompt.md (all three fully shared, byte-identical "
+            "across all 5 packs) repeatedly say 'refer to the doc-set "
+            "table in specify.prompt.md (Action 2)' for both the "
+            "no-argument doc listing and the scope-check gate. Grepped "
+            "'^## Action' in every pack's specify.prompt.md -- only "
+            "'Action 1' (Constitution Part 2) exists anywhere. 'Action 2' "
+            "was a dead pointer in all 5 packs",
+            "The gap was papered over in Claude Code specifically because "
+            "each pack's own CLAUDE.md (auto-loaded at session start) "
+            "already lists the real doc names + scope gates -- but that "
+            "fallback doesn't exist for non-Claude-Code tools entering "
+            "through copilot-instructions.md, and sdd-universal's own "
+            "CLAUDE.md punted with 'any other extended doc' instead of "
+            "enumerating which of component-spec/ux-flow/screen-spec/"
+            "resilience/investigation apply to which of its 10 "
+            "project_types",
+            "Fix: added a real '## Action 2 -- Extended Document Set' "
+            "table to specify.prompt.md in each of the 4 single-type "
+            "packs (backend-service, frontend-spa, mobile, fullstack), "
+            "sourced from that pack's own CLAUDE.md so the two stay "
+            "consistent. sdd-universal got a project_type-grouped matrix "
+            "(consumer-view / mobile / server-service / no-runtime-service) "
+            "instead of a false-precision 10-type table, since the "
+            "framework doesn't itself define per-type applicability for "
+            "cli/library/iac cleanly -- those three are marked "
+            "ask-the-user-first rather than a guessed yes/no",
+            "specify-doc.prompt.md's own no-argument instruction "
+            "sharpened to explicitly read the Action 2 table (filtered "
+            "by scope/project_type) and diff it against what's already "
+            "on disk, instead of vaguely 'listing remaining documents'",
+            "sdd-universal CLAUDE.md's vague '/specify-doc {name} -> any "
+            "other extended doc' line pointed at the new Action 2 table "
+            "instead of leaving it to guesswork",
+            "orchestrate.prompt.md's existing Action 2 references, and "
+            "each pack's CLAUDE.md 'Run after: /specify (Action 2)' "
+            "bookend note, needed no changes -- they now resolve to a "
+            "real heading instead of a dead one",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Prompt/doc-only change -- no manifest.yml field changes, no "
+            "CLI behavior change. Verified: cli-python pytest 682/682 "
+            "(unaffected), assert-output.sh clean on both worked examples, "
+            "every 'Action 2' reference across all 5 packs now resolves "
+            "to a real heading (grepped and confirmed), specify-doc.prompt.md "
+            "confirmed byte-identical across _shared/full + all 5 packs "
+            "via md5sum after sync-blocks.sh",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.88"},
+    },
 ]
 
 
