@@ -2323,6 +2323,36 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.86',
+    to:   '2.7.87',
+    description: "Fix: specify-doc.prompt.md's own living-doc walk (data-model, security-design, component-library) never re-synced Confluence/Jira after an approved change -- only /change's separate living-doc handling did",
+    notes: [
+      "change.prompt.md already calls `sdd review apply --doc {doc-key}` " +
+      "after every living-doc merge, but specify-doc.prompt.md's own " +
+      "native SKIP/ADD-unit/UPDATE-unit walk -- the path a later feature " +
+      "normally takes to extend data-model.md/security-design.md on its " +
+      "own -- only merged, bumped the version, appended history, and " +
+      "regenerated the summary, with no re-sync call anywhere",
+      "Added step 5 to the 'On approval' list: " +
+      "`sdd review apply --doc {doc}` -- re-pushes to Confluence + posts " +
+      "a re-review comment on Jira if either is configured, skip " +
+      "silently otherwise",
+      "Practical effect before this fix: a second feature adding a new " +
+      "entity to an already-reviewed data-model.md through the normal " +
+      "/specify-doc walk would merge correctly on disk but leave the " +
+      "Confluence page silently stale",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Prompt-only change -- no manifest.yml field changes, no CLI " +
+      "behavior change. Verified: cli-python pytest 682/682 (unaffected), " +
+      "assert-output.sh clean",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.87';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

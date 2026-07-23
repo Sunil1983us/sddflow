@@ -3441,6 +3441,46 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.86"},
     },
+    {
+        "from":        "2.7.86",
+        "to":          "2.7.87",
+        "description": "Fix: specify-doc.prompt.md's own SKIP/ADD-unit/UPDATE-unit living-doc walk (data-model, security-design, component-library) never re-synced Confluence/Jira after an approved change -- only /change's separate living-doc handling did",
+        "notes": [
+            "Asked directly whether ALL living-document updates get pushed "
+            "to Confluence. Verified against the real files: change.prompt.md "
+            "already calls `sdd review apply --doc {doc-key}` after every "
+            "living-doc merge (confirmed at 3 separate spots), but "
+            "specify-doc.prompt.md's own native walk -- the path a later "
+            "feature normally takes to extend data-model.md/security-design.md "
+            "on its own, not via a formal Change Request -- only merged, "
+            "bumped the version, appended history, and regenerated the "
+            "summary. No re-sync call anywhere in that block",
+            "Same gap plan-design.prompt.md's api-spec.md walk had already "
+            "solved (and this session's v2.7.86 fix ported into "
+            "plan-hld.prompt.md) -- specify-doc.prompt.md's generic "
+            "living-doc block (shared by data-model, security-design, and "
+            "component-library via its own 'follow the same discipline' "
+            "cross-reference) never got the same fix",
+            "Added step 5 to the 'On approval' list: "
+            "`sdd review apply --doc {doc}` -- re-pushes to Confluence + "
+            "posts a re-review comment on Jira if either is configured, "
+            "skip silently otherwise. Matches change.prompt.md's own "
+            "wording for the same operation",
+            "Practical effect before this fix: if data-model.md's "
+            "Confluence page was already reviewed and live, a second "
+            "feature adding a new entity through the normal "
+            "/specify-doc data-model walk (not /change) would merge "
+            "correctly on disk but leave the Confluence page silently "
+            "stale",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Prompt-only change -- no manifest.yml field changes, no CLI "
+            "behavior change. Verified: cli-python pytest 682/682 "
+            "(unaffected), assert-output.sh clean",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.87"},
+    },
 ]
 
 

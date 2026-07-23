@@ -140,6 +140,12 @@ On approval:
 3. Append a row to its `## Version History` table naming which feature
    triggered the change
 4. Regenerate `.specify/service/{doc}.summary.md`
+5. Re-sync the document: `sdd review apply --doc {doc}`. Re-pushes the
+   updated content to the document's own Confluence page and posts a
+   "please re-review" comment on its own Jira review ticket, if either
+   is configured — the edits above only touched the local file, so
+   Confluence/Jira would otherwise go stale. Skip silently if the
+   command fails or neither is configured.
 
 This is the same before/after, one-approval-at-a-time discipline `/change`
 already uses for document updates — applied here to "a new feature touches

@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.87] — 2026-07-22 (Fix: specify-doc's living-doc walk never re-synced Confluence)
+
+Asked directly whether *all* living-document updates get pushed to
+Confluence. They didn't.
+
+### Fixed
+
+- **`specify-doc.prompt.md`'s own SKIP/ADD-unit/UPDATE-unit walk** — the
+  path a later feature normally takes to extend `data-model.md`,
+  `security-design.md`, or `component-library.md` on its own, not via a
+  formal Change Request — merged the approved unit, bumped the version
+  header, appended Version History, and regenerated the `.summary.md`,
+  but never re-pushed the change to Confluence or Jira.
+  `change.prompt.md`'s own living-doc handling already did this correctly
+  (`sdd review apply --doc {doc-key}`, confirmed at 3 separate spots) —
+  `specify-doc.prompt.md`'s native walk never got the same fix. Practical
+  effect: a second feature adding a new entity to an already-reviewed
+  `data-model.md` through the normal `/specify-doc data-model` walk would
+  merge correctly on disk but leave the Confluence page silently stale.
+
+### Added
+
+- Step 5 in the living-doc "On approval" list: `sdd review apply --doc
+  {doc}` — re-pushes to Confluence and posts a re-review comment on Jira
+  if either is configured, skips silently otherwise. Fixes `data-model`,
+  `security-design`, and `component-library` in one shared-file edit.
+
+### Verified
+
+- Prompt-only change — no manifest.yml field changes, no CLI behavior
+  change. `cli-python` pytest 682/682 (unaffected), `assert-output.sh`
+  clean.
+
+---
+
 ## [2.7.86] — 2026-07-22 (Fix: separate plan_mode had no API Design path at all)
 
 Asked directly whether unified `design.md` and separate `arch.md`/`hld.md`/
