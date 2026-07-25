@@ -4,6 +4,56 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.91] — 2026-07-23 (Add cross-reference linter — catches dead "Action N" / "§N" prompt pointers in CI)
+
+Asked for an honest, code-verified assessment of the project so far. The
+top recommendation: both real bugs found this session (v2.7.88, v2.7.89)
+share a root cause — something read as correct in isolated review but was
+never exercised end-to-end, and both were only found because a user asked
+a pointed question, not because any test caught them. This closes that
+gap for the first bug class.
+
+### Added
+
+- **`packs/_shared/tests/check-cross-references.py`** — scans every
+  pack's `.github/prompts/*.md` and `CLAUDE.md` for two patterns:
+  `specify.prompt.md ... (Action N)` and `{doc}.md §N`, then verifies the
+  referenced heading actually exists — `## Action N` in that pack's own
+  `specify.prompt.md`, or a top-level `## N. ...` heading in that doc's
+  own `*-template.md`. Each pack is checked against its own copies, not a
+  shared assumption, since packs can diverge.
+  - Deliberately skips `*.summary.md §N` references — AI-2 summaries are
+    a compressed digest with no guaranteed section numbering, so checking
+    them would produce false positives rather than real findings.
+  - A `.md` reference to a doc key with no matching template is reported
+    as a note, not a failure — usually means the reference wasn't to a
+    real document at all.
+- New CI job `cross-reference-check` (`.github/workflows/ci.yml`), and a
+  new section in the root `CLAUDE.md`'s "Testing Setup Scripts" alongside
+  the other two harnesses.
+
+### Verified
+
+- Confirmed the linter actually works, not just that it runs clean: it
+  caught two real bugs in **itself** during development —
+  - a `Path.parents[]` off-by-one that made it silently scan a
+    nonexistent directory (always reported success regardless of input);
+  - a heading-number regex that matched subsection numbers too (`### 3.1`
+    still contributed `3` to the set even after the real `## 3. ...`
+    heading was renamed), so a renamed top-level section went undetected
+    as long as any `N.x` subsection survived.
+- After both fixes: passes clean on the current repo (50 real references
+  checked across 6 packs, confirmed with `--verbose`); deliberately
+  renaming a real `## Action 2` heading and a real `## 3.` heading in
+  scratch tests both produced a clear `file:line` failure, then passed
+  again once reverted.
+- `cli-python` `pytest tests/ -q`: 688/688 (unaffected — new standalone
+  script, no existing code touched).
+- `assert-output.sh` clean on both worked examples, `test-setup.sh`
+  15/15, `test-setup-micro.sh` 12/12.
+
+---
+
 ## [2.7.90] — 2026-07-23 (Fix: dashboard listed security before data-model, backwards from the recommended order)
 
 ### Fixed

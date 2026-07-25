@@ -2456,6 +2456,46 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.90',
+    to:   '2.7.91',
+    description: "Add a cross-reference linter (packs/_shared/tests/check-cross-references.py) that catches dead 'Action N' / '{doc}.md §N' pointers between prompt files before a user finds them",
+    notes: [
+      "Both real bugs found this session (v2.7.88's dead 'Action 2' " +
+      "pointer, v2.7.89's dashboard collapsing several docs' status " +
+      "into one boolean) share a root cause: something read as correct " +
+      "in isolated review but was never exercised end-to-end, and both " +
+      "were only found because a user asked a pointed question -- not " +
+      "because any test caught them",
+      "The script scans every pack's .github/prompts/*.md and CLAUDE.md " +
+      "for 'specify.prompt.md ... (Action N)' and '{doc}.md §N' " +
+      "references, then verifies the referenced heading actually exists " +
+      "in that pack's own copy of the target file -- each pack checked " +
+      "against itself, not a shared assumption",
+      "Deliberately skips '*.summary.md §N' refs (no guaranteed section " +
+      "numbering) and treats a doc key with no matching template as a " +
+      "note, not a failure",
+      "Caught two real bugs in itself during development by testing it " +
+      "actually fails on a known-bad input: a Path.parents[] off-by-one " +
+      "that made it silently scan a nonexistent directory (always " +
+      "passed), and a heading-number regex that matched subsection " +
+      "numbers too (a renamed top-level section still 'existed' as long " +
+      "as any N.x subsection survived)",
+      "Wired into CI as a new 'cross-reference-check' job and " +
+      "documented in the root CLAUDE.md's 'Testing Setup Scripts' " +
+      "section",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "New standalone script, no manifest.yml field changes. Verified: " +
+      "cli-python pytest 688/688 (unaffected), assert-output.sh clean on " +
+      "both worked examples, test-setup.sh 15/15, test-setup-micro.sh " +
+      "12/12",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.91';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

@@ -3640,6 +3640,62 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.90"},
     },
+    {
+        "from":        "2.7.90",
+        "to":          "2.7.91",
+        "description": "Add a cross-reference linter (packs/_shared/tests/check-cross-references.py) that catches dead 'Action N' / '{doc}.md §N' pointers between prompt files before a user finds them",
+        "notes": [
+            "Both real bugs found this session (v2.7.88's dead 'Action 2 "
+            "doc-set table' pointer, v2.7.89's dashboard collapsing "
+            "several docs' status into one boolean) share a root cause: "
+            "something read as correct in isolated review but was never "
+            "exercised end-to-end, and both were only found because a "
+            "user asked a pointed question -- not because any test caught "
+            "them. This closes that gap for the first bug class",
+            "The script scans every pack's .github/prompts/*.md and "
+            "CLAUDE.md for two patterns: 'specify.prompt.md ... (Action "
+            "N)' and '{doc}.md §N', then verifies the referenced "
+            "heading actually exists -- '## Action N' in that pack's own "
+            "specify.prompt.md, or a top-level '## N. ...' heading in "
+            "that doc's own *-template.md. Each pack is checked against "
+            "its own copies, not a shared assumption, since packs can "
+            "diverge",
+            "Deliberately skips '*.summary.md §N' references (AI-2 "
+            "summaries are a compressed digest with no guaranteed section "
+            "numbering -- checking them would produce false positives, "
+            "not real findings) and treats a doc key with no matching "
+            "template as a note, not a failure (usually means the "
+            "reference wasn't to a real document at all)",
+            "Caught two real bugs in itself during development, both "
+            "found by deliberately testing that it actually fails on a "
+            "known-bad input rather than trusting a clean first run: (1) "
+            "a Path.parents[] off-by-one meant it silently scanned a "
+            "nonexistent directory and always passed; (2) the heading "
+            "number regex matched digits from subsection numbers too "
+            "(e.g. picked up '3' from '### 3.1 ...' even after the real "
+            "'## 3. ...' heading was renamed), so a renamed top-level "
+            "section wasn't detected as long as any N.x subsection "
+            "survived -- fixed by only matching exactly '## N.' (two "
+            "hashes)",
+            "Verified end-to-end after both fixes: passes clean on the "
+            "current repo (50 real references checked across 6 packs, "
+            "confirmed via --verbose), and correctly fails with a clear "
+            "file:line message when a heading is deliberately renamed in "
+            "a scratch test, then passes again once reverted",
+            "Wired into CI as a new 'cross-reference-check' job "
+            "(.github/workflows/ci.yml) and documented in the root "
+            "CLAUDE.md's 'Testing Setup Scripts' section alongside the "
+            "other two harnesses",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "New standalone script, no manifest.yml field changes, no "
+            "existing-code changes. Verified: cli-python pytest 688/688 "
+            "(unaffected), assert-output.sh clean on both worked "
+            "examples, test-setup.sh 15/15, test-setup-micro.sh 12/12",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.91"},
+    },
 ]
 
 
