@@ -246,6 +246,34 @@ def test_tasks_full_pack_format_uses_checkboxes(tmp_path, monkeypatch):
     assert tasks["not_started"] == 1
 
 
+def test_tasks_full_pack_format_counts_perf_and_chg_headings(tmp_path, monkeypatch):
+    """PERF-NNN (perf tasks from /task) and CHG-NNN (post-approval /change
+    work appended to tasks.md) must count toward progress the same way
+    TASK-NNN does -- previously _TASK_HEADING_RE only matched TASK-\\d+."""
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text(
+        "### TASK-001 — Scaffold\n"
+        "Acceptance criteria:\n"
+        "  - [x] one\n"
+        "### PERF-001 — Load test checkout\n"
+        "Acceptance criteria:\n"
+        "  - [x] one\n"
+        "## Change Set: CR-001 — 2026-01-01\n"
+        "### CHG-001 — Add retry to payment call\n"
+        "Satisfies: FR-010\n"
+        "Acceptance criteria:\n"
+        "  - [ ] one\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    tasks = feat["tasks"]
+    assert tasks["total"] == 3
+    assert tasks["done"] == 2
+    assert tasks["not_started"] == 1
+
+
 def test_tasks_micro_format_uses_status_field(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)
@@ -773,6 +801,15 @@ def test_malformed_comments_file_does_not_crash(tmp_path, monkeypatch):
 _NO_TASKS = {"total": 0, "done": 0}
 _NOT_STARTED = {"exists": False, "gate1_inferred": "unknown"}
 _GATE1_PASSED = {"exists": True, "part2_generated": True, "gate1_inferred": "passed"}
+_NO_SERVICE_DOCS = {}
+_SERVICE_DOCS_ALL_APPROVED = {
+    "data-model": {"exists": True, "status": "Approved"},
+    "security-design": {"exists": True, "status": "Approved"},
+}
+# security-design is required at every scope (never skipped, unlike
+# data-model) -- tests that exercise steps *after* it in pipeline order
+# need it approved, or it (correctly) blocks next_action first.
+_SECURITY_APPROVED = {"security-design": {"exists": True, "status": "Approved"}}
 
 
 def _step(pipeline, step_id):
@@ -780,7 +817,7 @@ def _step(pipeline, step_id):
 
 
 def test_pipeline_fresh_project_starts_at_specify():
-    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs_exist=False,
+    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope="pilot")
     assert _step(p, "specify")["state"] == "upcoming"
     assert p["next_step_id"] == "specify"
@@ -790,7 +827,7 @@ def test_pipeline_fresh_project_starts_at_specify():
 def test_pipeline_awaiting_gate1_after_constitution_exists():
     p = build_pipeline([], _NO_TASKS,
                         {"exists": True, "part2_generated": True, "gate1_inferred": "pending_or_unknown"},
-                        service_docs_exist=False, plan_mode="unified", scope="pilot")
+                        service_docs=_NO_SERVICE_DOCS, plan_mode="unified", scope="pilot")
     assert _step(p, "specify")["state"] == "done"
     assert _step(p, "gate1")["state"] == "current"
     assert p["next_step_id"] == "gate1"
@@ -804,7 +841,7 @@ def test_pipeline_constitution_file_scaffolded_but_specify_not_run_yet_is_upcomi
     show done before /specify has actually filled it in."""
     p = build_pipeline([], _NO_TASKS,
                         {"exists": True, "part2_generated": False, "gate1_inferred": "unknown"},
-                        service_docs_exist=False, plan_mode="unified", scope="pilot")
+                        service_docs=_NO_SERVICE_DOCS, plan_mode="unified", scope="pilot")
     assert _step(p, "specify")["state"] == "upcoming"
     assert _step(p, "gate1")["state"] == "upcoming"
     assert p["next_step_id"] == "specify"
@@ -812,7 +849,7 @@ def test_pipeline_constitution_file_scaffolded_but_specify_not_run_yet_is_upcomi
 
 def test_pipeline_doc_awaiting_review_is_current_not_done():
     docs = [{"key": "brd", "status": "Draft"}]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope="pilot")
     assert _step(p, "brd")["state"] == "current"
     assert p["next_step_id"] == "brd"
@@ -821,7 +858,7 @@ def test_pipeline_doc_awaiting_review_is_current_not_done():
 
 def test_pipeline_approved_doc_counts_as_done():
     docs = [{"key": "brd", "status": "Approved"}]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope="pilot")
     assert _step(p, "brd")["state"] == "done"
     assert p["next_step_id"] == "use-cases"
@@ -843,7 +880,7 @@ def test_pipeline_bypassed_optional_step_does_not_win_next_action():
         {"key": "srd", "status": "Approved"},
         {"key": "validate", "status": "Draft"},
     ]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_SECURITY_APPROVED,
                         plan_mode="unified", scope="pilot")
     assert _step(p, "checklist")["state"] == "upcoming"
     assert _step(p, "validate")["state"] == "current"
@@ -861,16 +898,16 @@ def test_pipeline_optional_step_not_yet_reached_is_still_picked_as_next():
         {"key": "use-cases", "status": "Approved"},
         {"key": "srd", "status": "Approved"},
     ]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_SECURITY_APPROVED,
                         plan_mode="unified", scope="pilot")
     assert p["next_step_id"] == "checklist"
     assert "/checklist" in p["next_action"]
 
 
-def test_pipeline_pilot_scope_skips_lld_adr_extended_specs_runbook_qa():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+def test_pipeline_pilot_scope_skips_data_model_lld_adr_runbook_qa():
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope="pilot")
-    for step_id in ("extended-specs", "lld", "runbook", "qa-testcases"):
+    for step_id in ("data-model", "lld", "runbook", "qa-testcases"):
         step = _step(p, step_id)
         assert step["state"] == "skipped", step_id
         assert step["skip"]
@@ -878,16 +915,80 @@ def test_pipeline_pilot_scope_skips_lld_adr_extended_specs_runbook_qa():
     assert _step(p, "smoke-tests")["skip"] is None
 
 
-def test_pipeline_mvp_scope_includes_lld_adr_runbook_qa_skips_smoke_tests():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+def test_pipeline_mvp_scope_includes_data_model_lld_adr_runbook_qa_skips_smoke_tests():
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="separate", scope="mvp")
-    for step_id in ("extended-specs", "lld", "runbook", "qa-testcases", "adr"):
+    for step_id in ("data-model", "lld", "runbook", "qa-testcases", "adr"):
         assert _step(p, step_id)["skip"] is None, step_id
     assert _step(p, "smoke-tests")["skip"]
 
 
+def test_pipeline_security_design_required_even_at_pilot_scope():
+    """Regression: security-design.md (living, .specify/service/) is
+    required at every scope per CLAUDE.md's Scope Reference table --
+    pilot gets §1 (Threat Assessment) only, but the document itself is
+    never skipped the way data-model is. The old collapsed 'extended-specs'
+    step wrongly skipped both together at pilot scope."""
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
+                        plan_mode="unified", scope="pilot")
+    assert _step(p, "security-design")["skip"] is None
+    assert _step(p, "data-model")["skip"]
+
+
+def test_pipeline_resilience_investigation_require_full_scope():
+    for scope in ("pilot", "mvp"):
+        p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
+                            plan_mode="unified", scope=scope)
+        assert _step(p, "resilience")["skip"], scope
+        assert _step(p, "investigation")["skip"], scope
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
+                        plan_mode="unified", scope="full")
+    assert _step(p, "resilience")["skip"] is None
+    assert _step(p, "investigation")["skip"] is None
+
+
+def test_pipeline_type_specific_extended_docs_omitted_when_not_applicable():
+    """component-spec/ux-flow/screen-spec shouldn't even appear as steps
+    for a project type that doesn't use them (e.g. backend-service) --
+    not shown as a permanent 'not applicable' row, just absent."""
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
+                        plan_mode="unified", scope="mvp")
+    ids = {s["id"] for s in p["steps"]}
+    assert "component-spec" not in ids
+    assert "ux-flow" not in ids
+    assert "screen-spec" not in ids
+
+
+def test_pipeline_type_specific_extended_docs_included_when_applicable():
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
+                        plan_mode="unified", scope="mvp",
+                        applicable_extended=frozenset({"component-spec", "ux-flow"}))
+    assert _step(p, "component-spec")["skip"] is None
+    assert _step(p, "ux-flow")["skip"] is None
+    assert "screen-spec" not in {s["id"] for s in p["steps"]}
+
+
+def test_pipeline_service_docs_track_independently():
+    """The core bug this fix addresses: generating only security-design.md
+    must not make data-model.md look done too (and vice versa) -- each
+    living doc's state must come from its own file, not a folder-wide
+    existence check."""
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED,
+                        service_docs={"security-design": {"exists": True, "status": "Approved"}},
+                        plan_mode="unified", scope="mvp")
+    assert _step(p, "security-design")["state"] == "done"
+    assert _step(p, "data-model")["state"] == "upcoming"
+
+
+def test_pipeline_service_doc_awaiting_review_is_current_not_done():
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED,
+                        service_docs={"data-model": {"exists": True, "status": "Draft"}},
+                        plan_mode="unified", scope="mvp")
+    assert _step(p, "data-model")["state"] == "current"
+
+
 def test_pipeline_unified_plan_mode_skips_arch_hld_adr_uses_design():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope="mvp")
     assert _step(p, "design")["skip"] is None
     for step_id in ("arch", "hld", "adr"):
@@ -895,7 +996,7 @@ def test_pipeline_unified_plan_mode_skips_arch_hld_adr_uses_design():
 
 
 def test_pipeline_separate_plan_mode_skips_design_uses_arch_hld_adr():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="separate", scope="mvp")
     assert _step(p, "design")["skip"]
     for step_id in ("arch", "hld", "adr"):
@@ -907,7 +1008,7 @@ def test_pipeline_implement_reflects_task_progress():
     docs = [{"key": k, **approved} for k in
             ("brd", "use-cases", "srd", "checklist", "validate", "analyze", "clarify",
              "design", "stories", "tasks", "smoke-tests")]
-    p = build_pipeline(docs, {"total": 4, "done": 2}, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline(docs, {"total": 4, "done": 2}, _GATE1_PASSED, service_docs=_SECURITY_APPROVED,
                         plan_mode="unified", scope="pilot")
     assert _step(p, "implement")["state"] == "current"
     assert "2/4" in p["next_action"]
@@ -919,14 +1020,14 @@ def test_pipeline_all_done_reports_complete():
             ("brd", "use-cases", "srd", "checklist", "validate", "analyze", "clarify",
              "design", "stories", "tasks", "smoke-tests", "release")]
     tasks = {"total": 2, "done": 2}
-    p = build_pipeline(docs, tasks, _GATE1_PASSED, service_docs_exist=True,
+    p = build_pipeline(docs, tasks, _GATE1_PASSED, service_docs=_SERVICE_DOCS_ALL_APPROVED,
                         plan_mode="unified", scope="pilot")
     assert p["next_step_id"] is None
     assert "complete" in p["next_action"]
 
 
 def test_pipeline_micro_scope_none_uses_3_command_flow():
-    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs_exist=False,
+    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope=None)
     assert [s["id"] for s in p["steps"]] == ["specify", "gate1", "task", "implement"]
 
@@ -935,7 +1036,7 @@ def test_pipeline_micro_scope_none_uses_3_command_flow():
 
 def test_pipeline_next_persona_names_the_owning_team_member():
     docs = [{"key": "brd", "status": "Approved"}]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope="pilot", feature="payments")
     assert p["next_step_id"] == "use-cases"
     assert p["next_persona"]["name"] == "Maya"
@@ -944,7 +1045,7 @@ def test_pipeline_next_persona_names_the_owning_team_member():
 
 
 def test_step_persona_present_on_every_resolved_step_with_an_owner():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope="pilot", feature="payments")
     assert _step(p, "srd")["persona"]["name"] == "Rex"
     assert _step(p, "design")["persona"]["name"] == "Ava"
@@ -954,7 +1055,7 @@ def test_step_persona_present_on_every_resolved_step_with_an_owner():
 def test_specify_and_gate1_have_no_persona_owner():
     """Run before any Virtual Team member takes over -- see _STEP_PERSONA's
     docstring in status.py."""
-    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs_exist=False,
+    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope="pilot")
     assert _step(p, "specify")["persona"] is None
     assert _step(p, "gate1")["persona"] is None
@@ -962,7 +1063,7 @@ def test_specify_and_gate1_have_no_persona_owner():
 
 def test_micro_scope_never_gets_a_persona_hint():
     """sdd-micro has no Virtual Team at all (see its own CLAUDE.md)."""
-    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs_exist=False,
+    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope=None)
     for step in p["steps"]:
         assert step["persona"] is None
@@ -974,7 +1075,7 @@ def test_pipeline_awaiting_review_suppresses_the_creation_phrased_ask():
     *created* -- the ask templates are all creation-phrased ('create the
     BRD'), which would misleadingly suggest it doesn't exist yet."""
     docs = [{"key": "brd", "status": "Draft"}]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs_exist=False,
+    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
                         plan_mode="unified", scope="pilot", feature="payments")
     assert p["next_step_id"] == "brd"
     assert p["next_persona"] is None
@@ -1063,6 +1164,7 @@ def test_persona_for_public_wrapper_matches_internal_lookup():
 
 from sdd.utils.status import (
     build_bo_rollup, _parse_brd_bo, _parse_uc_traces, _parse_srd_fr,
+    _parse_release_bo_closure,
 )
 
 
@@ -1332,6 +1434,84 @@ def test_build_bo_rollup_orphaned_br_not_served_by_any_bo_contributes_nothing(tm
     rollup = build_bo_rollup(tmp_path, "payments")
     assert rollup[0]["task_count"] == 0
     assert rollup[0]["status"] == "Not Started"
+
+
+def test_parse_release_bo_closure_reads_checked_yes(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-001 | Conversion +5% | Measured +6% | [x] Yes  [ ] No  [ ] Pending |\n"
+    )
+    result = _parse_release_bo_closure(feature_dir / "release.md")
+    assert result["BO-001"] == {"outcome": "met", "measured_result": "Measured +6%"}
+
+
+def test_parse_release_bo_closure_reads_checked_no(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-001 | Conversion +5% | Measured +1% | [ ] Yes  [x] No  [ ] Pending |\n"
+    )
+    result = _parse_release_bo_closure(feature_dir / "release.md")
+    assert result["BO-001"]["outcome"] == "not_met"
+
+
+def test_parse_release_bo_closure_reads_checked_pending(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-001 | Conversion +5% | measure after 30 days | [ ] Yes  [ ] No  [X] Pending |\n"
+    )
+    result = _parse_release_bo_closure(feature_dir / "release.md")
+    assert result["BO-001"]["outcome"] == "pending"
+
+
+def test_parse_release_bo_closure_unfilled_checkbox_is_none(tmp_path):
+    feature_dir = tmp_path
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-{NNN} | {metric} | {result} | [ ] Yes  [ ] No  [ ] Pending |\n"
+    )
+    result = _parse_release_bo_closure(feature_dir / "release.md")
+    assert result == {}
+
+
+def test_parse_release_bo_closure_missing_file_returns_empty(tmp_path):
+    assert _parse_release_bo_closure(tmp_path / "nonexistent" / "release.md") == {}
+
+
+def test_build_bo_rollup_wires_release_outcome(tmp_path):
+    feature_dir = _write_full_chain(tmp_path, "payments", "")
+    (feature_dir / "release.md").write_text(
+        "## 6. Business Objective Closure\n"
+        "| BO-NNN | Success Metric (from BRD) | Measured Result | Met? |\n"
+        "|---|---|---|---|\n"
+        "| BO-001 | Conversion +5% | Measured +6% | [x] Yes  [ ] No  [ ] Pending |\n"
+    )
+    rollup = build_bo_rollup(tmp_path, "payments")
+    assert rollup[0]["outcome"] == "met"
+    assert rollup[0]["measured_result"] == "Measured +6%"
+    # task-completion-derived status is untouched by release outcome
+    assert rollup[0]["status"] == "Done"
+
+
+def test_build_bo_rollup_outcome_none_when_no_release_yet(tmp_path):
+    _write_full_chain(tmp_path, "payments", "")
+    rollup = build_bo_rollup(tmp_path, "payments")
+    assert rollup[0]["outcome"] is None
+    assert rollup[0]["measured_result"] is None
 
 
 def test_build_project_status_flattens_bo_rollup_with_feature_tag(tmp_path, monkeypatch):

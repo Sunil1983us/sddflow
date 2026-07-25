@@ -3220,6 +3220,426 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.82"},
     },
+    {
+        "from":        "2.7.82",
+        "to":          "2.7.83",
+        "description": "Fix: `sdd config init`'s .specify/integrations.yml scaffold was built from a small hand-maintained template string in config.py that had drifted far behind the real integrations.yml.example -- missing project_keys, parent_field_by_level, custom_fields_by_level, diagrams, document_reviews, pr_automation, and code_review entirely, plus most of page_map",
+        "notes": [
+            "Reported directly: 'while creating integration file, it "
+            "does not fill the full information ... we have made many "
+            "changes to integrations.yml file'. Confirmed: "
+            "_integrations_template() in cli-python/sdd/commands/"
+            "config.py only ever produced profile + a 9-key page_map + "
+            "jira.custom_fields.story_points -- every section added to "
+            "integrations.yml.example over the life of this project "
+            "(project_keys, parent_field_by_level, "
+            "custom_fields_by_level, diagrams, document_reviews, "
+            "pr_automation, code_review) was never ported into the "
+            "wizard's own template, so a user running `sdd config init` "
+            "got a materially smaller file than what the pack actually "
+            "supports, with no indication anything was missing",
+            "Root cause: two independent sources of truth for the same "
+            "file shape (a Python string vs. the shipped .example) that "
+            "nothing enforced staying in sync -- every feature added "
+            "sections to integrations.yml.example and none to "
+            "config.py's template, since there is no automated diff "
+            "between the two",
+            "Fix: `sdd config init` now fills profile/project_key/"
+            "space_key/parent_page_id into the project's own shipped "
+            "`.specify/integrations.yml.example` (present in every "
+            "project since `sdd init`) instead of a separate template "
+            "string -- every section the current pack version documents "
+            "is present in the scaffolded file, most left commented out "
+            "exactly as the .example ships them. Falls back to the old "
+            "minimal built-in template only if no .example file exists "
+            "in the project (very old init, or a pack without one, e.g. "
+            "sdd-micro)",
+            "document_reviews: carries the example's placeholder Jira "
+            "accountIds verbatim (same as the .example itself ships) -- "
+            "the wizard now prints an explicit warning telling the user "
+            "to replace them with real reviewers, or delete entries they "
+            "don't want routed through Jira, before `sdd review submit`",
+            "{feature}/{project} template variables in page_map are "
+            "runtime substitutions (filled by _push_doc_page at push "
+            "time) and are deliberately left untouched by the new "
+            "substitution logic -- only the four wizard-collected values "
+            "are replaced",
+            "This Node CLI does not implement `sdd config init` -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "This migration only bumps sdd_version — no manifest.yml "
+            "field changes for any pack",
+            "Added 6 pytest cases: placeholder substitution, every "
+            "optional section present, blank parent_page_id stays "
+            "commented, {feature}/{project} vars untouched, and two "
+            "CliRunner end-to-end tests (example present / absent)",
+            "Verified: cli-python pytest 670/670",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.83"},
+    },
+    {
+        "from":        "2.7.83",
+        "to":          "2.7.84",
+        "description": "Docs: HOW-TO-USE.md's 'Phase 0 -- Setup (before any command)' section listed /create-context and sdd init/setup.sh but never mentioned sdd config init/sdd config test at all -- a reader following that section top to bottom for the full pre-flight checklist would not discover Jira/Confluence setup exists until a much later, unrelated section mentioned it in passing",
+        "notes": [
+            "Asked directly, after the v2.7.83 config-init fix: 'is that "
+            "all document in how to use?' -- confirmed no. Phase 0 only "
+            "covered /create-context and sdd init/setup.sh; sdd config "
+            "init and sdd config test were documented elsewhere in the "
+            "same file (their own reference entries, cross-referenced "
+            "only from unrelated later sections like Document Review "
+            "Gates), never listed as part of the sequential pre-flight "
+            "checklist itself",
+            "Added a new '#### Jira/Confluence integration -- sdd config "
+            "init (optional)' subsection immediately after the existing "
+            "sdd init/setup.sh subsection in Phase 0, in all 5 non-micro "
+            "packs' HOW-TO-USE.md -- states it's optional and skippable "
+            "for chat-mode approvals, shows sdd config init + sdd config "
+            "test, and notes it can be run at any point later, not just "
+            "at this step",
+            "sdd-micro intentionally excluded (no Jira/Confluence "
+            "integration in that pack, not part of the shared-block sync "
+            "system)",
+            "Docs-only change -- no manifest.yml field changes, no CLI "
+            "behavior change",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 670/670 (unaffected, docs-only)",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.84"},
+    },
+    {
+        "from":        "2.7.84",
+        "to":          "2.7.85",
+        "description": "Fix batch: full template/parser audit found tasks.md checkboxes never flipped by /implement (silently neutering the BO rollup dashboard), CHG-NNN tasks invisible to the task-heading regex, validate.prompt.md's own step numbering colliding with its template, security-design.md mixing CVSS scoring into a doc that always intended DREAD, CF-NNN consistency findings never reaching clarify.md's gate, and release.md's BO Closure/qa-testcases.md's UAT-relevant rows never feeding back into anything downstream",
+        "notes": [
+            "Tier 1 (7 fixes): (1) implement.prompt.md now instructs "
+            "flipping tasks.md's own acceptance-criteria checkboxes from "
+            "[ ] to [x], not just reporting completion in chat -- "
+            "'sdd dashboard' counts checked boxes, an unflipped box read "
+            "as not-done no matter what shipped; (2) status.py's and "
+            "sdd_parser.py's _TASK_HEADING_RE widened to accept "
+            "TASK-NNN|PERF-NNN|CHG-NNN (status.py was missing PERF-NNN "
+            "entirely -- a latent inconsistency between the two regex "
+            "locations found mid-fix), plus change.prompt.md's CHG-NNN "
+            "generation template rewritten to an actual ### heading block "
+            "matching tasks-template.md's shape (it previously had no "
+            "markdown heading at all, so the regex widening alone would "
+            "have been a no-op); (3) validate.prompt.md's blocking '3a. "
+            "NEEDS CLARIFICATION SCAN' step renumbered to '0a' (it "
+            "collided with the template's real '§3a Use Case Business "
+            "Review' section) and validate-template.md gained the "
+            "missing '## 0a. Needs Clarification Scan' table; (4) "
+            "use-cases-template.md gained an Independent Test field per "
+            "UC (specify-uc.prompt.md updated to fill it); (5) "
+            "security-design-template.md's Threat Model reconciled to "
+            "DREAD scoring everywhere (was mixing in CVSS with a "
+            "mismatched /release gate) with the STRIDE section correctly "
+            "scoped to mvp+, plus a new OWASP Top 10 Controls Mapping "
+            "table (mobile's existing OWASP MASVS table moved into scope "
+            "instead of duplicated); (6) CF-NNN (Consistency Findings) "
+            "from analyze.md's own CRITICAL severity gate now actually "
+            "reach clarify.md -- new template section, clarify.prompt.md "
+            "instruction, and review.py's _CLARIFY_ITEM_CODE regex "
+            "widened to recognize the CF prefix; (7) "
+            "constitution-amendment-template.md (previously entirely "
+            "dead -- referenced only as 'the save location', nothing "
+            "ever generated it) wired into every pack's /specify GATE-1 "
+            "re-run flow, saving CA-{NNN}.md amendment records",
+            "Tier 2 (4 fixes): (1) release.md's §6 Business Objective "
+            "Closure 'Met?' checkbox widened from Yes/Pending to "
+            "Yes/No/Pending (there was previously no way to record a "
+            "missed objective at all), and status.py gained "
+            "_parse_release_bo_closure() wired into build_bo_rollup() as "
+            "new 'outcome'/'measured_result' fields alongside (not "
+            "replacing) the existing task-completion-derived 'status' -- "
+            "surfaced in sdd dashboard's Business Objectives table as a "
+            "new Business Outcome column; (2) release.prompt.md's UAT "
+            "Plan step now pairs each UC-NNN row with the TC-NNN(s) that "
+            "actually exercise it (qa-testcases.md's UAT Relevant: Yes "
+            "rows at mvp+, smoke-tests.md's TC-S-NNN at pilot) instead of "
+            "restating the UC with no test-case traceability at all -- "
+            "release-template.md's UAT Plan table gained a TC-NNN column "
+            "in all 5 packs; (3) jira-export-template.md's manual-import "
+            "CSV gained a TC Reference column (Task rows only) so the "
+            "CSV fallback path doesn't silently drop qa-testcases.md "
+            "traceability the way it already carries FR/UC references; "
+            "(4) jira.py's parse_changeset() was silently dropping the "
+            "PR and Status columns from changesets/{CR}.md's §4 table -- "
+            "rewritten to a tolerant per-line cell parser that captures "
+            "both (defaulting to None for older 4-column rows) and "
+            "surfaces them in the CHG Jira issue's description",
+            "New pytest coverage for every fix: task-heading PERF/CHG "
+            "counting, CF-NNN parse/patch round-trip, "
+            "_parse_release_bo_closure (met/not_met/pending/unfilled-"
+            "placeholder), build_bo_rollup outcome wiring, and "
+            "parse_changeset's PR/Status/legacy-4-column/placeholder-row "
+            "handling",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 682/682, assert-output.sh clean "
+            "on both worked examples",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.85"},
+    },
+    {
+        "from":        "2.7.85",
+        "to":          "2.7.86",
+        "description": "Fix: separate plan_mode (arch.md -> hld.md -> adr.md) had no path to generate the living .specify/service/api-spec.md at all -- unified plan_mode's design.md was the only route -- plus the two mode's document sets had drifted apart on several structural columns",
+        "notes": [
+            "Found via direct question: user asked whether unified design.md "
+            "and separate arch.md/hld.md/adr.md actually cover the same "
+            "ground. Verified against the real template/prompt files rather "
+            "than from memory (the first pass had wrongly claimed "
+            "design-template.md needed 'promoting' into the shared-sync "
+            "system -- it was already there, confirmed by re-checking with "
+            "md5sum across shared + all 5 packs)",
+            "hld-template.md gained a new '## 6. API Design' section "
+            "(renumbered Technology Stack -> 7, NFR Summary -> 8) -- ported "
+            "from design.md's own §3 nearly verbatim, including its "
+            "skip-list and provides/consumes branch, so it inherits the "
+            "same per-project-type safety already proven there",
+            "hld-template.md gained a new '## 4. Error / Failure Paths' "
+            "sequence diagram (renumbering State Machine 4->5) -- design.md "
+            "§2.5 already generates this unconditionally across all 5 "
+            "packs today; separate mode had no equivalent anywhere",
+            "plan-hld.prompt.md updated to match: new Diagram 4 (Error/"
+            "Failure Paths) and Section 6 (API Design, with the full "
+            "living-doc api-spec.md walk logic ported from "
+            "plan-design.prompt.md §3); preview list and Section 8 NFR "
+            "instruction fixed to list all 4 columns its own template "
+            "defines (was only listing 2)",
+            "Fixed 3 hardcoded design.md-only references that never "
+            "branched by plan_mode even though the rest of their files "
+            "did: task.prompt.md's QA-endpoint-source line, "
+            "lld-template.md's References table, and ava.prompt.md's "
+            "dead 'api spec' routing row (pointed at specify-doc.prompt.md, "
+            "which explicitly refuses to generate api-spec)",
+            "design-template.md's §1.2/§1.3/§1.4 tables gained the "
+            "'what it must NOT do' / 'Alternatives Rejected' / "
+            "'Decision (DEC-NNN)' columns that arch-template.md (separate "
+            "mode's equivalent) already had -- plan-design.prompt.md's §1 "
+            "instruction updated to match",
+            "design.md's §4 ADR block expanded from a compact bullet list "
+            "to the same Options A/B/C + pros/cons depth adr-template.md "
+            "already uses -- plan-design.prompt.md §4 updated to match",
+            "Deleted adr-template.md's dead 'ADR Index: docs/architecture/"
+            "decisions.md' pointer -- no command ever generated that file",
+            "All 5 packs' CLAUDE.md 'PLAN Sub-Commands' hld.md description "
+            "updated to mention API design (was diagrams-only)",
+            "Every edited file confirmed byte-identical across "
+            "_shared/full + all 5 packs via md5sum after sync-blocks.sh",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Template/prompt-only change -- no manifest.yml field changes, "
+            "no CLI behavior change. Verified: cli-python pytest 682/682 "
+            "(unaffected), assert-output.sh clean on both worked examples, "
+            "test-setup.sh 15/15",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.86"},
+    },
+    {
+        "from":        "2.7.86",
+        "to":          "2.7.87",
+        "description": "Fix: specify-doc.prompt.md's own SKIP/ADD-unit/UPDATE-unit living-doc walk (data-model, security-design, component-library) never re-synced Confluence/Jira after an approved change -- only /change's separate living-doc handling did",
+        "notes": [
+            "Asked directly whether ALL living-document updates get pushed "
+            "to Confluence. Verified against the real files: change.prompt.md "
+            "already calls `sdd review apply --doc {doc-key}` after every "
+            "living-doc merge (confirmed at 3 separate spots), but "
+            "specify-doc.prompt.md's own native walk -- the path a later "
+            "feature normally takes to extend data-model.md/security-design.md "
+            "on its own, not via a formal Change Request -- only merged, "
+            "bumped the version, appended history, and regenerated the "
+            "summary. No re-sync call anywhere in that block",
+            "Same gap plan-design.prompt.md's api-spec.md walk had already "
+            "solved (and this session's v2.7.86 fix ported into "
+            "plan-hld.prompt.md) -- specify-doc.prompt.md's generic "
+            "living-doc block (shared by data-model, security-design, and "
+            "component-library via its own 'follow the same discipline' "
+            "cross-reference) never got the same fix",
+            "Added step 5 to the 'On approval' list: "
+            "`sdd review apply --doc {doc}` -- re-pushes to Confluence + "
+            "posts a re-review comment on Jira if either is configured, "
+            "skip silently otherwise. Matches change.prompt.md's own "
+            "wording for the same operation",
+            "Practical effect before this fix: if data-model.md's "
+            "Confluence page was already reviewed and live, a second "
+            "feature adding a new entity through the normal "
+            "/specify-doc data-model walk (not /change) would merge "
+            "correctly on disk but leave the Confluence page silently "
+            "stale",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Prompt-only change -- no manifest.yml field changes, no CLI "
+            "behavior change. Verified: cli-python pytest 682/682 "
+            "(unaffected), assert-output.sh clean",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.87"},
+    },
+    {
+        "from":        "2.7.87",
+        "to":          "2.7.88",
+        "description": "Fix: /specify-doc's own 'Action 2 doc-set table' cross-reference pointed at a table that didn't exist in specify.prompt.md in any pack -- broke discoverability of which extended docs (data-model, security, component-spec, etc.) a project actually needs",
+        "notes": [
+            "User asked how an end user is supposed to know which "
+            "`/specify-doc {name}` to run, given something like a "
+            "database schema is needed by almost every project -- "
+            "isn't that overly complicated?",
+            "Verified against the real files, not memory: "
+            "specify-doc.prompt.md, specify-srd.prompt.md, and "
+            "orchestrate.prompt.md (all three fully shared, byte-identical "
+            "across all 5 packs) repeatedly say 'refer to the doc-set "
+            "table in specify.prompt.md (Action 2)' for both the "
+            "no-argument doc listing and the scope-check gate. Grepped "
+            "'^## Action' in every pack's specify.prompt.md -- only "
+            "'Action 1' (Constitution Part 2) exists anywhere. 'Action 2' "
+            "was a dead pointer in all 5 packs",
+            "The gap was papered over in Claude Code specifically because "
+            "each pack's own CLAUDE.md (auto-loaded at session start) "
+            "already lists the real doc names + scope gates -- but that "
+            "fallback doesn't exist for non-Claude-Code tools entering "
+            "through copilot-instructions.md, and sdd-universal's own "
+            "CLAUDE.md punted with 'any other extended doc' instead of "
+            "enumerating which of component-spec/ux-flow/screen-spec/"
+            "resilience/investigation apply to which of its 10 "
+            "project_types",
+            "Fix: added a real '## Action 2 -- Extended Document Set' "
+            "table to specify.prompt.md in each of the 4 single-type "
+            "packs (backend-service, frontend-spa, mobile, fullstack), "
+            "sourced from that pack's own CLAUDE.md so the two stay "
+            "consistent. sdd-universal got a project_type-grouped matrix "
+            "(consumer-view / mobile / server-service / no-runtime-service) "
+            "instead of a false-precision 10-type table, since the "
+            "framework doesn't itself define per-type applicability for "
+            "cli/library/iac cleanly -- those three are marked "
+            "ask-the-user-first rather than a guessed yes/no",
+            "specify-doc.prompt.md's own no-argument instruction "
+            "sharpened to explicitly read the Action 2 table (filtered "
+            "by scope/project_type) and diff it against what's already "
+            "on disk, instead of vaguely 'listing remaining documents'",
+            "sdd-universal CLAUDE.md's vague '/specify-doc {name} -> any "
+            "other extended doc' line pointed at the new Action 2 table "
+            "instead of leaving it to guesswork",
+            "orchestrate.prompt.md's existing Action 2 references, and "
+            "each pack's CLAUDE.md 'Run after: /specify (Action 2)' "
+            "bookend note, needed no changes -- they now resolve to a "
+            "real heading instead of a dead one",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Prompt/doc-only change -- no manifest.yml field changes, no "
+            "CLI behavior change. Verified: cli-python pytest 682/682 "
+            "(unaffected), assert-output.sh clean on both worked examples, "
+            "every 'Action 2' reference across all 5 packs now resolves "
+            "to a real heading (grepped and confirmed), specify-doc.prompt.md "
+            "confirmed byte-identical across _shared/full + all 5 packs "
+            "via md5sum after sync-blocks.sh",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.88"},
+    },
+    {
+        "from":        "2.7.88",
+        "to":          "2.7.89",
+        "description": "Fix: dashboard's single collapsed 'Extended Specs' pipeline step let generating just one required doc (e.g. security) silently mark ALL of them (data-model, component-spec, ux-flow, ...) as done",
+        "notes": [
+            "User asked directly whether the dashboard tells someone when "
+            "they forgot to run /specify-doc for a required extended doc. "
+            "Checked cli-python/sdd/utils/status.py rather than assuming: "
+            "_service_docs_exist() was a bare existence check -- 'does at "
+            "least one .md file exist under .specify/service/' -- and the "
+            "dashboard's whole 'Extended Specs (Data Model, Security, ...)' "
+            "row flipped to done the moment ANY ONE of them existed",
+            "Practical effect before this fix: running only "
+            "`/specify-doc security` (forgetting data-model entirely) "
+            "already showed the dashboard's single extended-specs row as "
+            "satisfied -- exactly the silent gap the user was worried about",
+            "Also found: the same collapsed step was skipped entirely at "
+            "pilot scope, which contradicts CLAUDE.md's own Scope "
+            "Reference table -- security-design.md is required at every "
+            "scope (pilot gets Threat Assessment / §1 only, not zero)",
+            "Fix: split the single row into one step per doc. "
+            "security-design and data-model each get their own "
+            "'service_doc' step backed by a new _service_doc_info(root, "
+            "key) helper that checks .specify/service/{key}.md "
+            "individually (existence + Status: header) instead of a "
+            "folder-wide boolean. component-spec/ux-flow/screen-spec/"
+            "resilience/investigation are now normal per-feature 'doc' "
+            "steps (they already had per-file tracking via "
+            "_feature_docs(), they just weren't in PIPELINE_DOCS or "
+            "referenced by any pipeline step)",
+            "Type-specific docs (component-spec/ux-flow/screen-spec) are "
+            "only added as steps at all when the project's type actually "
+            "uses them -- detected via _applicable_extended_docs(): "
+            "template-file presence under .specify/templates/ for the 4 "
+            "single-type packs (each ships only the templates its type "
+            "needs), or manifest.yml's project_type field for "
+            "sdd-universal (which ships every template up front, so "
+            "presence-detection alone would wrongly say yes to "
+            "everything). cli/library/iac deliberately map to no docs "
+            "shown, rather than guessing -- same 'ask the user, don't "
+            "assert a false yes/no' stance taken for the Action 2 table "
+            "in 2.7.88",
+            "security-design is now never scope-skipped (was wrongly "
+            "skipped entirely at pilot); data-model/component-spec/"
+            "ux-flow/screen-spec stay mvp+; resilience/investigation stay "
+            "full-only -- each gated individually instead of one shared "
+            "skip reason for the whole block",
+            "Dashboard frontend (dashboard.py's renderPipelineStep) needed "
+            "no changes -- it already renders any step generically from "
+            "label/state/skip/command, with no hardcoded reference to the "
+            "old 'extended-specs' id or 'service_docs' kind",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "cli-python only change (sdd/utils/status.py + its tests) -- "
+            "no manifest.yml field changes, no prompt/template changes. "
+            "Verified: cli-python pytest 688/688 (6 new regression tests "
+            "added for the exact bug + corrected scope gating), live "
+            "build_project_status() run against examples/todo-api and "
+            "examples/habit-tracker-web confirmed security-design/"
+            "data-model now track independently and component-spec/"
+            "ux-flow correctly appear only for the frontend-spa example, "
+            "assert-output.sh clean on both worked examples",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.89"},
+    },
+    {
+        "from":        "2.7.89",
+        "to":          "2.7.90",
+        "description": "Fix: dashboard's extended-docs steps listed security-design before data-model, so at mvp+ scope the 'next action' hint told users to run security before data-model -- backwards from the recommended /specify-doc sequence",
+        "notes": [
+            "User checked the dashboard step order against the practical "
+            "sequence recommended earlier (data-model -> security -> "
+            "component-spec/ux-flow) and asked whether it matched",
+            "It didn't: _standard_pipeline_steps() listed security-design "
+            "first. Neither doc depends on the other, so this was never "
+            "a correctness bug, but build_pipeline()'s next_action picks "
+            "the first non-done, non-skipped step in list order -- so at "
+            "mvp+ scope with nothing generated yet, the dashboard said "
+            "'Run /specify-doc security' before ever mentioning data-model",
+            "Swapped the two entries in extended_steps so data-model is "
+            "listed first, matching the recommended order. At pilot scope "
+            "this has no visible effect (data-model is skipped there "
+            "anyway, so security-design still surfaces first); at mvp+ "
+            "the dashboard's next_action now correctly says "
+            "'Run /specify-doc data-model' first",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "cli-python only change (sdd/utils/status.py, list-order "
+            "only, no gating/skip logic touched) -- no manifest.yml field "
+            "changes. Verified: cli-python pytest 688/688 (unaffected -- "
+            "no test asserted next_step_id ordering between these two), "
+            "live build_pipeline() run at mvp scope confirmed "
+            "next_action now reads 'Run `/specify-doc data-model`' first",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.90"},
+    },
 ]
 
 

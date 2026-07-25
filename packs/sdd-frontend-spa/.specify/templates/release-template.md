@@ -27,10 +27,12 @@
 
 ## 2. UAT Plan
 
-| UC-NNN (from use-cases.md) | Scenario | Tester | Browser/Device Target | Environment | Environment Prerequisites | Result |
-|---|---|---|---|---|---|---|
-| UC-{NNN} | {happy path} | {role} | {e.g. Chrome desktop / iOS Safari} | {staging} | {e.g. feature flag X enabled, mock API set to success mode} | [ ] Pass [ ] Fail |
-| UC-{NNN} | {unhappy path} | {role} | {e.g. Firefox desktop / Android Chrome} | {staging} | {e.g. mock API set to error mode} | [ ] Pass [ ] Fail |
+| UC-NNN (from use-cases.md) | TC-NNN (from qa-testcases.md, UAT Relevant: Yes) | Scenario | Tester | Browser/Device Target | Environment | Environment Prerequisites | Result |
+|---|---|---|---|---|---|---|---|
+| UC-{NNN} | TC-{NNN} | {happy path} | {role} | {e.g. Chrome desktop / iOS Safari} | {staging} | {e.g. feature flag X enabled, mock API set to success mode} | [ ] Pass [ ] Fail |
+| UC-{NNN} | TC-{NNN} | {unhappy path} | {role} | {e.g. Firefox desktop / Android Chrome} | {staging} | {e.g. mock API set to error mode} | [ ] Pass [ ] Fail |
+
+> TC-NNN column traces to qa-testcases.md §1 Test Coverage Summary rows marked `UAT Relevant: Yes` — every such TC-NNN must appear in exactly one row above before UAT sign-off.
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
@@ -98,7 +100,7 @@ Choose deployment strategy based on NFR requirements:
 
 | BO-NNN | Success Metric (from BRD) | Measured Result | Met? |
 |---|---|---|---|
-| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
+| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes  [ ] No  [ ] Pending |
 
 ---
 

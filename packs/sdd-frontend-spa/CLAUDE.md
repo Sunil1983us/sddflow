@@ -283,7 +283,7 @@ PLAN adapts to your `plan_mode` setting in `manifest.yml` (set during `setup.sh`
 **Separate mode (`plan_mode: separate`)** — three focused documents, reviewed individually:
 - **`/plan-arch`** → `arch.md`: Architecture pattern, layers, key decisions — Step 1 of 3
   - Gate: clarify.summary.md exists, all RESOLVED; no unresolved [ASSUMPTION-NNN] (AI-8)
-- **`/plan-hld`** → `hld.md`: Component + sequence diagrams (C4 context, component, state) — Step 2 of 3
+- **`/plan-hld`** → `hld.md`: Component + sequence diagrams (C4 context, component, state) + API design — Step 2 of 3
   - Gate: arch.md approved
 - **`/plan-adr`** → `adr.md`: Architecture Decision Records — Step 3 of 3 (mvp+ only; skipped at pilot)
   - Gate: hld.md approved

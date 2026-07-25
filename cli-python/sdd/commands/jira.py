@@ -87,26 +87,43 @@ def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str)
     return extra
 
 
+_CHG_ROW_RE = re.compile(r"^\s*\|\s*CHG-\d+\s*\|")
+
+
 def parse_changeset(features_dir: Path, cr_id: str) -> list[dict]:
     """Parse the §4 CHG-NNN implementation-tasks table from a changeset
     record (.specify/features/{feature}/changesets/{cr_id}.md), written by
     /change Step 7. Returns a list of dicts: sdd_id, description,
-    satisfies, est_lines. Raises FileNotFoundError if the changeset
+    satisfies, est_lines, pr, status. The table's last two columns (PR,
+    Status) are tolerated as optional -- a row with only the original 4
+    cells (older changeset, or hand-edited) yields pr=None/status=None
+    rather than being dropped. Raises FileNotFoundError if the changeset
     doesn't exist -- callers turn that into a clean CLI error."""
     path = features_dir / "changesets" / f"{cr_id}.md"
     if not path.exists():
         raise FileNotFoundError(f"Changeset not found: {path}")
     text = path.read_text()
     chg_tasks = []
-    for m in re.finditer(
-        r"\|\s*(CHG-\d+)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*~?(\d+)[^|]*\|",
-        text,
-    ):
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not _CHG_ROW_RE.match(stripped):
+            continue
+        if not (stripped.startswith("|") and stripped.endswith("|")):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) < 4:
+            continue
+        sdd_id, description, satisfies, est_lines_raw = cells[:4]
+        m = re.search(r"\d+", est_lines_raw)
+        if not m:
+            continue
         chg_tasks.append({
-            "sdd_id":      m.group(1).strip(),
-            "description": m.group(2).strip(),
-            "satisfies":   m.group(3).strip(),
-            "est_lines":   int(m.group(4)),
+            "sdd_id":      sdd_id,
+            "description": description,
+            "satisfies":   satisfies,
+            "est_lines":   int(m.group(0)),
+            "pr":          cells[4] if len(cells) >= 5 else None,
+            "status":      cells[5] if len(cells) >= 6 else None,
         })
     return chg_tasks
 
@@ -572,6 +589,8 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
             f"Change Request: {cr_id}",
             f"Satisfies: {satisfies}",
             f"Description: {chg['description']}",
+            f"PR: {chg['pr']}" if chg.get("pr") else "",
+            f"Status: {chg['status']}" if chg.get("status") else "",
         )
         extra: dict = {"description": description, "priority": {"name": "Medium"}}
         chg_fields = cfg.fields_for("chg")

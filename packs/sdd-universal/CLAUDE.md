@@ -78,7 +78,7 @@ See .specify/memory/summary-rules.md → AI-2 Reading Mode Decision Tree.
 **`/specify-srd` → `srd.md`** — gate: BRD approved
 **`/specify-doc security`** → `.specify/service/security-design.md` (**living/service-level — not per-feature**, see "Living Documents" below) — gate: SRD approved
 **`/specify-doc data-model`** → `.specify/service/data-model.md` (mvp+, **living/service-level — not per-feature**, see below) — gate: SRD approved
-**`/specify-doc {name}`** → any other extended doc — gate: SRD approved
+**`/specify-doc {name}`** → any other extended doc (`component-spec`, `ux-flow`, `screen-spec`, `resilience`, `investigation`) — which ones apply to this `project_type` is defined in `specify.prompt.md`'s Action 2 doc-set table, not by guessing — gate: SRD approved
 
 > **Note:** `api-spec` is generated via `/plan-design` §3 (extracted), not
 > `/specify-doc` — see "Living Documents" below.
@@ -277,7 +277,7 @@ PLAN adapts to your `plan_mode` setting in `manifest.yml` (set during `setup.sh`
 **Separate mode (`plan_mode: separate`)** — three focused documents, reviewed individually:
 - **`/plan-arch`** → `arch.md`: Architecture pattern, layers, key decisions — Step 1 of 3
   - Gate: clarify.summary.md exists, all RESOLVED; no unresolved [ASSUMPTION-NNN] (AI-8)
-- **`/plan-hld`** → `hld.md`: System diagrams (C4 context, sequence, state machine) — Step 2 of 3
+- **`/plan-hld`** → `hld.md`: System diagrams (C4 context, sequence, state machine) + API design — Step 2 of 3
   - Gate: arch.md approved
 - **`/plan-adr`** → `adr.md`: Architecture Decision Records — Step 3 of 3 (mvp+ only; skipped at pilot)
   - Gate: hld.md approved

@@ -17,7 +17,7 @@ technical design, and all extended specification documents (security, API spec, 
 | "analyze" / "risk" / "complexity" / "dependency" | `.github/prompts/analyze.prompt.md` |
 | "design" / "architecture" / "arch" / "adr" | `.github/prompts/plan-design.prompt.md` |
 | "security" | `.github/prompts/specify-doc.prompt.md` with arg: security |
-| "api spec" / "api-spec" / "openapi" | `.github/prompts/specify-doc.prompt.md` with arg: api-spec |
+| "api spec" / "api-spec" / "openapi" | `.github/prompts/plan-design.prompt.md` (unified — API design lives in `design.md` §3) or `.github/prompts/plan-hld.prompt.md` (separate mode — `hld.md` §6); either entry point redirects if the project's `plan_mode` doesn't match |
 | "data model" / "data-model" / "schema" | `.github/prompts/specify-doc.prompt.md` with arg: data-model |
 | "resilience" / "fault" / "recovery" | `.github/prompts/specify-doc.prompt.md` with arg: resilience |
 | "investigation" | `.github/prompts/specify-doc.prompt.md` with arg: investigation |
@@ -29,7 +29,7 @@ Read `.specify/manifest.yml` → get `project.feature`, then check `.specify/fea
 | Pipeline state | Run |
 |---|---|
 | `clarify.md` exists (all RESOLVED), `analyze.md` missing | `.github/prompts/analyze.prompt.md` |
-| `analyze.md` exists, `design.md` missing | `.github/prompts/plan-design.prompt.md` |
+| `analyze.md` exists, `design.md` missing (unified) / `arch.md` missing (separate) | `.github/prompts/plan-design.prompt.md` (unified) or `.github/prompts/plan-arch.prompt.md` (separate) — check `plan_mode` in `manifest.yml` |
 
 **Step 3 — If still unclear, ask once:**
 

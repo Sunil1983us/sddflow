@@ -446,17 +446,26 @@ modified FR must include a `Verifies: TC-{NNN}` field referencing the
 test case added or updated in qa-testcases.md during the document walk.
 If qa-testcases.md was SKIP or ANNOTATE, write `Verifies: TC-{NNN}` using
 the existing test case that already covers this FR.
+
+**Use a `### CHG-{N}` heading block, matching tasks-template.md's own
+`### TASK-{NNN}` shape exactly** — not a colon/indented format. `sdd
+dashboard`'s task-completion parser (`_TASK_HEADING_RE`) only recognizes
+`##`/`###` headings starting with `TASK-`/`PERF-`/`CHG-`; a CHG entry
+written any other way is invisible to it and never counts toward
+progress or the Business Objectives rollup no matter how it's checked
+off.
 ```
 Proposed Change Set: CR-{NNN} — {date}
 
-CHG-{N}: {description}
-  Satisfies: {FR-NNN / NFR-NNN / CR-NNN}
-  Estimated lines: ~{N}
-  Files: {key files}
-  Acceptance criteria:
-    - [ ] {criterion}
+### CHG-{N} — {description}
+Satisfies: {FR-NNN / NFR-NNN / CR-NNN}
+Verifies: TC-{NNN}
+Estimated lines: ~{N} | PR: single
+Files: {key files}
+Acceptance criteria:
+  - [ ] {criterion}
 
-CHG-{N+1}: ...
+### CHG-{N+1} — ...
 ```
 Ask: **"Approve CHG tasks to append to tasks.md? (yes / modify / skip)"**
 **STOP. Wait for response before appending.**

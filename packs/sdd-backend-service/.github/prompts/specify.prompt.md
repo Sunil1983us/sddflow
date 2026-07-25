@@ -105,6 +105,17 @@ Summary:
 - On confirmation, apply the change, then re-push if `confluence:` is
   configured: `sdd confluence push --doc constitution` (skip silently if
   not configured or the command fails).
+- Save the amendment record: `.specify/memory/constitution-amendments/CA-{NNN}.md`
+  (create the `constitution-amendments/` directory if it doesn't exist —
+  `{NNN}` is the next sequential number, CA-001 for this project's first
+  amendment). Use `.specify/templates/constitution-amendment-template.md`,
+  populating §1 Version Change and §2 Changed Rows from the summary above,
+  §3 Change Impact Matrix from the change-rules.md lookup already done,
+  and leaving §4/§5 as-is (this record documents what changed — GATE-1's
+  manual confirmation above is the approval, not a new review gate). This
+  is the permanent audit trail change-rules.md refers to when it says
+  "Constitution amendments: saved separately via
+  constitution-amendment-template.md".
 
 ## After GATE-1 — Generate Spec Documents
 
@@ -118,6 +129,25 @@ Once constitution Part 2 is finalized, generate spec documents **one at a time**
 | `/specify-doc {name}` | Any extended doc (security, data-model, resilience, etc.) | SRD approved |
 
 Run each command, review the output, get approval, then run the next one.
+
+## Action 2 — Extended Document Set (`/specify-doc {name}`)
+
+When `/specify-doc` is run with no argument, cross-reference this table
+against `.specify/service/` and `.specify/features/{feature}/` to list
+which of these are still missing for `manifest.project.scope`, then ask
+the user which to generate next. This table is also the scope-check this
+pack's own `specify-doc.prompt.md` Verify Gate refers to.
+
+| `{name}` | Generates | Required at | Notes |
+|---|---|---|---|
+| `security` | `.specify/service/security-design.md` | pilot (§1 only) · mvp (§1–2) · full (§1–4) | living, service-level |
+| `data-model` | `.specify/service/data-model.md` | mvp+ | living, service-level |
+| `resilience` | `resilience.md` | full | per-feature |
+| `investigation` | `investigation.md` | full | per-feature |
+
+`api-spec` is **not** generated via `/specify-doc` — it's produced by
+`/plan-design` §3 (unified mode) or `/plan-hld` §6 (separate mode), since
+it depends on the architecture decisions made there.
 
 <!-- shared:epic-bootstrap-step:start -->
 ## Jira Epic/Feature — Created Now, Not Later

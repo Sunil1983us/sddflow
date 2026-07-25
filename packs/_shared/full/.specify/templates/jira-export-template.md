@@ -47,16 +47,18 @@ Epic: {Feature Name}
 > Use this when no Jira issues have been created yet (first-time export).
 
 ```csv
-Issue Type,Summary,Parent,Sprint,Story Points,Priority,Labels,Acceptance Criteria,FR Reference,UC Reference
-Epic,{Feature Name},,,, High,sdd-epic,All Must Have stories accepted by Product Owner,,
-Story,{STORY-{NNN} title},{Feature Name},Sprint 1,3,High,sdd-story,"{criterion 1}; {criterion 2}",FR-{NNN}{,} FR-{NNN},UC-{NNN}
-Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN},
-Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN},
-Story,{STORY-{NNN} title},{Feature Name},Sprint 1,5,High,sdd-story,"{criterion}",FR-{NNN},UC-{NNN}
-Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN},
-Story,{STORY-{NNN} title},{Feature Name},Sprint 2,3,Medium,sdd-story,"{criterion}",FR-{NNN},UC-{NNN}
-Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 2,,Medium,sdd-task,"{criterion}",FR-{NNN},
+Issue Type,Summary,Parent,Sprint,Story Points,Priority,Labels,Acceptance Criteria,FR Reference,UC Reference,TC Reference
+Epic,{Feature Name},,,, High,sdd-epic,All Must Have stories accepted by Product Owner,,,
+Story,{STORY-{NNN} title},{Feature Name},Sprint 1,3,High,sdd-story,"{criterion 1}; {criterion 2}",FR-{NNN}{,} FR-{NNN},UC-{NNN},
+Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN},,TC-{NNN}
+Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN},,TC-{NNN}
+Story,{STORY-{NNN} title},{Feature Name},Sprint 1,5,High,sdd-story,"{criterion}",FR-{NNN},UC-{NNN},
+Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN},,TC-{NNN}
+Story,{STORY-{NNN} title},{Feature Name},Sprint 2,3,Medium,sdd-story,"{criterion}",FR-{NNN},UC-{NNN},
+Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 2,,Medium,sdd-task,"{criterion}",FR-{NNN},,TC-{NNN}
 ```
+
+> TC Reference: the qa-testcases.md TC-NNN row(s) that verify this Task (or, at pilot scope, smoke-tests.md's TC-S-NNN) — leave blank for Epic/Story rows, this traces at the Task level only.
 
 ---
 
@@ -66,10 +68,10 @@ Task,{TASK-{NNN} title},STORY-{NNN} title,Sprint 2,,Medium,sdd-task,"{criterion}
 > Replace STORY-JIRA-KEY with the Jira issue key from `docs/jira/{Feature Name}/keys.yml`.
 
 ```csv
-Issue Type,Summary,Parent,Sprint,Story Points,Priority,Labels,Acceptance Criteria,FR Reference
-Task,{TASK-{NNN} title},{STORY-JIRA-KEY},Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN}
-Task,{TASK-{NNN} title},{STORY-JIRA-KEY},Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN}
-Task,{TASK-{NNN} title},{STORY-JIRA-KEY},Sprint 2,,Medium,sdd-task,"{criterion}",FR-{NNN}
+Issue Type,Summary,Parent,Sprint,Story Points,Priority,Labels,Acceptance Criteria,FR Reference,TC Reference
+Task,{TASK-{NNN} title},{STORY-JIRA-KEY},Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN},TC-{NNN}
+Task,{TASK-{NNN} title},{STORY-JIRA-KEY},Sprint 1,,Medium,sdd-task,"{criterion}",FR-{NNN},TC-{NNN}
+Task,{TASK-{NNN} title},{STORY-JIRA-KEY},Sprint 2,,Medium,sdd-task,"{criterion}",FR-{NNN},TC-{NNN}
 ```
 
 ---
@@ -91,6 +93,7 @@ Task,{TASK-{NNN} title},{STORY-JIRA-KEY},Sprint 2,,Medium,sdd-task,"{criterion}"
    - Acceptance Criteria → your AC custom field
    - FR Reference → your FR traceability custom field (optional)
    - UC Reference → your UC traceability custom field (optional)
+   - TC Reference → your test-case traceability custom field (optional)
 4. Review mapping → Import
 
 ---

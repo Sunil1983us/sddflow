@@ -74,9 +74,12 @@ If the required document is missing or not approved — STOP. State which docume
     QA Lead reviews it, and /release §2 UAT scenarios draw from it
   - Header: standard `> Version: 1.0 | Status: Draft |` blockquote
 - Read qa-testcases-template.md
-- For each FR-NNN (srd.summary.md) / endpoint (design.summary.md §3 API Design):
-  generate TC-NNN covering happy path, validation, auth, unhappy path,
-  and performance per the template's categories
+- For each FR-NNN (srd.summary.md) / endpoint (`api-spec.summary.md` if
+  present — the living API surface; otherwise the feature's own API
+  section: `design.summary.md §3` in unified mode, `hld.summary.md §6` in
+  separate mode — consumer-view project types keep their full contract
+  there instead of in `api-spec.md`): generate TC-NNN covering happy path,
+  validation, auth, unhappy path, and performance per the template's categories
 - For each EP-NNN-X in `use-cases.md` (Exception Paths): generate a TC-NNN
   that covers the error condition, system response, and recovery outcome —
   these are the highest-value test targets and must not be skipped

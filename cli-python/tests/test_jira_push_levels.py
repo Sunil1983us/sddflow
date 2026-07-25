@@ -84,8 +84,51 @@ class TestParseChangeset:
         rows = parse_changeset(tmp_path, "CR-001")
         assert len(rows) == 2
         assert rows[0] == {"sdd_id": "CHG-001", "description": "Add validation",
-                            "satisfies": "FR-003", "est_lines": 40}
+                            "satisfies": "FR-003", "est_lines": 40,
+                            "pr": "single", "status": "Pending"}
         assert rows[1]["sdd_id"] == "CHG-002"
+
+    def test_parses_pr_and_status_columns(self, tmp_path):
+        path = tmp_path / "changesets" / "CR-001.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "## 4. CHG-NNN Implementation Tasks\n\n"
+            "| CHG-NNN | Description | Satisfies | Estimated Lines | PR | Status |\n"
+            "|---|---|---|---|---|---|\n"
+            "| CHG-001 | Add validation | FR-003 | ~40 | SPLIT (A/B) | Merged |\n"
+        )
+        rows = parse_changeset(tmp_path, "CR-001")
+        assert rows[0]["pr"] == "SPLIT (A/B)"
+        assert rows[0]["status"] == "Merged"
+
+    def test_tolerates_legacy_4_column_rows_without_pr_or_status(self, tmp_path):
+        """Older changesets (or hand-edited rows) may only have the
+        original 4 cells -- must still parse, with pr/status as None
+        rather than the row being dropped entirely."""
+        path = tmp_path / "changesets" / "CR-001.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "## 4. CHG-NNN Implementation Tasks\n\n"
+            "| CHG-NNN | Description | Satisfies | Estimated Lines |\n"
+            "|---|---|---|---|\n"
+            "| CHG-001 | Add validation | FR-003 | ~40 |\n"
+        )
+        rows = parse_changeset(tmp_path, "CR-001")
+        assert rows[0]["sdd_id"] == "CHG-001"
+        assert rows[0]["pr"] is None
+        assert rows[0]["status"] is None
+
+    def test_skips_unfilled_template_placeholder_row(self, tmp_path):
+        path = tmp_path / "changesets" / "CR-001.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "## 4. CHG-NNN Implementation Tasks\n\n"
+            "| CHG-NNN | Description | Satisfies | Estimated Lines | PR | Status |\n"
+            "|---|---|---|---|---|---|\n"
+            "| CHG-{NNN} | {what to implement} | FR-{NNN} | ~{N} | single / SPLIT | Pending |\n"
+        )
+        rows = parse_changeset(tmp_path, "CR-001")
+        assert rows == []
 
 
 class TestLevelScopedPush:

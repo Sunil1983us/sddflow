@@ -1339,6 +1339,40 @@ class TestClarifyOpenItemsAndAnswers:
         assert ids == ["clarify:AMB-001", "clarify:ASM-001"]
         assert all(it["locations"] == [it["id"]] for it in items)
 
+    def test_parse_and_patch_cf_item_from_analyze_consistency_findings(self, tmp_path):
+        """CF-NNN (analyze.md's CRITICAL Consistency Findings, §8) must flow
+        through clarify.md the same way AMB/GAP/etc. do -- it was previously
+        excluded from _CLARIFY_ITEM_CODE entirely, so a CRITICAL finding
+        carried into clarify.md could never be pushed to or answered via
+        Jira/Confluence."""
+        text = (
+            "## Consistency Findings — CF-NNN (from analyze.summary.md §8, CRITICAL only)\n\n"
+            "### CF-001: FR-012 violates constitution MUST-rule NFR-002\n"
+            "**Category:** ConstitutionConflict\n"
+            "**Found in:** srd.md §2\n"
+            "**Your resolution:** {FILL THIS}\n\n"
+            "---\n\n"
+            "## STATUS TABLE\n\n"
+            "| ID | Type | Item | Status |\n"
+            "|---|---|---|---|\n"
+            "| CF-001 | Consistency Finding (CRITICAL) | FR-012 violates NFR-002 | OPEN |\n"
+        )
+        items = review._parse_clarify_open_items(text)
+        assert [it["id"] for it in items] == ["clarify:CF-001"]
+
+        answers = review._parse_clarify_answers(
+            [{"body": "clarify:CF-001: Relaxed NFR-002 to allow FR-012's async path."}]
+        )
+        assert answers == {"clarify:CF-001": "Relaxed NFR-002 to allow FR-012's async path."}
+
+        md = tmp_path / "clarify.md"
+        md.write_text(text)
+        patched = review._patch_clarify_item(md, "CF-001", answers["clarify:CF-001"])
+        assert patched
+        result = md.read_text()
+        assert "{FILL THIS}" not in result
+        assert "| CF-001 | Consistency Finding (CRITICAL) | FR-012 violates NFR-002 | RESOLVED |" in result
+
     def test_parse_open_items_skips_resolved_rows(self):
         text = self._clarify_md().replace(
             "| ASM-001 | Assumption | 99% availability target | OPEN |",

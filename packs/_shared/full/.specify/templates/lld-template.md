@@ -7,7 +7,7 @@
 ## References
 | Source | Sections / IDs Used |
 |---|---|
-| design.summary.md | {architecture pattern, layers, API design applied} |
+| design.summary.md (unified mode) / arch.summary.md + hld.summary.md (separate mode) | {architecture pattern, layers, API design applied} |
 
 ## 1. Package Structure
 

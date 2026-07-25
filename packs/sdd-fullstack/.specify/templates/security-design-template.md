@@ -83,39 +83,58 @@
 | Secret scan | No API keys/secrets in frontend bundle | {tool, e.g. gitleaks} |
 | Session timeout | Idle session expiry + re-auth prompt | {approach} |
 
+### 2c. OWASP Top 10 Controls Mapping (covers both layers)
+
+> For each category, state the concrete control (or `N/A — {why}` if genuinely inapplicable). Several map directly to rows above.
+
+| OWASP Top 10 (2021) | Applies? | Control |
+|---|---|---|
+| A01 Broken Access Control | Yes/No | {control — ties to 1a AuthZ row} |
+| A02 Cryptographic Failures | Yes/No | {control, e.g. TLS 1.2+, encrypted at rest} |
+| A03 Injection (incl. XSS) | Yes/No | {control — ties to 1a Input validation / 1b XSS rows} |
+| A04 Insecure Design | Yes/No | {control} |
+| A05 Security Misconfiguration | Yes/No | {control — ties to 2b CSP row} |
+| A06 Vulnerable and Outdated Components | Yes/No | {control — ties to 2a/2b Dependency scan rows} |
+| A07 Identification and Authentication Failures | Yes/No | {control — ties to 1a AuthN row} |
+| A08 Software and Data Integrity Failures | Yes/No | {control — ties to 2b SRI row} |
+| A09 Security Logging and Monitoring Failures | Yes/No | {control — ties to 2a Audit logging row} |
+| A10 Server-Side Request Forgery (SSRF) | Yes/No | {control} |
+
 ---
 
-## 3. Full — Threat Model (STRIDE)
+## 3. Threat Model (STRIDE) — mvp+
+
+> STRIDE threat enumeration + DREAD scoring applies at mvp and full scope (both 3a and 3b). DAST and the Penetration Test Plan below are full scope only — skip those two subsections entirely at mvp.
 
 ### 3a. Server-Side Threats
 
-| ID | Component | Threat (STRIDE category) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
+| ID | Component | Threat (STRIDE category) | Description | Mitigation | DREAD (sum, /15) | Residual Risk |
 |---|---|---|---|---|---|---|
-| THR-{NNN} | {backend component} | Spoofing | {description} | {mitigation} | {Critical 9-10 / High 7-8.9 / Med 4-6.9 / Low 0-3.9 or "QA"} | Low/Med/High |
-| THR-{NNN} | {backend component} | Tampering | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {backend component} | Repudiation | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {backend component} | Information Disclosure | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {backend component} | Denial of Service | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {backend component} | Elevation of Privilege | {description} | {mitigation} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {backend component} | Spoofing | {description} | {mitigation} | {sum 5-15, e.g. 8 — High} | Low/Med/High |
+| THR-{NNN} | {backend component} | Tampering | {description} | {mitigation} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {backend component} | Repudiation | {description} | {mitigation} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {backend component} | Information Disclosure | {description} | {mitigation} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {backend component} | Denial of Service | {description} | {mitigation} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {backend component} | Elevation of Privilege | {description} | {mitigation} | {DREAD} | Low/Med/High |
 
 ### 3b. Client-Side Threats
 
-| ID | Component | Threat (STRIDE category) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
+| ID | Component | Threat (STRIDE category) | Description | Mitigation | DREAD (sum, /15) | Residual Risk |
 |---|---|---|---|---|---|---|
-| THR-{NNN} | {frontend component} | Spoofing | {e.g. phishing via UI clone} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {frontend component} | Tampering | {e.g. DOM/storage tampering} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {frontend component} | Information Disclosure | {e.g. token leak via XSS} | {mitigation, CSP + sanitization} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {frontend component} | Elevation of Privilege | {e.g. client-side route guard bypass} | {server-side authZ as source of truth} | {CVSS} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Spoofing | {e.g. phishing via UI clone} | {mitigation} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Tampering | {e.g. DOM/storage tampering} | {mitigation} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Information Disclosure | {e.g. token leak via XSS} | {mitigation, CSP + sanitization} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {frontend component} | Elevation of Privilege | {e.g. client-side route guard bypass} | {server-side authZ as source of truth} | {DREAD} | Low/Med/High |
 
-> **CVSS column:** Use the [CVSS 3.1 calculator](https://www.first.org/cvss/calculator/3.1) for formal scoring, or use the qualitative band (Critical/High/Med/Low) and mark "QA" if formal scoring is out of scope. Any THR with CVSS ≥ 7.0 (High or Critical) must have a confirmed mitigation before /release.
+> **DREAD column:** sum of Damage + Reproducibility + Exploitability + Affected users + Discoverability, each rated 1 (Low) / 2 (Medium) / 3 (High) per specify-doc.prompt.md's rubric (total range 5-15; bands: ≥10 Critical, 7-9 High, 4-6 Medium, 1-3 Low). Any THR scoring High or Critical must have a confirmed mitigation before `/plan-design` — earlier than a `/release`-time gate would catch it, so architecture work never builds on top of an unmitigated threat.
 
-### DAST
+### DAST (full scope only)
 | Target | Tool | Frequency |
 |---|---|---|
 | {backend endpoint/environment} | {tool} | {e.g. every release} |
 | {frontend deployed app} | {tool, e.g. OWASP ZAP against staging} | {e.g. every release} |
 
-### Penetration Test Plan
+### Penetration Test Plan (full scope only)
 | Scope | Trigger | Owner |
 |---|---|---|
 | {in-scope systems — backend + frontend} | {e.g. before go-live, annually} | {team} |
@@ -141,7 +160,7 @@
 - Never render unsanitized user input as HTML (frontend XSS)
 
 ---
-*Pilot: sections 1a+1b only | MVP: + sections 2a+2b | Full: + sections 3-4 (both subsections)*
+*Pilot: sections 1a+1b only | MVP: + sections 2a+2b + §3 STRIDE/DREAD tables (3a+3b) | Full: + §3 DAST/Pen Test + section 4*
 
 ## Approvals
 <!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->

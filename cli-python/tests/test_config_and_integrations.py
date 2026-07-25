@@ -7,7 +7,9 @@ import yaml
 from click.testing import CliRunner
 
 from sdd.commands import config as config_mod
-from sdd.commands.config import _integrations_template, config_command
+from sdd.commands.config import (
+    _integrations_template, _integrations_from_example, config_command,
+)
 from sdd.utils import atlassian_auth
 from sdd.utils.integrations import load_integrations, _DEFAULT_PAGE_MAP
 
@@ -67,6 +69,62 @@ def test_shipped_example_parses_and_agrees_with_defaults():
     for phase, seqs in by_phase.items():
         assert sorted(seqs) == seqs or sorted(seqs) == sorted(set(seqs)), phase
         assert len(set(seqs)) == len(seqs), f"duplicate sequence in {phase}"
+
+
+# ── _integrations_from_example — `sdd config init` scaffold source ───────
+# The wizard used to build .specify/integrations.yml from a small
+# hand-maintained template string that drifted from the real
+# integrations.yml.example (missing project_keys, parent_field_by_level,
+# custom_fields_by_level, diagrams, document_reviews, pr_automation,
+# code_review, and most of page_map). It now fills placeholders into the
+# actual shipped .example instead, so it can never drift again.
+
+_SHIPPED_EXAMPLE = (
+    Path(__file__).resolve().parents[2] /
+    "packs/_shared/full/.specify/integrations.yml.example"
+)
+
+
+def test_integrations_from_example_substitutes_placeholders():
+    out = _integrations_from_example(
+        _SHIPPED_EXAMPLE.read_text(), "work-cloud", "PROJ", "ENGSPACE", "999888",
+    )
+    data = yaml.safe_load(out)
+    assert data["profile"] == "work-cloud"
+    assert data["jira"]["project_key"] == "PROJ"
+    assert data["confluence"]["space_key"] == "ENGSPACE"
+    assert data["confluence"]["parent_page_id"] == "999888"
+
+
+def test_integrations_from_example_carries_every_optional_section():
+    """This is the actual gap being fixed -- the old wizard template never
+    had these sections at all, so a user had to know to go copy
+    integrations.yml.example by hand to get them."""
+    out = _integrations_from_example(
+        _SHIPPED_EXAMPLE.read_text(), "default", "MYPROJ", "ENG", "",
+    )
+    for section in ("project_keys", "parent_field_by_level",
+                    "custom_fields_by_level", "diagrams", "document_reviews",
+                    "pr_automation", "code_review"):
+        assert section in out, f"missing section: {section}"
+
+
+def test_integrations_from_example_blank_parent_page_id_stays_commented():
+    out = _integrations_from_example(
+        _SHIPPED_EXAMPLE.read_text(), "default", "MYPROJ", "ENG", "",
+    )
+    assert '# parent_page_id: "123456"' in out
+    assert "parent_page_id" not in yaml.safe_load(out)["confluence"]
+
+
+def test_integrations_from_example_leaves_runtime_template_vars_untouched():
+    """{feature}/{project} in page_map are filled at push time (by
+    _push_doc_page), not at scaffold time -- must survive substitution
+    verbatim, not get treated as project_key/space_key placeholders."""
+    out = _integrations_from_example(
+        _SHIPPED_EXAMPLE.read_text(), "default", "MYPROJ", "ENG", "",
+    )
+    assert "{feature} — Business Requirements" in out
 
 
 def test_load_integrations_missing_file_raises(tmp_path, monkeypatch):
@@ -337,6 +395,53 @@ class TestConfigInitCommand:
 
         assert result.exit_code != 0
         assert "no backend available" in result.output
+
+    def test_scaffold_uses_shipped_example_when_present(self, runner, config_home):
+        """config_home already chdir's into a fresh tmp_path -- drop a
+        real integrations.yml.example there first, matching what a
+        packaged project actually has on disk."""
+        specify_dir = config_home.parent.parent / ".specify"
+        specify_dir.mkdir(parents=True, exist_ok=True)
+        (specify_dir / "integrations.yml.example").write_text(_SHIPPED_EXAMPLE.read_text())
+
+        with patch("questionary.text", side_effect=[
+                _Answer("default"), _Answer("https://x.atlassian.net"), _Answer("a@b.com"),
+                _Answer("PROJ"), _Answer("ENGSPACE"), _Answer("")]), \
+             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("keyring")]), \
+             patch("questionary.password", return_value=_Answer("secret-token")), \
+             patch("questionary.confirm", return_value=_Answer(True)), \
+             patch.object(config_mod, "store_secret"):
+            result = runner.invoke(config_command, ["init"])
+
+        assert result.exit_code == 0, result.output
+        dest = specify_dir / "integrations.yml"
+        assert dest.exists()
+        data = yaml.safe_load(dest.read_text())
+        assert data["jira"]["project_key"] == "PROJ"
+        assert data["confluence"]["space_key"] == "ENGSPACE"
+        assert "document_reviews" in data  # the gap this fix closes
+        assert "diagrams:" in dest.read_text()  # commented-out reference, not live YAML
+
+    def test_scaffold_falls_back_to_minimal_template_without_example(self, runner, config_home):
+        """No .specify/integrations.yml.example on disk (very old init, or
+        a pack without one) -- must still produce a working file, just the
+        smaller built-in one, not crash."""
+        (config_home.parent.parent / ".specify").mkdir(parents=True, exist_ok=True)
+        with patch("questionary.text", side_effect=[
+                _Answer("default"), _Answer("https://x.atlassian.net"), _Answer("a@b.com"),
+                _Answer("PROJ"), _Answer("ENG"), _Answer("")]), \
+             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("keyring")]), \
+             patch("questionary.password", return_value=_Answer("secret-token")), \
+             patch("questionary.confirm", return_value=_Answer(True)), \
+             patch.object(config_mod, "store_secret"):
+            result = runner.invoke(config_command, ["init"])
+
+        assert result.exit_code == 0, result.output
+        dest = config_home.parent.parent / ".specify" / "integrations.yml"
+        assert dest.exists()
+        data = yaml.safe_load(dest.read_text())
+        assert data["jira"]["project_key"] == "PROJ"
+        assert "document_reviews" not in data  # minimal template has no such section
 
 
 class TestConfigSetSecretCommand:

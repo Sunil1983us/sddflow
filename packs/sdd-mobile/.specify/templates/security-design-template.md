@@ -60,21 +60,6 @@
 
 > Populate this table from the Exception Paths in `use-cases.md §3`. Every EP that involves auth, data access, or external system failure is a candidate audit event.
 
----
-
-## 3. Full — Threat Model (STRIDE + MASVS)
-
-| ID | Component | Threat (STRIDE category) | Description | Mitigation | CVSS (qualitative) | Residual Risk |
-|---|---|---|---|---|---|---|
-| THR-{NNN} | {component} | Spoofing | {description} | {mitigation} | {Critical 9-10 / High 7-8.9 / Med 4-6.9 / Low 0-3.9 or "QA"} | Low/Med/High |
-| THR-{NNN} | {component} | Tampering | {description, e.g. APK/IPA tamper or repackaging} | {mitigation, e.g. code obfuscation + tamper detection} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {component} | Repudiation | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {component} | Information Disclosure | {description, e.g. cached PII on lost/stolen device} | {mitigation, e.g. encrypted local storage} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {component} | Denial of Service | {description} | {mitigation} | {CVSS} | Low/Med/High |
-| THR-{NNN} | {component} | Elevation of Privilege | {description, e.g. jailbreak bypass} | {mitigation} | {CVSS} | Low/Med/High |
-
-> **CVSS column:** Use the [CVSS 3.1 calculator](https://www.first.org/cvss/calculator/3.1) for formal scoring, or use the qualitative band (Critical/High/Med/Low) and mark "QA" if formal scoring is out of scope. Any THR with CVSS ≥ 7.0 (High or Critical) must have a confirmed mitigation before /release.
-
 ### OWASP MASVS Reference
 | MASVS Category | Applies? | Notes |
 |---|---|---|
@@ -86,12 +71,29 @@
 | MASVS-CODE | Yes/No | Obfuscation, anti-tamper, anti-debug |
 | MASVS-RESILIENCE | Yes/No | Jailbreak/root detection |
 
-### DAST (for any backend APIs consumed)
+---
+
+## 3. Threat Model (STRIDE) — mvp+
+
+> STRIDE threat enumeration + DREAD scoring applies at mvp and full scope (the OWASP MASVS Reference above moved to §2 for the same reason). DAST and the Penetration Test Plan below are full scope only — skip those two subsections entirely at mvp.
+
+| ID | Component | Threat (STRIDE category) | Description | Mitigation | DREAD (sum, /15) | Residual Risk |
+|---|---|---|---|---|---|---|
+| THR-{NNN} | {component} | Spoofing | {description} | {mitigation} | {sum 5-15, e.g. 8 — High} | Low/Med/High |
+| THR-{NNN} | {component} | Tampering | {description, e.g. APK/IPA tamper or repackaging} | {mitigation, e.g. code obfuscation + tamper detection} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {component} | Repudiation | {description} | {mitigation} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {component} | Information Disclosure | {description, e.g. cached PII on lost/stolen device} | {mitigation, e.g. encrypted local storage} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {component} | Denial of Service | {description} | {mitigation} | {DREAD} | Low/Med/High |
+| THR-{NNN} | {component} | Elevation of Privilege | {description, e.g. jailbreak bypass} | {mitigation} | {DREAD} | Low/Med/High |
+
+> **DREAD column:** sum of Damage + Reproducibility + Exploitability + Affected users + Discoverability, each rated 1 (Low) / 2 (Medium) / 3 (High) per specify-doc.prompt.md's rubric (total range 5-15; bands: ≥10 Critical, 7-9 High, 4-6 Medium, 1-3 Low). Any THR scoring High or Critical must have a confirmed mitigation before `/plan-design` — earlier than a `/release`-time gate would catch it, so architecture work never builds on top of an unmitigated threat.
+
+### DAST (for any backend APIs consumed) (full scope only)
 | Target | Tool | Frequency |
 |---|---|---|
 | {API endpoint/environment} | {tool} | {e.g. every release} |
 
-### Penetration Test Plan
+### Penetration Test Plan (full scope only)
 | Scope | Trigger | Owner |
 |---|---|---|
 | {app build + backend APIs in scope} | {e.g. before go-live, annually} | {team} |
@@ -117,7 +119,7 @@
   placeholders only
 
 ---
-*Pilot: section 1 only | MVP: + section 2 | Full: + sections 3-4*
+*Pilot: section 1 only | MVP: + section 2 + §3 STRIDE/DREAD threat table | Full: + §3 DAST/Pen Test + section 4*
 
 ## Approvals
 <!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->

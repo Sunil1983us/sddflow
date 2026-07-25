@@ -27,10 +27,12 @@
 
 ## 2. UAT Plan
 
-| UC-NNN (from use-cases.md) | Scenario | Tester | Device/OS Target | Environment | Environment Prerequisites | Result |
-|---|---|---|---|---|---|---|
-| UC-{NNN} | {happy path} | {role} | {e.g. iPhone 15 / iOS 17} | {staging/TestFlight} | {e.g. push notifications enabled, backend on staging v2} | [ ] Pass [ ] Fail |
-| UC-{NNN} | {unhappy path — offline} | {role} | {e.g. Pixel 8 / Android 14} | {staging/internal track} | {e.g. airplane mode enabled, offline sync queue seeded} | [ ] Pass [ ] Fail |
+| UC-NNN (from use-cases.md) | TC-NNN (from qa-testcases.md, UAT Relevant: Yes) | Scenario | Tester | Device/OS Target | Environment | Environment Prerequisites | Result |
+|---|---|---|---|---|---|---|---|
+| UC-{NNN} | TC-{NNN} | {happy path} | {role} | {e.g. iPhone 15 / iOS 17} | {staging/TestFlight} | {e.g. push notifications enabled, backend on staging v2} | [ ] Pass [ ] Fail |
+| UC-{NNN} | TC-{NNN} | {unhappy path — offline} | {role} | {e.g. Pixel 8 / Android 14} | {staging/internal track} | {e.g. airplane mode enabled, offline sync queue seeded} | [ ] Pass [ ] Fail |
+
+> TC-NNN column traces to qa-testcases.md §1 Test Coverage Summary rows marked `UAT Relevant: Yes` — every such TC-NNN must appear in exactly one row above before UAT sign-off.
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
@@ -97,7 +99,7 @@ Choose release strategy based on risk and NFR requirements:
 
 | BO-NNN | Success Metric (from BRD) | Measured Result | Met? |
 |---|---|---|---|
-| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
+| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes  [ ] No  [ ] Pending |
 
 ---
 

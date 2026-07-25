@@ -95,7 +95,7 @@ _(repeat §3 block for each document that receives UPDATE or RERUN action)_
 |---|---|---|---|---|---|
 | CHG-{NNN} | {what to implement} | FR-{NNN} / NFR-{NNN} / CR-{NNN} | ~{N} | single / SPLIT | Pending |
 
-> If tasks.md already exists: CHG-NNN rows are appended under `## Change Set: CR-{NNN} — {date}`.
+> If tasks.md already exists: CHG-NNN `### CHG-{N}` heading blocks (matching TASK-NNN's own shape — required for `sdd dashboard`'s task-completion parser to recognize them) are appended under `## Change Set: CR-{NNN} — {date}`.
 > If tasks.md not yet created: these tasks are incorporated when `/task` runs.
 
 ---

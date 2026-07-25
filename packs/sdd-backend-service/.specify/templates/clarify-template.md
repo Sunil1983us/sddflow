@@ -68,6 +68,19 @@
 
 ---
 
+## CONSISTENCY FINDINGS — CF-NNN (from analyze.summary.md §8, CRITICAL only)
+
+> Every CF-NNN that analyze.md §8 marked CRITICAL must appear here —
+> analyze.prompt.md's own severity guide blocks /clarify on an unresolved
+> CRITICAL finding.
+
+### CF-{NNN}: {Finding Title from analyze.summary.md §8}
+**Inconsistency:** {description from analyze.summary.md §8}
+**Clarification needed:** {what must be resolved/confirmed to close this finding}
+**Your answer:** {FILL THIS}
+
+---
+
 ## STATUS TABLE
 
 | ID | Type | Item | Status |
@@ -77,6 +90,7 @@
 | ASM-{NNN} | Assumption | {topic} | OPEN |
 | OQ-{NNN} | Open Question | {topic} | OPEN |
 | R-{NNN} | High/Critical Risk | {topic} | OPEN |
+| CF-{NNN} | Consistency Finding (CRITICAL) | {topic} | OPEN |
 
 Status: OPEN → RESOLVED / CONFIRMED / DECIDED / CORRECTED
 

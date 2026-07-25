@@ -283,6 +283,17 @@ version bump + change-rules.md Change Impact Matrix cross-reference) and WAIT fo
 user confirmation before applying any change. On confirmation, apply the change,
 then re-push the same way as above if `confluence:` is configured.
 
+Save the amendment record: `.specify/memory/constitution-amendments/CA-{NNN}.md`
+(create the `constitution-amendments/` directory if it doesn't exist — `{NNN}`
+is the next sequential number, CA-001 for this project's first amendment). Use
+`.specify/templates/constitution-amendment-template.md`, populating §1 Version
+Change and §2 Changed Rows from the summary above and §3 Change Impact Matrix
+from the change-rules.md lookup already done; leave §4/§5 as-is (this record
+documents what changed — GATE-1's manual confirmation above is the approval,
+not a new review gate). This is the permanent audit trail change-rules.md
+refers to when it says "Constitution amendments: saved separately via
+constitution-amendment-template.md".
+
 ---
 
 ## After GATE-1 — Generate Spec Documents
@@ -297,6 +308,35 @@ Once constitution Part 2 is finalized, generate spec documents **one at a time**
 | `/specify-doc {name}` | Any extended doc (security, api-spec, data-model, etc.) | SRD approved |
 
 Run each command, review the output, get approval, then run the next one.
+
+## Action 2 — Extended Document Set (`/specify-doc {name}`)
+
+When `/specify-doc` is run with no argument, cross-reference this table
+against `.specify/service/` and `.specify/features/{feature}/` to list
+which of these are still missing for `manifest.project.scope` and
+`manifest.project.project_type`, then ask the user which to generate
+next. This table is also the scope-check `specify-doc.prompt.md`'s
+Verify Gate refers to.
+
+Applicability groups by `project_type` (same three flavors
+`specify-doc.prompt.md` already branches `data-model`/`security` on):
+
+| Group | project_type | Extended docs |
+|---|---|---|
+| Consumer-view | `frontend-spa`, `desktop` | `component-spec` (mvp+), `ux-flow` (mvp+), `data-model` (mvp+, frontend flavor), `security` (pilot §1 / mvp §1–2 / full §1–4), `resilience` (full), `investigation` (full) |
+| Mobile | `mobile` | `screen-spec` (mvp+), `ux-flow` (mvp+), `data-model` (mvp+, mobile flavor), `security` (pilot §1 / mvp §1–2 / full §1–4), `resilience` (full), `investigation` (full) |
+| Server / service | `backend-service`, `fullstack`, `serverless`, `data-ml` | `data-model` (mvp+, server flavor), `security` (pilot §1 / mvp §1–2 / full §1–4), `resilience` (full), `investigation` (full) |
+| No-runtime-service | `cli`, `library`, `iac` | Same NNN-doc names as "Server / service" **may or may not apply** — these types have no `Data Store` row in Action 1 and their Service NFR Baseline is marked N/A. Do not silently generate `data-model.md`/`security-design.md` for these; ask the user first (e.g. "This CLI reads/writes local config — do you want a `data-model.md` for that schema, or skip it?"). `resilience`/`investigation` follow the same ask-first rule at `full` scope. |
+
+`api-spec` is **not** generated via `/specify-doc` for any type that
+**provides** an API (`backend-service`, `fullstack`, `serverless`) — it's
+produced by `/plan-design` §3 (unified mode) or `/plan-hld` §6 (separate
+mode) instead, since it depends on the architecture decisions made there.
+Types that only **consume** an API (`frontend-spa`, `mobile`, `desktop`)
+keep their per-feature contract in `design.md` §3 / `hld.md` §6, never in
+a living `api-spec.md`. `cli`/`library`/`data-ml`/`iac` typically have no
+API surface at all — skip `api-spec` entirely unless the project context
+says otherwise.
 
 <!-- shared:epic-bootstrap-step:start -->
 ## Jira Epic/Feature — Created Now, Not Later

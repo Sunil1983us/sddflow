@@ -40,10 +40,15 @@ Review all spec documents and analysis. Find and document:
 - OQ-NNN: Open questions — human decision needed before design
 - R-NNN (High/Critical): High/Critical risks — from analyze.summary.md
   §2 needing clarification
+- CF-NNN (CRITICAL only): Consistency Findings — from analyze.summary.md
+  §8; analyze-template.md's own Severity Guide states these block
+  /clarify until resolved, so include every CRITICAL one even if no
+  other item type applies
 
 Rules:
 - Every item: unique ID + where found + why it matters for design
 - Prioritise HIGH/CRITICAL risk items (R-NNN) from analyze.summary.md §2
+- Every CRITICAL CF-NNN from analyze.summary.md §8 must appear here — non-negotiable, not just "prioritised"
 - Over-clarify is better than under-clarify
 - Do NOT start designing — questions only
 

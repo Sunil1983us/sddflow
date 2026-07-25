@@ -101,7 +101,18 @@ Walks through:
 3. Auth mode — see [Auth Modes](#auth-modes) below
 4. **Credential storage** — system keychain (recommended) or environment
    variable, see [Credential Storage](#credential-storage) below
-5. Optionally scaffolds `.specify/integrations.yml`
+5. Optionally scaffolds `.specify/integrations.yml` — project key,
+   Confluence space key, and parent page ID are filled into your pack's own
+   shipped `.specify/integrations.yml.example`, so every section it
+   documents (`project_keys`, `parent_field_by_level`,
+   `custom_fields_by_level`, `diagrams`, `document_reviews`,
+   `pr_automation`, `code_review`, the full `page_map`) is present from the
+   start, not just the handful the wizard asks about — most stay commented
+   out until you need them. `document_reviews` ships with placeholder Jira
+   accountIds from the example; replace them with real reviewers (or delete
+   entries you don't want routed through Jira) before `sdd review submit`.
+   Falls back to a minimal built-in template only if no `.example` file
+   exists in the project.
 
 ---
 

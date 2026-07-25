@@ -2205,6 +2205,257 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.82',
+    to:   '2.7.83',
+    description: "Fix: `sdd config init`'s .specify/integrations.yml scaffold was built from a small hand-maintained template string that had drifted far behind the real integrations.yml.example -- missing project_keys, parent_field_by_level, custom_fields_by_level, diagrams, document_reviews, pr_automation, and code_review entirely, plus most of page_map",
+    notes: [
+      "`sdd config init` now fills profile/project_key/space_key/" +
+      "parent_page_id into the project's own shipped " +
+      "integrations.yml.example instead of a separate, drifted template " +
+      "string -- every section the current pack version documents is " +
+      "present in the scaffolded file",
+      "This Node CLI does not implement `sdd config init` -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "This migration only bumps sdd_version — no manifest.yml field " +
+      "changes for any pack",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.83';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.83',
+    to:   '2.7.84',
+    description: "Docs: HOW-TO-USE.md's 'Phase 0 -- Setup' section never mentioned sdd config init/sdd config test -- added as an explicit optional step right after sdd init/setup.sh, in all 5 non-micro packs",
+    notes: [
+      "A reader following 'Phase 0 -- Setup (before any command)' top " +
+      "to bottom would not discover Jira/Confluence setup exists until " +
+      "a much later, unrelated section mentioned it in passing",
+      "Docs-only change -- no manifest.yml field changes, no CLI " +
+      "behavior change",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.84';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.84',
+    to:   '2.7.85',
+    description: "Fix batch: full template/parser audit found tasks.md checkboxes never flipped by /implement (neutering the BO rollup dashboard), CHG-NNN tasks invisible to the task-heading regex, validate.prompt.md's own step numbering colliding with its template, security-design.md mixing CVSS into a doc that always intended DREAD, CF-NNN consistency findings never reaching clarify.md's gate, and release.md/qa-testcases.md data never feeding back into anything downstream",
+    notes: [
+      "Tier 1 (7 fixes): implement.prompt.md now flips tasks.md's own " +
+      "checkboxes instead of only reporting completion in chat; " +
+      "_TASK_HEADING_RE (status.py + sdd_parser.py) widened to " +
+      "TASK-NNN|PERF-NNN|CHG-NNN, plus change.prompt.md's CHG-NNN " +
+      "template rewritten to an actual heading block so the regex fix " +
+      "isn't a no-op; validate.prompt.md's '3a' clarification-scan step " +
+      "renumbered to '0a' to stop colliding with the template's real " +
+      "§3a section; use-cases-template.md gained an Independent Test " +
+      "field per UC; security-design-template.md reconciled to DREAD " +
+      "scoring everywhere (was mixing in CVSS) plus a new OWASP Top 10 " +
+      "Controls Mapping table; CF-NNN consistency findings now flow " +
+      "from analyze.md into clarify.md's own gate; " +
+      "constitution-amendment-template.md (previously dead) wired into " +
+      "every pack's /specify GATE-1 re-run flow",
+      "Tier 2 (4 fixes): release.md's BO Closure 'Met?' checkbox gained " +
+      "a No state and now feeds status.py's build_bo_rollup() as new " +
+      "outcome/measured_result fields (surfaced in sdd dashboard as a " +
+      "Business Outcome column); release.prompt.md's UAT Plan now pairs " +
+      "each UC-NNN with its qa-testcases.md/smoke-tests.md TC-NNN(s); " +
+      "jira-export-template.md's manual CSV gained a TC Reference " +
+      "column; jira.py's parse_changeset() no longer silently drops the " +
+      "PR/Status columns from changesets/{CR}.md's §4 table",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: cli-python pytest 682/682, assert-output.sh clean on " +
+      "both worked examples",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.85';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.85',
+    to:   '2.7.86',
+    description: "Fix: separate plan_mode (arch.md -> hld.md -> adr.md) had no path to generate the living .specify/service/api-spec.md at all -- unified plan_mode's design.md was the only route -- plus several structural columns had drifted between the two modes",
+    notes: [
+      "hld-template.md gained a new '## 6. API Design' section " +
+      "(renumbered Technology Stack -> 7, NFR Summary -> 8) -- ported " +
+      "from design.md's own §3 nearly verbatim, including its skip-list " +
+      "and provides/consumes branch",
+      "hld-template.md gained a new '## 4. Error / Failure Paths' " +
+      "sequence diagram -- design.md §2.5 already generates this " +
+      "unconditionally today; separate mode had no equivalent anywhere",
+      "plan-hld.prompt.md updated to match: new Diagram 4 and Section 6 " +
+      "instructions (API Design ported from plan-design.prompt.md §3, " +
+      "including the living-doc api-spec.md walk); Section 8 NFR " +
+      "instruction fixed to list all 4 columns its own template defines " +
+      "(was only listing 2)",
+      "Fixed 3 hardcoded design.md-only references that never branched " +
+      "by plan_mode: task.prompt.md's QA-endpoint-source line, " +
+      "lld-template.md's References table, and ava.prompt.md's dead " +
+      "'api spec' routing row",
+      "design-template.md's §1.2/§1.3/§1.4 tables gained columns " +
+      "arch-template.md (separate mode's equivalent) already had -- " +
+      "'what it must NOT do', 'Alternatives Rejected', " +
+      "'Decision (DEC-NNN)'",
+      "design.md's §4 ADR block expanded to match adr-template.md's " +
+      "Options A/B/C + pros/cons depth",
+      "Deleted adr-template.md's dead 'ADR Index' pointer",
+      "All 5 packs' CLAUDE.md hld.md description updated to mention API " +
+      "design",
+      "Template/prompt-only change -- no manifest.yml field changes, no " +
+      "CLI behavior change",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: cli-python pytest 682/682 (unaffected), assert-output.sh " +
+      "clean on both worked examples, test-setup.sh 15/15",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.86';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.86',
+    to:   '2.7.87',
+    description: "Fix: specify-doc.prompt.md's own living-doc walk (data-model, security-design, component-library) never re-synced Confluence/Jira after an approved change -- only /change's separate living-doc handling did",
+    notes: [
+      "change.prompt.md already calls `sdd review apply --doc {doc-key}` " +
+      "after every living-doc merge, but specify-doc.prompt.md's own " +
+      "native SKIP/ADD-unit/UPDATE-unit walk -- the path a later feature " +
+      "normally takes to extend data-model.md/security-design.md on its " +
+      "own -- only merged, bumped the version, appended history, and " +
+      "regenerated the summary, with no re-sync call anywhere",
+      "Added step 5 to the 'On approval' list: " +
+      "`sdd review apply --doc {doc}` -- re-pushes to Confluence + posts " +
+      "a re-review comment on Jira if either is configured, skip " +
+      "silently otherwise",
+      "Practical effect before this fix: a second feature adding a new " +
+      "entity to an already-reviewed data-model.md through the normal " +
+      "/specify-doc walk would merge correctly on disk but leave the " +
+      "Confluence page silently stale",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Prompt-only change -- no manifest.yml field changes, no CLI " +
+      "behavior change. Verified: cli-python pytest 682/682 (unaffected), " +
+      "assert-output.sh clean",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.87';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.87',
+    to:   '2.7.88',
+    description: "Fix: /specify-doc's own 'Action 2 doc-set table' cross-reference pointed at a table that didn't exist in specify.prompt.md in any pack -- broke discoverability of which extended docs (data-model, security, component-spec, etc.) a project actually needs",
+    notes: [
+      "specify-doc.prompt.md, specify-srd.prompt.md, and " +
+      "orchestrate.prompt.md (all fully shared across all 5 packs) " +
+      "repeatedly said 'refer to the doc-set table in specify.prompt.md " +
+      "(Action 2)' -- but no pack's specify.prompt.md had an 'Action 2' " +
+      "heading at all, only 'Action 1' (Constitution Part 2). Dead " +
+      "pointer in all 5 packs",
+      "The gap was papered over in Claude Code specifically because each " +
+      "pack's own CLAUDE.md (auto-loaded at session start) already lists " +
+      "the real doc names + scope gates, but that fallback doesn't apply " +
+      "to non-Claude-Code tools, and sdd-universal's own CLAUDE.md " +
+      "punted with 'any other extended doc' instead of enumerating which " +
+      "extended docs apply to which of its 10 project_types",
+      "Fix: added a real '## Action 2 -- Extended Document Set' table to " +
+      "specify.prompt.md in each of the 4 single-type packs, sourced " +
+      "from that pack's own CLAUDE.md. sdd-universal got a " +
+      "project_type-grouped matrix (consumer-view / mobile / " +
+      "server-service / no-runtime-service) rather than a false-precision " +
+      "10-type table, since the framework doesn't cleanly define " +
+      "per-type applicability for cli/library/iac -- those are marked " +
+      "ask-the-user-first instead of a guessed yes/no",
+      "specify-doc.prompt.md's no-argument instruction now explicitly " +
+      "reads the Action 2 table (filtered by scope/project_type) and " +
+      "diffs it against what's already on disk",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Prompt/doc-only change -- no manifest.yml field changes, no CLI " +
+      "behavior change. Verified: cli-python pytest 682/682 (unaffected), " +
+      "assert-output.sh clean on both worked examples, every 'Action 2' " +
+      "reference across all 5 packs now resolves to a real heading",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.88';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.88',
+    to:   '2.7.89',
+    description: "Fix: dashboard's single collapsed 'Extended Specs' pipeline step let generating just one required doc (e.g. security) silently mark ALL of them (data-model, component-spec, ux-flow, ...) as done",
+    notes: [
+      "status.py's _service_docs_exist() was a bare existence check -- " +
+      "'does at least one .md file exist under .specify/service/' -- so " +
+      "the dashboard's whole 'Extended Specs' row flipped to done the " +
+      "moment ANY ONE of the required docs existed",
+      "Also found: the same collapsed step was skipped entirely at pilot " +
+      "scope, contradicting CLAUDE.md's own Scope Reference table -- " +
+      "security-design.md is required at every scope (pilot gets Threat " +
+      "Assessment / §1 only, not zero)",
+      "Fix: split into one step per doc, each tracked individually. " +
+      "security-design/data-model get their own service_doc step backed " +
+      "by checking .specify/service/{key}.md directly; component-spec/" +
+      "ux-flow/screen-spec/resilience/investigation are now normal " +
+      "per-feature doc steps. Type-specific docs only appear as steps " +
+      "when the project's type actually uses them (template-presence " +
+      "detection for the 4 single-type packs, project_type field for " +
+      "sdd-universal) -- cli/library/iac deliberately show none rather " +
+      "than guessing",
+      "security-design is now never scope-skipped; data-model/" +
+      "component-spec/ux-flow/screen-spec stay mvp+; resilience/" +
+      "investigation stay full-only -- each gated individually",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "cli-python only change (sdd/utils/status.py + tests) -- no " +
+      "manifest.yml field changes, no prompt/template changes. Verified: " +
+      "cli-python pytest 688/688 (6 new regression tests), live run " +
+      "against both worked examples confirmed independent tracking and " +
+      "correct type-specific doc inclusion, assert-output.sh clean",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.89';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.89',
+    to:   '2.7.90',
+    description: "Fix: dashboard's extended-docs steps listed security-design before data-model, so at mvp+ scope the 'next action' hint told users to run security before data-model -- backwards from the recommended /specify-doc sequence",
+    notes: [
+      "Neither doc depends on the other, so this was never a " +
+      "correctness bug, but next_action picks the first non-done, " +
+      "non-skipped step in list order -- so at mvp+ scope with nothing " +
+      "generated yet, the dashboard said 'Run /specify-doc security' " +
+      "before ever mentioning data-model",
+      "Swapped the two entries so data-model is listed first, matching " +
+      "the recommended /specify-doc sequence (data-model -> security -> " +
+      "component-spec/ux-flow if applicable)",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "cli-python only change (list-order only, no gating/skip logic " +
+      "touched). Verified: cli-python pytest 688/688 (unaffected), live " +
+      "run at mvp scope confirmed next_action now reads " +
+      "'Run `/specify-doc data-model`' first",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.90';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

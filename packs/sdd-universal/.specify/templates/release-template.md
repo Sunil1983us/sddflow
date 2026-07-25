@@ -28,10 +28,12 @@
 
 ## 2. UAT Plan
 
-| UC-NNN (from use-cases.md) | Scenario | Tester | Environment | Environment Prerequisites | Result |
-|---|---|---|---|---|---|
-| UC-{NNN} | {happy path} | {role} | {staging} | {e.g. payment sandbox v2 configured, test card set loaded} | [ ] Pass [ ] Fail |
-| UC-{NNN} | {unhappy path} | {role} | {staging} | {e.g. mock integration set to timeout mode} | [ ] Pass [ ] Fail |
+| UC-NNN (from use-cases.md) | TC-NNN (from qa-testcases.md, UAT Relevant: Yes) | Scenario | Tester | Environment | Environment Prerequisites | Result |
+|---|---|---|---|---|---|---|
+| UC-{NNN} | TC-{NNN} | {happy path} | {role} | {staging} | {e.g. payment sandbox v2 configured, test card set loaded} | [ ] Pass [ ] Fail |
+| UC-{NNN} | TC-{NNN} | {unhappy path} | {role} | {staging} | {e.g. mock integration set to timeout mode} | [ ] Pass [ ] Fail |
+
+> TC-NNN column traces to qa-testcases.md §1 Test Coverage Summary rows marked `UAT Relevant: Yes` — every such TC-NNN must appear in exactly one row above before UAT sign-off.
 
 **UAT Sign-off:** [ ] Product Owner   [ ] QA Lead
 
@@ -99,7 +101,7 @@ Choose deployment strategy based on NFR requirements:
 
 | BO-NNN | Success Metric (from BRD) | Measured Result | Met? |
 |---|---|---|---|
-| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes [ ] Pending |
+| BO-{NNN} | {metric} | {result, or "measure after N days"} | [ ] Yes  [ ] No  [ ] Pending |
 
 ---
 

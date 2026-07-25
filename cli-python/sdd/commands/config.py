@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
+import re
 import yaml
 import click
 import requests
@@ -176,15 +177,71 @@ def _scaffold_integrations(profile_name: str) -> None:
     manifest     = read_manifest() or {}
     project_name = (manifest.get("project") or {}).get("name", "{project}")
 
-    dest.write_text(
-        _integrations_template(profile_name, project_key, space_key,
-                                parent_page_id, project_name)
-    )
-    console.print(f"  [green]✓[/green]  {dest} created")
+    example = Path(".specify/integrations.yml.example")
+    if example.exists():
+        # Base the scaffold on the pack's own shipped example rather than a
+        # second, hand-maintained template string in this file -- the two
+        # drifted apart before (project_keys, parent_field_by_level,
+        # custom_fields_by_level, diagrams, document_reviews, pr_automation,
+        # code_review, and most of page_map were only ever in the .example,
+        # never in the old built-in template). Substituting into the real
+        # file means every section this pack version supports is always
+        # present, commented exactly as the pack author intended.
+        content = _integrations_from_example(
+            example.read_text(), profile_name, project_key, space_key,
+            parent_page_id,
+        )
+        dest.write_text(content)
+        console.print(f"  [green]✓[/green]  {dest} created (from your pack's integrations.yml.example)")
+        console.print(
+            "  [dim]Every optional section (project_keys, diagrams, pr_automation, "
+            "code_review, ...) is included — most start commented out; "
+            "uncomment what you need.[/dim]"
+        )
+        console.print(
+            "  [yellow]![/yellow]  [dim]document_reviews: below has placeholder Jira "
+            "accountIds (from the example) — replace them with real reviewers, "
+            "or delete entries you don't want routed through Jira, before "
+            "running [cyan]sdd review submit[/cyan].[/dim]"
+        )
+    else:
+        # No .example shipped in this project (very old init, or a pack
+        # without Jira/Confluence integration, e.g. sdd-micro) -- fall back
+        # to the minimal built-in scaffold so config init still works.
+        dest.write_text(
+            _integrations_template(profile_name, project_key, space_key,
+                                    parent_page_id, project_name)
+        )
+        console.print(f"  [green]✓[/green]  {dest} created (minimal built-in template — "
+                       "no integrations.yml.example found in this project)")
+
     console.print(
         "  [dim]Edit [cyan]custom_fields[/cyan] to match your Jira instance.  "
         "Run [cyan]sdd config fields[/cyan] to discover IDs.[/dim]"
     )
+
+
+def _integrations_from_example(text: str, profile: str, project_key: str,
+                                 space_key: str, parent_page_id: str) -> str:
+    """Fills the profile/project_key/space_key/parent_page_id placeholders
+    into a pack's shipped integrations.yml.example verbatim, leaving every
+    other section (including the {feature}/{project} page_map templates,
+    which are runtime substitutions, not scaffold-time ones) untouched."""
+    text = re.sub(r"^profile: default$", f"profile: {profile}",
+                   text, count=1, flags=re.M)
+    if project_key:
+        text = re.sub(r"^(  project_key: )MYPROJ$", rf"\g<1>{project_key}",
+                       text, count=1, flags=re.M)
+    if space_key:
+        text = re.sub(r"^(  space_key: )ENG$", rf"\g<1>{space_key}",
+                       text, count=1, flags=re.M)
+    if parent_page_id:
+        text = re.sub(
+            r'^  # parent_page_id: "123456"$',
+            f'  parent_page_id: "{parent_page_id}"',
+            text, count=1, flags=re.M,
+        )
+    return text
 
 
 @config_command.command("set-secret")
