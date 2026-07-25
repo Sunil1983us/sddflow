@@ -3542,6 +3542,72 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.88"},
     },
+    {
+        "from":        "2.7.88",
+        "to":          "2.7.89",
+        "description": "Fix: dashboard's single collapsed 'Extended Specs' pipeline step let generating just one required doc (e.g. security) silently mark ALL of them (data-model, component-spec, ux-flow, ...) as done",
+        "notes": [
+            "User asked directly whether the dashboard tells someone when "
+            "they forgot to run /specify-doc for a required extended doc. "
+            "Checked cli-python/sdd/utils/status.py rather than assuming: "
+            "_service_docs_exist() was a bare existence check -- 'does at "
+            "least one .md file exist under .specify/service/' -- and the "
+            "dashboard's whole 'Extended Specs (Data Model, Security, ...)' "
+            "row flipped to done the moment ANY ONE of them existed",
+            "Practical effect before this fix: running only "
+            "`/specify-doc security` (forgetting data-model entirely) "
+            "already showed the dashboard's single extended-specs row as "
+            "satisfied -- exactly the silent gap the user was worried about",
+            "Also found: the same collapsed step was skipped entirely at "
+            "pilot scope, which contradicts CLAUDE.md's own Scope "
+            "Reference table -- security-design.md is required at every "
+            "scope (pilot gets Threat Assessment / §1 only, not zero)",
+            "Fix: split the single row into one step per doc. "
+            "security-design and data-model each get their own "
+            "'service_doc' step backed by a new _service_doc_info(root, "
+            "key) helper that checks .specify/service/{key}.md "
+            "individually (existence + Status: header) instead of a "
+            "folder-wide boolean. component-spec/ux-flow/screen-spec/"
+            "resilience/investigation are now normal per-feature 'doc' "
+            "steps (they already had per-file tracking via "
+            "_feature_docs(), they just weren't in PIPELINE_DOCS or "
+            "referenced by any pipeline step)",
+            "Type-specific docs (component-spec/ux-flow/screen-spec) are "
+            "only added as steps at all when the project's type actually "
+            "uses them -- detected via _applicable_extended_docs(): "
+            "template-file presence under .specify/templates/ for the 4 "
+            "single-type packs (each ships only the templates its type "
+            "needs), or manifest.yml's project_type field for "
+            "sdd-universal (which ships every template up front, so "
+            "presence-detection alone would wrongly say yes to "
+            "everything). cli/library/iac deliberately map to no docs "
+            "shown, rather than guessing -- same 'ask the user, don't "
+            "assert a false yes/no' stance taken for the Action 2 table "
+            "in 2.7.88",
+            "security-design is now never scope-skipped (was wrongly "
+            "skipped entirely at pilot); data-model/component-spec/"
+            "ux-flow/screen-spec stay mvp+; resilience/investigation stay "
+            "full-only -- each gated individually instead of one shared "
+            "skip reason for the whole block",
+            "Dashboard frontend (dashboard.py's renderPipelineStep) needed "
+            "no changes -- it already renders any step generically from "
+            "label/state/skip/command, with no hardcoded reference to the "
+            "old 'extended-specs' id or 'service_docs' kind",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "cli-python only change (sdd/utils/status.py + its tests) -- "
+            "no manifest.yml field changes, no prompt/template changes. "
+            "Verified: cli-python pytest 688/688 (6 new regression tests "
+            "added for the exact bug + corrected scope gating), live "
+            "build_project_status() run against examples/todo-api and "
+            "examples/habit-tracker-web confirmed security-design/"
+            "data-model now track independently and component-spec/"
+            "ux-flow correctly appear only for the frontend-spa example, "
+            "assert-output.sh clean on both worked examples",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.89"},
+    },
 ]
 
 

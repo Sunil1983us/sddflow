@@ -4,6 +4,60 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.89] — 2026-07-23 (Fix: dashboard's collapsed "Extended Specs" row hid missing docs)
+
+Asked directly whether the dashboard tells someone when they forgot to
+run `/specify-doc` for a required extended doc. It didn't — checked the
+real code instead of assuming.
+
+### Fixed
+
+- **`status.py`'s single "Extended Specs (Data Model, Security, ...)"
+  dashboard row** was backed by a bare existence check — "does at least
+  one `.md` file exist under `.specify/service/`?" — so generating just
+  `security-design.md` already flipped the *entire* row to done, silently
+  hiding that `data-model.md` (or `component-spec.md`/`ux-flow.md` for
+  frontend-type projects) was still missing.
+- The same collapsed step was also skipped entirely at `pilot` scope,
+  contradicting CLAUDE.md's own Scope Reference table —
+  `security-design.md` is required at every scope (pilot gets Threat
+  Assessment / §1 only, never zero).
+
+### Added
+
+- Each extended doc now gets its **own** dashboard step, tracked
+  independently: `security-design` and `data-model` check their own file
+  under `.specify/service/` via a new `_service_doc_info()` helper;
+  `component-spec`, `ux-flow`, `screen-spec`, `resilience`, and
+  `investigation` are now ordinary per-feature steps (they already had
+  per-file tracking, they just weren't wired into the pipeline at all).
+- Type-specific docs (`component-spec`/`ux-flow`/`screen-spec`) only
+  appear as dashboard steps when the project's type actually uses them —
+  detected via template-file presence under `.specify/templates/` for the
+  4 single-type packs, or `manifest.yml`'s `project_type` field for
+  `sdd-universal` (which ships every template regardless of type, so
+  presence-detection alone can't distinguish there). `cli`/`library`/`iac`
+  deliberately show none of the three rather than guessing.
+- Corrected scope gating: `security-design` is never scope-skipped;
+  `data-model`/`component-spec`/`ux-flow`/`screen-spec` stay `mvp+`;
+  `resilience`/`investigation` stay `full`-only — each with its own reason
+  instead of one shared skip for the whole block.
+
+### Verified
+
+- `cli-python` `pytest tests/ -q`: 688/688 passed (6 new regression tests
+  — independent per-doc tracking, corrected pilot-scope gating, and
+  type-specific applicability).
+- Live `build_project_status()` run against `examples/todo-api` and
+  `examples/habit-tracker-web` confirmed `security-design`/`data-model`
+  now track independently and `component-spec`/`ux-flow` correctly appear
+  only for the frontend-type example.
+- `assert-output.sh` clean on both worked examples, 33/33.
+- Dashboard frontend (`dashboard.py`) needed no changes — it already
+  renders every step generically from `label`/`state`/`skip`/`command`.
+
+---
+
 ## [2.7.88] — 2026-07-23 (Fix: dead "Action 2 doc-set table" pointer broke /specify-doc discoverability)
 
 Asked how an end user is supposed to know which `/specify-doc {name}` to

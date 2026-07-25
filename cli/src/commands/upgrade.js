@@ -2393,6 +2393,44 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.88',
+    to:   '2.7.89',
+    description: "Fix: dashboard's single collapsed 'Extended Specs' pipeline step let generating just one required doc (e.g. security) silently mark ALL of them (data-model, component-spec, ux-flow, ...) as done",
+    notes: [
+      "status.py's _service_docs_exist() was a bare existence check -- " +
+      "'does at least one .md file exist under .specify/service/' -- so " +
+      "the dashboard's whole 'Extended Specs' row flipped to done the " +
+      "moment ANY ONE of the required docs existed",
+      "Also found: the same collapsed step was skipped entirely at pilot " +
+      "scope, contradicting CLAUDE.md's own Scope Reference table -- " +
+      "security-design.md is required at every scope (pilot gets Threat " +
+      "Assessment / §1 only, not zero)",
+      "Fix: split into one step per doc, each tracked individually. " +
+      "security-design/data-model get their own service_doc step backed " +
+      "by checking .specify/service/{key}.md directly; component-spec/" +
+      "ux-flow/screen-spec/resilience/investigation are now normal " +
+      "per-feature doc steps. Type-specific docs only appear as steps " +
+      "when the project's type actually uses them (template-presence " +
+      "detection for the 4 single-type packs, project_type field for " +
+      "sdd-universal) -- cli/library/iac deliberately show none rather " +
+      "than guessing",
+      "security-design is now never scope-skipped; data-model/" +
+      "component-spec/ux-flow/screen-spec stay mvp+; resilience/" +
+      "investigation stay full-only -- each gated individually",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "cli-python only change (sdd/utils/status.py + tests) -- no " +
+      "manifest.yml field changes, no prompt/template changes. Verified: " +
+      "cli-python pytest 688/688 (6 new regression tests), live run " +
+      "against both worked examples confirmed independent tracking and " +
+      "correct type-specific doc inclusion, assert-output.sh clean",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.89';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

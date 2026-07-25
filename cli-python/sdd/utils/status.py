@@ -23,6 +23,11 @@ PIPELINE_DOCS: list[tuple[str, str]] = [
     ("brd", "BRD"),
     ("use-cases", "Use Cases"),
     ("srd", "SRD"),
+    ("component-spec", "Component Spec"),
+    ("ux-flow", "UX Flow"),
+    ("screen-spec", "Screen Spec"),
+    ("resilience", "Resilience"),
+    ("investigation", "Investigation"),
     ("checklist", "Checklist"),
     ("validate", "Validate"),
     ("analyze", "Analyze"),
@@ -325,17 +330,56 @@ def persona_for(step_id: str, feature: str, scope: str | None) -> dict | None:
     return _persona_hint(step_id, feature, scope)
 
 
-def _service_docs_exist(root: Path) -> bool:
-    """Whether any living/service-level spec doc (data-model, security-design,
-    api-spec, ...) has been generated yet — these live at .specify/service/,
-    not .specify/features/{feature}/, so _feature_docs() never sees them.
-    Existence-only check (not per-doc status) since which exact docs apply
-    is project-type-dependent; see build_pipeline()'s "extended-specs" step."""
-    service_dir = root / ".specify" / "service"
-    if not service_dir.is_dir():
-        return False
-    return any(p.suffix == ".md" and not p.name.endswith(".summary.md")
-               for p in service_dir.glob("*.md"))
+def _service_doc_info(root: Path, key: str) -> dict:
+    """Existence + Status: header for one specific living/service-level doc
+    (data-model or security-design — see LIVING_SERVICE_DOCS in
+    sdd/utils/validate.py) at .specify/service/{key}.md. Per-doc, not a
+    folder-wide existence check — see build_pipeline()'s per-key
+    "service_doc" steps for why: a single collapsed check meant generating
+    just one of these two docs made the dashboard show *both* as done."""
+    path = root / ".specify" / "service" / f"{key}.md"
+    if not path.is_file():
+        return {"exists": False, "status": None}
+    return {"exists": True, "status": _doc_status(path)}
+
+
+# Per-feature extended docs whose applicability depends on project type --
+# detected from which template file the pack actually ships, rather than
+# hardcoding pack names. This works for the 4 single-type packs (each ships
+# only the templates its own type needs) but NOT for sdd-universal, which
+# ships every template up front and branches at runtime by `project_type`
+# instead -- see _UNIVERSAL_TYPE_EXTENDED_DOCS below for that case.
+_EXTENDED_TEMPLATE_MAP = {
+    "component-spec": "component-spec-template.md",
+    "ux-flow": "ux-flow-template.md",
+    "screen-spec": "screen-spec-template.md",
+}
+
+# sdd-universal only: which of the type-specific extended docs apply per
+# project_type, mirroring the Action 2 doc-set matrix in sdd-universal's
+# own specify.prompt.md. cli/library/iac are deliberately absent (not
+# mapped to {}) -- the framework doesn't cleanly define UI-doc
+# applicability for those types either; template-presence detection would
+# wrongly say "yes" for universal (it ships every template), so they fall
+# through to no type-specific docs shown rather than a guessed answer.
+_UNIVERSAL_TYPE_EXTENDED_DOCS: dict[str, set[str]] = {
+    "frontend-spa": {"component-spec", "ux-flow"},
+    "desktop":      {"component-spec", "ux-flow"},
+    "mobile":       {"screen-spec", "ux-flow"},
+    "fullstack":    {"component-spec", "ux-flow"},
+}
+
+
+def _applicable_extended_docs(root: Path, project_type: str | None) -> set[str]:
+    """Which of component-spec/ux-flow/screen-spec this project should show
+    on the dashboard. resilience/investigation and the two living docs
+    (data-model, security-design) aren't here -- they're scope-gated only,
+    applicable regardless of project type."""
+    if project_type:
+        return set(_UNIVERSAL_TYPE_EXTENDED_DOCS.get(project_type, set()))
+    templates_dir = root / ".specify" / "templates"
+    return {key for key, fname in _EXTENDED_TEMPLATE_MAP.items()
+            if (templates_dir / fname).is_file()}
 
 
 _SCOPE_ORDER = {"pilot": 0, "mvp": 1, "full": 2}
@@ -371,7 +415,13 @@ _STEP_PERSONA = {
     "brd":            ("Maya",  "create the BRD for {feature}"),
     "use-cases":      ("Maya",  "write the use cases for {feature}"),
     "srd":            ("Rex",   "write the SRD for {feature}"),
-    "extended-specs": ("Ava",   "write the data model and security design for {feature}"),
+    "security-design": ("Ava", "write the security design for {feature}"),
+    "data-model":      ("Ava", "write the data model for {feature}"),
+    "component-spec":  ("Ava", "write the component spec for {feature}"),
+    "ux-flow":         ("Ava", "write the UX flow for {feature}"),
+    "screen-spec":     ("Ava", "write the screen spec for {feature}"),
+    "resilience":      ("Ava", "write the resilience design for {feature}"),
+    "investigation":   ("Ava", "write the investigation doc for {feature}"),
     "checklist":      ("Quinn", "run the spec quality checklist for {feature}"),
     "validate":       ("Maya",  "validate {feature}"),
     "analyze":        ("Ava",   "run the cross-doc analysis on {feature}"),
@@ -404,15 +454,32 @@ def _persona_hint(step_id: str, feature: str, scope: str | None) -> dict | None:
     return {"name": name, "role": _PERSONA_ROLE[name], "ask": template.format(feature=feature)}
 
 
-def _standard_pipeline_steps(scope: str | None, plan_mode: str) -> list[dict]:
+def _standard_pipeline_steps(scope: str | None, plan_mode: str,
+                              applicable_extended: frozenset[str] = frozenset()) -> list[dict]:
     """The full command sequence for every pack except sdd-micro (backend,
     frontend-spa, mobile, fullstack, universal all share this exact
     top-level flow — see each pack's own CLAUDE.md header). Every step is
     always included, even ones this scope/plan_mode skips, so the dashboard
     can show *why* a step is absent rather than silently omitting it —
     the skip reasons mirror CLAUDE.md's "Scope Reference" table exactly.
+
+    Extended docs (data-model, security-design, and the type-specific ones)
+    used to be a single collapsed "Extended Specs" step whose done/upcoming
+    state came from "does *any* file exist under .specify/service/" — so
+    generating just security-design silently marked data-model as done too.
+    Each now gets its own step, gated by its own real scope/type rule:
+    - security-design: required at every scope (pilot gets §1 only, per
+      CLAUDE.md's Scope Reference table) — never skipped
+    - data-model: mvp+ only
+    - component-spec / ux-flow / screen-spec: mvp+, and only included at
+      all when `applicable_extended` says this project's type uses them
+      (component-spec/ux-flow: frontend-spa/desktop/fullstack; screen-spec/
+      ux-flow: mobile) — omitted entirely for types that don't, rather than
+      shown as a permanent "not applicable" row
+    - resilience / investigation: full scope only
     """
     mvp_plus = _scope_at_least(scope, "mvp")
+    full = _scope_at_least(scope, "full")
     separate = plan_mode == "separate"
     pilot = (scope or "pilot") == "pilot"
 
@@ -420,15 +487,36 @@ def _standard_pipeline_steps(scope: str | None, plan_mode: str) -> list[dict]:
         return {"id": id_, "command": command, "label": label, "kind": "doc",
                 "doc_key": doc_key, "skip": skip, "optional": optional}
 
+    def service_doc(id_, command, label, doc_key, skip=None):
+        return {"id": id_, "command": command, "label": label, "kind": "service_doc",
+                "doc_key": doc_key, "skip": skip, "optional": False}
+
+    extended_steps = [
+        service_doc("security-design", "/specify-doc security", "Security Design", "security-design"),
+        service_doc("data-model", "/specify-doc data-model", "Data Model", "data-model",
+                    skip=None if mvp_plus else "pilot scope"),
+    ]
+    if "component-spec" in applicable_extended:
+        extended_steps.append(doc("component-spec", "/specify-doc component-spec", "Component Spec",
+                                   "component-spec", skip=None if mvp_plus else "pilot scope"))
+    if "ux-flow" in applicable_extended:
+        extended_steps.append(doc("ux-flow", "/specify-doc ux-flow", "UX Flow",
+                                   "ux-flow", skip=None if mvp_plus else "pilot scope"))
+    if "screen-spec" in applicable_extended:
+        extended_steps.append(doc("screen-spec", "/specify-doc screen-spec", "Screen Spec",
+                                   "screen-spec", skip=None if mvp_plus else "pilot scope"))
+    extended_steps.append(doc("resilience", "/specify-doc resilience", "Resilience",
+                               "resilience", skip=None if full else "full scope"))
+    extended_steps.append(doc("investigation", "/specify-doc investigation", "Investigation",
+                               "investigation", skip=None if full else "full scope"))
+
     return [
         {"id": "specify", "command": "/specify", "label": "Constitution (Part 2)", "kind": "constitution"},
         {"id": "gate1", "command": None, "label": "GATE-1 — Constitution Finalized", "kind": "manual_gate"},
         doc("brd", "/specify-brd", "Business Requirements Document", "brd"),
         doc("use-cases", "/specify-uc", "Use Case Specification", "use-cases"),
         doc("srd", "/specify-srd", "Software Requirements Document", "srd"),
-        {"id": "extended-specs", "command": "/specify-doc {name}",
-         "label": "Extended Specs (Data Model, Security, ...)", "kind": "service_docs",
-         "skip": None if mvp_plus else "pilot scope"},
+        *extended_steps,
         doc("checklist", "/checklist", "Spec Quality Checklist", "checklist", optional=pilot),
         doc("validate", "/validate", "Validate", "validate"),
         doc("analyze", "/analyze", "Cross-Doc Analysis", "analyze"),
@@ -464,7 +552,7 @@ def _micro_pipeline_steps() -> list[dict]:
     ]
 
 
-def _step_state(step: dict, docs_by_key: dict, tasks: dict, constitution: dict, service_docs_exist: bool) -> str:
+def _step_state(step: dict, docs_by_key: dict, tasks: dict, constitution: dict, service_docs: dict) -> str:
     """done | current | upcoming — 'current' means either awaiting review
     (a doc exists but its Status: header isn't Approved yet) or actively
     in progress (tasks partially done); 'upcoming' means not started."""
@@ -475,8 +563,12 @@ def _step_state(step: dict, docs_by_key: dict, tasks: dict, constitution: dict, 
         if constitution.get("gate1_inferred") == "passed":
             return "done"
         return "current" if constitution.get("part2_generated") else "upcoming"
-    if kind == "service_docs":
-        return "done" if service_docs_exist else "upcoming"
+    if kind == "service_doc":
+        info = service_docs.get(step["doc_key"]) or {"exists": False, "status": None}
+        if not info["exists"]:
+            return "upcoming"
+        status = (info.get("status") or "").lower()
+        return "done" if "approved" in status else "current"
     if kind == "tasks_progress":
         if tasks["total"] == 0:
             return "upcoming"
@@ -496,8 +588,6 @@ def _next_action_sentence(step: dict, state: str, tasks: dict) -> str:
         return ('Review and finalize constitution Part 2 (Tech Stack, Core '
                 'Principles, Domain Rules, Never Do), then tell your agent: '
                 '"Constitution Part 2 finalized."')
-    if kind == "service_docs":
-        return "Run `/specify-doc {name}` for each extended spec your scope requires (e.g. data-model, security)."
     if kind == "tasks_progress":
         if state == "upcoming":
             return "Run `/task` to break this feature into tasks, then `/implement` to start building."
@@ -521,16 +611,24 @@ def _later_doc_step_exists(remaining_steps: list[dict], docs_by_key: dict) -> bo
     return False
 
 
-def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_docs_exist: bool,
+def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_docs: dict,
                     plan_mode: str = "unified", scope: str | None = "pilot",
-                    feature: str = "this feature") -> dict:
+                    feature: str = "this feature",
+                    applicable_extended: frozenset[str] = frozenset()) -> dict:
     """The full command sequence for this feature (every step this scope/
     plan_mode can ever produce, including skipped ones with a reason),
     each resolved to done/current/upcoming from what's actually on disk —
     plus a single plain-language sentence for what to do next. Pure
     function of already-loaded state; safe to call on every dashboard poll.
+
+    `service_docs` is keyed by doc key ("data-model", "security-design"),
+    each value {"exists": bool, "status": str | None} — see
+    _service_doc_info(). `applicable_extended` is the set of type-specific
+    extended docs (component-spec/ux-flow/screen-spec) this project's type
+    actually uses — see _applicable_extended_docs().
     """
-    steps = _micro_pipeline_steps() if scope is None else _standard_pipeline_steps(scope, plan_mode)
+    steps = (_micro_pipeline_steps() if scope is None
+             else _standard_pipeline_steps(scope, plan_mode, applicable_extended))
     docs_by_key = {d["key"]: d for d in docs}
 
     resolved: list[dict] = []
@@ -542,7 +640,7 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
         if step.get("skip"):
             resolved.append({**step, "state": "skipped", "persona": persona})
             continue
-        state = _step_state(step, docs_by_key, tasks, constitution, service_docs_exist)
+        state = _step_state(step, docs_by_key, tasks, constitution, service_docs)
         resolved.append({**step, "state": state, "persona": persona})
         if state != "done" and next_action is None:
             # An *optional* step (e.g. checklist at pilot scope) whose doc
@@ -1134,11 +1232,16 @@ def _local_review_links(root: Path, base_url: str | None) -> dict:
 
 
 def build_feature_status(root: Path, feature: str, constitution: dict | None = None,
-                          plan_mode: str = "unified", scope: str | None = "pilot") -> dict:
+                          plan_mode: str = "unified", scope: str | None = "pilot",
+                          project_type: str | None = None) -> dict:
     feature_dir = root / ".specify" / "features" / feature
     docs = _feature_docs(root, feature)
     base_url = _local_base_url()
     tasks = _parse_tasks(feature_dir / "tasks.md")
+    service_docs = {
+        "data-model": _service_doc_info(root, "data-model"),
+        "security-design": _service_doc_info(root, "security-design"),
+    }
     return {
         "name": feature,
         "docs": docs,
@@ -1153,7 +1256,8 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
         },
         "pipeline": build_pipeline(
             docs, tasks, constitution or _constitution_status(root),
-            _service_docs_exist(root), plan_mode, scope, feature=feature,
+            service_docs, plan_mode, scope, feature=feature,
+            applicable_extended=frozenset(_applicable_extended_docs(root, project_type)),
         ),
     }
 
@@ -1166,10 +1270,12 @@ def build_project_status(root: str | Path = ".") -> dict:
     proj = manifest.get("project") or {}
     scope = proj.get("scope")  # absent for sdd-micro
     plan_mode = manifest.get("plan_mode") or "unified"
+    project_type = manifest.get("project_type")  # sdd-universal only
     constitution = _constitution_status(root)
 
     features = [
-        build_feature_status(root, f, constitution=constitution, plan_mode=plan_mode, scope=scope)
+        build_feature_status(root, f, constitution=constitution, plan_mode=plan_mode,
+                              scope=scope, project_type=project_type)
         for f in _list_feature_names(root)
     ]
 
