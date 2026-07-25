@@ -195,3 +195,22 @@ job) — after changing prompts or templates, run it locally to catch drift:
 ```bash
 bash packs/_shared/tests/assert-output.sh examples/todo-api/.specify/features/task-management pilot
 ```
+
+A third harness, `packs/_shared/tests/check-cross-references.py`, catches a
+different bug class: a prompt file pointing at another file's numbered
+section ("design.md §3") or Action heading ("specify.prompt.md (Action 2)")
+that doesn't actually exist there anymore — the exact way the v2.7.88 and
+v2.7.89 bugs shipped undetected. CI runs it on every PR
+(`cross-reference-check` job). Run it locally after editing any
+`.prompt.md`/`CLAUDE.md` file that references another document's section,
+or any `*-template.md` whose numbered headings you renumbered or removed:
+
+```bash
+python3 packs/_shared/tests/check-cross-references.py --verbose
+```
+
+It does not (and cannot) check whether a reference's *content* still makes
+sense — only that the pointer resolves to something real. `*.summary.md §N`
+references are deliberately skipped (AI-2 summaries aren't guaranteed to
+preserve source section numbers); a `.md` reference to a doc key with no
+matching `*-template.md` is reported as a note, not a failure.

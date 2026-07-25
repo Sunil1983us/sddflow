@@ -36,6 +36,14 @@ jobs:
       - name: Run test-setup-micro.sh (sdd-micro)
         run: bash packs/_shared/tests/test-setup-micro.sh
 
+  cross-reference-check:
+    name: Prompt cross-references resolve (no dead "Action N" / "§N" pointers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run check-cross-references.py
+        run: python3 packs/_shared/tests/check-cross-references.py
+
   output-assertions:
     name: Worked example passes output assertions
     runs-on: ubuntu-latest
