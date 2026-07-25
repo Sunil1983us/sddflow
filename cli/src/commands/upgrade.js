@@ -2431,6 +2431,31 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.89',
+    to:   '2.7.90',
+    description: "Fix: dashboard's extended-docs steps listed security-design before data-model, so at mvp+ scope the 'next action' hint told users to run security before data-model -- backwards from the recommended /specify-doc sequence",
+    notes: [
+      "Neither doc depends on the other, so this was never a " +
+      "correctness bug, but next_action picks the first non-done, " +
+      "non-skipped step in list order -- so at mvp+ scope with nothing " +
+      "generated yet, the dashboard said 'Run /specify-doc security' " +
+      "before ever mentioning data-model",
+      "Swapped the two entries so data-model is listed first, matching " +
+      "the recommended /specify-doc sequence (data-model -> security -> " +
+      "component-spec/ux-flow if applicable)",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "cli-python only change (list-order only, no gating/skip logic " +
+      "touched). Verified: cli-python pytest 688/688 (unaffected), live " +
+      "run at mvp scope confirmed next_action now reads " +
+      "'Run `/specify-doc data-model`' first",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.90';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

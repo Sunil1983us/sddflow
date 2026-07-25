@@ -492,9 +492,14 @@ def _standard_pipeline_steps(scope: str | None, plan_mode: str,
                 "doc_key": doc_key, "skip": skip, "optional": False}
 
     extended_steps = [
-        service_doc("security-design", "/specify-doc security", "Security Design", "security-design"),
+        # Ordered to match the practical /specify-doc sequence recommended
+        # to users: data-model -> security -> (component-spec/ux-flow if
+        # applicable) -- neither doc depends on the other, but next_action
+        # picks the first non-done step in list order, so the order here
+        # is what the dashboard tells someone to run first.
         service_doc("data-model", "/specify-doc data-model", "Data Model", "data-model",
                     skip=None if mvp_plus else "pilot scope"),
+        service_doc("security-design", "/specify-doc security", "Security Design", "security-design"),
     ]
     if "component-spec" in applicable_extended:
         extended_steps.append(doc("component-spec", "/specify-doc component-spec", "Component Spec",

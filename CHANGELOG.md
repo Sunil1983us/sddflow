@@ -4,6 +4,30 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.90] — 2026-07-23 (Fix: dashboard listed security before data-model, backwards from the recommended order)
+
+### Fixed
+
+- The extended-docs dashboard steps listed `security-design` before
+  `data-model`. Neither depends on the other, so this was never a
+  correctness bug — but `next_action` picks the first non-done step in
+  list order, so at `mvp+` scope with nothing generated yet, the
+  dashboard told users to run `/specify-doc security` before ever
+  mentioning `data-model`, backwards from the recommended sequence
+  (data-model → security → component-spec/ux-flow if applicable).
+- Swapped the order. At `pilot` scope this has no visible effect
+  (`data-model` is skipped there regardless); at `mvp+` the dashboard's
+  next action now correctly says `/specify-doc data-model` first.
+
+### Verified
+
+- `cli-python` `pytest tests/ -q`: 688/688 passed (unaffected — no test
+  asserted ordering between these two steps).
+- Live `build_pipeline()` run at `mvp` scope confirmed the corrected
+  order.
+
+---
+
 ## [2.7.89] — 2026-07-23 (Fix: dashboard's collapsed "Extended Specs" row hid missing docs)
 
 Asked directly whether the dashboard tells someone when they forgot to

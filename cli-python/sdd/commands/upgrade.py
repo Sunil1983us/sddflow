@@ -3608,6 +3608,38 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.89"},
     },
+    {
+        "from":        "2.7.89",
+        "to":          "2.7.90",
+        "description": "Fix: dashboard's extended-docs steps listed security-design before data-model, so at mvp+ scope the 'next action' hint told users to run security before data-model -- backwards from the recommended /specify-doc sequence",
+        "notes": [
+            "User checked the dashboard step order against the practical "
+            "sequence recommended earlier (data-model -> security -> "
+            "component-spec/ux-flow) and asked whether it matched",
+            "It didn't: _standard_pipeline_steps() listed security-design "
+            "first. Neither doc depends on the other, so this was never "
+            "a correctness bug, but build_pipeline()'s next_action picks "
+            "the first non-done, non-skipped step in list order -- so at "
+            "mvp+ scope with nothing generated yet, the dashboard said "
+            "'Run /specify-doc security' before ever mentioning data-model",
+            "Swapped the two entries in extended_steps so data-model is "
+            "listed first, matching the recommended order. At pilot scope "
+            "this has no visible effect (data-model is skipped there "
+            "anyway, so security-design still surfaces first); at mvp+ "
+            "the dashboard's next_action now correctly says "
+            "'Run /specify-doc data-model' first",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "cli-python only change (sdd/utils/status.py, list-order "
+            "only, no gating/skip logic touched) -- no manifest.yml field "
+            "changes. Verified: cli-python pytest 688/688 (unaffected -- "
+            "no test asserted next_step_id ordering between these two), "
+            "live build_pipeline() run at mvp scope confirmed "
+            "next_action now reads 'Run `/specify-doc data-model`' first",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.90"},
+    },
 ]
 
 
