@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SDD Framework — Project Initializer
-# Usage: bash setup.sh [--project <name>] [--scope pilot|mvp|full] [--feature <name>] [--plan-mode unified|separate]
+# Usage: bash setup.sh [--project <name>] [--scope pilot|mvp|full] [--feature <name>] [--plan-mode unified|separate] [--reading-mode auto|summary|full]
 # Run this once after copying the pack into your project directory.
 
 set -euo pipefail
@@ -17,13 +17,15 @@ SCOPE=""
 FEATURE_NAME=""
 
 PLAN_MODE=""
+READING_MODE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --project)    PROJECT_NAME="$2"; shift 2;;
-    --scope)      SCOPE="$2";        shift 2;;
-    --feature)    FEATURE_NAME="$2"; shift 2;;
-    --plan-mode)  PLAN_MODE="$2";    shift 2;;
+    --project)      PROJECT_NAME="$2"; shift 2;;
+    --scope)        SCOPE="$2";        shift 2;;
+    --feature)      FEATURE_NAME="$2"; shift 2;;
+    --plan-mode)    PLAN_MODE="$2";    shift 2;;
+    --reading-mode) READING_MODE="$2"; shift 2;;
     *) echo "Unknown option: $1"; exit 1;;
   esac
 done
@@ -81,12 +83,29 @@ if [[ -z "$PLAN_MODE" ]]; then
   PLAN_MODE="${PLAN_MODE:-unified}"
 fi
 
+if [[ -z "$READING_MODE" ]]; then
+  if [[ $INTERACTIVE -eq 1 ]]; then
+    echo ""
+    echo "Document reading mode (token economy — see summary-rules.md):"
+    echo "  auto    — use each doc's .summary.md when present, fall back to the"
+    echo "            full document (and generate a summary) when it's missing."
+    echo "            Good for: almost everyone — self-heals, never stuck."
+    echo "  summary — always use .summary.md; warns instead of reading the full"
+    echo "            doc if one is missing. Good for: strict token budgets."
+    echo "  full    — always read the full document, every command. Good for:"
+    echo "            deep debugging, or migrating a project with no summaries."
+    read -r -p "Reading mode [auto]: " READING_MODE
+  fi
+  READING_MODE="${READING_MODE:-auto}"
+fi
+
 echo ""
 echo "Setting up:"
-echo "  Project   : $PROJECT_NAME"
-echo "  Feature   : $FEATURE_NAME"
-echo "  Scope     : $SCOPE"
-echo "  Plan mode : $PLAN_MODE"
+echo "  Project      : $PROJECT_NAME"
+echo "  Feature      : $FEATURE_NAME"
+echo "  Scope        : $SCOPE"
+echo "  Plan mode    : $PLAN_MODE"
+echo "  Reading mode : $READING_MODE"
 echo ""
 
 # --- Update manifest.yml ---
@@ -102,6 +121,7 @@ content = re.sub(r'scope:\s*"pilot"', 'scope: "$SCOPE"', content)
 content = re.sub(r'feature:\s*""', 'feature: "$FEATURE_NAME"', content)
 content = re.sub(r'context_file:\s*""', 'context_file: "$FEATURE_NAME.md"', content)
 content = re.sub(r'plan_mode:\s*"unified"', 'plan_mode: "$PLAN_MODE"', content)
+content = re.sub(r'reading_mode:\s*"auto"', 'reading_mode: "$READING_MODE"', content)
 with open("$MANIFEST", "w") as f:
     f.write(content)
 PYEOF

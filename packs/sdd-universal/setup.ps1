@@ -1,13 +1,14 @@
 # SDD Framework — Project Initializer (PowerShell)
-# Usage: .\setup.ps1 [-Project <name>] [-Scope pilot|mvp|full] [-Feature <name>] [-Type <project-type>] [-PlanMode unified|separate]
+# Usage: .\setup.ps1 [-Project <name>] [-Scope pilot|mvp|full] [-Feature <name>] [-Type <project-type>] [-PlanMode unified|separate] [-ReadingMode auto|summary|full]
 # Run this once after copying the pack into your project directory.
 
 param(
-  [string]$Project  = "",
-  [string]$Scope    = "",
-  [string]$Feature  = "",
-  [string]$Type     = "",
-  [string]$PlanMode = ""
+  [string]$Project     = "",
+  [string]$Scope       = "",
+  [string]$Feature     = "",
+  [string]$Type        = "",
+  [string]$PlanMode    = "",
+  [string]$ReadingMode = ""
 )
 
 Write-Host ""
@@ -156,6 +157,24 @@ if (-not $PlanMode) {
   }
 }
 
+if (-not $ReadingMode) {
+  if ($Interactive) {
+    Write-Host ""
+    Write-Host "Document reading mode (token economy — see summary-rules.md):"
+    Write-Host "  auto    — use each doc's .summary.md when present, fall back to the"
+    Write-Host "            full document (and generate a summary) when it's missing."
+    Write-Host "            Good for: almost everyone — self-heals, never stuck."
+    Write-Host "  summary — always use .summary.md; warns instead of reading the full"
+    Write-Host "            doc if one is missing. Good for: strict token budgets."
+    Write-Host "  full    — always read the full document, every command. Good for:"
+    Write-Host "            deep debugging, or migrating a project with no summaries."
+    $ReadingModeInput = Read-Host "Reading mode [auto]"
+    $ReadingMode = if ($ReadingModeInput) { $ReadingModeInput } else { "auto" }
+  } else {
+    $ReadingMode = "auto"
+  }
+}
+
 # --- Validate inputs ---
 function Assert-Name {
   param([string]$Value, [string]$Label)
@@ -175,6 +194,7 @@ Write-Host "  Type      : $ProjectType"
 Write-Host "  Feature   : $Feature"
 Write-Host "  Scope     : $Scope"
 Write-Host "  Plan mode : $PlanMode"
+Write-Host "  Reading mode : $ReadingMode"
 Write-Host ""
 
 # --- Update manifest.yml ---
@@ -191,6 +211,7 @@ if (Test-Path $ManifestPath) {
   $content = $content.Replace('context_file: ""',     "context_file: `"$Feature.md`"")
   $content = $content.Replace('project_type: "auto"', "project_type: `"$ProjectType`"")
   $content = $content.Replace('plan_mode: "unified"', "plan_mode: `"$PlanMode`"")
+  $content = $content.Replace('reading_mode: "auto"', "reading_mode: `"$ReadingMode`"")
   Set-Content $ManifestPath $content
   Write-Host "  [OK]  .specify\manifest.yml filled"
 } else {
