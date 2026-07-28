@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SDD Framework — Universal Project Initializer
-# Usage: bash setup.sh [--project <name>] [--scope pilot|mvp|full] [--feature <name>] [--type <project-type>] [--plan-mode unified|separate]
+# Usage: bash setup.sh [--project <name>] [--scope pilot|mvp|full] [--feature <name>] [--type <project-type>] [--plan-mode unified|separate] [--reading-mode auto|summary|full]
 # Run this once after copying the pack into your project directory.
 
 set -euo pipefail
@@ -17,14 +17,16 @@ SCOPE=""
 FEATURE_NAME=""
 PROJECT_TYPE_ARG=""
 PLAN_MODE=""
+READING_MODE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --project)    PROJECT_NAME="$2"; shift 2;;
-    --scope)      SCOPE="$2";        shift 2;;
-    --feature)    FEATURE_NAME="$2"; shift 2;;
-    --type)       PROJECT_TYPE_ARG="$2"; shift 2;;
-    --plan-mode)  PLAN_MODE="$2";    shift 2;;
+    --project)      PROJECT_NAME="$2"; shift 2;;
+    --scope)        SCOPE="$2";        shift 2;;
+    --feature)      FEATURE_NAME="$2"; shift 2;;
+    --type)         PROJECT_TYPE_ARG="$2"; shift 2;;
+    --plan-mode)    PLAN_MODE="$2";    shift 2;;
+    --reading-mode) READING_MODE="$2"; shift 2;;
     *) echo "Unknown option: $1"; exit 1;;
   esac
 done
@@ -192,6 +194,22 @@ if [[ -z "$PLAN_MODE" ]]; then
   PLAN_MODE="${PLAN_MODE:-unified}"
 fi
 
+if [[ -z "$READING_MODE" ]]; then
+  if [[ $INTERACTIVE -eq 1 ]]; then
+    echo ""
+    echo "Document reading mode (token economy — see summary-rules.md):"
+    echo "  auto    — use each doc's .summary.md when present, fall back to the"
+    echo "            full document (and generate a summary) when it's missing."
+    echo "            Good for: almost everyone — self-heals, never stuck."
+    echo "  summary — always use .summary.md; warns instead of reading the full"
+    echo "            doc if one is missing. Good for: strict token budgets."
+    echo "  full    — always read the full document, every command. Good for:"
+    echo "            deep debugging, or migrating a project with no summaries."
+    read -r -p "Reading mode [auto]: " READING_MODE
+  fi
+  READING_MODE="${READING_MODE:-auto}"
+fi
+
 # --- Validate inputs ---
 # Double quotes inside a YAML double-quoted scalar produce invalid YAML.
 # Reject early with a clear message rather than silently writing a broken file.
@@ -215,6 +233,7 @@ echo "  Type      : $PROJECT_TYPE"
 echo "  Feature   : $FEATURE_NAME"
 echo "  Scope     : $SCOPE"
 echo "  Plan mode : $PLAN_MODE"
+echo "  Reading mode : $READING_MODE"
 echo ""
 
 # --- Update manifest.yml ---
@@ -230,6 +249,7 @@ if [[ -f "$MANIFEST" ]]; then
   SDD_FEATURE_NAME="$FEATURE_NAME" \
   SDD_PROJECT_TYPE="$PROJECT_TYPE" \
   SDD_PLAN_MODE="$PLAN_MODE" \
+  SDD_READING_MODE="$READING_MODE" \
   python3 - <<'PYEOF'
 import re, os
 manifest     = os.environ['SDD_MANIFEST']
@@ -238,6 +258,7 @@ scope        = os.environ['SDD_SCOPE']
 feature_name = os.environ['SDD_FEATURE_NAME']
 project_type = os.environ['SDD_PROJECT_TYPE']
 plan_mode    = os.environ['SDD_PLAN_MODE']
+reading_mode = os.environ['SDD_READING_MODE']
 with open(manifest) as f:
     content = f.read()
 content = re.sub(r'name:\s*""',              lambda _: f'name: "{project_name}"',            content, count=1)
@@ -246,6 +267,7 @@ content = re.sub(r'feature:\s*""',           lambda _: f'feature: "{feature_name
 content = re.sub(r'context_file:\s*""',      lambda _: f'context_file: "{feature_name}.md"', content, count=1)
 content = re.sub(r'project_type:\s*"auto"',  lambda _: f'project_type: "{project_type}"',    content, count=1)
 content = re.sub(r'plan_mode:\s*"unified"',  lambda _: f'plan_mode: "{plan_mode}"',          content, count=1)
+content = re.sub(r'reading_mode:\s*"auto"',  lambda _: f'reading_mode: "{reading_mode}"',    content, count=1)
 with open(manifest, 'w') as f:
     f.write(content)
 PYEOF

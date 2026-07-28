@@ -2496,6 +2496,47 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.91',
+    to:   '2.7.92',
+    description: "setup.sh/setup.ps1 now interactively ask for reading_mode (auto|summary|full) instead of silently baking in the 'auto' default with no prompt",
+    notes: [
+      "A user asked directly: reading_mode already existed as a " +
+      "documented manifest.yml field (AI-2 token-economy switch in " +
+      "summary-rules.md), but grepping setup.sh/setup.ps1 confirmed it " +
+      "was never part of the interactive flow -- only name, scope, " +
+      "feature, and plan_mode were ever asked. Every new project " +
+      "silently got 'auto' with no chance to pick summary or full at " +
+      "init time",
+      "Added a --reading-mode flag (-ReadingMode in PowerShell) and an " +
+      "interactive prompt with the same three-option explanation already " +
+      "in summary-rules.md, mirroring the existing plan_mode prompt " +
+      "pattern exactly -- same env-var-safe substitution in " +
+      "sdd-universal/setup.sh, same regex substitution in the shared " +
+      "_shared/full/setup.sh used by the other 4 non-micro packs",
+      "sdd-micro intentionally excluded -- confirmed via grep it has no " +
+      "reading_mode field in its manifest.yml at all (no BRD/UC/SRD " +
+      "documents to summarize, so the AI-2 token-economy switch doesn't " +
+      "apply there)",
+      "Verified with a real pty (not piped stdin, which forces " +
+      "non-interactive mode by the script's own design and would've " +
+      "given a false pass): the prompt renders, accepts 'summary', and " +
+      "writes reading_mode: \"summary\" into manifest.yml. Also verified " +
+      "--reading-mode full/summary flags directly on sdd-backend-service, " +
+      "sdd-frontend-spa, and sdd-universal's separate setup.sh",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "No manifest.yml schema change for existing projects -- the field " +
+      "already existed, only new-project setup behavior changed. " +
+      "Verified: cli-python pytest 688/688 (unaffected), test-setup.sh " +
+      "15/15, test-setup-micro.sh 12/12, assert-output.sh clean on both " +
+      "worked examples",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.92';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

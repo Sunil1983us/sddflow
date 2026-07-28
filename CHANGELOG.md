@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.92] — 2026-07-27 (setup.sh/setup.ps1 now ask for reading_mode instead of silently defaulting to "auto")
+
+A user asked where `reading_mode` (the AI-2 token-economy switch —
+auto/summary/full) actually gets set, then asked directly whether setup
+could ask for it and offer a choice. Grepping `setup.sh`/`setup.ps1`
+confirmed it wasn't part of the interactive flow at all — only `name`,
+`scope`, `feature`, and `plan_mode` were ever asked; every new project
+silently got `"auto"` baked into `manifest.yml` from the static template,
+with no chance to pick `summary` or `full` at init time.
+
+### Added
+
+- **`--reading-mode` flag / interactive prompt** (`-ReadingMode` in
+  PowerShell) in `setup.sh` and `setup.ps1`, mirroring the existing
+  `plan_mode` prompt pattern exactly — same three-option explanation
+  already documented in `summary-rules.md`, same env-var-safe
+  substitution in `sdd-universal/setup.sh` (project/feature names can
+  contain special characters), same regex substitution in the shared
+  `_shared/full/setup.sh` used by the other 4 non-micro packs.
+- `sdd-micro` intentionally excluded — confirmed via grep it has no
+  `reading_mode` field in its manifest at all (no BRD/UC/SRD documents to
+  summarize, so the token-economy switch doesn't apply there).
+
+### Verified
+
+- Real pty test (piped stdin forces non-interactive mode by the script's
+  own design and would give a false pass): prompt renders, accepts
+  `summary`, writes `reading_mode: "summary"` into `manifest.yml`.
+- `--reading-mode full`/`summary` flags verified directly against
+  `sdd-backend-service`, `sdd-frontend-spa`, and `sdd-universal`'s
+  separate `setup.sh`.
+- No manifest.yml schema change for existing projects — the field already
+  existed; only new-project setup behavior changed.
+- `cli-python` pytest 688/688 (unaffected), `test-setup.sh` 15/15,
+  `test-setup-micro.sh` 12/12, `assert-output.sh` clean on both worked
+  examples.
+
+---
+
 ## [2.7.91] — 2026-07-23 (Add cross-reference linter — catches dead "Action N" / "§N" prompt pointers in CI)
 
 Asked for an honest, code-verified assessment of the project so far. The
