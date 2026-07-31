@@ -408,7 +408,7 @@ class TestConfigInitCommand:
     def test_keyring_path_stores_secret_and_no_env_field(self, runner, config_home):
         with patch("questionary.text", side_effect=[
                 _Answer("work-cloud"), _Answer("https://x.atlassian.net"), _Answer("a@b.com")]), \
-             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("keyring")]), \
+             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
              patch("questionary.password", return_value=_Answer("secret-token")), \
              patch("questionary.confirm", return_value=_Answer(False)), \
              patch.object(config_mod, "store_secret") as store:
@@ -428,7 +428,7 @@ class TestConfigInitCommand:
         with patch("questionary.text", side_effect=[
                 _Answer("work-cloud"), _Answer("https://x.atlassian.net"),
                 _Answer("a@b.com"), _Answer("JIRA_API_TOKEN")]), \
-             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("env")]), \
+             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("env")]), \
              patch("questionary.confirm", return_value=_Answer(False)), \
              patch.object(config_mod, "store_secret") as store:
             result = runner.invoke(config_command, ["init"])
@@ -449,7 +449,7 @@ class TestConfigInitCommand:
         an unsaved or half-configured profile."""
         with patch("questionary.text", side_effect=[
                 _Answer("work-cloud"), _Answer("https://x.atlassian.net"), _Answer("a@b.com")]), \
-             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("keyring")]), \
+             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
              patch("questionary.password", return_value=_Answer("secret-token")), \
              patch.object(config_mod, "store_secret",
                            side_effect=RuntimeError("no backend available")):
@@ -469,7 +469,7 @@ class TestConfigInitCommand:
         with patch("questionary.text", side_effect=[
                 _Answer("default"), _Answer("https://x.atlassian.net"), _Answer("a@b.com"),
                 _Answer("PROJ"), _Answer("ENGSPACE"), _Answer("")]), \
-             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("keyring")]), \
+             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
              patch("questionary.password", return_value=_Answer("secret-token")), \
              patch("questionary.confirm", return_value=_Answer(True)), \
              patch.object(config_mod, "store_secret"):
@@ -492,7 +492,7 @@ class TestConfigInitCommand:
         with patch("questionary.text", side_effect=[
                 _Answer("default"), _Answer("https://x.atlassian.net"), _Answer("a@b.com"),
                 _Answer("PROJ"), _Answer("ENG"), _Answer("")]), \
-             patch("questionary.select", side_effect=[_Answer("basic"), _Answer("keyring")]), \
+             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
              patch("questionary.password", return_value=_Answer("secret-token")), \
              patch("questionary.confirm", return_value=_Answer(True)), \
              patch.object(config_mod, "store_secret"):
@@ -504,6 +504,73 @@ class TestConfigInitCommand:
         data = yaml.safe_load(dest.read_text())
         assert data["jira"]["project_key"] == "PROJ"
         assert "document_reviews" not in data  # minimal template has no such section
+
+    def test_different_profiles_creates_both_in_config_yml(self, runner, config_home):
+        """Answering 'No' to the same-site question drives the wizard
+        through two full credential rounds -- a 'profile' is understood as
+        the entire auth set (base_url + auth_mode + credential), not just
+        a URL, so the two profiles below differ in every field."""
+        with patch("questionary.text", side_effect=[
+                _Answer("jira-dc"), _Answer("https://jira.internal"),
+                _Answer("confluence-dc"), _Answer("https://confluence.internal"),
+                _Answer("CONFLUENCE_TOKEN")]), \
+             patch("questionary.select", side_effect=[
+                _Answer(False),               # same site? -> No
+                _Answer("pat"), _Answer("keyring"),      # Jira round
+                _Answer("oauth2"), _Answer("env")]), \
+             patch("questionary.password", return_value=_Answer("jira-secret")), \
+             patch("questionary.confirm", return_value=_Answer(False)), \
+             patch.object(config_mod, "store_secret") as store:
+            result = runner.invoke(config_command, ["init"])
+
+        assert result.exit_code == 0, result.output
+        # Only the keyring-stored Jira profile calls store_secret -- the
+        # Confluence profile used env-var storage instead.
+        store.assert_called_once_with("jira-dc", "jira-secret")
+
+        saved = yaml.safe_load(config_home.read_text())
+        jira_p = saved["profiles"]["jira-dc"]
+        cf_p   = saved["profiles"]["confluence-dc"]
+        assert jira_p["base_url"] == "https://jira.internal"
+        assert jira_p["auth_mode"] == "pat"
+        assert cf_p["base_url"] == "https://confluence.internal"
+        assert cf_p["auth_mode"] == "oauth2"
+        assert cf_p["credential_store"] == "env"
+
+    def test_different_profiles_wires_confluence_override_into_integrations_yml(
+        self, runner, config_home,
+    ):
+        """End-to-end: the 'different' path must actually produce an
+        integrations.yml where jira: uses the top-level (Jira) profile and
+        confluence: carries an explicit override to the Confluence one --
+        not just two orphaned profiles in ~/.sdd/config.yml that nothing
+        ever wires together."""
+        specify_dir = config_home.parent.parent / ".specify"
+        specify_dir.mkdir(parents=True, exist_ok=True)
+        (specify_dir / "integrations.yml.example").write_text(_SHIPPED_EXAMPLE.read_text())
+
+        with patch("questionary.text", side_effect=[
+                _Answer("jira-dc"), _Answer("https://jira.internal"),
+                _Answer("confluence-dc"), _Answer("https://confluence.internal"),
+                _Answer("PROJ"), _Answer("ENGSPACE"), _Answer("")]), \
+             patch("questionary.select", side_effect=[
+                _Answer(False),                       # same site? -> No
+                _Answer("pat"), _Answer("keyring"),    # Jira round
+                _Answer("pat"), _Answer("keyring")]), \
+             patch("questionary.password", return_value=_Answer("secret")), \
+             patch("questionary.confirm", return_value=_Answer(True)), \
+             patch.object(config_mod, "store_secret"):
+            result = runner.invoke(config_command, ["init"])
+
+        assert result.exit_code == 0, result.output
+        dest = specify_dir / "integrations.yml"
+        text = dest.read_text()
+        data = yaml.safe_load(text)
+        assert data["profile"] == "jira-dc"
+        assert data["confluence"]["profile"] == "confluence-dc"
+        # jira: has no profile key of its own -- it relies on the
+        # top-level fallback, exactly like the single-profile case.
+        assert "profile" not in data["jira"]
 
 
 class TestConfigSetSecretCommand:

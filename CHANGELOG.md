@@ -4,6 +4,46 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.94] — 2026-07-31 ('sdd config init' now offers separate Jira/Confluence profiles upfront)
+
+2.7.93 let Jira and Confluence use separate `~/.sdd/config.yml` profiles via
+`jira.profile`/`confluence.profile` in `integrations.yml`, but a follow-up
+question exposed a gap: did `sdd config init` itself actually offer this?
+It didn't — the wizard was still single-profile only, so using the split
+meant running `init` twice and hand-editing the commented-out override
+lines in `integrations.yml` afterward. The user clarified what "profile"
+must mean here: not just a server URL, but the entire authentication set —
+`base_url` + `auth_mode` + credential — so two profiles are never assumed
+to share anything, even a coincidentally identical URL.
+
+### Added
+
+- `config_init()` now opens with "Do Jira and Confluence share the same
+  site and credentials?" — **Yes** keeps the original single-profile flow
+  unchanged; **No** runs the full credential round (profile name,
+  `base_url`, auth mode, credential storage) twice, once per service.
+- `_collect_and_save_profile()` — the credential-collection logic extracted
+  into a reusable helper so both the "same" and "different" paths share
+  identical prompts and validation, avoiding drift between them.
+- "Different" mode wires the result automatically: the top-level
+  `profile:` becomes Jira's, and `confluence.profile:` is filled with the
+  Confluence profile name in the generated `integrations.yml` — no manual
+  editing step required.
+
+### Verified
+
+- New tests: `test_different_profiles_creates_both_in_config_yml` (both
+  profiles saved with distinct `base_url`/`auth_mode`/`credential_store`)
+  and `test_different_profiles_wires_confluence_override_into_integrations_yml`
+  (end-to-end: the generated `integrations.yml` actually contains the
+  override, not just two orphaned `config.yml` profiles).
+- 5 pre-existing `config init` tests updated for the new opening question.
+- Full suite: `cli-python` pytest 697/697 (695 pre-existing + 2 new).
+- No `manifest.yml` or `integrations.yml` schema change — 2.7.93 already
+  added the fields; this just makes them reachable from the wizard.
+
+---
+
 ## [2.7.93] — 2026-07-31 (Jira and Confluence can now use separate ~/.sdd/config.yml profiles)
 
 A user asked directly: their organization runs Jira and Confluence as

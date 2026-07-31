@@ -20,18 +20,16 @@ def config_command():
     """Configure Atlassian credentials and project integration."""
 
 
-@config_command.command("init")
-def config_init():
-    """Interactively create ~/.sdd/config.yml and .specify/integrations.yml."""
+def _collect_and_save_profile(default_name: str) -> str:
+    """Interactively collect one profile's full auth set — base_url,
+    auth_mode, and its credential (email+token, PAT, or OAuth2 token),
+    stored via credential_store — and save it into ~/.sdd/config.yml.
+    Returns the profile name used. A "profile" here is the entire
+    authentication set, not just a URL: two profiles pointed at the same
+    base_url but different tokens are still two distinct profiles."""
     import questionary
 
-    console.print()
-    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print("  [bold cyan]SDD Config[/bold cyan] — Atlassian setup")
-    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print()
-
-    profile_name = questionary.text("Profile name:", default="default").ask()
+    profile_name = questionary.text("Profile name:", default=default_name).ask()
     base_url     = questionary.text(
         "Atlassian base URL:", default="https://myco.atlassian.net"
     ).ask()
@@ -140,24 +138,75 @@ def config_init():
 
     save_config(existing)
     console.print(f"\n  [green]✓[/green]  Profile [cyan]{profile_name}[/cyan] saved → {CONFIG_PATH}")
+    return profile_name
+
+
+@config_command.command("init")
+def config_init():
+    """Interactively create ~/.sdd/config.yml and .specify/integrations.yml."""
+    import questionary
+
+    console.print()
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print("  [bold cyan]SDD Config[/bold cyan] — Atlassian setup")
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print()
+
+    same_profile = questionary.select(
+        "Do Jira and Confluence share the same site and credentials?",
+        choices=[
+            questionary.Choice(
+                "Yes — same Atlassian site, one set of credentials "
+                "(the common Cloud case)",
+                value=True),
+            questionary.Choice(
+                "No — separate servers with separate credentials "
+                "(typical for Server/Data Center)",
+                value=False),
+        ],
+    ).ask()
+
+    confluence_profile_name = None
+    if same_profile:
+        profile_name = _collect_and_save_profile("default")
+    else:
+        console.print()
+        console.print("[bold]── Jira credentials ──[/bold]")
+        jira_profile_name = _collect_and_save_profile("jira")
+        console.print()
+        console.print("[bold]── Confluence credentials ──[/bold]")
+        confluence_profile_name = _collect_and_save_profile("confluence")
+        # The top-level `profile:` in integrations.yml is Jira's — Confluence
+        # gets an explicit confluence.profile override below (see
+        # _scaffold_integrations). A "profile" is the whole auth set (URL +
+        # auth mode + credential), so these are never assumed to overlap
+        # even if, say, the base_url happened to match.
+        profile_name = jira_profile_name
 
     # Optionally scaffold .specify/integrations.yml
     if questionary.confirm(
         "\n  Set up .specify/integrations.yml for this project?", default=True
     ).ask():
-        _scaffold_integrations(profile_name)
+        _scaffold_integrations(profile_name, confluence_profile_name)
 
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print(
-        "  [bold green]Config complete![/bold green]  "
-        "Run [cyan]sdd config test[/cyan] to verify."
-    )
+    if confluence_profile_name:
+        console.print(
+            "  [bold green]Config complete![/bold green]  Two profiles saved — verify each:\n"
+            f"    [cyan]sdd config test --profile {profile_name}[/cyan]\n"
+            f"    [cyan]sdd config test --profile {confluence_profile_name}[/cyan]"
+        )
+    else:
+        console.print(
+            "  [bold green]Config complete![/bold green]  "
+            "Run [cyan]sdd config test[/cyan] to verify."
+        )
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
 
 
-def _scaffold_integrations(profile_name: str) -> None:
+def _scaffold_integrations(profile_name: str, confluence_profile_name: str | None = None) -> None:
     import questionary
     from sdd.utils.manifest import read_manifest
 
@@ -189,10 +238,16 @@ def _scaffold_integrations(profile_name: str) -> None:
         # present, commented exactly as the pack author intended.
         content = _integrations_from_example(
             example.read_text(), profile_name, project_key, space_key,
-            parent_page_id,
+            parent_page_id, confluence_profile_name,
         )
         dest.write_text(content)
         console.print(f"  [green]✓[/green]  {dest} created (from your pack's integrations.yml.example)")
+        if confluence_profile_name:
+            console.print(
+                f"  [dim]jira: uses profile [cyan]{profile_name}[/cyan] (the top-level "
+                f"default); confluence: overridden to profile "
+                f"[cyan]{confluence_profile_name}[/cyan].[/dim]"
+            )
         console.print(
             "  [dim]Every optional section (project_keys, diagrams, pr_automation, "
             "code_review, ...) is included — most start commented out; "
@@ -210,7 +265,8 @@ def _scaffold_integrations(profile_name: str) -> None:
         # to the minimal built-in scaffold so config init still works.
         dest.write_text(
             _integrations_template(profile_name, project_key, space_key,
-                                    parent_page_id, project_name)
+                                    parent_page_id, project_name,
+                                    confluence_profile_name)
         )
         console.print(f"  [green]✓[/green]  {dest} created (minimal built-in template — "
                        "no integrations.yml.example found in this project)")
@@ -222,11 +278,18 @@ def _scaffold_integrations(profile_name: str) -> None:
 
 
 def _integrations_from_example(text: str, profile: str, project_key: str,
-                                 space_key: str, parent_page_id: str) -> str:
+                                 space_key: str, parent_page_id: str,
+                                 confluence_profile: str | None = None) -> str:
     """Fills the profile/project_key/space_key/parent_page_id placeholders
     into a pack's shipped integrations.yml.example verbatim, leaving every
     other section (including the {feature}/{project} page_map templates,
-    which are runtime substitutions, not scaffold-time ones) untouched."""
+    which are runtime substitutions, not scaffold-time ones) untouched.
+
+    confluence_profile, when given, uncomments and fills confluence:'s own
+    `profile:` override -- Jira and Confluence use separate ~/.sdd/config.yml
+    profiles (separate base_url + credentials), the top-level profile:
+    above being Jira's. When None (the common case, one shared profile),
+    that line is left commented out exactly as shipped."""
     text = re.sub(r"^profile: default$", f"profile: {profile}",
                    text, count=1, flags=re.M)
     if project_key:
@@ -239,6 +302,12 @@ def _integrations_from_example(text: str, profile: str, project_key: str,
         text = re.sub(
             r'^  # parent_page_id: "123456"$',
             f'  parent_page_id: "{parent_page_id}"',
+            text, count=1, flags=re.M,
+        )
+    if confluence_profile:
+        text = re.sub(
+            r"^  # profile: confluence-dc$",
+            f"  profile: {confluence_profile}",
             text, count=1, flags=re.M,
         )
     return text
@@ -368,11 +437,17 @@ def config_fields(profile, project):
 
 
 def _integrations_template(profile: str, project_key: str, space_key: str,
-                             parent_page_id: str, project_name: str) -> str:
+                             parent_page_id: str, project_name: str,
+                             confluence_profile: str | None = None) -> str:
     parent_line = (
         f'  parent_page_id: "{parent_page_id}"'
         if parent_page_id
         else '  # parent_page_id: "123456"   # optional'
+    )
+    confluence_profile_line = (
+        f"  profile: {confluence_profile}   # separate from jira's profile above\n"
+        if confluence_profile
+        else ""
     )
     return f"""\
 # SDD Integrations — project-level config (no secrets here)
@@ -410,7 +485,7 @@ jira:
     # team: customfield_10100
 
 confluence:
-  space_key: {space_key}
+{confluence_profile_line}  space_key: {space_key}
 {parent_line}
 
   # Page title templates — {{project}} replaced with project name from manifest

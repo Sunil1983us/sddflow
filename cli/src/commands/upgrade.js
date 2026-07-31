@@ -2571,6 +2571,53 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.93',
+    to:   '2.7.94',
+    description: "'sdd config init' now asks upfront whether Jira and Confluence share one set of credentials or need two, instead of requiring a manual second run + hand-edit to use the jira.profile/confluence.profile split added in 2.7.93",
+    notes: [
+      "2.7.93 added jira.profile/confluence.profile overrides so the " +
+      "two services can use separate ~/.sdd/config.yml profiles, but " +
+      "'sdd config init' itself was still a single-profile wizard -- " +
+      "getting the split required running init twice and manually " +
+      "uncommenting the override lines in integrations.yml afterward. " +
+      "A user asked directly: does init actually offer this? It didn't",
+      "config_init() now opens with 'Do Jira and Confluence share the " +
+      "same site and credentials?' -- Yes keeps the exact original " +
+      "single-profile flow; No runs the full credential round (profile " +
+      "name, base_url, auth mode, credential storage) twice, once per " +
+      "service, via a new _collect_and_save_profile() helper extracted " +
+      "from the original inline flow so both paths share identical " +
+      "prompts and validation",
+      "'Different' mode wires the result automatically -- the " +
+      "top-level profile: becomes Jira's, and confluence.profile: is " +
+      "uncommented and filled with the Confluence profile name in the " +
+      "generated integrations.yml (_integrations_from_example / " +
+      "_integrations_template both take an optional confluence_profile " +
+      "param). No manual editing step required anymore",
+      "A profile is understood as the entire auth set (base_url + " +
+      "auth_mode + credential) -- the two profiles created in " +
+      "'different' mode are never assumed to share anything, even if " +
+      "e.g. the base_url happened to coincide",
+      "New tests: test_different_profiles_creates_both_in_config_yml " +
+      "(both profiles saved with distinct base_url/auth_mode/storage) " +
+      "and test_different_profiles_wires_confluence_override_into_integrations_yml " +
+      "(end-to-end: generated integrations.yml actually has the " +
+      "override, not just two orphaned config.yml profiles). 5 " +
+      "pre-existing config-init tests updated for the new opening " +
+      "question",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "No manifest.yml or integrations.yml schema change -- 2.7.93 " +
+      "already added the fields this just makes reachable from the " +
+      "wizard. Verified: cli-python pytest 697/697 (695 pre-existing " +
+      "+ 2 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.94';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
