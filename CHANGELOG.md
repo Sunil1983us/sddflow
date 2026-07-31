@@ -4,6 +4,50 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.93] — 2026-07-31 (Jira and Confluence can now use separate ~/.sdd/config.yml profiles)
+
+A user asked directly: their organization runs Jira and Confluence as
+separate Data Center servers, each with its own auth token. Was that
+accounted for? It wasn't — every command that talks to both services
+(reviewed all call sites across `config.py`, `confluence.py`, `cr.py`,
+`dashboard.py`, `jira.py`, `pr.py`, `review.py`) resolved exactly **one**
+`Profile` (one `base_url`, one credential) from `integrations.yml`'s single
+top-level `profile:` field, then handed the same authenticated session to
+both `JiraClient` and `ConfluenceClient`. Correct only when both live on
+the same Atlassian Cloud site — silently wrong the moment they're separate
+servers.
+
+### Added
+
+- `jira.profile` / `confluence.profile` — optional per-service overrides in
+  `integrations.yml`, each falling back to the existing top-level
+  `profile:` when unset. Existing projects with one `profile:` line need
+  no changes at all.
+- `atlassian_auth.load_jira_session()` / `load_confluence_session()` —
+  resolve each service's `Profile` + authenticated `Session`
+  independently, replacing the shared `load_profile()`+`build_session()`
+  pair at every call site. A command's own `--profile` flag still wins
+  over both, matching prior precedence.
+- `integrations.yml.example` documents both new fields with guidance on
+  when to use them (Data Center, not the common Cloud case).
+
+### Verified
+
+- `cr_submit` and the dashboard's review-links fetch resolve each session
+  *conditionally* — only for a service that's actually configured — since
+  resolving both unconditionally would require credentials for a service
+  the user never configured for that command (caught this in an early
+  draft via a test that only configured `jira:`, no `confluence:`).
+- New tests: 4 in `test_config_and_integrations.py` (profile fallback,
+  independent override, one-service override, missing-section tolerance)
+  + 3 in `test_atlassian_auth.py` (different base URLs resolve
+  independently, same profile when unset, explicit override still wins).
+- Full suite: `cli-python` pytest 695/695 (688 pre-existing + 7 new,
+  including updating ~13 existing tests that mocked the old
+  `load_profile`/`build_session` pair directly).
+
+---
+
 ## [2.7.92] — 2026-07-27 (setup.sh/setup.ps1 now ask for reading_mode instead of silently defaulting to "auto")
 
 A user asked where `reading_mode` (the AI-2 token-economy switch —

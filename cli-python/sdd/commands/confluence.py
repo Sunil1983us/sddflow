@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_profile, build_session
+from sdd.utils.atlassian_auth import load_confluence_session
 from sdd.utils.integrations import load_integrations
 from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.md_to_cf import md_to_storage
@@ -231,8 +231,7 @@ def confluence_push(profile, feature, doc, summary, dry_run):
         return
 
     try:
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        prof, session = load_confluence_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
@@ -326,8 +325,7 @@ def confluence_draft(doc, profile, feature, dry_run):
         return
 
     try:
-        prof = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        prof, session = load_confluence_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
@@ -420,8 +418,7 @@ def confluence_pull(doc, profile, feature, page_id):
         raise SystemExit(1)
 
     try:
-        prof = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        prof, session = load_confluence_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)

@@ -170,6 +170,68 @@ def test_load_integrations_local_svg_width_override(tmp_path, monkeypatch):
     assert cfg.confluence.diagrams.local_svg_width == 600
 
 
+def test_profile_names_default_to_top_level_profile(tmp_path, monkeypatch):
+    """No jira.profile / confluence.profile override -- both services fall
+    back to the single top-level profile: (the common Cloud case, one
+    Atlassian site serving both)."""
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "profile: default\n"
+        "jira:\n  project_key: MYPROJ\n"
+        "confluence:\n  space_key: ENG\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira_profile_name() == "default"
+    assert cfg.confluence_profile_name() == "default"
+
+
+def test_jira_and_confluence_can_use_different_profiles(tmp_path, monkeypatch):
+    """Data Center orgs where Jira and Confluence are separate servers with
+    separate credentials -- jira.profile / confluence.profile override the
+    top-level profile independently."""
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "profile: default\n"
+        "jira:\n  project_key: MYPROJ\n  profile: jira-dc\n"
+        "confluence:\n  space_key: ENG\n  profile: confluence-dc\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira_profile_name() == "jira-dc"
+    assert cfg.confluence_profile_name() == "confluence-dc"
+
+
+def test_one_service_override_leaves_the_other_on_top_level_profile(tmp_path, monkeypatch):
+    """Only jira.profile set -- confluence still falls back to the
+    top-level profile, not to jira's override."""
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "profile: default\n"
+        "jira:\n  project_key: MYPROJ\n  profile: jira-dc\n"
+        "confluence:\n  space_key: ENG\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira_profile_name() == "jira-dc"
+    assert cfg.confluence_profile_name() == "default"
+
+
+def test_profile_name_helpers_tolerate_missing_service_section(tmp_path, monkeypatch):
+    """confluence: section entirely absent -- confluence_profile_name()
+    doesn't crash, just falls back to the top-level profile."""
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "profile: default\njira:\n  project_key: MYPROJ\n"
+    )
+    cfg = load_integrations()
+    assert cfg.jira is not None
+    assert cfg.confluence is None
+    assert cfg.jira_profile_name() == "default"
+    assert cfg.confluence_profile_name() == "default"
+
+
 def test_jira_project_keys_default_to_empty_dict(tmp_path, monkeypatch):
     """No project_keys: block -- every level falls back to project_key."""
     monkeypatch.chdir(tmp_path)

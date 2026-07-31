@@ -7,7 +7,7 @@ import yaml
 import click
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_profile, build_session
+from sdd.utils.atlassian_auth import load_jira_session, load_confluence_session
 from sdd.utils.integrations import load_integrations, IntegrationsConfig
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.confluence_client import ConfluenceClient
@@ -178,19 +178,19 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> tuple[str, str
     # page_map templates; document_reviews.confluence_page had the same gap).
     title = title.replace("{project}", project_name).replace("{feature}", feature_name)
 
-    prof      = load_profile(cfg.profile)
-    session   = build_session(prof)
-    cf_client = ConfluenceClient(session, prof.base_url)
+    cf_prof, cf_session = load_confluence_session(cfg)
+    cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
 
     banner = ""
     if cfg.jira and doc in cfg.document_reviews:
         try:
-            jira_client = JiraClient(session, prof.base_url)
+            jira_prof, jira_session = load_jira_session(cfg)
+            jira_client = JiraClient(jira_session, jira_prof.base_url)
             status, _, issue = _get_review_status(
                 doc, jira_client, cfg.jira.key_for("review"), cfg, feature_name,
             )
             if issue:
-                issue_url = f"{prof.base_url}/browse/{issue['key']}"
+                issue_url = f"{jira_prof.base_url}/browse/{issue['key']}"
                 banner = _jira_status_banner(
                     issue["key"], issue_url, status, cfg.document_reviews[doc].reviewer_role,
                 )
@@ -206,7 +206,7 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> tuple[str, str
     upload_diagram_attachments(cf_client, page["id"], attachments)
     for w in diagram_warnings:
         console.print(f"  [yellow]!  {w}[/yellow]")
-    page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
+    page_url = f"{cf_prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
     return title, page_url
 
 
@@ -735,8 +735,8 @@ def review_submit(doc, profile, feature):
         raise SystemExit(1)
 
     try:
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        jira_prof, jira_session = load_jira_session(cfg, profile)
+        cf_prof, cf_session     = load_confluence_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
@@ -746,8 +746,8 @@ def review_submit(doc, profile, feature):
     project_name = proj.get("name", "Project")
     feature_name = feature or proj.get("feature", "")
 
-    jira_client = JiraClient(session, prof.base_url)
-    cf_client   = ConfluenceClient(session, prof.base_url)
+    jira_client = JiraClient(jira_session, jira_prof.base_url)
+    cf_client   = ConfluenceClient(cf_session, cf_prof.base_url)
     doc_cfg     = cfg.document_reviews[doc]
 
     # ── Sequence gate ─────────────────────────────────────────────────────────
@@ -775,7 +775,7 @@ def review_submit(doc, profile, feature):
         cfg.confluence.space_key, page_title, body_html, parent_id,
     )
     upload_diagram_attachments(cf_client, page["id"], attachments)
-    page_url = f"{prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
+    page_url = f"{cf_prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
     action   = "[green]created[/green]" if created else "[dim]updated[/dim]"
     console.print(f"  {action}  Confluence: [cyan]{page_title}[/cyan]")
     console.print(f"          {page_url}")
@@ -951,13 +951,12 @@ def review_push_questions(doc, profile, feature):
         raise SystemExit(0)
 
     try:
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        jira_prof, session = load_jira_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
 
-    jira_client = JiraClient(session, prof.base_url)
+    jira_client = JiraClient(session, jira_prof.base_url)
     doc_cfg     = cfg.document_reviews[doc]
 
     # ── Also push the (blocked) doc to Confluence, so reviewers can comment there too ──
@@ -1022,7 +1021,7 @@ def review_push_questions(doc, profile, feature):
     if epic_key:
         _link_review_story_to_epic(jira_client, issue_key, epic_key, cfg.jira)
 
-    issue_url = f"{prof.base_url}/browse/{issue_key}"
+    issue_url = f"{jira_prof.base_url}/browse/{issue_key}"
     console.print(f"          {issue_url}")
     if page_title:
         console.print(f"          Also on Confluence: [cyan]{page_title}[/cyan]")
@@ -1114,12 +1113,11 @@ def review_pull_answers(doc, profile, feature):
         raise SystemExit(0)
 
     try:
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        jira_prof, session = load_jira_session(cfg, profile)
     except Exception:
         raise SystemExit(0)
 
-    jira_client = JiraClient(session, prof.base_url)
+    jira_client = JiraClient(session, jira_prof.base_url)
     try:
         comments = jira_client.get_comments(issue_key)
     except Exception as e:
@@ -1215,8 +1213,7 @@ def review_check(doc, profile, feature):
     # ── Jira check ────────────────────────────────────────────────────────────
     try:
         cfg     = load_integrations()
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        jira_prof, session = load_jira_session(cfg, profile)
     except Exception as e:
         if _print_local_comments_if_any(doc, feature_name):
             raise SystemExit(1)
@@ -1236,7 +1233,7 @@ def review_check(doc, profile, feature):
         )
         raise SystemExit(3)
 
-    client  = JiraClient(session, prof.base_url)
+    client  = JiraClient(session, jira_prof.base_url)
     status, comments, _ = _get_review_status(doc, client, cfg.jira.key_for("review"), cfg, feature_name)
     doc_cfg = cfg.document_reviews.get(doc)
     role    = doc_cfg.reviewer_role if doc_cfg else "reviewer"
@@ -1423,8 +1420,7 @@ def review_apply(doc, profile, feature):
 
     try:
         cfg     = load_integrations()
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        jira_prof, session = load_jira_session(cfg, profile)
     except Exception as e:
         # No integrations.yml at all -- still acknowledge any local
         # dashboard comments so `sdd review check` stops repeating them.
@@ -1469,7 +1465,7 @@ def review_apply(doc, profile, feature):
     # Notify reviewer on Jira (only if a review ticket exists for this doc --
     # docs pushed via the page_map fallback alone have no ticket to notify)
     if cfg.jira:
-        jira_client = JiraClient(session, prof.base_url)
+        jira_client = JiraClient(session, jira_prof.base_url)
         issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature_name}:{doc}")
         if issue:
             msg = "Document updated per review comments. Please re-review:"
@@ -1499,8 +1495,7 @@ def review_status(profile, feature):
     console.print()
     try:
         cfg     = load_integrations()
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        jira_prof, session = load_jira_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
@@ -1514,7 +1509,7 @@ def review_status(profile, feature):
     feature_name = feature or proj.get("feature", "")
     scope        = proj.get("scope")
 
-    client = JiraClient(session, prof.base_url)
+    client = JiraClient(session, jira_prof.base_url)
 
     # Group by phase, sort by sequence
     _PHASE_ORDER = ["specify", "validate", "planning", "tasks", "release"]

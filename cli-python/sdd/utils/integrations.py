@@ -28,6 +28,13 @@ _DEFAULT_PRIORITY_MAP = {
 @dataclass
 class JiraConfig:
     project_key: str
+    # Optional override of the top-level `profile:` for Jira calls only --
+    # for orgs (typically Server/Data Center) where Jira and Confluence are
+    # separate servers needing separate base_url + credentials, not the
+    # single Atlassian Cloud site + token that "one profile" assumes. Falls
+    # back to IntegrationsConfig.profile when unset (the common Cloud case,
+    # where one profile genuinely does cover both).
+    profile: str | None = None
     # Optional per-level overrides -- e.g. {"story": "SUNT"} when an org
     # keeps Stories/Tasks in a different Jira project than the Epic. Falls
     # back to project_key for any level not listed here. Levels match
@@ -132,6 +139,10 @@ class DiagramsConfig:
 @dataclass
 class ConfluenceConfig:
     space_key: str
+    # Optional override of the top-level `profile:` for Confluence calls
+    # only -- see JiraConfig.profile for why this exists. Falls back to
+    # IntegrationsConfig.profile when unset.
+    profile: str | None = None
     parent_page_id: str | None = None
     page_map: dict = field(default_factory=lambda: dict(_DEFAULT_PAGE_MAP))
     diagrams: DiagramsConfig = field(default_factory=DiagramsConfig)
@@ -174,6 +185,20 @@ class IntegrationsConfig:
     pr_automation: PrAutomation = field(default_factory=PrAutomation)
     code_review: CodeReviewConfig = field(default_factory=CodeReviewConfig)
 
+    def jira_profile_name(self) -> str | None:
+        """Which ~/.sdd/config.yml profile to use for Jira calls: jira.profile
+        if set, else the top-level profile. Separate from
+        confluence_profile_name() so Jira and Confluence can point at
+        different servers/credentials (Data Center orgs where they're not
+        the same Atlassian Cloud site)."""
+        return (self.jira.profile if self.jira else None) or self.profile
+
+    def confluence_profile_name(self) -> str | None:
+        """Which ~/.sdd/config.yml profile to use for Confluence calls:
+        confluence.profile if set, else the top-level profile. See
+        jira_profile_name()."""
+        return (self.confluence.profile if self.confluence else None) or self.profile
+
 
 def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
     p = Path(path)
@@ -191,6 +216,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
         bf = jira_raw.get("base_fields", {})
         jira = JiraConfig(
             project_key=jira_raw["project_key"],
+            profile=jira_raw.get("profile"),
             project_keys=jira_raw.get("project_keys", {}),
             issue_hierarchy={
                 "feature": hierarchy.get("feature", "Feature"),
@@ -213,6 +239,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
         diagrams_raw = cf_raw.get("diagrams") or {}
         confluence = ConfluenceConfig(
             space_key=cf_raw["space_key"],
+            profile=cf_raw.get("profile"),
             parent_page_id=(
                 str(cf_raw["parent_page_id"]) if cf_raw.get("parent_page_id") else None
             ),

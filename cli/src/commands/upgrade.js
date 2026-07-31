@@ -2537,6 +2537,40 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.92',
+    to:   '2.7.93',
+    description: "Let Jira and Confluence use separate ~/.sdd/config.yml profiles (jira.profile / confluence.profile in integrations.yml) instead of one shared profile for both",
+    notes: [
+      "A user asked directly: their org runs Jira and Confluence as " +
+      "separate Data Center servers with separate credentials -- was that " +
+      "ever accounted for? It wasn't. Every command that talks to Jira " +
+      "and Confluence resolved exactly ONE Profile (one base_url, one " +
+      "credential) from the single top-level integrations.yml profile: " +
+      "field, then handed the SAME session to both JiraClient and " +
+      "ConfluenceClient -- correct only when both are the same Atlassian " +
+      "Cloud site",
+      "IntegrationsConfig grew two new optional fields, jira.profile and " +
+      "confluence.profile, each falling back to the existing top-level " +
+      "profile: when unset -- every existing project with one profile: " +
+      "line keeps working identically, no config change required",
+      "New atlassian_auth.load_jira_session()/load_confluence_session() " +
+      "resolve each service's Profile + Session independently, replacing " +
+      "the old shared load_profile()+build_session() pair at every call " +
+      "site across config.py, confluence.py, cr.py, dashboard.py, jira.py, " +
+      "pr.py, review.py. A command's own --profile flag still wins over " +
+      "both",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "integrations.yml.example documents both new fields; no manifest.yml " +
+      "schema change for existing projects",
+      "Verified: cli-python pytest 695/695 (688 pre-existing + 7 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.93';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

@@ -5,7 +5,7 @@ import click
 import yaml
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_profile, build_session
+from sdd.utils.atlassian_auth import load_jira_session
 from sdd.utils.integrations import load_integrations, JiraConfig
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.sdd_parser import parse_stories, parse_tasks, parse_use_cases, Story, Task, UseCase
@@ -256,8 +256,7 @@ def jira_push(profile, feature, level, cr, dry_run):
         return
 
     try:
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        prof, session = load_jira_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
@@ -737,8 +736,7 @@ def jira_sync(profile, feature):
 
     try:
         cfg     = load_integrations()
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        prof, session = load_jira_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)

@@ -38,5 +38,5 @@ plan_mode: "unified"
 #   bdd:    Given/When/Then specs drive tests, written before implementation
 testing_style: "paired"
 
-sdd_version: "2.7.92"   # set by sdd init; used by sdd upgrade
+sdd_version: "2.7.93"   # set by sdd init; used by sdd upgrade
 ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other

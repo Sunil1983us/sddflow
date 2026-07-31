@@ -323,20 +323,26 @@ def config_test(profile):
 @click.option("--project", default=None, help="Jira project key")
 def config_fields(profile, project):
     """List Jira custom fields to help fill integrations.yml custom_fields."""
+    # integrations.yml may not exist yet (this command is often run first, to
+    # discover field IDs before writing it) -- load it best-effort so a
+    # jira.profile override is honored when present, without requiring the
+    # file to exist.
+    cfg = None
     try:
-        prof    = load_profile(profile)
+        from sdd.utils.integrations import load_integrations
+        cfg = load_integrations()
+    except FileNotFoundError:
+        pass
+
+    try:
+        prof    = load_profile(profile or (cfg.jira_profile_name() if cfg else None))
         session = build_session(prof)
     except Exception as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
-    if project is None:
-        try:
-            from sdd.utils.integrations import load_integrations
-            cfg     = load_integrations()
-            project = cfg.jira.project_key if cfg.jira else None
-        except FileNotFoundError:
-            pass
+    if project is None and cfg is not None:
+        project = cfg.jira.project_key if cfg.jira else None
     if not project:
         console.print(
             "  [red]✗  No project key. Use --project KEY or set it in "
