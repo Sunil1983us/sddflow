@@ -4,6 +4,40 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.0] — 2026-08-01 (Versioning scheme change: capped major.minor.patch, one-time reset off the runaway 2.7.100)
+
+The old scheme just incremented the patch number forever — it had reached
+`2.7.100` (a hundred patch releases within one minor version), which a
+user pointed out was an awkward, hard-to-reason-about number.
+
+### Changed
+
+- `sdd_version` now uses a **capped** major.minor.patch counter: patch
+  (Z) ranges 0–24, minor (Y) ranges 0–9. Bumping patch past 24 instead
+  increments minor and resets patch to 0; bumping minor past 9 instead
+  increments major and resets minor to 0. Equivalent to treating the
+  version as one running integer `N = X*250 + Y*25 + Z`, adding 1, and
+  reconstituting `X/Y/Z` via `divmod(N, 250)` then `divmod(rem, 25)`.
+- This specific bump (`2.7.100 → 2.8.0`) is a **manual, one-time reset**,
+  not the general divmod rule applied retroactively — the user explicitly
+  chose not to divmod the old scheme's runaway patch count (which would
+  have landed on `3.1.0`). Every bump from `2.8.0` onward uses the plain
+  capped rule with no further special-casing.
+- New `.claude/skills/version-bump/SKILL.md` in this repo encodes the
+  full bump procedure (compute next version, update all 9 lockstep
+  files, append matching migration entries to both `upgrade.py` and
+  `upgrade.js`, add the CHANGELOG entry, run verification) so future
+  bumps apply the rule consistently instead of being computed ad hoc.
+
+### Verified
+
+- Purely a versioning/process change — no functional CLI behavior
+  differs, no `manifest.yml` schema change.
+- `cli-python` pytest 742/742 (unchanged — no code touched), `ast.parse`
+  on `upgrade.py`, `node --check` on `upgrade.js`.
+
+---
+
 ## [2.7.100] — 2026-08-01 (`sdd init` now asks plan_mode and reading_mode, matching setup.sh)
 
 A user ran `sdd init` (the pip-installed CLI) and asked when

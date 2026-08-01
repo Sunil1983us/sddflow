@@ -4122,6 +4122,45 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.100"},
     },
+    {
+        "from":        "2.7.100",
+        "to":          "2.8.0",
+        "description": "Versioning scheme change: sdd_version is now a capped major.minor.patch counter (patch 0-24, minor 0-9) instead of an ever-growing patch number -- this bump is the one-time reset off the runaway old scheme",
+        "notes": [
+            "The old scheme just incremented the patch number forever -- "
+            "it had reached 2.7.100 (a hundred patch releases within one "
+            "minor version), which a user pointed out was an awkward, "
+            "hard-to-reason-about number",
+            "New scheme: patch (Z) ranges 0-24, minor (Y) ranges 0-9. "
+            "Bumping patch past 24 instead increments minor and resets "
+            "patch to 0; bumping minor past 9 instead increments major "
+            "and resets minor to 0. Equivalent to treating the version "
+            "as one running integer N = X*250 + Y*25 + Z, adding 1, and "
+            "reconstituting X/Y/Z via divmod(N, 250) then divmod(rem, 25)",
+            "This specific bump (2.7.100 -> 2.8.0) is a manual, one-time "
+            "reset, not the general divmod rule applied retroactively -- "
+            "the user explicitly chose NOT to divmod the old scheme's "
+            "runaway patch count (which would have landed on 3.1.0, per "
+            "100 = 4*25 rollovers of the old y=7 baseline, itself "
+            "overflowing the new y-cap of 10). Every bump from 2.8.0 "
+            "onward uses the plain capped rule with no further special-"
+            "casing",
+            "New .claude/skills/version-bump/SKILL.md in this repo "
+            "encodes the full procedure (compute next version, update "
+            "all 9 lockstep files, append matching migration entries to "
+            "both upgrade.py and upgrade.js, add the CHANGELOG.md entry, "
+            "run verification) so future bumps apply the rule "
+            "consistently instead of being computed ad hoc each time",
+            "Purely a versioning/process change -- no functional CLI "
+            "behavior differs, no manifest.yml schema change. This Node "
+            "CLI ships from the same pack sources -- this migration "
+            "entry exists so both CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 742/742 (unchanged from 2.7.100 "
+            "-- no code touched), ast.parse on upgrade.py, node --check "
+            "on upgrade.js",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.0"},
+    },
 ]
 
 
