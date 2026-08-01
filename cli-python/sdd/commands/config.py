@@ -188,16 +188,36 @@ def config_init():
     if questionary.confirm(
         "\n  Set up .specify/integrations.yml for this project?", default=True
     ).ask():
-        _scaffold_integrations(profile_name, confluence_profile_name)
+        scaffolded = _scaffold_integrations(profile_name, confluence_profile_name)
+    else:
+        scaffolded = False
 
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     if confluence_profile_name:
-        console.print(
-            "  [bold green]Config complete![/bold green]  Two profiles saved — verify each:\n"
-            f"    [cyan]sdd config test --profile {profile_name}[/cyan]\n"
-            f"    [cyan]sdd config test --profile {confluence_profile_name}[/cyan]"
-        )
+        if scaffolded:
+            # `sdd config test` (no --profile) resolves Jira and Confluence
+            # independently via integrations.yml's jira.profile/
+            # confluence.profile -- a single command now verifies both
+            # servers correctly. Suggesting `--profile X` here would be
+            # wrong: that flag tests ONE profile against BOTH services,
+            # which is exactly the bug this split exists to avoid.
+            console.print(
+                "  [bold green]Config complete![/bold green]  Two profiles saved and "
+                "wired into integrations.yml.\n"
+                "  Run [cyan]sdd config test[/cyan] to verify both."
+            )
+        else:
+            console.print(
+                "  [bold green]Config complete![/bold green]  Two profiles saved, but "
+                "integrations.yml wasn't scaffolded — [cyan]sdd config test[/cyan] can't "
+                "tell them apart yet without it. Verify each profile directly instead:\n"
+                f"    [cyan]sdd config test --profile {profile_name}[/cyan]\n"
+                f"    [cyan]sdd config test --profile {confluence_profile_name}[/cyan]\n"
+                "  [dim](each call tests both Jira and Confluence against that one "
+                "profile's server, so expect one check to fail per call until "
+                "integrations.yml wires the split.)[/dim]"
+            )
     else:
         console.print(
             "  [bold green]Config complete![/bold green]  "
@@ -207,7 +227,12 @@ def config_init():
     console.print()
 
 
-def _scaffold_integrations(profile_name: str, confluence_profile_name: str | None = None) -> None:
+def _scaffold_integrations(profile_name: str, confluence_profile_name: str | None = None) -> bool:
+    """Returns True iff .specify/integrations.yml was actually written --
+    False if the user declined to overwrite an existing one, so the
+    caller's closing message can tell whether `sdd config test` will
+    actually be able to resolve a jira.profile/confluence.profile split
+    (it can't without the file)."""
     import questionary
     from sdd.utils.manifest import read_manifest
 
@@ -216,7 +241,7 @@ def _scaffold_integrations(profile_name: str, confluence_profile_name: str | Non
         if not questionary.confirm(
             f"  {dest} already exists — overwrite?", default=False
         ).ask():
-            return
+            return False
 
     project_key    = questionary.text("Jira project key (e.g. MYPROJ):").ask()
     space_key      = questionary.text("Confluence space key (e.g. ENG):").ask()
@@ -286,6 +311,7 @@ def _scaffold_integrations(profile_name: str, confluence_profile_name: str | Non
         "  [dim]Edit [cyan]custom_fields[/cyan] to match your Jira instance.  "
         "Run [cyan]sdd config fields[/cyan] to discover IDs.[/dim]"
     )
+    return True
 
 
 def _integrations_from_example(text: str, profile: str, project_key: str,
@@ -370,17 +396,57 @@ def config_set_secret(profile):
 @config_command.command("test")
 @click.option("--profile", default=None, help="Profile name from ~/.sdd/config.yml")
 def config_test(profile):
-    """Ping Jira and Confluence to verify credentials."""
+    """Ping Jira and Confluence to verify credentials.
+
+    An explicit --profile always tests that one profile against both
+    services (e.g. sanity-checking a profile before wiring it into
+    integrations.yml). Without --profile, Jira and Confluence are each
+    resolved through integrations.yml's jira.profile/confluence.profile
+    (falling back to the top-level profile:) independently -- so an org
+    running them as separate Data Center servers gets each service
+    tested against its OWN base_url/credential, not one profile's
+    base_url used for both (which silently fails the "wrong" service
+    whenever they differ). Falls back to the single default profile,
+    exactly as before this existed, when integrations.yml doesn't exist
+    yet (e.g. testing right after `sdd config init`, before scaffolding
+    a project)."""
     console.print()
-    try:
-        prof    = load_profile(profile)
-        session = build_session(prof)
-    except Exception as e:
-        console.print(f"  [red]✗  Config error: {e}[/red]")
-        raise SystemExit(1)
+
+    cfg = None
+    if profile is None:
+        from sdd.utils.integrations import load_integrations
+        try:
+            cfg = load_integrations()
+        except FileNotFoundError:
+            pass
+
+    jira_name = profile or (cfg.jira_profile_name() if cfg else None)
+    cf_name   = profile or (cfg.confluence_profile_name() if cfg else None)
 
     try:
-        me = JiraClient(session, prof.base_url).get_myself()
+        jira_prof    = load_profile(jira_name)
+        jira_session = build_session(jira_prof)
+    except Exception as e:
+        console.print(f"  [red]✗  Config error (Jira profile "
+                       f"'{jira_name or 'default'}'): {e}[/red]")
+        raise SystemExit(1)
+
+    if cf_name == jira_name:
+        cf_prof, cf_session = jira_prof, jira_session
+    else:
+        try:
+            cf_prof    = load_profile(cf_name)
+            cf_session = build_session(cf_prof)
+        except Exception as e:
+            console.print(f"  [red]✗  Config error (Confluence profile "
+                           f"'{cf_name or 'default'}'): {e}[/red]")
+            raise SystemExit(1)
+        console.print(f"  [dim]Jira profile:       {jira_name}[/dim]")
+        console.print(f"  [dim]Confluence profile: {cf_name}[/dim]")
+        console.print()
+
+    try:
+        me = JiraClient(jira_session, jira_prof.base_url).get_myself()
         name = me.get("displayName") or me.get("emailAddress", "?")
         console.print(f"  [green]✓[/green]  Jira       — connected as [cyan]{name}[/cyan]")
     except requests.HTTPError as e:
@@ -388,7 +454,7 @@ def config_test(profile):
                       f"{e.response.text[:120]}[/red]")
 
     try:
-        me = ConfluenceClient(session, prof.base_url).get_myself()
+        me = ConfluenceClient(cf_session, cf_prof.base_url).get_myself()
         name = me.get("displayName") or me.get("username", "?")
         console.print(f"  [green]✓[/green]  Confluence — connected as [cyan]{name}[/cyan]")
     except requests.HTTPError as e:

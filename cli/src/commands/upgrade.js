@@ -2653,6 +2653,47 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.95',
+    to:   '2.7.96',
+    description: "'sdd config test' now resolves Jira and Confluence independently, instead of pinging both against one profile's base_url",
+    notes: [
+      "A user asked whether all docs were updated for the recent " +
+      "config-init changes -- while auditing, found that 'sdd config " +
+      "test' still resolved exactly ONE Profile and pinged both Jira " +
+      "and Confluence against its base_url, even though 2.7.93 let them " +
+      "use separate profiles. That means testing the split with " +
+      "`sdd config test --profile confluence-dc` (exactly what the " +
+      "config-init wizard's own closing message told you to run) would " +
+      "try to hit Jira at Confluence's URL and vice versa -- a silent " +
+      "false failure for whichever service didn't match the flag",
+      "Without --profile, Jira and Confluence are now each resolved " +
+      "through integrations.yml's jira.profile/confluence.profile " +
+      "independently -- each service is pinged against its own base_url " +
+      "and credential. When they resolve to the same profile (the " +
+      "common case), only one session is built and no extra output is " +
+      "printed, so single-profile projects see identical output to " +
+      "before. When they differ, the command prints which profile " +
+      "backs which service before testing",
+      "An explicit --profile still tests that ONE profile against BOTH " +
+      "services, unchanged -- for sanity-checking a profile before it's " +
+      "wired into integrations.yml",
+      "config_init()'s own closing message was part of the same bug: it " +
+      "told users to run 'sdd config test --profile X' twice, which " +
+      "doesn't actually isolate a single service. Now scaffolding " +
+      "integrations.yml means the message says 'Run sdd config test to " +
+      "verify both' (no --profile); declining to scaffold falls back to " +
+      "the old two-command guidance with an explicit caveat",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "No manifest.yml schema change. Verified: cli-python pytest " +
+      "713/713 (707 pre-existing + 6 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.96';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

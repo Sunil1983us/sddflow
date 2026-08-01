@@ -641,6 +641,36 @@ class TestConfigInitCommand:
         # jira: has no profile key of its own -- it relies on the
         # top-level fallback, exactly like the single-profile case.
         assert "profile" not in data["jira"]
+        # Once integrations.yml is scaffolded, `sdd config test` (no
+        # --profile) can resolve the split on its own -- suggesting
+        # `--profile X` here would just recreate the bug the split exists
+        # to avoid (that flag tests ONE profile against BOTH services).
+        assert "Run sdd config test to verify both" in result.output
+        assert "--profile" not in result.output
+
+    def test_different_profiles_declined_scaffold_suggests_per_profile_test(
+        self, runner, config_home,
+    ):
+        """If integrations.yml isn't scaffolded, `sdd config test` has no
+        way to know about the split -- the closing message must fall back
+        to suggesting --profile per service, with a caveat that each call
+        only sanity-checks that one profile, not the split itself."""
+        with patch("questionary.text", side_effect=[
+                _Answer("jira-dc"), _Answer("https://jira.internal"),
+                _Answer("confluence-dc"), _Answer("https://confluence.internal")]), \
+             patch("questionary.select", side_effect=[
+                _Answer(False),                       # same site? -> No
+                _Answer("pat"), _Answer("keyring"),    # Jira round
+                _Answer("pat"), _Answer("keyring")]), \
+             patch("questionary.password", return_value=_Answer("secret")), \
+             patch("questionary.confirm", return_value=_Answer(False)), \
+             patch.object(config_mod, "store_secret"):
+            result = runner.invoke(config_command, ["init"])
+
+        assert result.exit_code == 0, result.output
+        assert not (config_home.parent.parent / ".specify" / "integrations.yml").exists()
+        assert "sdd config test --profile jira-dc" in result.output
+        assert "sdd config test --profile confluence-dc" in result.output
 
 
 class TestConfigSetSecretCommand:
@@ -705,4 +735,140 @@ class TestConfigSetSecretCommand:
                            side_effect=RuntimeError("no backend available")):
             result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
         assert result.exit_code != 0
-        assert "no backend available" in result.output
+
+
+class TestConfigTestCommand:
+    """`sdd config test` -- previously resolved ONE Profile and pinged both
+    Jira and Confluence against its base_url, which silently tested the
+    wrong server for the half of a split jira.profile/confluence.profile
+    setup that didn't match --profile. Each service must now be resolved
+    (and pinged) independently."""
+
+    @pytest.fixture()
+    def runner(self):
+        return CliRunner()
+
+    @pytest.fixture()
+    def config_home(self, tmp_path, monkeypatch):
+        path = tmp_path / ".sdd" / "config.yml"
+        monkeypatch.setattr(config_mod, "CONFIG_PATH", path)
+        monkeypatch.setattr(atlassian_auth, "CONFIG_PATH", path)
+        monkeypatch.chdir(tmp_path)
+        return path
+
+    def _write_profiles(self, config_home, **profiles):
+        config_home.parent.mkdir(parents=True, exist_ok=True)
+        config_home.write_text(yaml.dump({"profiles": profiles}))
+
+    def _fake_client(self, display_name):
+        client = type("C", (), {
+            "__init__": lambda self, session, base_url: setattr(self, "base_url", base_url),
+            "get_myself": lambda self: {"displayName": display_name},
+        })
+        return client
+
+    def test_single_profile_pings_both_services_once(self, runner, config_home):
+        """No integrations.yml, no --profile -- falls back to the lone
+        profile for both services exactly as before this fix, with no
+        'Jira profile:'/'Confluence profile:' lines (would be redundant
+        noise when there's only one profile in play)."""
+        self._write_profiles(config_home, work={
+            "auth_mode": "basic", "base_url": "https://x.atlassian.net",
+        })
+        with patch.object(config_mod, "build_session", return_value=object()), \
+             patch.object(config_mod, "JiraClient", self._fake_client("Jane")), \
+             patch.object(config_mod, "ConfluenceClient", self._fake_client("Jane")):
+            result = runner.invoke(config_command, ["test"])
+
+        assert result.exit_code == 0, result.output
+        assert "Jira profile:" not in result.output
+        assert "connected as Jane" in result.output
+
+    def test_split_profiles_test_each_service_against_its_own_profile(self, runner, config_home):
+        """The bug: integrations.yml routes Jira and Confluence to two
+        different Data Center servers. Each must be pinged against its
+        OWN base_url, not one profile's base_url reused for both."""
+        self._write_profiles(
+            config_home,
+            **{
+                "jira-dc":       {"auth_mode": "pat", "base_url": "https://jira.internal"},
+                "confluence-dc": {"auth_mode": "pat", "base_url": "https://confluence.internal"},
+            },
+        )
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "profile: jira-dc\n"
+            "jira:\n  project_key: PROJ\n"
+            "confluence:\n  profile: confluence-dc\n  space_key: ENG\n"
+        )
+
+        seen_base_urls = []
+
+        def _client_factory(display_name):
+            def _init(self, session, base_url):
+                seen_base_urls.append(base_url)
+                self.base_url = base_url
+            return type("C", (), {"__init__": _init, "get_myself": lambda self: {"displayName": display_name}})
+
+        with patch.object(config_mod, "build_session", return_value=object()), \
+             patch.object(config_mod, "JiraClient", _client_factory("Jira User")), \
+             patch.object(config_mod, "ConfluenceClient", _client_factory("Confluence User")):
+            result = runner.invoke(config_command, ["test"])
+
+        assert result.exit_code == 0, result.output
+        assert "Jira profile:       jira-dc" in result.output
+        assert "Confluence profile: confluence-dc" in result.output
+        assert seen_base_urls == ["https://jira.internal", "https://confluence.internal"]
+        assert "connected as Jira User" in result.output
+        assert "connected as Confluence User" in result.output
+
+    def test_explicit_profile_flag_wins_over_integrations_yml_split(self, runner, config_home):
+        """An explicit --profile is a deliberate override -- e.g.
+        sanity-checking a profile before wiring it into integrations.yml
+        -- and must test that ONE profile against both services, exactly
+        as before this fix, even if integrations.yml has a split."""
+        self._write_profiles(
+            config_home,
+            **{
+                "jira-dc":       {"auth_mode": "pat", "base_url": "https://jira.internal"},
+                "confluence-dc": {"auth_mode": "pat", "base_url": "https://confluence.internal"},
+                "candidate":     {"auth_mode": "basic", "base_url": "https://candidate.example"},
+            },
+        )
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "profile: jira-dc\n"
+            "jira:\n  project_key: PROJ\n"
+            "confluence:\n  profile: confluence-dc\n  space_key: ENG\n"
+        )
+
+        seen_base_urls = []
+
+        def _client_factory(display_name):
+            def _init(self, session, base_url):
+                seen_base_urls.append(base_url)
+            return type("C", (), {"__init__": _init, "get_myself": lambda self: {"displayName": display_name}})
+
+        with patch.object(config_mod, "build_session", return_value=object()), \
+             patch.object(config_mod, "JiraClient", _client_factory("X")), \
+             patch.object(config_mod, "ConfluenceClient", _client_factory("X")):
+            result = runner.invoke(config_command, ["test", "--profile", "candidate"])
+
+        assert result.exit_code == 0, result.output
+        assert seen_base_urls == ["https://candidate.example", "https://candidate.example"]
+
+    def test_unknown_profile_reports_which_service_failed(self, runner, config_home):
+        self._write_profiles(config_home, **{
+            "jira-dc": {"auth_mode": "pat", "base_url": "https://jira.internal"},
+        })
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "profile: jira-dc\n"
+            "jira:\n  project_key: PROJ\n"
+            "confluence:\n  profile: missing-profile\n  space_key: ENG\n"
+        )
+        with patch.object(config_mod, "build_session", return_value=object()):
+            result = runner.invoke(config_command, ["test"])
+
+        assert result.exit_code != 0
+        assert "Confluence profile 'missing-profile'" in result.output

@@ -4,6 +4,44 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.96] — 2026-08-01 (`sdd config test` now verifies Jira and Confluence independently)
+
+While auditing docs for the recent `config init` changes, found that
+`sdd config test` still resolved exactly **one** `Profile` and pinged both
+Jira and Confluence against its `base_url` — even though 2.7.93 let them
+use separate profiles. Testing the split with `sdd config test --profile
+confluence-dc` (exactly what the wizard's own closing message told you to
+run) would try to hit Jira at Confluence's URL and vice versa — a silent
+false failure for whichever service didn't match the flag.
+
+### Fixed
+
+- Without `--profile`, Jira and Confluence are now each resolved through
+  `integrations.yml`'s `jira.profile`/`confluence.profile` independently —
+  each service is pinged against its own `base_url` and credential. When
+  they resolve to the same profile (the common case), output is unchanged
+  from before. When they differ, the command prints which profile backs
+  which service before testing.
+- An explicit `--profile` still tests that one profile against both
+  services, unchanged — for sanity-checking a profile before it's wired
+  into `integrations.yml`.
+- `sdd config init`'s closing message no longer suggests
+  `sdd config test --profile X` per service when `integrations.yml` was
+  scaffolded (that flag can't isolate a single service — see above); it
+  now says `Run sdd config test to verify both`. If scaffolding was
+  declined, the old two-command guidance is kept, now with an explicit
+  caveat about what it actually tests.
+
+### Verified
+
+- New tests: single-profile pings once, split-profile pings each service
+  against its own `base_url`, explicit `--profile` overrides the split, an
+  unknown `confluence.profile` reports which service's config failed, and
+  both `config init` closing-message variants.
+- Full suite: `cli-python` pytest 713/713 (707 pre-existing + 6 new).
+
+---
+
 ## [2.7.95] — 2026-08-01 (Confluence parent-page prompt now accepts a pasted URL, not just the raw ID)
 
 A user pointed out that when `sdd config init` asks for the Confluence

@@ -3875,6 +3875,60 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.95"},
     },
+    {
+        "from":        "2.7.95",
+        "to":          "2.7.96",
+        "description": "'sdd config test' now resolves Jira and Confluence independently, instead of pinging both against one profile's base_url",
+        "notes": [
+            "A user asked whether all docs were updated for the recent "
+            "config-init changes -- while auditing, found that 'sdd "
+            "config test' still resolved exactly ONE Profile and pinged "
+            "both Jira and Confluence against its base_url, even though "
+            "2.7.93 let them use separate profiles. That means testing "
+            "the split with `sdd config test --profile confluence-dc` "
+            "(exactly what the config-init wizard's own closing message "
+            "told you to run) would try to hit Jira at Confluence's URL "
+            "and vice versa -- a silent false failure for whichever "
+            "service didn't match the flag",
+            "Without --profile, Jira and Confluence are now each resolved "
+            "through integrations.yml's jira.profile/confluence.profile "
+            "(cfg.jira_profile_name()/confluence_profile_name(), same "
+            "helpers load_jira_session/load_confluence_session already "
+            "use) independently -- each service is pinged against its "
+            "own base_url and credential. When they resolve to the same "
+            "profile (the common case), only one session is built and no "
+            "extra output is printed, so single-profile projects see "
+            "identical output to before. When they differ, the command "
+            "prints which profile backs which service before testing",
+            "An explicit --profile still tests that ONE profile against "
+            "BOTH services, unchanged -- for sanity-checking a profile "
+            "before it's wired into integrations.yml. This is a "
+            "deliberate override, matching the 'a command's own --profile "
+            "flag still wins over both' precedent load_jira_session/ "
+            "load_confluence_session already established",
+            "config_init()'s own closing message was part of the same "
+            "bug: it told users to run 'sdd config test --profile X' "
+            "twice, which (see above) doesn't actually isolate a single "
+            "service. Now scaffolding integrations.yml means the message "
+            "says 'Run sdd config test to verify both' (no --profile, "
+            "since the split is now resolvable automatically); declining "
+            "to scaffold falls back to the old two-command guidance with "
+            "an explicit caveat that each call tests one profile against "
+            "both services",
+            "New tests: single-profile pings-once (no profile-name lines "
+            "printed), split-profile pings each against its own base_url, "
+            "explicit --profile overrides the split, an unknown "
+            "confluence.profile reports which service's config failed, "
+            "plus the two config-init closing-message variants (scaffolded "
+            "vs declined)",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "No manifest.yml schema change. Verified: cli-python pytest "
+            "713/713 (707 pre-existing + 6 new)",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.96"},
+    },
 ]
 
 

@@ -158,8 +158,25 @@ sdd config test
 sdd config test --profile on-prem
 ```
 
-Output:
+Without `--profile`, Jira and Confluence are each resolved independently
+through `integrations.yml`'s `jira.profile`/`confluence.profile` (falling
+back to the top-level `profile:` when unset) — so a split-profile setup
+tests each service against its own `base_url`/credentials, not one
+profile's server used for both. An explicit `--profile` always tests that
+one profile against both services, overriding the split — useful for
+sanity-checking a profile before wiring it into `integrations.yml`.
+
+Output (single profile, or no split configured):
 ```
+  ✓  Jira       — connected as Jane Smith
+  ✓  Confluence — connected as Jane Smith
+```
+
+Output (Jira and Confluence on separate servers):
+```
+  Jira profile:       jira-dc
+  Confluence profile: confluence-dc
+
   ✓  Jira       — connected as Jane Smith
   ✓  Confluence — connected as Jane Smith
 ```
