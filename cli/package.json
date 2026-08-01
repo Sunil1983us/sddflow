@@ -1,7 +1,7 @@
 {
   "name": "sddflow",
-  "version": "2.7.98",
-  "description": "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs",
+  "version": "2.7.99",
+  "description": "CLI for the Spec-Driven Development (SDD) Framework — initialize and upgrade AI-agent SDLC packs (Claude Code, GitHub Copilot, and any AI coding tool)",
   "type": "module",
   "bin": {
     "sdd": "./bin/sdd.js"
@@ -24,7 +24,7 @@
     "inquirer": "^9.2.0",
     "js-yaml": "^4.1.0"
   },
-  "keywords": ["sdd", "spec-driven-development", "ai", "sdlc", "claude", "llm", "specification"],
+  "keywords": ["sdd", "spec-driven-development", "ai", "ai-agent", "sdlc", "claude", "claude-code", "copilot", "llm", "specification"],
   "license": "MIT",
   "author": {
     "name": "Sunil Kumar",

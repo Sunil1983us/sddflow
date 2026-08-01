@@ -4,6 +4,43 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.99] — 2026-08-01 (PyPI/npm package Summary and keywords rewritten for discoverability)
+
+A user looked at the sddflow PyPI page and pointed out the Summary
+("SDD Framework CLI — initialize and upgrade Spec-Driven Development
+packs") undersold what the CLI actually does now — it read like a plain
+scaffolding tool, with no mention of Jira/Confluence sync, multi-host PR
+automation, or the live dashboard.
+
+### Changed
+
+- `cli-python/pyproject.toml`'s `description` (PyPI's "Summary") is now:
+  *"Spec-Driven Development CLI for AI coding agents — SDLC workflows with
+  Jira/Confluence sync, multi-host PR automation, and live progress
+  dashboards."* `keywords` gained `jira`, `confluence`, `atlassian`,
+  `pull-request`, `code-review`, `requirements`, `ai-agent`,
+  `claude-code`.
+- `cli/package.json`'s `description` was written separately, not copied
+  verbatim — the Node CLI doesn't have Jira/Confluence integration, PR
+  automation, or a dashboard (those are `cli-python`-only), so it now
+  reads: *"CLI for the Spec-Driven Development (SDD) Framework —
+  initialize and upgrade AI-agent SDLC packs (Claude Code, GitHub
+  Copilot, and any AI coding tool)."*
+
+### Note
+
+- "Author: None" on the PyPI page (also raised) is expected, not a bug —
+  PEP 621's `authors = [{name, email}]` maps to the combined
+  `Author-email` Core Metadata field per spec, leaving the legacy
+  `Author` field blank; there's no separate name-only field to populate
+  instead.
+- Packaging metadata only — no manifest.yml effect, no CLI behavior
+  change. Publishing to PyPI so the new Summary is actually visible still
+  requires the maintainer's own `python -m build && twine upload` (or
+  equivalent CI step); this repo has no publish automation.
+
+---
+
 ## [2.7.98] — 2026-08-01 (Jira Feature/Epic gains Business Objectives, Success Criteria, and a Confluence link)
 
 Follow-up to 2.7.97's structured description template (Problem Statement /

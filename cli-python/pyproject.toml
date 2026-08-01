@@ -4,15 +4,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sddflow"
-version = "2.7.98"
-description = "SDD Framework CLI — initialize and upgrade Spec-Driven Development packs"
+version = "2.7.99"
+description = "Spec-Driven Development CLI for AI coding agents — SDLC workflows with Jira/Confluence sync, multi-host PR automation, and live progress dashboards"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [
     { name = "Sunil Kumar", email = "sunil1983.us@gmail.com" }
 ]
-keywords = ["sdd", "spec-driven-development", "ai", "sdlc", "claude", "llm", "specification"]
+keywords = [
+    "sdd", "spec-driven-development", "ai", "ai-agent", "sdlc", "claude",
+    "claude-code", "llm", "specification", "jira", "confluence", "atlassian",
+    "pull-request", "code-review", "requirements",
+]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
