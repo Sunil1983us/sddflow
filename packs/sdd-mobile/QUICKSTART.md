@@ -20,6 +20,12 @@
 > from the `.example`) to log real per-command cost as you go — see
 > "Token Usage Logging" in `CLAUDE.md`.
 
+> **Want to see a finished example first?** Browse
+> [`examples/`](https://github.com/sunil1983us/universalguide/tree/main/examples)
+> on GitHub — two complete, end-to-end SDD runs (a backend API and a
+> frontend web app) showing exactly what every command produces, with
+> full BO → BR → FR → UC → STORY → TASK traceability.
+
 ---
 
 ## Step 0 — Copy the Pack (first time only)

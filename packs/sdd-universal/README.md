@@ -41,6 +41,12 @@ you review and finalize it (GATE-1) before work continues.
 > If that's more process than you need, use
 > [`sdd-micro`](https://github.com/sunil1983us/universalguide/tree/main/packs/sdd-micro) instead — 3 commands, no BRD/UC/SRD ceremony.
 
+> **Want to see a finished example first?** Browse
+> [`examples/`](https://github.com/sunil1983us/universalguide/tree/main/examples)
+> on GitHub — two complete, end-to-end SDD runs (a backend API and a
+> frontend web app) showing exactly what every command produces, with
+> full BO → BR → FR → UC → STORY → TASK traceability.
+
 ---
 
 ## Virtual Team

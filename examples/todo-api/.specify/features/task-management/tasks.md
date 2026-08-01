@@ -14,12 +14,14 @@
 Define the `tasks` table in `prisma/schema.prisma`. Add enum types for `Priority` and `Status`. Write and apply initial migration.
 
 **Acceptance Criteria:**
-- [ ] `tasks` table created with all columns from HLD data model
-- [ ] Enums: `Priority { low medium high }`, `Status { open in_progress done }`
-- [ ] Migration runs clean on a fresh PostgreSQL 16 instance
-- [ ] `prisma generate` produces TypeScript types
+- [x] `tasks` table created with all columns from HLD data model
+- [x] Enums: `Priority { low medium high }`, `Status { open in_progress done }`
+- [x] Migration runs clean on a fresh PostgreSQL 16 instance
+- [x] `prisma generate` produces TypeScript types
 
 **Definition of Done:** Migration committed; `npx prisma migrate dev` passes locally.
+
+**Implemented:** `prisma/schema.prisma`, `prisma/migrations/20260801180720_init/` — see `../../../IMPLEMENTATION.md`.
 
 ---
 
@@ -33,12 +35,14 @@ Define the `tasks` table in `prisma/schema.prisma`. Add enum types for `Priority
 Implement Prisma client extension that reads `user_id` from `AsyncLocalStorage` and appends `WHERE user_id = $user_id` to all `Task` model operations. Write unit tests with mock Prisma client.
 
 **Acceptance Criteria:**
-- [ ] Extension registered in `src/lib/prisma.ts`
-- [ ] AsyncLocalStorage set by `user-scope.middleware.ts` after JWT validation
-- [ ] Unit test: `findMany` without ALS user_id throws an error
-- [ ] Unit test: `findMany` with ALS user_id appends correct filter
+- [x] Extension registered in `src/lib/prisma.ts`
+- [x] AsyncLocalStorage set by `user-scope.middleware.ts` after JWT validation
+- [x] Unit test: `findMany` without ALS user_id throws an error
+- [x] Unit test: `findMany` with ALS user_id appends correct filter
 
 **Definition of Done:** Unit tests pass; `jest --testPathPattern user-scope` green.
+
+**Implemented:** `src/lib/request-context.ts`, `src/lib/prisma.ts`, `tests/unit/user-scope.test.ts` (5 tests, including a concurrent-request isolation check beyond the stated AC) — see `../../../IMPLEMENTATION.md`.
 
 ---
 
@@ -52,13 +56,15 @@ Implement Prisma client extension that reads `user_id` from `AsyncLocalStorage` 
 Implement `POST /tasks`. Route validates body with Zod (title required, due_date not past, priority enum). Calls `TaskService.createTask()`. Returns 201 with created task.
 
 **Acceptance Criteria:**
-- [ ] UC-001 happy path passes integration test (Supertest)
-- [ ] Missing title → 400 with `{error: "title is required"}`
-- [ ] Past due_date → 400 with `{error: "due_date cannot be in the past"}`
-- [ ] Title > 200 chars → 400
-- [ ] No JWT → 401
+- [x] UC-001 happy path passes integration test (Supertest)
+- [x] Missing title → 400 with `{error: "title is required"}`
+- [x] Past due_date → 400 with `{error: "due_date cannot be in the past"}`
+- [x] Title > 200 chars → 400
+- [x] No JWT → 401
 
 **Definition of Done:** Integration tests pass; `jest --testPathPattern tasks.routes` green.
+
+**Implemented:** `src/routes/tasks.routes.ts`, `src/schemas/task.schema.ts`, `src/services/task.service.ts`, `tests/integration/tasks.routes.test.ts` (8 tests). Testable end-to-end required pulling forward a minimal HS256 stand-in for TASK-007's auth wiring (`src/middleware/auth.middleware.ts`, `src/middleware/user-scope.middleware.ts`) — this does **not** mark TASK-007 itself done; its RS256/JWKS verification and expired-JWT handling are still unimplemented. See `../../../IMPLEMENTATION.md`.
 
 ---
 

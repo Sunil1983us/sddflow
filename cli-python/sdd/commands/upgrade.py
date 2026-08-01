@@ -4357,6 +4357,79 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.4"},
     },
+    {
+        "from":        "2.8.4",
+        "to":          "2.8.5",
+        "description": "Surface the worked examples to real end users; implement TASK-001/002/003 of examples/todo-api for real",
+        "notes": [
+            "Two fixes shipped together, following on from the 2.8.3/2.8.4 "
+            "onboarding-friction rounds",
+            "Fix 1 (this repo's packs -- the reason this bump exists): "
+            "added a 'Want to see a finished example first?' callout, "
+            "linking to examples/ on GitHub, to all 5 full packs' "
+            "README.md and QUICKSTART.md. Closes a real gap found while "
+            "reviewing the framework end-to-end: examples/todo-api and "
+            "examples/habit-tracker-web existed and were well-built, but "
+            "were referenced from nowhere a real user running `sdd init` "
+            "would ever see them -- only from this maintainer repo's own "
+            "root README.md and the CI regression harness "
+            "(assert-output.sh). A user who only ever works inside a "
+            "copied-out pack folder never knew they existed",
+            "Fix 2 (examples/ only -- does not touch any pack, included "
+            "here for the full story even though it doesn't change "
+            "sdd_version-relevant files): TASK-001 (Prisma schema + "
+            "migration), TASK-002 (user-scope Prisma extension, FR-007), "
+            "and TASK-003 (POST /tasks endpoint, UC-001) of "
+            "examples/todo-api's 10-task tasks.md are now implemented for "
+            "real -- actual TypeScript/Express/Prisma/PostgreSQL 16 code, "
+            "actually run against a live local Postgres 16 instance, 13 "
+            "tests actually passing (5 unit + 8 integration), `tsc "
+            "--noEmit` clean. Both worked examples had a full spec chain "
+            "(BRD through tasks.md) but zero implementation code before "
+            "this -- three independent end-user reviews flagged that gap "
+            "as the biggest open question ('does this produce real "
+            "software or just paperwork')",
+            "tasks.md's checkboxes for TASK-001/002/003's acceptance "
+            "criteria are now [x], each with an 'Implemented:' line "
+            "pointing at the actual files. TASK-004 through TASK-010 "
+            "remain spec-only, unchanged",
+            "Two simplifications are called out explicitly in the new "
+            "examples/todo-api/IMPLEMENTATION.md, not hidden: JWT "
+            "verification uses HS256 with a shared secret instead of the "
+            "RS256-from-env scheme context.md's Tech Stack row specifies "
+            "(verifying real RS256 tokens needs a real Auth Service to "
+            "mint them); and the three partial indexes in hld.md's raw "
+            "SQL (`WHERE archived = false` etc.) aren't expressed in "
+            "prisma/schema.prisma, since Prisma's declarative schema DSL "
+            "doesn't support partial indexes without an unstable preview "
+            "feature",
+            "TASK-007 (full auth middleware wiring -- RS256 verification, "
+            "expired-JWT handling) is explicitly NOT marked done. Making "
+            "TASK-003 testable end-to-end required pulling forward a "
+            "minimal HS256 stand-in for auth.middleware.ts and "
+            "user-scope.middleware.ts, but that stand-in does not satisfy "
+            "TASK-007's own acceptance criteria and its checkboxes were "
+            "left unchecked",
+            "No simulated /pre-review or /address-review round is "
+            "included -- there's no real reviewer for a maintainer-repo "
+            "example, and simulating one would read as staged rather "
+            "than as proof",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 753/753 (unchanged -- no "
+            "cli-python code touched), cross-reference linter clean "
+            "across all 6 packs, both setup smoke-test suites (15 + 12) "
+            "pass, assert-output.sh's 33 structural assertions still "
+            "pass against the edited tasks.md, and -- specific to this "
+            "round -- the new examples/todo-api test suite itself: 13/13 "
+            "passing (jest --testPathPattern user-scope 5/5, jest "
+            "--testPathPattern tasks.routes 8/8), tsc --noEmit clean, "
+            "prisma migrate dev applied clean against a freshly created "
+            "PostgreSQL 16 database",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.5"},
+    },
 ]
 
 
