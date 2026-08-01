@@ -2618,6 +2618,41 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.94',
+    to:   '2.7.95',
+    description: "Confluence parent-page prompt/config now accepts a pasted page URL, not just the raw numeric ID",
+    notes: [
+      "A user pointed out that when 'sdd config init' asks for the " +
+      "Confluence parent page, most people have the page open in a " +
+      "browser tab, not its raw numeric ID memorized -- the wizard only " +
+      "accepted the bare ID, forcing a manual trip through Page " +
+      "Information to extract it first",
+      "New sdd.utils.integrations.parse_confluence_page_id() recognizes " +
+      "a bare numeric ID unchanged, a Cloud URL " +
+      "('.../pages/123456/Title'), or a Server/Data Center URL " +
+      "('...?pageId=123456'), and extracts just the numeric ID from " +
+      "either -- a Confluence 'tiny link' (/x/AbCdEf) isn't a page ID " +
+      "and can't be resolved without an API call, so it's returned " +
+      "unchanged with a wizard warning telling the user to paste the " +
+      "full URL instead",
+      "Wired into two places: the config-init wizard prompt (so pasting " +
+      "a URL there resolves correctly in the generated integrations.yml), " +
+      "and load_integrations() itself (so a hand-edited integrations.yml " +
+      "with a pasted URL for parent_page_id also resolves correctly at " +
+      "push time, not just via the wizard)",
+      "integrations.yml.example's parent_page_id comment updated to " +
+      "document that either form works",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "No manifest.yml schema change. Verified: cli-python pytest " +
+      "707/707 (697 pre-existing + 10 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.95';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

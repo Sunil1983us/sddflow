@@ -11,7 +11,9 @@ from sdd.commands.config import (
     _integrations_template, _integrations_from_example, config_command,
 )
 from sdd.utils import atlassian_auth
-from sdd.utils.integrations import load_integrations, _DEFAULT_PAGE_MAP
+from sdd.utils.integrations import (
+    load_integrations, parse_confluence_page_id, _DEFAULT_PAGE_MAP,
+)
 
 
 EXPECTED_DOC_KEYS = ["brd", "use-cases", "srd", "design",
@@ -168,6 +170,48 @@ def test_load_integrations_local_svg_width_override(tmp_path, monkeypatch):
     )
     cfg = load_integrations()
     assert cfg.confluence.diagrams.local_svg_width == 600
+
+
+# ── parse_confluence_page_id — accept an ID or a pasted page URL ─────────
+# Most users have the Confluence page open in a browser tab, not the raw
+# numeric ID memorized -- both the config-init wizard and hand-edited
+# integrations.yml should accept whatever they paste.
+
+@pytest.mark.parametrize("raw,expected", [
+    ("123456", "123456"),
+    ("  123456  ", "123456"),
+    ("https://myorg.atlassian.net/wiki/spaces/ENG/pages/123456789/My+Page",
+     "123456789"),
+    ("https://confluence.example.com/pages/viewpage.action?pageId=98765",
+     "98765"),
+    ("https://confluence.example.com/display/ENG/x?spaceKey=ENG&pageId=42",
+     "42"),
+    ("", None),
+    (None, None),
+])
+def test_parse_confluence_page_id_accepts_id_or_url(raw, expected):
+    assert parse_confluence_page_id(raw) == expected
+
+
+def test_parse_confluence_page_id_tiny_link_falls_back_unchanged():
+    """A Confluence 'tiny link' (/x/AbCdEf) is a short code, not a page ID
+    -- can't be resolved without an API call, so it's returned as-is for
+    the caller to warn about rather than silently mangled."""
+    tiny = "https://myorg.atlassian.net/wiki/x/AbCdEf"
+    assert parse_confluence_page_id(tiny) == tiny
+
+
+def test_load_integrations_parent_page_id_accepts_pasted_url(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    Path(".specify/integrations.yml").write_text(
+        "confluence:\n"
+        "  space_key: ENG\n"
+        "  parent_page_id: "
+        '"https://myorg.atlassian.net/wiki/spaces/ENG/pages/555444/Root"\n'
+    )
+    cfg = load_integrations()
+    assert cfg.confluence.parent_page_id == "555444"
 
 
 def test_profile_names_default_to_top_level_profile(tmp_path, monkeypatch):
@@ -483,6 +527,29 @@ class TestConfigInitCommand:
         assert data["confluence"]["space_key"] == "ENGSPACE"
         assert "document_reviews" in data  # the gap this fix closes
         assert "diagrams:" in dest.read_text()  # commented-out reference, not live YAML
+
+    def test_scaffold_accepts_pasted_page_url_for_parent_page(self, runner, config_home):
+        """Most users have the Confluence page open in a browser, not its
+        raw numeric ID -- pasting the full URL at the parent-page prompt
+        must resolve to just the ID in the generated integrations.yml."""
+        specify_dir = config_home.parent.parent / ".specify"
+        specify_dir.mkdir(parents=True, exist_ok=True)
+        (specify_dir / "integrations.yml.example").write_text(_SHIPPED_EXAMPLE.read_text())
+
+        with patch("questionary.text", side_effect=[
+                _Answer("default"), _Answer("https://x.atlassian.net"), _Answer("a@b.com"),
+                _Answer("PROJ"), _Answer("ENGSPACE"),
+                _Answer("https://x.atlassian.net/wiki/spaces/ENG/pages/777888/Root")]), \
+             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
+             patch("questionary.password", return_value=_Answer("secret-token")), \
+             patch("questionary.confirm", return_value=_Answer(True)), \
+             patch.object(config_mod, "store_secret"):
+            result = runner.invoke(config_command, ["init"])
+
+        assert result.exit_code == 0, result.output
+        dest = specify_dir / "integrations.yml"
+        data = yaml.safe_load(dest.read_text())
+        assert data["confluence"]["parent_page_id"] == "777888"
 
     def test_scaffold_falls_back_to_minimal_template_without_example(self, runner, config_home):
         """No .specify/integrations.yml.example on disk (very old init, or

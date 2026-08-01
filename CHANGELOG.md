@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.95] — 2026-08-01 (Confluence parent-page prompt now accepts a pasted URL, not just the raw ID)
+
+A user pointed out that when `sdd config init` asks for the Confluence
+parent page, most people have the page open in a browser tab, not its raw
+numeric ID memorized — the wizard only accepted the bare ID, forcing a
+manual trip through Confluence's Page Information panel to extract it
+first.
+
+### Added
+
+- `parse_confluence_page_id()` — recognizes a bare numeric ID unchanged, a
+  Cloud page URL (`.../pages/123456/Title`), or a Server/Data Center URL
+  (`...?pageId=123456`), and extracts just the numeric ID from either. A
+  Confluence "tiny link" (`/x/AbCdEf`) isn't a page ID and can't be
+  resolved without an API call — it's returned unchanged with a wizard
+  warning telling the user to paste the full URL instead.
+- Wired into both the `sdd config init` prompt and `load_integrations()`
+  itself, so a hand-edited `integrations.yml` with a pasted URL for
+  `parent_page_id` also resolves correctly at push time.
+- `integrations.yml.example`'s `parent_page_id` comment updated to
+  document that either form works.
+
+### Verified
+
+- New tests: `parse_confluence_page_id()` parametrized over bare ID /
+  Cloud URL / Server-DC URL / blank / tiny-link fallback,
+  `load_integrations()` resolving a pasted URL from YAML, and an
+  end-to-end `config init` wizard test.
+- Full suite: `cli-python` pytest 707/707 (697 pre-existing + 10 new).
+
+---
+
 ## [2.7.94] — 2026-07-31 ('sdd config init' now offers separate Jira/Confluence profiles upfront)
 
 2.7.93 let Jira and Confluence use separate `~/.sdd/config.yml` profiles via

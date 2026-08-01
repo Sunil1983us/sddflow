@@ -9,6 +9,7 @@ from rich.console import Console
 from sdd.utils.atlassian_auth import (
     load_profile, build_session, save_config, store_secret, CONFIG_PATH,
 )
+from sdd.utils.integrations import parse_confluence_page_id
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.confluence_client import ConfluenceClient
 
@@ -219,9 +220,19 @@ def _scaffold_integrations(profile_name: str, confluence_profile_name: str | Non
 
     project_key    = questionary.text("Jira project key (e.g. MYPROJ):").ask()
     space_key      = questionary.text("Confluence space key (e.g. ENG):").ask()
-    parent_page_id = questionary.text(
-        "Confluence parent page ID (blank = root):", default=""
+    parent_page_raw = questionary.text(
+        "Confluence parent page — paste its URL or numeric ID (blank = root):",
+        default="",
     ).ask().strip()
+    parent_page_id = parse_confluence_page_id(parent_page_raw) or ""
+    if (parent_page_raw and parent_page_id == parent_page_raw
+            and not parent_page_raw.isdigit()):
+        console.print(
+            "  [yellow]![/yellow]  Couldn't find a numeric page ID in that — "
+            "using it as-is. If it's a Confluence 'tiny link' (…/x/AbCdEf), "
+            "open the page and copy the full URL or the ID from "
+            "[dim]···  Page Information[/dim] instead."
+        )
 
     manifest     = read_manifest() or {}
     project_name = (manifest.get("project") or {}).get("name", "{project}")
