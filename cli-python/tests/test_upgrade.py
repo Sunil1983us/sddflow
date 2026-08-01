@@ -1,11 +1,23 @@
 # Unit tests for the sdd upgrade migration chain.
+from unittest.mock import patch
+
 from click.testing import CliRunner
 import pytest
 import yaml
 
 import sdd.commands.upgrade as upgrade_mod
-from sdd.commands.upgrade import upgrade_command, MIGRATIONS, _resolve_pack
+from sdd.commands.upgrade import upgrade_command, MIGRATIONS, _pending_migrations, _resolve_pack
 from sdd.utils.manifest import SDD_VERSION
+
+
+class _Answer:
+    """Stand-in for questionary's Question object -- .ask() returns a
+    canned value instead of driving a real prompt_toolkit UI."""
+    def __init__(self, value):
+        self._value = value
+
+    def ask(self):
+        return self._value
 
 
 @pytest.fixture()
@@ -43,18 +55,134 @@ def test_each_migration_stamps_its_own_to_version():
         assert result["sdd_version"] == m["to"]
 
 
-def test_upgrade_from_2_0_0_reaches_current(project):
-    _write_manifest(project, "2.0.0")
-    # Each invocation applies only the migration matching the current
-    # version, so a long chain needs repeated invocations to converge —
-    # loop rather than hardcode a count that breaks every time a new
-    # migration entry is appended.
-    for _ in range(len(MIGRATIONS)):
+def test_pending_migrations_walks_the_whole_chain_not_just_one_hop():
+    """The old implementation matched only a single entry whose 'from'
+    equalled the current version -- a project several versions behind
+    would silently only ever see the next hop. This must return every
+    migration needed to reach SDD_VERSION, in order."""
+    chain = _pending_migrations("2.0.0")
+    assert len(chain) == len(MIGRATIONS) - 1  # every entry except the pre-versioning one
+    assert chain[0]["from"] == "2.0.0"
+    assert chain[-1]["to"] == SDD_VERSION
+    # strictly connected, no gaps or repeats
+    for a, b in zip(chain, chain[1:]):
+        assert a["to"] == b["from"]
+
+
+def test_pending_migrations_empty_when_already_current():
+    assert _pending_migrations(SDD_VERSION) == []
+
+
+class TestUpgradeConverges:
+    """Non-interactive invocations (CliRunner's stdin is never a real TTY)
+    must jump straight to SDD_VERSION in one call by default -- the whole
+    point of this feature: a project many versions behind no longer needs
+    one `sdd upgrade` invocation per pending migration."""
+
+    def test_default_reaches_current_in_a_single_invocation(self, project):
+        _write_manifest(project, "2.0.0")
         result = CliRunner().invoke(upgrade_command)
         assert result.exit_code == 0
-        if _manifest_version(project) == SDD_VERSION:
-            break
-    assert _manifest_version(project) == SDD_VERSION
+        assert _manifest_version(project) == SDD_VERSION
+
+    def test_pre_versioning_reaches_current_in_a_single_invocation(self, project):
+        _write_manifest(project, None)
+        result = CliRunner().invoke(upgrade_command)
+        assert result.exit_code == 0
+        assert _manifest_version(project) == SDD_VERSION
+
+    def test_single_pending_migration_applies_without_pending_count_message(self, project):
+        """One hop behind current: the 'N migrations pending' message is
+        noise when there's only one, and there's nothing to choose
+        between jump-vs-step -- must apply directly, same as before this
+        feature existed. Derives "one hop behind" from MIGRATIONS itself
+        (the entry whose 'to' is SDD_VERSION) rather than hardcoding a
+        version string, which would go stale on every future bump."""
+        one_hop_behind = next(m["from"] for m in MIGRATIONS if m["to"] == SDD_VERSION)
+        _write_manifest(project, one_hop_behind)
+        result = CliRunner().invoke(upgrade_command)
+        assert result.exit_code == 0
+        assert _manifest_version(project) == SDD_VERSION
+        assert "migrations pending" not in result.output
+
+
+class TestUpgradeStepFlag:
+    """--step preserves the original one-hop-then-stop behavior, for
+    reviewing each migration's notes before continuing."""
+
+    def test_step_applies_only_one_hop_and_hints_to_rerun(self, project):
+        _write_manifest(project, "2.0.0")
+        result = CliRunner().invoke(upgrade_command, ["--step"])
+        assert result.exit_code == 0
+        assert _manifest_version(project) != SDD_VERSION
+        assert "again" in result.output
+
+    def test_step_repeated_invocations_eventually_converge(self, project):
+        _write_manifest(project, "2.0.0")
+        for _ in range(len(MIGRATIONS)):
+            if _manifest_version(project) == SDD_VERSION:
+                break
+            result = CliRunner().invoke(upgrade_command, ["--step"])
+            assert result.exit_code == 0
+        assert _manifest_version(project) == SDD_VERSION
+
+    def test_step_and_to_latest_together_errors(self, project):
+        _write_manifest(project, "2.0.0")
+        result = CliRunner().invoke(upgrade_command, ["--step", "--to-latest"])
+        assert result.exit_code != 0
+        assert "mutually exclusive" in result.output
+
+
+class TestUpgradeInteractivePrompt:
+    """When multiple migrations are pending and stdin is a real TTY, the
+    user is asked to choose -- verified here by mocking isatty() and
+    questionary.select() rather than driving a real terminal."""
+
+    def test_choosing_jump_applies_everything(self, project):
+        _write_manifest(project, "2.0.0")
+        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
+             patch("questionary.select", return_value=_Answer(True)):
+            result = CliRunner().invoke(upgrade_command)
+        assert result.exit_code == 0
+        assert _manifest_version(project) == SDD_VERSION
+
+    def test_choosing_step_applies_only_one_hop(self, project):
+        _write_manifest(project, "2.0.0")
+        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
+             patch("questionary.select", return_value=_Answer(False)):
+            result = CliRunner().invoke(upgrade_command)
+        assert result.exit_code == 0
+        assert _manifest_version(project) != SDD_VERSION
+        assert "again" in result.output
+
+    def test_to_latest_flag_bypasses_the_prompt_even_when_tty(self, project):
+        """--to-latest must skip asking entirely -- questionary.select
+        must never be called."""
+        _write_manifest(project, "2.0.0")
+        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
+             patch("questionary.select") as select_mock:
+            result = CliRunner().invoke(upgrade_command, ["--to-latest"])
+        assert result.exit_code == 0
+        assert _manifest_version(project) == SDD_VERSION
+        select_mock.assert_not_called()
+
+    def test_yes_flag_bypasses_the_prompt_even_when_tty(self, project):
+        _write_manifest(project, "2.0.0")
+        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
+             patch("questionary.select") as select_mock:
+            result = CliRunner().invoke(upgrade_command, ["-y"])
+        assert result.exit_code == 0
+        assert _manifest_version(project) == SDD_VERSION
+        select_mock.assert_not_called()
+
+    def test_step_flag_bypasses_the_prompt_even_when_tty(self, project):
+        _write_manifest(project, "2.0.0")
+        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
+             patch("questionary.select") as select_mock:
+            result = CliRunner().invoke(upgrade_command, ["--step"])
+        assert result.exit_code == 0
+        assert _manifest_version(project) != SDD_VERSION
+        select_mock.assert_not_called()
 
 
 def test_upgrade_noop_when_current(project):
@@ -62,20 +190,6 @@ def test_upgrade_noop_when_current(project):
     result = CliRunner().invoke(upgrade_command)
     assert result.exit_code == 0
     assert "Already at" in result.output
-    assert _manifest_version(project) == SDD_VERSION
-
-
-def test_pre_versioning_chain_hints_to_rerun(project):
-    _write_manifest(project, None)
-    result = CliRunner().invoke(upgrade_command)
-    assert result.exit_code == 0
-    assert _manifest_version(project) == "2.0.0"
-    assert "again" in result.output  # multi-step hint
-    # subsequent runs complete the chain
-    for _ in range(len(MIGRATIONS)):
-        if _manifest_version(project) == SDD_VERSION:
-            break
-        CliRunner().invoke(upgrade_command)
     assert _manifest_version(project) == SDD_VERSION
 
 

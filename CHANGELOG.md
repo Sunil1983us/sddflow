@@ -4,6 +4,157 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.2] — 2026-08-01 (`sdd upgrade` converges in one run instead of one invocation per pending migration)
+
+An external code review (point #3) flagged that `upgrade_command()`/
+`upgradeCommand()` in both CLIs only ever found and applied a single
+migration hop per run — a plain match on `MIGRATIONS` entries whose
+`from` equals the current version, which structurally never matched more
+than one entry even though it was looped over. A project many versions
+behind needed one `sdd upgrade` invocation per pending migration to catch
+up. The user confirmed this was actively painful — they're shipping new
+versions every 30–40 minutes right now.
+
+### Added
+
+- New `_pending_migrations()`/`pendingMigrations()` walks the full linear
+  `MIGRATIONS` chain from the current version to `SDD_VERSION`, returning
+  every pending hop in order instead of just the next one.
+- With more than one migration pending, a real interactive terminal is
+  now asked whether to jump straight to the latest version (apply
+  everything now) or step through one at a time. A non-interactive
+  invocation (CI, piped stdin, scripts) skips the prompt and defaults to
+  jumping straight to latest — automation never needs N reruns.
+- New flags in both CLIs: `--to-latest` (force jump, skip prompt),
+  `--step` (force one-hop-then-stop — the original behavior, skip
+  prompt), `-y`/`--yes` (skip prompt, defaults to jump-to-latest —
+  extends the Python side's existing `--yes` flag, previously only for
+  the `--sync-prompts` confirmation).
+
+### Changed
+
+- TTY detection is broken out into a small `_stdin_is_interactive()`/
+  `_stdinIsInteractive()` helper rather than a bare
+  `sys.stdin.isatty()`/`process.stdin.isTTY` check — Click's `CliRunner`
+  reassigns `sys.stdin` during `invoke()`, which silently defeats a naive
+  `patch()` set up before the call; the helper makes this reliably
+  mockable in tests.
+- `cli-python/README.md` and `cli/README.md`'s `sdd upgrade` sections
+  document the new prompt and flags.
+
+### Verified
+
+- `cli-python` pytest 753/753 (742 pre-existing + 11 new).
+- `node --test` 4/4 in `cli/` (2 pre-existing + 2 new — full
+  `CliRunner`-equivalent interactive-prompt coverage wasn't ported to the
+  Node side, a deliberate scope limit matching this CLI's existing
+  lighter test investment, not an oversight).
+- Manually smoke-tested the real CLI: `--to-latest` jumps `v2.0.0 →
+  v2.8.1` in one call, `--step` applies exactly one hop and prints the
+  rerun hint, and plain non-interactive stdin also jumps straight to
+  latest by default.
+- No `manifest.yml` schema change.
+
+---
+
+## [2.8.1] — 2026-08-01 (Node CLI gets its first automated tests — migration-chain-integrity, ported from cli-python)
+
+An external code review pointed out that the Node CLI (`cli/`) had zero
+automated tests — no `test` script, no test files, and the
+`node-cli-sanity` CI job only ran `node bin/sdd.js --help`. Both CLIs
+hand-mirror the same ~100-entry `MIGRATIONS` table on every release, and
+until now only the Python side had a test that would catch a broken
+`from`/`to` link — a typo on the Node side would go undetected by CI
+until a real user's `sdd upgrade` hit "No migration path found."
+
+### Added
+
+- `MIGRATIONS` is now exported from `cli/src/commands/upgrade.js` (was
+  module-private).
+- New `cli/tests/upgrade.test.js`, ported from `cli-python`'s
+  chain-integrity tests: the migration table forms a connected chain
+  ending at `SDD_VERSION`, and every entry's `migrate()` stamps its own
+  `to` version. Uses Node's built-in `node:test`/`node:assert` — zero new
+  dependencies.
+- New `"test": "node --test"` script in `cli/package.json`; the
+  `node-cli-sanity` CI job now runs `npm test` before the existing
+  `--help` smoke test.
+
+### Verified
+
+- `node --test` — 2/2 passing.
+- No functional CLI behavior change, no `manifest.yml` schema change —
+  purely closing a test-coverage gap.
+- `cli-python` pytest 742/742 (unchanged), `ast.parse` on `upgrade.py`,
+  `node --check` on `upgrade.js`.
+
+---
+
+## [2.8.0] — 2026-08-01 (Versioning scheme change: capped major.minor.patch, one-time reset off the runaway 2.7.100)
+
+The old scheme just incremented the patch number forever — it had reached
+`2.7.100` (a hundred patch releases within one minor version), which a
+user pointed out was an awkward, hard-to-reason-about number.
+
+### Changed
+
+- `sdd_version` now uses a **capped** major.minor.patch counter: patch
+  (Z) ranges 0–24, minor (Y) ranges 0–9. Bumping patch past 24 instead
+  increments minor and resets patch to 0; bumping minor past 9 instead
+  increments major and resets minor to 0. Equivalent to treating the
+  version as one running integer `N = X*250 + Y*25 + Z`, adding 1, and
+  reconstituting `X/Y/Z` via `divmod(N, 250)` then `divmod(rem, 25)`.
+- This specific bump (`2.7.100 → 2.8.0`) is a **manual, one-time reset**,
+  not the general divmod rule applied retroactively — the user explicitly
+  chose not to divmod the old scheme's runaway patch count (which would
+  have landed on `3.1.0`). Every bump from `2.8.0` onward uses the plain
+  capped rule with no further special-casing.
+- New `.claude/skills/version-bump/SKILL.md` in this repo encodes the
+  full bump procedure (compute next version, update all 9 lockstep
+  files, append matching migration entries to both `upgrade.py` and
+  `upgrade.js`, add the CHANGELOG entry, run verification) so future
+  bumps apply the rule consistently instead of being computed ad hoc.
+
+### Verified
+
+- Purely a versioning/process change — no functional CLI behavior
+  differs, no `manifest.yml` schema change.
+- `cli-python` pytest 742/742 (unchanged — no code touched), `ast.parse`
+  on `upgrade.py`, `node --check` on `upgrade.js`.
+
+---
+
+## [2.7.100] — 2026-08-01 (`sdd init` now asks plan_mode and reading_mode, matching setup.sh)
+
+A user ran `sdd init` (the pip-installed CLI) and asked when
+`reading_mode` gets asked — it never was. `init.py` only ever asked
+project type, project name, feature name, scope, and AI tool;
+`plan_mode`/`reading_mode` silently stayed at the pack's shipped default
+(`unified`/`auto`). This README already documents `sdd init` as
+"Replaces `bash setup.sh` / `.\setup.ps1`" — but `setup.sh` has asked both
+interactively since v2.7.92 (reading_mode) and earlier (plan_mode), so
+this was a real parity gap between the two scaffolding entry points.
+
+### Added
+
+- `sdd init` now asks "Plan document style:" (unified/separate) and
+  "Document reading mode:" (auto/summary/full) right after scope, using
+  the same option wording as `setup.sh`'s prompts.
+- New `--plan-mode`/`--reading-mode` flags skip the prompts
+  non-interactively, matching `--scope`/`--type`'s existing pattern.
+- `sdd-micro` is exempt — its `manifest.yml` template has neither field.
+
+### Verified
+
+- New tests: interactive selection written to manifest, CLI flags skip
+  both prompts, `sdd-micro` never prompts for either.
+- Full suite: `cli-python` pytest 742/742 (739 pre-existing + 3 new).
+- No `manifest.yml` schema change — both fields already existed, this
+  just makes them reachable from `sdd init` the same way they're
+  reachable from `setup.sh`.
+
+---
+
 ## [2.7.99] — 2026-08-01 (PyPI/npm package Summary and keywords rewritten for discoverability)
 
 A user looked at the sddflow PyPI page and pointed out the Summary

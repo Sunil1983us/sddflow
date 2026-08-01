@@ -25,6 +25,9 @@ program
 program
   .command('upgrade')
   .description('Migrate manifest.yml to the current pack version')
+  .option('--to-latest', 'When multiple migrations are pending, apply all of them in this run')
+  .option('--step',      'When multiple migrations are pending, apply only the next one and stop')
+  .option('-y, --yes',   'Skip confirmation/choice prompts, defaulting to jump straight to latest')
   .action(upgradeCommand);
 
 program.parse();

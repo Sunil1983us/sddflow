@@ -36,7 +36,9 @@ sdd init
 sdd init --project "my-payments-api" \
          --feature "user-authentication" \
          --scope   pilot \
-         --type    backend-service
+         --type    backend-service \
+         --plan-mode    unified \
+         --reading-mode auto
 ```
 
 | Flag | Description | Default |
@@ -45,6 +47,11 @@ sdd init --project "my-payments-api" \
 | `-f, --feature <name>` | First feature name | prompted |
 | `-s, --scope <scope>` | `pilot` \| `mvp` \| `full` | prompted |
 | `-t, --type <type>` | Project type (auto-detected if omitted) | auto |
+| `--plan-mode <mode>` | `unified` \| `separate` — see "PLAN Sub-Commands" in a pack's own CLAUDE.md | prompted |
+| `--reading-mode <mode>` | `auto` \| `summary` \| `full` — AI-2 token-economy setting | prompted |
+
+`--plan-mode`/`--reading-mode` (and their prompts) are skipped entirely for
+`sdd-micro` — its manifest.yml has no such fields.
 
 ---
 
@@ -55,6 +62,27 @@ Migrate an existing project's `manifest.yml` to the current pack version.
 ```bash
 sdd upgrade
 ```
+
+**If your project is several versions behind, one run is enough** — `sdd
+upgrade` finds every pending migration between your current version and
+the latest, not just the next one. In a real terminal, with more than one
+migration pending, it asks:
+
+```
+? You're 12 versions behind (latest is v2.8.1). How would you like to upgrade?
+❯ Jump straight to v2.8.1 (apply all 12 migrations now)
+  Step through one at a time (review each migration's notes before continuing)
+```
+
+- `--to-latest` — skip the prompt, always jump straight to latest.
+- `--step` — skip the prompt, always apply just the next migration and stop
+  (the original behavior — useful for reading each version's notes before
+  moving on).
+- `-y`/`--yes` — skip the prompt, defaulting to jump-to-latest (also skips
+  the separate `--sync-prompts` confirmation below).
+- Piped/non-interactive stdin (CI, scripts) skips the prompt automatically
+  and jumps straight to latest — so an automated `sdd upgrade` never needs
+  N reruns to converge.
 
 **This only ever touches `manifest.yml`'s `sdd_version` field.** Fixes made
 to prompt file *content* (`.github/prompts/*.md`, `.claude/commands/*.md`)

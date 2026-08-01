@@ -1,11 +1,17 @@
 import { existsSync } from 'fs';
 import chalk from 'chalk';
+import inquirer from 'inquirer';
 import { readManifest, patchManifest, MANIFEST_PATH, SDD_VERSION } from '../utils/manifest.js';
 
 // Version migration table — describes what changed between pack versions.
 // Extend this when releasing a new pack version.
 // Each migrate() stamps its own "to" version so chained upgrades stay truthful.
-const MIGRATIONS = [
+// Exported (not just module-local) so tests/upgrade.test.js can assert the
+// chain is connected and ends at SDD_VERSION -- this table is hand-mirrored
+// from cli-python/sdd/commands/upgrade.py's MIGRATIONS on every release, and
+// only that Python side ever had a test that would catch a broken from/to
+// link in it.
+export const MIGRATIONS = [
   {
     from: null,          // null = pre-versioning (v1.x, no sdd_version field)
     to:   '2.0.0',
@@ -2813,14 +2819,204 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.99',
+    to:   '2.7.100',
+    description: "'sdd init' now asks plan_mode and reading_mode interactively, like setup.sh already does -- both previously stayed silently at the pack default",
+    notes: [
+      "A user ran 'sdd init' (the pip-installed CLI, not setup.sh) and " +
+      "asked when reading_mode gets asked -- it never was. init.py " +
+      "only ever asked project type, project name, feature name, " +
+      "scope, and AI tool; plan_mode and reading_mode were silently " +
+      "left at whatever the pack's shipped manifest.yml template " +
+      "defaults to ('unified'/'auto')",
+      "cli-python's README already documents 'sdd init' as 'Replaces " +
+      "bash setup.sh / .\\setup.ps1' -- setup.sh has asked both " +
+      "interactively since v2.7.92 (reading_mode) and earlier " +
+      "(plan_mode), so this was a real parity gap between the two " +
+      "scaffolding entry points",
+      "init_command() now asks 'Plan document style:' " +
+      "(unified/separate) and 'Document reading mode:' " +
+      "(auto/summary/full) right after scope, using the same option " +
+      "wording as setup.sh's prompts. New --plan-mode/--reading-mode " +
+      "flags skip them non-interactively",
+      "sdd-micro is exempt -- its manifest.yml template has neither " +
+      "field, same is_micro guard already used for scope/project_type",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "No manifest.yml schema change. Verified: cli-python pytest " +
+      "742/742 (739 pre-existing + 3 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.100';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.100',
+    to:   '2.8.0',
+    description: "Versioning scheme change: sdd_version is now a capped major.minor.patch counter (patch 0-24, minor 0-9) instead of an ever-growing patch number -- this bump is the one-time reset off the runaway old scheme",
+    notes: [
+      "The old scheme just incremented the patch number forever -- it " +
+      "had reached 2.7.100 (a hundred patch releases within one minor " +
+      "version), which a user pointed out was an awkward, hard-to-" +
+      "reason-about number",
+      "New scheme: patch (Z) ranges 0-24, minor (Y) ranges 0-9. " +
+      "Bumping patch past 24 instead increments minor and resets patch " +
+      "to 0; bumping minor past 9 instead increments major and resets " +
+      "minor to 0. Equivalent to treating the version as one running " +
+      "integer N = X*250 + Y*25 + Z, adding 1, and reconstituting X/Y/Z " +
+      "via divmod(N, 250) then divmod(rem, 25)",
+      "This specific bump (2.7.100 -> 2.8.0) is a manual, one-time " +
+      "reset, not the general divmod rule applied retroactively -- the " +
+      "user explicitly chose NOT to divmod the old scheme's runaway " +
+      "patch count (which would have landed on 3.1.0). Every bump from " +
+      "2.8.0 onward uses the plain capped rule with no further special-" +
+      "casing",
+      "New .claude/skills/version-bump/SKILL.md in this repo encodes " +
+      "the full procedure so future bumps apply the rule consistently " +
+      "instead of being computed ad hoc each time",
+      "Purely a versioning/process change -- no functional CLI behavior " +
+      "differs, no manifest.yml schema change. This Node CLI ships from " +
+      "the same pack sources -- this migration entry exists so both " +
+      "CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 742/742 (unchanged -- no code " +
+      "touched), ast.parse on upgrade.py, node --check on upgrade.js",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.0';
+      return manifest;
+    },
+  },
+  {
+    from: '2.8.0',
+    to:   '2.8.1',
+    description: "Node CLI gets its first automated tests -- ported cli-python's migration-chain-integrity tests to close a coverage gap flagged in code review",
+    notes: [
+      "An external code review pointed out that this Node CLI had zero " +
+      "automated tests -- no test script in package.json, no test " +
+      "files anywhere, and the node-cli-sanity CI job only ran " +
+      "`node bin/sdd.js --help`. By contrast the Python CLI has " +
+      "hundreds of tests covering the same surface, including a test " +
+      "that verifies every MIGRATIONS entry's 'from' matches the " +
+      "previous entry's 'to' and the chain ends at SDD_VERSION",
+      "Both CLIs hand-mirror the same ~100-entry MIGRATIONS table on " +
+      "every release (this Node CLI is scaffolding-only and doesn't " +
+      "implement most of what it's narrating, per its own README) -- " +
+      "until now, only the Python side had a test that would catch a " +
+      "broken from/to link. A typo here would go undetected by CI " +
+      "until a real user's `sdd upgrade` hit 'No migration path found'",
+      "MIGRATIONS is now exported (was module-private) so a test file " +
+      "can import it. New cli/tests/upgrade.test.js ports two tests: " +
+      "the chain-connectivity check above, and a check that every " +
+      "entry's migrate() stamps its own 'to' version",
+      "Uses Node's built-in node:test/node:assert -- zero new " +
+      "dependencies. New 'test': 'node --test' script in package.json, " +
+      "and the node-cli-sanity CI job now runs `npm test` before the " +
+      "existing --help smoke test",
+      "No functional CLI behavior change, no manifest.yml schema " +
+      "change -- purely closing a test-coverage gap. Verified: " +
+      "cli-python pytest 742/742 (unchanged), node --test 2/2 passing, " +
+      "ast.parse on upgrade.py, node --check on upgrade.js",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.1';
+      return manifest;
+    },
+  },
+  {
+    from: '2.8.1',
+    to:   '2.8.2',
+    description: "'sdd upgrade' no longer needs one invocation per pending migration -- it now finds the whole chain and offers to jump straight to latest",
+    notes: [
+      "An external code review (point #3) flagged that " +
+      "upgrade_command()/upgradeCommand() in both CLIs only ever found " +
+      "and applied a single migration hop per run -- a plain match on " +
+      "MIGRATIONS entries whose 'from' equals the current version. " +
+      "Since 'from' is unique per entry, this structurally never " +
+      "matched more than one, even though it was looped over. A " +
+      "project many versions behind needed one `sdd upgrade` " +
+      "invocation per pending migration to catch up. The user " +
+      "confirmed this was actively painful: they're shipping new " +
+      "versions every 30-40 minutes right now",
+      "New pendingMigrations() walks the full linear MIGRATIONS chain " +
+      "from the current version to SDD_VERSION, returning every " +
+      "pending hop in order instead of just the next one",
+      "With more than one migration pending, a real interactive " +
+      "terminal is now asked whether to jump straight to the latest " +
+      "version (apply everything now) or step through one at a time. " +
+      "A non-interactive invocation -- CI, piped stdin, scripts -- " +
+      "skips the prompt and defaults to jumping straight to latest, so " +
+      "automation never needs N reruns to converge",
+      "New flags: --to-latest (force jump, skip prompt), --step (force " +
+      "one-hop-then-stop -- the original behavior, skip prompt), " +
+      "-y/--yes (skip prompt, defaults to jump-to-latest)",
+      "TTY detection is broken out into a small _stdinIsInteractive() " +
+      "helper rather than a bare process.stdin.isTTY check, for " +
+      "reliable testability",
+      "cli-python/README.md and cli/README.md's 'sdd upgrade' sections " +
+      "document the new prompt and flags",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "No manifest.yml schema change. Verified: cli-python pytest " +
+      "753/753 (742 pre-existing + 11 new), node --test 4/4 in cli/ (2 " +
+      "pre-existing + 2 new -- full CliRunner-equivalent interactive-" +
+      "prompt coverage wasn't ported to the Node side, a deliberate " +
+      "scope limit matching this CLI's existing lighter test " +
+      "investment, not an oversight). Manually smoke-tested the real " +
+      "CLI: --to-latest jumps v2.0.0 -> v2.8.1 in one call, --step " +
+      "applies exactly one hop and prints the rerun hint, and plain " +
+      "non-interactive stdin also jumps straight to latest by default",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.2';
+      return manifest;
+    },
+  },
 ];
 
-export async function upgradeCommand() {
+// Every migration from currentVersion to SDD_VERSION, in order -- walks
+// the linear MIGRATIONS chain (each "from" is unique, so it's a simple
+// linked list) rather than matching only the single next hop. A project
+// many versions behind used to need one `sdd upgrade` invocation per
+// version; this lets the caller see -- and choose to apply -- the whole
+// pending chain in one run. Exported so tests/upgrade.test.js can assert
+// it directly.
+export function pendingMigrations(currentVersion) {
+  const byFrom = new Map(MIGRATIONS.map(m => [m.from, m]));
+  const chain = [];
+  let version = currentVersion;
+  const seenTo = new Set();
+  while (version !== SDD_VERSION) {
+    const m = byFrom.get(version);
+    if (!m) break;
+    if (seenTo.has(m.to)) break; // guards against an accidental cycle in hand-edited data
+    seenTo.add(m.to);
+    chain.push(m);
+    version = m.to;
+  }
+  return chain;
+}
+
+// Broken out from a bare `process.stdin.isTTY` check so tests can mock
+// it directly without needing a real TTY.
+function _stdinIsInteractive() {
+  return Boolean(process.stdin.isTTY);
+}
+
+export async function upgradeCommand(opts = {}) {
   console.log('');
   console.log(chalk.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log(`  ${chalk.bold.cyan('SDD Framework')} — upgrade`);
   console.log(chalk.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log('');
+
+  if (opts.toLatest && opts.step) {
+    console.error(chalk.red('✗  --to-latest and --step are mutually exclusive.'));
+    process.exit(1);
+  }
 
   if (!existsSync(MANIFEST_PATH)) {
     console.error(chalk.red(`✗  ${MANIFEST_PATH} not found — run from the pack root directory.`));
@@ -2840,11 +3036,7 @@ export async function upgradeCommand() {
   console.log(`  Target version  : ${chalk.green(SDD_VERSION)}`);
   console.log('');
 
-  // Find applicable migrations
-  const pending = MIGRATIONS.filter(m => {
-    if (currentVersion === null && m.from === null) return true;
-    return m.from === currentVersion;
-  });
+  const pending = pendingMigrations(currentVersion);
 
   if (pending.length === 0) {
     console.log(chalk.yellow('  No migration path found for your current version.'));
@@ -2853,7 +3045,41 @@ export async function upgradeCommand() {
     return;
   }
 
-  for (const migration of pending) {
+  // A project several versions behind used to need one `sdd upgrade`
+  // invocation per pending migration. With more than one pending, decide
+  // once whether to apply the whole chain now or step through it --
+  // explicit flags win; otherwise ask interactively; a script/CI
+  // invocation (no real TTY on stdin) defaults to applying everything
+  // now rather than silently doing only one hop and needing N reruns.
+  let applyAll = true;
+  if (pending.length > 1 && !opts.toLatest && !opts.step) {
+    if (opts.yes) {
+      applyAll = true;
+    } else if (_stdinIsInteractive()) {
+      const { choice } = await inquirer.prompt([{
+        type: 'list',
+        name: 'choice',
+        message: `You're ${pending.length} versions behind (latest is v${SDD_VERSION}). How would you like to upgrade?`,
+        choices: [
+          { name: `Jump straight to v${SDD_VERSION} (apply all ${pending.length} migrations now)`, value: true },
+          { name: 'Step through one at a time (review each migration\'s notes before continuing)', value: false },
+        ],
+      }]);
+      applyAll = choice;
+    }
+    // else: non-interactive with neither flag nor --yes -- applyAll
+    // stays true (see comment above).
+  } else if (opts.step) {
+    applyAll = false;
+  }
+
+  const toApply = applyAll ? pending : pending.slice(0, 1);
+  if (pending.length > 1) {
+    console.log(chalk.dim(`  ${pending.length} migrations pending -- ${applyAll ? 'applying all now' : 'applying next hop only'}.`));
+    console.log('');
+  }
+
+  for (const migration of toApply) {
     console.log(chalk.bold(`  Migrating → v${migration.to}: ${migration.description}`));
     for (const note of migration.notes) {
       console.log(`    ${chalk.dim('•')} ${note}`);

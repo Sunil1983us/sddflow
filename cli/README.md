@@ -79,7 +79,13 @@ sdd upgrade
 ```
 
 Shows what changed between your current `sdd_version` and the CLI version,
-applies the migration to `manifest.yml`, and updates `sdd_version`.
+applies the migration(s) to `manifest.yml`, and updates `sdd_version`.
+
+If several versions are pending, a real terminal is asked whether to jump
+straight to the latest version (apply everything now) or step through one
+migration at a time; `--to-latest`/`--step`/`-y` skip the prompt, and a
+non-interactive invocation (CI, scripts) defaults to jumping straight to
+latest so it never needs repeated reruns to converge.
 
 ---
 

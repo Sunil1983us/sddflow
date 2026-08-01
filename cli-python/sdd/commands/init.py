@@ -49,7 +49,10 @@ _BANNER = f"""
               help="Project type (auto-detected if omitted)")
 @click.option("--pack",          default=None,
               help=f"Pack to scaffold: {', '.join(ALL_PACKS)}")
-def init_command(project_name, feature_name, scope, project_type, pack):
+@click.option("--plan-mode",     default=None,   help="unified | separate")
+@click.option("--reading-mode",  default=None,   help="auto | summary | full")
+def init_command(project_name, feature_name, scope, project_type, pack,
+                  plan_mode, reading_mode):
     """Initialize an SDD pack in the current project directory."""
     console.print(_BANNER)
 
@@ -124,6 +127,48 @@ def init_command(project_name, feature_name, scope, project_type, pack):
             ],
         ).ask()
 
+    # sdd-micro has neither field in its manifest.yml template (3-command,
+    # no plan/design gates to choose a style for) -- same is_micro guard
+    # as scope above.
+    if not is_micro and not plan_mode:
+        plan_mode = questionary.select(
+            "Plan document style:",
+            choices=[
+                questionary.Choice(
+                    "unified  — one combined design.md (architecture + diagrams + "
+                    "API design + decisions). Good for small teams, fast delivery, "
+                    "single review gate.",
+                    value="unified"),
+                questionary.Choice(
+                    "separate — three focused documents reviewed one by one "
+                    "(arch.md → hld.md → adr.md, mvp+ only). Good for larger "
+                    "teams, separate approvals, detailed audit trail.",
+                    value="separate"),
+            ],
+        ).ask()
+
+    if not is_micro and not reading_mode:
+        reading_mode = questionary.select(
+            "Document reading mode (token economy — see summary-rules.md):",
+            choices=[
+                questionary.Choice(
+                    "auto    — use each doc's .summary.md when present, fall back "
+                    "to the full doc (and generate a summary) when missing. Good "
+                    "for almost everyone — self-heals, never stuck.",
+                    value="auto"),
+                questionary.Choice(
+                    "summary — always use .summary.md; warns instead of reading "
+                    "the full doc if one is missing. Good for strict token "
+                    "budgets.",
+                    value="summary"),
+                questionary.Choice(
+                    "full    — always read the full document, every command. "
+                    "Good for deep debugging, or migrating a project with no "
+                    "summaries.",
+                    value="full"),
+            ],
+        ).ask()
+
     ai_tool = questionary.select(
         "Which AI tool will you use?",
         choices=AI_TOOLS,
@@ -141,6 +186,8 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     console.print(f"  Feature : [cyan]{feature_name}[/cyan]")
     if not is_micro:
         console.print(f"  Scope   : [cyan]{scope}[/cyan]")
+        console.print(f"  Plan    : [cyan]{plan_mode}[/cyan]")
+        console.print(f"  Reading : [cyan]{reading_mode}[/cyan]")
     console.print(f"  AI tool : [cyan]{ai_tool}[/cyan]")
     console.print()
 
@@ -157,7 +204,9 @@ def init_command(project_name, feature_name, scope, project_type, pack):
     }
     if not is_micro:
         project_patch["scope"] = scope
-        manifest_patch["project_type"] = project_type
+        manifest_patch["project_type"]  = project_type
+        manifest_patch["plan_mode"]     = plan_mode
+        manifest_patch["reading_mode"]  = reading_mode
     # Records which pack this project was scaffolded from — nothing else
     # persists this (project_type is ambiguous: sdd-universal can produce
     # any project_type too), and `sdd upgrade --sync-prompts` needs it to
