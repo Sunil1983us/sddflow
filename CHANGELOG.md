@@ -4,6 +4,232 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.98] — 2026-08-01 (Jira Feature/Epic gains Business Objectives, Success Criteria, and a Confluence link)
+
+Follow-up to 2.7.97's structured description template (Problem Statement /
+Business Hypothesis / Description / Out of Scope / NFR) — asked what else
+was worth adding to a business-level Epic. Added the three recommended
+sections.
+
+### Added
+
+- **Success Criteria** — `brd.md` §8's checklist items, closing the loop
+  the Business Hypothesis opens ("we'll know this is true when X").
+- **Business Objectives** — brought back as its own compact section
+  (`BO-NNN: {objective} — {success metric}` per row from `brd.md` §2),
+  distinct from the free-text Description/Hypothesis prose.
+- **Full Document (Confluence link)** — if `brd.md` has already been
+  pushed to Confluence, the Epic description links straight to the page
+  instead of only carrying an excerpt. Read from the local
+  `.specify/.confluence-drafts.json` cache — no network call, silently
+  omitted if Confluence isn't configured or `brd.md` hasn't been pushed
+  yet.
+
+### Verified
+
+- New tests for both parsers, the link resolution, and end-to-end through
+  `feature_extra_fields()`/`sdd review submit`'s Epic self-bootstrap.
+- Full suite: `cli-python` pytest 739/739 (721 pre-existing + 18 new),
+  cross-reference linter clean, setup smoke tests clean.
+- No `manifest.yml` schema change — every existing Epic picks up the new
+  sections and link on its next push (idempotent upsert).
+
+---
+
+## [2.7.97] — 2026-08-01 (Jira Feature/Epic description now uses a structured template)
+
+A user asked for a specific description template on the Jira Feature/Epic
+issue: Problem Statement, Business Hypothesis, Description, Out of Scope,
+NFR. The previous description was a single "Business Objectives:" bullet
+list pulled from `brd.md`'s `BO-NNN` rows — useful, but not the shape
+being asked for.
+
+### Added
+
+- `brd-template.md` gains a new "### Business Hypothesis" field under §4
+  Business Context, right after Problem Statement — a testable belief
+  statement ("We believe that X for Y will result in Z; we'll know this
+  is true when..."), distinct from the Problem Statement it sits next to.
+  `specify-brd.prompt.md` instructs the agent to fill it.
+- New `jira.py` parsers pull Problem Statement / Business Hypothesis /
+  Description from `brd.md` §4/§1, Out of Scope from `brd.md` §4's bullet
+  list, and NFR from `srd.md` §3's NFR-NNN table.
+- New `adf_sections()` builder renders each as its own heading + body,
+  omitting a section entirely (no empty heading) when its source doc
+  doesn't exist yet or is still unfilled template text — e.g. NFR is
+  silently absent until `/specify-srd` runs. Falls back to a single
+  placeholder paragraph only when every section is empty.
+
+### Changed
+
+- `sdd review submit`'s Epic self-bootstrap picks up the new template
+  automatically (it reuses the same `feature_extra_fields()`), no
+  separate change needed.
+- Every existing Epic gets the new description shape on its next push —
+  create-or-update is idempotent, no manual migration step.
+
+### Verified
+
+- Full suite: `cli-python` pytest 721/721 (713 pre-existing + 8 new),
+  cross-reference linter clean, `assert-output.sh` clean against
+  `examples/todo-api`, setup smoke tests clean.
+
+---
+
+## [2.7.96] — 2026-08-01 (`sdd config test` now verifies Jira and Confluence independently)
+
+While auditing docs for the recent `config init` changes, found that
+`sdd config test` still resolved exactly **one** `Profile` and pinged both
+Jira and Confluence against its `base_url` — even though 2.7.93 let them
+use separate profiles. Testing the split with `sdd config test --profile
+confluence-dc` (exactly what the wizard's own closing message told you to
+run) would try to hit Jira at Confluence's URL and vice versa — a silent
+false failure for whichever service didn't match the flag.
+
+### Fixed
+
+- Without `--profile`, Jira and Confluence are now each resolved through
+  `integrations.yml`'s `jira.profile`/`confluence.profile` independently —
+  each service is pinged against its own `base_url` and credential. When
+  they resolve to the same profile (the common case), output is unchanged
+  from before. When they differ, the command prints which profile backs
+  which service before testing.
+- An explicit `--profile` still tests that one profile against both
+  services, unchanged — for sanity-checking a profile before it's wired
+  into `integrations.yml`.
+- `sdd config init`'s closing message no longer suggests
+  `sdd config test --profile X` per service when `integrations.yml` was
+  scaffolded (that flag can't isolate a single service — see above); it
+  now says `Run sdd config test to verify both`. If scaffolding was
+  declined, the old two-command guidance is kept, now with an explicit
+  caveat about what it actually tests.
+
+### Verified
+
+- New tests: single-profile pings once, split-profile pings each service
+  against its own `base_url`, explicit `--profile` overrides the split, an
+  unknown `confluence.profile` reports which service's config failed, and
+  both `config init` closing-message variants.
+- Full suite: `cli-python` pytest 713/713 (707 pre-existing + 6 new).
+
+---
+
+## [2.7.95] — 2026-08-01 (Confluence parent-page prompt now accepts a pasted URL, not just the raw ID)
+
+A user pointed out that when `sdd config init` asks for the Confluence
+parent page, most people have the page open in a browser tab, not its raw
+numeric ID memorized — the wizard only accepted the bare ID, forcing a
+manual trip through Confluence's Page Information panel to extract it
+first.
+
+### Added
+
+- `parse_confluence_page_id()` — recognizes a bare numeric ID unchanged, a
+  Cloud page URL (`.../pages/123456/Title`), or a Server/Data Center URL
+  (`...?pageId=123456`), and extracts just the numeric ID from either. A
+  Confluence "tiny link" (`/x/AbCdEf`) isn't a page ID and can't be
+  resolved without an API call — it's returned unchanged with a wizard
+  warning telling the user to paste the full URL instead.
+- Wired into both the `sdd config init` prompt and `load_integrations()`
+  itself, so a hand-edited `integrations.yml` with a pasted URL for
+  `parent_page_id` also resolves correctly at push time.
+- `integrations.yml.example`'s `parent_page_id` comment updated to
+  document that either form works.
+
+### Verified
+
+- New tests: `parse_confluence_page_id()` parametrized over bare ID /
+  Cloud URL / Server-DC URL / blank / tiny-link fallback,
+  `load_integrations()` resolving a pasted URL from YAML, and an
+  end-to-end `config init` wizard test.
+- Full suite: `cli-python` pytest 707/707 (697 pre-existing + 10 new).
+
+---
+
+## [2.7.94] — 2026-07-31 ('sdd config init' now offers separate Jira/Confluence profiles upfront)
+
+2.7.93 let Jira and Confluence use separate `~/.sdd/config.yml` profiles via
+`jira.profile`/`confluence.profile` in `integrations.yml`, but a follow-up
+question exposed a gap: did `sdd config init` itself actually offer this?
+It didn't — the wizard was still single-profile only, so using the split
+meant running `init` twice and hand-editing the commented-out override
+lines in `integrations.yml` afterward. The user clarified what "profile"
+must mean here: not just a server URL, but the entire authentication set —
+`base_url` + `auth_mode` + credential — so two profiles are never assumed
+to share anything, even a coincidentally identical URL.
+
+### Added
+
+- `config_init()` now opens with "Do Jira and Confluence share the same
+  site and credentials?" — **Yes** keeps the original single-profile flow
+  unchanged; **No** runs the full credential round (profile name,
+  `base_url`, auth mode, credential storage) twice, once per service.
+- `_collect_and_save_profile()` — the credential-collection logic extracted
+  into a reusable helper so both the "same" and "different" paths share
+  identical prompts and validation, avoiding drift between them.
+- "Different" mode wires the result automatically: the top-level
+  `profile:` becomes Jira's, and `confluence.profile:` is filled with the
+  Confluence profile name in the generated `integrations.yml` — no manual
+  editing step required.
+
+### Verified
+
+- New tests: `test_different_profiles_creates_both_in_config_yml` (both
+  profiles saved with distinct `base_url`/`auth_mode`/`credential_store`)
+  and `test_different_profiles_wires_confluence_override_into_integrations_yml`
+  (end-to-end: the generated `integrations.yml` actually contains the
+  override, not just two orphaned `config.yml` profiles).
+- 5 pre-existing `config init` tests updated for the new opening question.
+- Full suite: `cli-python` pytest 697/697 (695 pre-existing + 2 new).
+- No `manifest.yml` or `integrations.yml` schema change — 2.7.93 already
+  added the fields; this just makes them reachable from the wizard.
+
+---
+
+## [2.7.93] — 2026-07-31 (Jira and Confluence can now use separate ~/.sdd/config.yml profiles)
+
+A user asked directly: their organization runs Jira and Confluence as
+separate Data Center servers, each with its own auth token. Was that
+accounted for? It wasn't — every command that talks to both services
+(reviewed all call sites across `config.py`, `confluence.py`, `cr.py`,
+`dashboard.py`, `jira.py`, `pr.py`, `review.py`) resolved exactly **one**
+`Profile` (one `base_url`, one credential) from `integrations.yml`'s single
+top-level `profile:` field, then handed the same authenticated session to
+both `JiraClient` and `ConfluenceClient`. Correct only when both live on
+the same Atlassian Cloud site — silently wrong the moment they're separate
+servers.
+
+### Added
+
+- `jira.profile` / `confluence.profile` — optional per-service overrides in
+  `integrations.yml`, each falling back to the existing top-level
+  `profile:` when unset. Existing projects with one `profile:` line need
+  no changes at all.
+- `atlassian_auth.load_jira_session()` / `load_confluence_session()` —
+  resolve each service's `Profile` + authenticated `Session`
+  independently, replacing the shared `load_profile()`+`build_session()`
+  pair at every call site. A command's own `--profile` flag still wins
+  over both, matching prior precedence.
+- `integrations.yml.example` documents both new fields with guidance on
+  when to use them (Data Center, not the common Cloud case).
+
+### Verified
+
+- `cr_submit` and the dashboard's review-links fetch resolve each session
+  *conditionally* — only for a service that's actually configured — since
+  resolving both unconditionally would require credentials for a service
+  the user never configured for that command (caught this in an early
+  draft via a test that only configured `jira:`, no `confluence:`).
+- New tests: 4 in `test_config_and_integrations.py` (profile fallback,
+  independent override, one-service override, missing-section tolerance)
+  + 3 in `test_atlassian_auth.py` (different base URLs resolve
+  independently, same profile when unset, explicit override still wins).
+- Full suite: `cli-python` pytest 695/695 (688 pre-existing + 7 new,
+  including updating ~13 existing tests that mocked the old
+  `load_profile`/`build_session` pair directly).
+
+---
+
 ## [2.7.92] — 2026-07-27 (setup.sh/setup.ps1 now ask for reading_mode instead of silently defaulting to "auto")
 
 A user asked where `reading_mode` (the AI-2 token-economy switch —

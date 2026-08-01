@@ -2537,6 +2537,246 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.92',
+    to:   '2.7.93',
+    description: "Let Jira and Confluence use separate ~/.sdd/config.yml profiles (jira.profile / confluence.profile in integrations.yml) instead of one shared profile for both",
+    notes: [
+      "A user asked directly: their org runs Jira and Confluence as " +
+      "separate Data Center servers with separate credentials -- was that " +
+      "ever accounted for? It wasn't. Every command that talks to Jira " +
+      "and Confluence resolved exactly ONE Profile (one base_url, one " +
+      "credential) from the single top-level integrations.yml profile: " +
+      "field, then handed the SAME session to both JiraClient and " +
+      "ConfluenceClient -- correct only when both are the same Atlassian " +
+      "Cloud site",
+      "IntegrationsConfig grew two new optional fields, jira.profile and " +
+      "confluence.profile, each falling back to the existing top-level " +
+      "profile: when unset -- every existing project with one profile: " +
+      "line keeps working identically, no config change required",
+      "New atlassian_auth.load_jira_session()/load_confluence_session() " +
+      "resolve each service's Profile + Session independently, replacing " +
+      "the old shared load_profile()+build_session() pair at every call " +
+      "site across config.py, confluence.py, cr.py, dashboard.py, jira.py, " +
+      "pr.py, review.py. A command's own --profile flag still wins over " +
+      "both",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "integrations.yml.example documents both new fields; no manifest.yml " +
+      "schema change for existing projects",
+      "Verified: cli-python pytest 695/695 (688 pre-existing + 7 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.93';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.93',
+    to:   '2.7.94',
+    description: "'sdd config init' now asks upfront whether Jira and Confluence share one set of credentials or need two, instead of requiring a manual second run + hand-edit to use the jira.profile/confluence.profile split added in 2.7.93",
+    notes: [
+      "2.7.93 added jira.profile/confluence.profile overrides so the " +
+      "two services can use separate ~/.sdd/config.yml profiles, but " +
+      "'sdd config init' itself was still a single-profile wizard -- " +
+      "getting the split required running init twice and manually " +
+      "uncommenting the override lines in integrations.yml afterward. " +
+      "A user asked directly: does init actually offer this? It didn't",
+      "config_init() now opens with 'Do Jira and Confluence share the " +
+      "same site and credentials?' -- Yes keeps the exact original " +
+      "single-profile flow; No runs the full credential round (profile " +
+      "name, base_url, auth mode, credential storage) twice, once per " +
+      "service, via a new _collect_and_save_profile() helper extracted " +
+      "from the original inline flow so both paths share identical " +
+      "prompts and validation",
+      "'Different' mode wires the result automatically -- the " +
+      "top-level profile: becomes Jira's, and confluence.profile: is " +
+      "uncommented and filled with the Confluence profile name in the " +
+      "generated integrations.yml (_integrations_from_example / " +
+      "_integrations_template both take an optional confluence_profile " +
+      "param). No manual editing step required anymore",
+      "A profile is understood as the entire auth set (base_url + " +
+      "auth_mode + credential) -- the two profiles created in " +
+      "'different' mode are never assumed to share anything, even if " +
+      "e.g. the base_url happened to coincide",
+      "New tests: test_different_profiles_creates_both_in_config_yml " +
+      "(both profiles saved with distinct base_url/auth_mode/storage) " +
+      "and test_different_profiles_wires_confluence_override_into_integrations_yml " +
+      "(end-to-end: generated integrations.yml actually has the " +
+      "override, not just two orphaned config.yml profiles). 5 " +
+      "pre-existing config-init tests updated for the new opening " +
+      "question",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "No manifest.yml or integrations.yml schema change -- 2.7.93 " +
+      "already added the fields this just makes reachable from the " +
+      "wizard. Verified: cli-python pytest 697/697 (695 pre-existing " +
+      "+ 2 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.94';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.94',
+    to:   '2.7.95',
+    description: "Confluence parent-page prompt/config now accepts a pasted page URL, not just the raw numeric ID",
+    notes: [
+      "A user pointed out that when 'sdd config init' asks for the " +
+      "Confluence parent page, most people have the page open in a " +
+      "browser tab, not its raw numeric ID memorized -- the wizard only " +
+      "accepted the bare ID, forcing a manual trip through Page " +
+      "Information to extract it first",
+      "New sdd.utils.integrations.parse_confluence_page_id() recognizes " +
+      "a bare numeric ID unchanged, a Cloud URL " +
+      "('.../pages/123456/Title'), or a Server/Data Center URL " +
+      "('...?pageId=123456'), and extracts just the numeric ID from " +
+      "either -- a Confluence 'tiny link' (/x/AbCdEf) isn't a page ID " +
+      "and can't be resolved without an API call, so it's returned " +
+      "unchanged with a wizard warning telling the user to paste the " +
+      "full URL instead",
+      "Wired into two places: the config-init wizard prompt (so pasting " +
+      "a URL there resolves correctly in the generated integrations.yml), " +
+      "and load_integrations() itself (so a hand-edited integrations.yml " +
+      "with a pasted URL for parent_page_id also resolves correctly at " +
+      "push time, not just via the wizard)",
+      "integrations.yml.example's parent_page_id comment updated to " +
+      "document that either form works",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "No manifest.yml schema change. Verified: cli-python pytest " +
+      "707/707 (697 pre-existing + 10 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.95';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.95',
+    to:   '2.7.96',
+    description: "'sdd config test' now resolves Jira and Confluence independently, instead of pinging both against one profile's base_url",
+    notes: [
+      "A user asked whether all docs were updated for the recent " +
+      "config-init changes -- while auditing, found that 'sdd config " +
+      "test' still resolved exactly ONE Profile and pinged both Jira " +
+      "and Confluence against its base_url, even though 2.7.93 let them " +
+      "use separate profiles. That means testing the split with " +
+      "`sdd config test --profile confluence-dc` (exactly what the " +
+      "config-init wizard's own closing message told you to run) would " +
+      "try to hit Jira at Confluence's URL and vice versa -- a silent " +
+      "false failure for whichever service didn't match the flag",
+      "Without --profile, Jira and Confluence are now each resolved " +
+      "through integrations.yml's jira.profile/confluence.profile " +
+      "independently -- each service is pinged against its own base_url " +
+      "and credential. When they resolve to the same profile (the " +
+      "common case), only one session is built and no extra output is " +
+      "printed, so single-profile projects see identical output to " +
+      "before. When they differ, the command prints which profile " +
+      "backs which service before testing",
+      "An explicit --profile still tests that ONE profile against BOTH " +
+      "services, unchanged -- for sanity-checking a profile before it's " +
+      "wired into integrations.yml",
+      "config_init()'s own closing message was part of the same bug: it " +
+      "told users to run 'sdd config test --profile X' twice, which " +
+      "doesn't actually isolate a single service. Now scaffolding " +
+      "integrations.yml means the message says 'Run sdd config test to " +
+      "verify both' (no --profile); declining to scaffold falls back to " +
+      "the old two-command guidance with an explicit caveat",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "No manifest.yml schema change. Verified: cli-python pytest " +
+      "713/713 (707 pre-existing + 6 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.96';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.96',
+    to:   '2.7.97',
+    description: "Jira Feature/Epic description now carries Problem Statement, Business Hypothesis, Description, Out of Scope, and NFR instead of a bare Business Objectives bullet list",
+    notes: [
+      "A user asked for a specific description template on the " +
+      "Feature/Epic issue: Problem Statement, Business Hypothesis, " +
+      "Description, Out of Scope, NFR. The previous description was a " +
+      "single 'Business Objectives:' bullet list pulled from brd.md's " +
+      "BO-NNN rows -- useful, but not the shape being asked for",
+      "brd-template.md gains a new '### Business Hypothesis' field " +
+      "under §4 Business Context, right after Problem Statement -- a " +
+      "testable belief statement, distinct from the Problem Statement " +
+      "it sits next to. specify-brd.prompt.md instructs the agent to " +
+      "fill it, falling back to [ASSUMPTION-NNN] if no measurable " +
+      "signal is available yet",
+      "New jira.py parsers pull Problem Statement/Business " +
+      "Hypothesis/Description from brd.md §4/§1, Out of Scope from " +
+      "brd.md §4's bullet list (not confused with the In Scope bullets " +
+      "right above it), and NFR from srd.md §3's NFR-NNN table",
+      "New adf_sections() ADF builder renders each as its own heading + " +
+      "body, and OMITS a section entirely when its source doesn't " +
+      "exist yet or is still unfilled template placeholder text -- e.g. " +
+      "NFR is silently absent until /specify-srd runs, without forcing " +
+      "the whole description into a placeholder. Falls back to a " +
+      "single placeholder paragraph only when every section is empty",
+      "sdd review submit's Epic self-bootstrap reuses the same " +
+      "feature_extra_fields(), so it gets the new template " +
+      "automatically, no separate change needed there",
+      "Every existing Epic gets the new description shape on its next " +
+      "push (create-or-update is idempotent) -- no manual migration " +
+      "step, no manifest.yml schema change",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "Verified: cli-python pytest 721/721 (713 pre-existing + 8 new), " +
+      "cross-reference linter clean, assert-output.sh clean, setup " +
+      "smoke tests clean",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.97';
+      return manifest;
+    },
+  },
+  {
+    from: '2.7.97',
+    to:   '2.7.98',
+    description: "Jira Feature/Epic description gains Business Objectives, Success Criteria, and a Confluence link, following up on the 2.7.97 structured template",
+    notes: [
+      "Follow-up to a user's structured-description request (2.7.97: " +
+      "Problem Statement / Business Hypothesis / Description / Out of " +
+      "Scope / NFR) -- asked what else was worth adding to a " +
+      "business-level Epic. Shipped three more: Success Criteria " +
+      "(closes the loop the Business Hypothesis opens), a Confluence " +
+      "link (so the Epic points at the full document, not just an " +
+      "excerpt), and Business Objectives (brought back as its own " +
+      "compact section, distinct from the free-text Description/" +
+      "Hypothesis prose)",
+      "New parsers: parse_brd_business_objectives() (brd.md §2's " +
+      "BO-NNN table) and parse_brd_success_criteria() (brd.md §8's " +
+      "checklist items, section-scoped so a stray checkbox elsewhere " +
+      "in the doc can't leak in)",
+      "New brd_confluence_link()/_resolve_confluence_base_url() read " +
+      "the local .specify/.confluence-drafts.json cache -- no network " +
+      "call, link omitted if Confluence isn't configured or brd.md " +
+      "hasn't been pushed there yet",
+      "feature_extra_fields() gained an optional confluence_base_url " +
+      "param (default None, fully backward compatible); " +
+      "_push_epic()/_push()/_ensure_epic() thread it through from " +
+      "their respective callers",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "No manifest.yml schema change -- every existing Epic picks up " +
+      "the two new sections and the link on its next push (idempotent " +
+      "upsert). Verified: cli-python pytest 739/739 (721 pre-existing " +
+      "+ 18 new), cross-reference linter clean, setup smoke tests clean",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.98';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

@@ -157,6 +157,29 @@ def build_session(profile: Profile) -> requests.Session:
     return session
 
 
+def load_jira_session(cfg, profile_override: str | None = None) -> tuple[Profile, requests.Session]:
+    """Resolve the Profile + authenticated Session to use for Jira calls.
+
+    Honors integrations.yml's jira.profile override (see
+    IntegrationsConfig.jira_profile_name()) before falling back to the
+    top-level profile -- so an org running Jira and Confluence as separate
+    Data Center servers (different base_url, different credentials) can
+    point each service at its own ~/.sdd/config.yml profile instead of the
+    single shared one that's correct only when both live on the same
+    Atlassian Cloud site. profile_override wins over both (e.g. a command's
+    own --profile flag)."""
+    prof = load_profile(profile_override or cfg.jira_profile_name())
+    return prof, build_session(prof)
+
+
+def load_confluence_session(cfg, profile_override: str | None = None) -> tuple[Profile, requests.Session]:
+    """Resolve the Profile + authenticated Session to use for Confluence
+    calls -- see load_jira_session(), which this mirrors for the
+    confluence.profile override."""
+    prof = load_profile(profile_override or cfg.confluence_profile_name())
+    return prof, build_session(prof)
+
+
 def save_config(config: dict) -> None:
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(

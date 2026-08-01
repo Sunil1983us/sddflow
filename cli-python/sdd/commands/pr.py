@@ -5,7 +5,7 @@ from pathlib import Path
 import click
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_profile, build_session
+from sdd.utils.atlassian_auth import load_jira_session
 from sdd.utils.integrations import load_integrations
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.sdd_parser import parse_tasks
@@ -75,8 +75,7 @@ def pr_create(task, base, profile, feature):
     jira_client = None
     if cfg.jira:
         try:
-            prof       = load_profile(profile or cfg.profile)
-            session    = build_session(prof)
+            prof, session = load_jira_session(cfg, profile)
             jira_client = JiraClient(session, prof.base_url)
             issue      = jira_client.find_by_label(
                 cfg.jira.key_for("task"), f"sdd:{task.upper()}"

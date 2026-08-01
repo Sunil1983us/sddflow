@@ -40,6 +40,10 @@
 ### Problem Statement
 {What problem does this solve? What happens today without this?}
 
+### Business Hypothesis
+{We believe that {doing this} for {this audience} will result in {this
+outcome}. We'll know this is true when we see {this measurable signal}.}
+
 ### Scope
 In Scope:
 - {item}

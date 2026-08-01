@@ -1059,7 +1059,7 @@ def _fetch_review_links(feature: str) -> dict:
     (keeps the two in lockstep instead of drifting).
     """
     from sdd.utils.integrations import load_integrations
-    from sdd.utils.atlassian_auth import load_profile, build_session
+    from sdd.utils.atlassian_auth import load_jira_session, load_confluence_session
     from sdd.utils.jira_client import JiraClient
     from sdd.utils.confluence_client import ConfluenceClient
     from sdd.commands.review import _get_review_status, _extract_text
@@ -1072,13 +1072,18 @@ def _fetch_review_links(feature: str) -> dict:
         return {"error": "Neither jira: nor confluence: configured in .specify/integrations.yml"}
 
     try:
-        prof = load_profile(cfg.profile)
-        session = build_session(prof)
+        if cfg.jira:
+            prof, session = load_jira_session(cfg)
+            jira_client = JiraClient(session, prof.base_url)
+        else:
+            jira_client = None
+        if cfg.confluence:
+            cf_prof, cf_session = load_confluence_session(cfg)
+            cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
+        else:
+            cf_prof, cf_client = None, None
     except Exception as e:
         return {"error": f"Could not authenticate: {e}"}
-
-    jira_client = JiraClient(session, prof.base_url) if cfg.jira else None
-    cf_client = ConfluenceClient(session, prof.base_url) if cfg.confluence else None
 
     manifest = read_manifest() or {}
     project_name = (manifest.get("project") or {}).get("name", "Project")
@@ -1118,7 +1123,7 @@ def _fetch_review_links(feature: str) -> dict:
                 if page:
                     entry["confluence"] = {
                         "title": title,
-                        "url": f"{prof.base_url}/wiki/pages/viewpage.action?pageId={page['id']}",
+                        "url": f"{cf_prof.base_url}/wiki/pages/viewpage.action?pageId={page['id']}",
                     }
             except Exception as e:
                 entry["confluence"] = {"error": str(e)}
@@ -1145,7 +1150,7 @@ def _jira_client_for_comments():
     """Build (client, cfg) for posting a Jira comment, or None if Jira isn't
     configured. Never raises — callers treat None as 'skip, not an error'."""
     from sdd.utils.integrations import load_integrations
-    from sdd.utils.atlassian_auth import load_profile, build_session
+    from sdd.utils.atlassian_auth import load_jira_session
     from sdd.utils.jira_client import JiraClient
     try:
         cfg = load_integrations()
@@ -1154,8 +1159,7 @@ def _jira_client_for_comments():
     if not cfg.jira:
         return None
     try:
-        prof = load_profile(cfg.profile)
-        session = build_session(prof)
+        prof, session = load_jira_session(cfg)
         return JiraClient(session, prof.base_url), cfg
     except Exception:
         return None

@@ -65,9 +65,8 @@ def project(tmp_path, monkeypatch):
 def _patched(cf_client):
     from sdd.utils.atlassian_auth import Profile
     return (
-        patch("sdd.commands.confluence.load_profile",
-              return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")),
-        patch("sdd.commands.confluence.build_session", return_value=object()),
+        patch("sdd.commands.confluence.load_confluence_session",
+              return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())),
         patch("sdd.commands.confluence.ConfluenceClient", return_value=cf_client),
     )
 
@@ -75,8 +74,8 @@ def _patched(cf_client):
 class TestConfluencePushSummaryFlag:
     def test_summary_flag_pushes_summary_file_to_suffixed_title(self, project, runner):
         cf_client = FakeConfluenceClient()
-        p1, p2, p3 = _patched(cf_client)
-        with p1, p2, p3:
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
             result = runner.invoke(confluence.confluence_command,
                                     ["push", "--doc", "brd", "--summary"])
 
@@ -86,8 +85,8 @@ class TestConfluencePushSummaryFlag:
 
     def test_without_summary_flag_pushes_full_doc_unsuffixed(self, project, runner):
         cf_client = FakeConfluenceClient()
-        p1, p2, p3 = _patched(cf_client)
-        with p1, p2, p3:
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
             result = runner.invoke(confluence.confluence_command, ["push", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
@@ -98,8 +97,8 @@ class TestConfluencePushSummaryFlag:
     def test_summary_flag_skips_doc_with_no_summary_file(self, project, runner):
         (project / ".specify" / "features" / "auth" / "brd.summary.md").unlink()
         cf_client = FakeConfluenceClient()
-        p1, p2, p3 = _patched(cf_client)
-        with p1, p2, p3:
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
             result = runner.invoke(confluence.confluence_command,
                                     ["push", "--doc", "brd", "--summary"])
 
@@ -109,8 +108,8 @@ class TestConfluencePushSummaryFlag:
 
     def test_summary_dry_run_shows_summary_path(self, project, runner):
         cf_client = FakeConfluenceClient()
-        p1, p2, p3 = _patched(cf_client)
-        with p1, p2, p3:
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
             result = runner.invoke(confluence.confluence_command,
                                     ["push", "--doc", "brd", "--summary", "--dry-run"])
 

@@ -9,12 +9,26 @@
 
 # Which auth profile to use (from ~/.sdd/config.yml).
 # Run "sdd config init" to create that file.
+#
+# This is the default for BOTH Jira and Confluence — correct when they're
+# the same Atlassian Cloud site (one base_url, one API token covers both).
+# If your org runs Jira and Confluence as separate servers with separate
+# credentials (typical for Server/Data Center — different hostnames,
+# Data Center PATs are usually scoped per-application, not shared), give
+# each section its own `profile:` override below (jira.profile /
+# confluence.profile) instead of editing this line. Run "sdd config init"
+# once per server to create each named profile.
 profile: default
 
 
 # ── Jira ─────────────────────────────────────────────────────────────────────
 
 jira:
+  # Optional: use a different ~/.sdd/config.yml profile for Jira only
+  # (different base_url/credentials than Confluence — see the note on
+  # profile: above). Falls back to the top-level profile: when unset.
+  # profile: jira-dc
+
   # Your Jira project key (the prefix on issue keys, e.g. MYPROJ-123)
   # This is the default used at every hierarchy level unless overridden
   # below in project_keys.
@@ -154,15 +168,23 @@ jira:
 # jira: and confluence:.
 
 confluence:
+  # Optional: use a different ~/.sdd/config.yml profile for Confluence only
+  # (different base_url/credentials than Jira — see the note on the
+  # top-level profile: above). Falls back to the top-level profile: when
+  # unset.
+  # profile: confluence-dc
+
   # Your Confluence space key (visible in the space URL: /wiki/spaces/ENG)
   space_key: ENG
 
   # ID of the parent page under which all SDD pages will be created.
   # Leave commented out to create pages at the space root.
   #
-  # How to find a page ID:
-  #   Open the page in Confluence → ··· menu → Page Information → URL contains
-  #   ?pageId=123456  ← that number is the ID
+  # You can paste either the numeric page ID or the full page URL here --
+  # both Cloud (".../pages/123456/Page+Title") and Server/Data Center
+  # ("...?pageId=123456") URLs are recognized and the ID is extracted
+  # automatically. A Confluence "tiny link" (".../x/AbCdEf") is NOT a page
+  # ID and won't resolve -- open the page and copy the full URL instead.
   # parent_page_id: "123456"
 
   # Page HIERARCHY: every page nests under parent_page_id -> a "{project}"

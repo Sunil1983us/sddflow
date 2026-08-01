@@ -1,9 +1,36 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 import yaml
 
 INTEGRATIONS_PATH = ".specify/integrations.yml"
+
+_PAGE_ID_URL_PATTERNS = [
+    re.compile(r"/pages/(\d+)(?:/|$)"),   # Cloud: .../wiki/spaces/ENG/pages/123456789/Title
+    re.compile(r"[?&]pageId=(\d+)"),      # Server/DC: viewpage.action?pageId=123456
+]
+
+
+def parse_confluence_page_id(raw: str | None) -> str | None:
+    """Accepts either a bare numeric Confluence page ID or a full page URL
+    pasted straight from the browser (Cloud '.../pages/<id>/Title' or
+    Server/DC '.../viewpage.action?pageId=<id>') and returns just the
+    numeric ID -- most users have the URL open, not the raw ID, when
+    setting this up. Returns the input unchanged if no numeric ID can be
+    extracted (e.g. a Confluence tiny link like '/x/AbCdEf', which is a
+    short code, not a page ID, and can't be resolved without an API
+    call) -- callers decide whether to warn on that case."""
+    if not raw:
+        return None
+    raw = str(raw).strip()
+    if not raw or raw.isdigit():
+        return raw or None
+    for pattern in _PAGE_ID_URL_PATTERNS:
+        m = pattern.search(raw)
+        if m:
+            return m.group(1)
+    return raw
 
 _DEFAULT_PAGE_MAP = {
     "brd":       "{project} — Business Requirements",
@@ -28,6 +55,13 @@ _DEFAULT_PRIORITY_MAP = {
 @dataclass
 class JiraConfig:
     project_key: str
+    # Optional override of the top-level `profile:` for Jira calls only --
+    # for orgs (typically Server/Data Center) where Jira and Confluence are
+    # separate servers needing separate base_url + credentials, not the
+    # single Atlassian Cloud site + token that "one profile" assumes. Falls
+    # back to IntegrationsConfig.profile when unset (the common Cloud case,
+    # where one profile genuinely does cover both).
+    profile: str | None = None
     # Optional per-level overrides -- e.g. {"story": "SUNT"} when an org
     # keeps Stories/Tasks in a different Jira project than the Epic. Falls
     # back to project_key for any level not listed here. Levels match
@@ -132,6 +166,10 @@ class DiagramsConfig:
 @dataclass
 class ConfluenceConfig:
     space_key: str
+    # Optional override of the top-level `profile:` for Confluence calls
+    # only -- see JiraConfig.profile for why this exists. Falls back to
+    # IntegrationsConfig.profile when unset.
+    profile: str | None = None
     parent_page_id: str | None = None
     page_map: dict = field(default_factory=lambda: dict(_DEFAULT_PAGE_MAP))
     diagrams: DiagramsConfig = field(default_factory=DiagramsConfig)
@@ -174,6 +212,20 @@ class IntegrationsConfig:
     pr_automation: PrAutomation = field(default_factory=PrAutomation)
     code_review: CodeReviewConfig = field(default_factory=CodeReviewConfig)
 
+    def jira_profile_name(self) -> str | None:
+        """Which ~/.sdd/config.yml profile to use for Jira calls: jira.profile
+        if set, else the top-level profile. Separate from
+        confluence_profile_name() so Jira and Confluence can point at
+        different servers/credentials (Data Center orgs where they're not
+        the same Atlassian Cloud site)."""
+        return (self.jira.profile if self.jira else None) or self.profile
+
+    def confluence_profile_name(self) -> str | None:
+        """Which ~/.sdd/config.yml profile to use for Confluence calls:
+        confluence.profile if set, else the top-level profile. See
+        jira_profile_name()."""
+        return (self.confluence.profile if self.confluence else None) or self.profile
+
 
 def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
     p = Path(path)
@@ -191,6 +243,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
         bf = jira_raw.get("base_fields", {})
         jira = JiraConfig(
             project_key=jira_raw["project_key"],
+            profile=jira_raw.get("profile"),
             project_keys=jira_raw.get("project_keys", {}),
             issue_hierarchy={
                 "feature": hierarchy.get("feature", "Feature"),
@@ -213,9 +266,8 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
         diagrams_raw = cf_raw.get("diagrams") or {}
         confluence = ConfluenceConfig(
             space_key=cf_raw["space_key"],
-            parent_page_id=(
-                str(cf_raw["parent_page_id"]) if cf_raw.get("parent_page_id") else None
-            ),
+            profile=cf_raw.get("profile"),
+            parent_page_id=parse_confluence_page_id(cf_raw.get("parent_page_id")),
             page_map=cf_raw.get("page_map", dict(_DEFAULT_PAGE_MAP)),
             diagrams=DiagramsConfig(
                 mode=diagrams_raw.get("mode", "none"),

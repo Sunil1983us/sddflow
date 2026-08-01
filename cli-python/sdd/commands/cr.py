@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_profile, build_session
+from sdd.utils.atlassian_auth import load_jira_session, load_confluence_session
 from sdd.utils.integrations import load_integrations
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.confluence_client import ConfluenceClient
@@ -97,8 +97,10 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
         return
 
     try:
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        if cfg.jira:
+            jira_prof, jira_session = load_jira_session(cfg, profile)
+        if cfg.confluence:
+            cf_prof, cf_session = load_confluence_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
@@ -107,7 +109,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
 
     # ── Push CR record to Confluence ─────────────────────────────────────────
     if cfg.confluence:
-        cf_client = ConfluenceClient(session, prof.base_url)
+        cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
         body_html, attachments, diagram_warnings = md_to_storage(cr_text, cfg.confluence.diagrams)
         try:
             from sdd.commands.confluence import resolve_feature_parent_id, upload_diagram_attachments
@@ -121,7 +123,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
             upload_diagram_attachments(cf_client, page["id"], attachments)
             action   = "[green]created[/green]" if created else "[dim]updated[/dim]"
             web_ui   = page.get("_links", {}).get("webui", "")
-            page_url = f"{prof.base_url}/wiki{web_ui}" if web_ui else ""
+            page_url = f"{cf_prof.base_url}/wiki{web_ui}" if web_ui else ""
             console.print(f"  {action}  Confluence: [cyan]{page_title}[/cyan]")
             if page_url:
                 console.print(f"          [underline cyan]{page_url}[/underline cyan]")
@@ -134,7 +136,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
 
     # ── Create / update Jira review task ─────────────────────────────────────
     if cfg.jira:
-        jira_client      = JiraClient(session, prof.base_url)
+        jira_client      = JiraClient(jira_session, jira_prof.base_url)
         idempotency_label = f"sdd-cr:{cr_id.lower()}"
         cr_project_key    = cfg.jira.key_for("cr")
         existing          = jira_client.find_by_label(cr_project_key, idempotency_label)
@@ -209,9 +211,8 @@ def cr_check(cr, profile):
     console.print()
 
     try:
-        cfg     = load_integrations()
-        prof    = load_profile(profile or cfg.profile)
-        session = build_session(prof)
+        cfg           = load_integrations()
+        prof, session = load_jira_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)

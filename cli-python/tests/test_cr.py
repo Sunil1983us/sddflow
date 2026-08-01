@@ -63,9 +63,8 @@ class TestCrSubmitFieldWiring:
 
     def test_labels_and_team_are_sent(self, project, runner):
         fake = FakeJiraClient()
-        with patch("sdd.commands.cr.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.cr.build_session", return_value=object()), \
+        with patch("sdd.commands.cr.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.cr.JiraClient", return_value=fake):
             result = runner.invoke(cr_command, ["submit", "--cr", "CR-001"])
 

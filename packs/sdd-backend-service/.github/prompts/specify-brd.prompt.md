@@ -30,6 +30,12 @@ Generate `brd.md` for the current feature:
 - **§3 Stakeholders:** read `roles.yml` and fill each row's Name/Team column with the named
   person from that file. Leave the ACT-ID column as `_(set by /specify-uc)_` — those
   identifiers are assigned when actors are defined. Omit roles not present in `roles.yml`.
+- **§4 Business Hypothesis:** one testable belief statement — "We believe
+  that {doing this} for {this audience} will result in {this outcome}.
+  We'll know this is true when we see {this measurable signal}." Not a
+  restatement of the Problem Statement — it's the bet being made and how
+  it'll be validated. Falls back to `[ASSUMPTION-NNN]` if no measurable
+  validation signal is available yet.
 - Every business goal: **BG-NNN**
 - Every non-functional requirement: **NFR-NNN** — must include a measurable target (e.g. "< 200ms p99", "99.9% uptime")
 - **§5 Business Requirements — Serves BO column:** every `BR-NNN` must cite

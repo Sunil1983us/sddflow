@@ -293,6 +293,34 @@ class TestEnsureEpic:
         cfg = JiraConfig(project_key="MYPROJ")
         assert review._ensure_epic(BrokenClient(), cfg, "auth") is None
 
+    def test_confluence_base_url_adds_full_document_link(self, project):
+        import json
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "## 4. Business Context\n### Problem Statement\nUsers churn.\n"
+        )
+        (project / ".specify" / ".confluence-drafts.json").write_text(
+            json.dumps({"brd": {"page_id": "42", "title": "BRD"}})
+        )
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ")
+        review._ensure_epic(client, cfg, "auth", "https://x.atlassian.net")
+        description = client.created[0]["description"]
+        texts = [n["content"][0]["text"] for n in description["content"]
+                 if n["type"] in ("heading", "paragraph")]
+        assert "Full Document" in texts
+
+    def test_no_confluence_base_url_omits_link(self, project):
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "## 4. Business Context\n### Problem Statement\nUsers churn.\n"
+        )
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ")
+        review._ensure_epic(client, cfg, "auth")
+        description = client.created[0]["description"]
+        texts = [n["content"][0]["text"] for n in description["content"]
+                 if n["type"] in ("heading", "paragraph")]
+        assert "Full Document" not in texts
+
 
 class TestRecordConfluenceDraftLink:
     def test_writes_entry_compatible_with_confluence_load_drafts(self, project):
@@ -448,9 +476,10 @@ class TestReviewSubmitFieldWiring:
     def test_labels_and_team_are_sent_on_the_review_story(self, review_project, runner):
         from sdd.utils.atlassian_auth import Profile
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
@@ -492,9 +521,10 @@ class TestReviewSubmitFieldWiring:
             "    confluence_page: '{feature} — BRD'\n"
         )
         shared_cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
              patch("sdd.commands.review.ConfluenceClient", return_value=shared_cf_client):
             r1 = runner.invoke(review.review_command, ["submit", "--doc", "brd", "--feature", "auth"])
@@ -515,9 +545,10 @@ class TestReviewSubmitFieldWiring:
         links" -- sdd review submit must record the review-gate ticket
         key the same way it already records the Confluence page."""
         from sdd.utils.atlassian_auth import Profile
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
@@ -555,9 +586,10 @@ class TestReviewApplyRecordsLink:
         fake_jira.by_label["sdd-doc:auth:brd"] = {
             "key": "PROJ-7", "fields": {"status": {"name": "In Review"}},
         }
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
@@ -569,9 +601,10 @@ class TestReviewApplyRecordsLink:
 
     def test_apply_does_not_record_a_link_when_no_issue_found(self, review_project, runner):
         from sdd.utils.atlassian_auth import Profile
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
@@ -600,9 +633,10 @@ class TestReviewApplyRecordsLink:
         )
         from sdd.utils.atlassian_auth import Profile
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
             result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
 
@@ -633,9 +667,10 @@ class TestReviewApplyRecordsLink:
         fake_jira.by_label["sdd-doc:auth:brd"] = {
             "key": "PROJ-9", "fields": {"status": {"name": "In Review"}},
         }
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira):
             result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
 
@@ -709,9 +744,10 @@ class TestValidatePhaseDocKeys:
         fake_jira.by_label["sdd-doc:auth:analyze"] = {
             "key": "PROJ-2", "fields": {"status": {"name": "Done"}},
         }
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             r_analyze = runner.invoke(review.review_command, ["submit", "--doc", "analyze"])
@@ -729,9 +765,10 @@ class TestValidatePhaseDocKeys:
         fake_jira.by_label["sdd-doc:auth:validate"] = {
             "key": "PROJ-1", "fields": {"status": {"name": "In Review"}},
         }
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             result = runner.invoke(review.review_command, ["submit", "--doc", "analyze"])
@@ -808,9 +845,10 @@ class TestJiraStatusBanner:
         the page picks it up."""
         from sdd.utils.atlassian_auth import Profile
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
              patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
             result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
@@ -828,9 +866,10 @@ class TestJiraStatusBanner:
             "key": "PROJ-7", "fields": {"status": {"name": "Done"}},
         }
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
             result = runner.invoke(review.review_command, ["check", "--doc", "brd"])
@@ -856,9 +895,10 @@ class TestJiraStatusBanner:
         )
         from sdd.utils.atlassian_auth import Profile
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
             result = review._push_doc_page(
                 "qa-testcases",
@@ -889,9 +929,10 @@ class TestJiraStatusBanner:
         )
         from sdd.utils.atlassian_auth import Profile
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
             result = review._push_doc_page("constitution", constitution, "auth")
 
@@ -933,9 +974,10 @@ class TestReviewStatusPersonaHint:
 
     def _run(self, runner, fake_jira):
         from sdd.utils.atlassian_auth import Profile
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira):
             return runner.invoke(review.review_command, ["status"])
 
@@ -1475,9 +1517,10 @@ class TestClarifyPushPullCommands:
     def test_push_questions_creates_ticket_with_clarify_items(self, clarify_project, runner):
         from sdd.utils.atlassian_auth import Profile
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             result = runner.invoke(review.review_command, ["push-questions", "--doc", "clarify"])
@@ -1495,9 +1538,10 @@ class TestClarifyPushPullCommands:
         from sdd.utils.atlassian_auth import Profile
         fake_jira = FakeJiraClient()
         fake_confluence = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=fake_confluence):
             runner.invoke(review.review_command, ["push-questions", "--doc", "clarify"])
@@ -1562,9 +1606,10 @@ class TestPushPullQuestionsCommands:
     def test_push_questions_creates_ticket_with_open_questions_label(self, blocked_project, runner):
         from sdd.utils.atlassian_auth import Profile
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             result = runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
@@ -1584,9 +1629,10 @@ class TestPushPullQuestionsCommands:
         after push-questions and checking only one ticket key exists."""
         from sdd.utils.atlassian_auth import Profile
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
@@ -1606,9 +1652,10 @@ class TestPushPullQuestionsCommands:
     def test_submit_posts_transition_comment_when_reusing_open_questions_ticket(self, blocked_project, runner):
         from sdd.utils.atlassian_auth import Profile
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
@@ -1621,9 +1668,10 @@ class TestPushPullQuestionsCommands:
     def test_pull_answers_patches_both_docs_and_multi_location_question(self, blocked_project, runner):
         from sdd.utils.atlassian_auth import Profile
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
@@ -1699,9 +1747,10 @@ class TestPushPullQuestionsCommands:
     ):
         from sdd.utils.atlassian_auth import Profile
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
             runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
@@ -1738,9 +1787,10 @@ class TestPushPullQuestionsCommands:
         from sdd.utils.atlassian_auth import Profile
         fake_jira = FakeJiraClient()
         fake_confluence = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_profile",
-                    return_value=Profile(auth_mode="basic", base_url="https://x.atlassian.net")), \
-             patch("sdd.commands.review.build_session", return_value=object()), \
+        with patch("sdd.commands.review.load_jira_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
+             patch("sdd.commands.review.load_confluence_session",
+                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
              patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
              patch("sdd.commands.review.ConfluenceClient", return_value=fake_confluence), \
              patch("sdd.commands.confluence.ConfluenceClient", return_value=fake_confluence):

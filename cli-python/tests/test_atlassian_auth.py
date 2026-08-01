@@ -157,3 +157,67 @@ class TestBuildSessionWithKeyring:
                           api_token_env="SDD_TEST_TOKEN2")
         session = auth.build_session(p)
         assert session.auth.password == "env-secret"
+
+
+class _FakeCfg:
+    """Duck-types the two IntegrationsConfig methods load_jira_session()/
+    load_confluence_session() actually call -- avoids a real
+    integrations.yml just to test profile resolution."""
+    def __init__(self, jira_profile, confluence_profile):
+        self._jira_profile = jira_profile
+        self._confluence_profile = confluence_profile
+
+    def jira_profile_name(self):
+        return self._jira_profile
+
+    def confluence_profile_name(self):
+        return self._confluence_profile
+
+
+class TestLoadJiraAndConfluenceSession:
+    """Jira and Confluence resolve independently -- the Data Center case
+    where they're separate servers with separate credentials, not the
+    single-Atlassian-Cloud-site assumption a single shared profile made."""
+
+    def test_different_profiles_resolve_to_different_base_urls(self, config_home):
+        _write_config(config_home, {
+            "jira-dc": {"auth_mode": "pat", "base_url": "https://jira.internal",
+                        "credential_store": "keyring"},
+            "confluence-dc": {"auth_mode": "pat", "base_url": "https://confluence.internal",
+                               "credential_store": "keyring"},
+        })
+        cfg = _FakeCfg(jira_profile="jira-dc", confluence_profile="confluence-dc")
+        with patch.object(auth.keyring, "get_password", return_value="secret"):
+            jira_prof, _ = auth.load_jira_session(cfg)
+            cf_prof, _ = auth.load_confluence_session(cfg)
+        assert jira_prof.base_url == "https://jira.internal"
+        assert cf_prof.base_url == "https://confluence.internal"
+        assert jira_prof.profile_name == "jira-dc"
+        assert cf_prof.profile_name == "confluence-dc"
+
+    def test_same_profile_when_no_override_set(self, config_home):
+        """The common Cloud case -- both services share one profile."""
+        _write_config(config_home, {
+            "default": {"auth_mode": "basic", "base_url": "https://x.atlassian.net",
+                        "email": "a@b.com", "credential_store": "keyring"},
+        })
+        cfg = _FakeCfg(jira_profile="default", confluence_profile="default")
+        with patch.object(auth.keyring, "get_password", return_value="secret"):
+            jira_prof, _ = auth.load_jira_session(cfg)
+            cf_prof, _ = auth.load_confluence_session(cfg)
+        assert jira_prof.base_url == cf_prof.base_url == "https://x.atlassian.net"
+
+    def test_explicit_override_wins_over_cfg_resolution(self, config_home):
+        """A command's own --profile flag beats integrations.yml entirely --
+        same precedence the old single-profile load_profile(profile or
+        cfg.profile) call had."""
+        _write_config(config_home, {
+            "jira-dc": {"auth_mode": "pat", "base_url": "https://jira.internal",
+                        "credential_store": "keyring"},
+            "manual": {"auth_mode": "pat", "base_url": "https://manual.internal",
+                       "credential_store": "keyring"},
+        })
+        cfg = _FakeCfg(jira_profile="jira-dc", confluence_profile="jira-dc")
+        with patch.object(auth.keyring, "get_password", return_value="secret"):
+            jira_prof, _ = auth.load_jira_session(cfg, profile_override="manual")
+        assert jira_prof.base_url == "https://manual.internal"
