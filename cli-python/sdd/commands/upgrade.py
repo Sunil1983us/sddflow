@@ -3929,6 +3929,60 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.96"},
     },
+    {
+        "from":        "2.7.96",
+        "to":          "2.7.97",
+        "description": "Jira Feature/Epic description now carries Problem Statement, Business Hypothesis, Description, Out of Scope, and NFR instead of a bare Business Objectives bullet list",
+        "notes": [
+            "A user asked for a specific description template on the "
+            "Feature/Epic issue: Problem Statement, Business Hypothesis, "
+            "Description, Out of Scope, NFR. The previous description was "
+            "a single 'Business Objectives:' bullet list pulled from "
+            "brd.md's BO-NNN rows -- useful, but not the shape being "
+            "asked for",
+            "brd-template.md gains a new '### Business Hypothesis' field "
+            "under §4 Business Context, right after Problem Statement -- "
+            "a testable belief statement ('We believe that X for Y will "
+            "result in Z; we'll know this is true when...'), distinct "
+            "from the Problem Statement it sits next to. "
+            "specify-brd.prompt.md instructs the agent to fill it, "
+            "falling back to [ASSUMPTION-NNN] if no measurable signal is "
+            "available yet",
+            "New jira.py parsers: parse_brd_problem_statement/"
+            "_business_hypothesis/_executive_summary (brd.md §4/§4/§1), "
+            "parse_brd_out_of_scope (brd.md §4's 'Out of Scope:' bullets, "
+            "not confused with the 'In Scope:' bullets right above them), "
+            "and parse_srd_nfr_rows (srd.md §3's NFR-NNN table, "
+            "'Category: Requirement' per row)",
+            "New adf_sections() ADF builder renders each as its own "
+            "heading + body, and OMITS a section entirely (no empty "
+            "heading) when its source doesn't exist yet or is still "
+            "unfilled template placeholder text -- e.g. NFR is silently "
+            "absent until /specify-srd runs, without forcing the whole "
+            "description into a placeholder. Falls back to a single "
+            "'Details pending -- run /specify-brd...' paragraph only "
+            "when every section is empty (the Epic bootstrapped right "
+            "after /specify, before brd.md exists at all)",
+            "parse_brd_objectives() and the old Business Objectives-only "
+            "adf_doc() call in feature_extra_fields() are removed -- "
+            "nothing else referenced the BO-NNN parser directly",
+            "sdd review submit's Epic self-bootstrap (_ensure_epic in "
+            "review.py) reuses the same feature_extra_fields(), so it "
+            "gets the new template automatically, no separate change "
+            "needed there",
+            "Every existing Epic gets the new description shape on its "
+            "next push (create-or-update is idempotent, keyed by the "
+            "existing sdd-feature:{feature} label) -- no manual migration "
+            "step, no manifest.yml schema change",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 721/721 (713 pre-existing + 8 "
+            "new), cross-reference linter clean, assert-output.sh clean "
+            "against examples/todo-api, setup smoke tests clean",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.97"},
+    },
 ]
 
 

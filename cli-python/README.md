@@ -354,8 +354,9 @@ What it does:
 3. Ensures a Feature/Epic issue exists for the project — normally already
    created by `/specify` before any spec document exists (see `sdd jira push
    --level epic` below); self-bootstrapped here too as a fallback, refreshed
-   with the BRD's Business Objectives if they weren't available yet — and
-   creates (or updates) a Jira **Story** with the label
+   with the BRD's content (Problem Statement, Business Hypothesis,
+   Description, Out of Scope) if it wasn't available yet — and creates (or
+   updates) a Jira **Story** with the label
    `sdd-doc:{feature}:{doc}`, parented under that Epic and assigned to the
    configured reviewer
 

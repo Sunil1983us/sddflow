@@ -4,6 +4,46 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.97] — 2026-08-01 (Jira Feature/Epic description now uses a structured template)
+
+A user asked for a specific description template on the Jira Feature/Epic
+issue: Problem Statement, Business Hypothesis, Description, Out of Scope,
+NFR. The previous description was a single "Business Objectives:" bullet
+list pulled from `brd.md`'s `BO-NNN` rows — useful, but not the shape
+being asked for.
+
+### Added
+
+- `brd-template.md` gains a new "### Business Hypothesis" field under §4
+  Business Context, right after Problem Statement — a testable belief
+  statement ("We believe that X for Y will result in Z; we'll know this
+  is true when..."), distinct from the Problem Statement it sits next to.
+  `specify-brd.prompt.md` instructs the agent to fill it.
+- New `jira.py` parsers pull Problem Statement / Business Hypothesis /
+  Description from `brd.md` §4/§1, Out of Scope from `brd.md` §4's bullet
+  list, and NFR from `srd.md` §3's NFR-NNN table.
+- New `adf_sections()` builder renders each as its own heading + body,
+  omitting a section entirely (no empty heading) when its source doc
+  doesn't exist yet or is still unfilled template text — e.g. NFR is
+  silently absent until `/specify-srd` runs. Falls back to a single
+  placeholder paragraph only when every section is empty.
+
+### Changed
+
+- `sdd review submit`'s Epic self-bootstrap picks up the new template
+  automatically (it reuses the same `feature_extra_fields()`), no
+  separate change needed.
+- Every existing Epic gets the new description shape on its next push —
+  create-or-update is idempotent, no manual migration step.
+
+### Verified
+
+- Full suite: `cli-python` pytest 721/721 (713 pre-existing + 8 new),
+  cross-reference linter clean, `assert-output.sh` clean against
+  `examples/todo-api`, setup smoke tests clean.
+
+---
+
 ## [2.7.96] — 2026-08-01 (`sdd config test` now verifies Jira and Confluence independently)
 
 While auditing docs for the recent `config init` changes, found that

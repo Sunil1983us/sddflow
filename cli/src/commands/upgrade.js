@@ -2694,6 +2694,50 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.96',
+    to:   '2.7.97',
+    description: "Jira Feature/Epic description now carries Problem Statement, Business Hypothesis, Description, Out of Scope, and NFR instead of a bare Business Objectives bullet list",
+    notes: [
+      "A user asked for a specific description template on the " +
+      "Feature/Epic issue: Problem Statement, Business Hypothesis, " +
+      "Description, Out of Scope, NFR. The previous description was a " +
+      "single 'Business Objectives:' bullet list pulled from brd.md's " +
+      "BO-NNN rows -- useful, but not the shape being asked for",
+      "brd-template.md gains a new '### Business Hypothesis' field " +
+      "under §4 Business Context, right after Problem Statement -- a " +
+      "testable belief statement, distinct from the Problem Statement " +
+      "it sits next to. specify-brd.prompt.md instructs the agent to " +
+      "fill it, falling back to [ASSUMPTION-NNN] if no measurable " +
+      "signal is available yet",
+      "New jira.py parsers pull Problem Statement/Business " +
+      "Hypothesis/Description from brd.md §4/§1, Out of Scope from " +
+      "brd.md §4's bullet list (not confused with the In Scope bullets " +
+      "right above it), and NFR from srd.md §3's NFR-NNN table",
+      "New adf_sections() ADF builder renders each as its own heading + " +
+      "body, and OMITS a section entirely when its source doesn't " +
+      "exist yet or is still unfilled template placeholder text -- e.g. " +
+      "NFR is silently absent until /specify-srd runs, without forcing " +
+      "the whole description into a placeholder. Falls back to a " +
+      "single placeholder paragraph only when every section is empty",
+      "sdd review submit's Epic self-bootstrap reuses the same " +
+      "feature_extra_fields(), so it gets the new template " +
+      "automatically, no separate change needed there",
+      "Every existing Epic gets the new description shape on its next " +
+      "push (create-or-update is idempotent) -- no manual migration " +
+      "step, no manifest.yml schema change",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "Verified: cli-python pytest 721/721 (713 pre-existing + 8 new), " +
+      "cross-reference linter clean, assert-output.sh clean, setup " +
+      "smoke tests clean",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.97';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

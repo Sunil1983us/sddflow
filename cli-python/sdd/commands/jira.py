@@ -37,21 +37,152 @@ def adf_doc(*paragraphs: str, bullet_list: list[str] | None = None) -> dict:
     return {"type": "doc", "version": 1, "content": content or [_adf_paragraph(" ")]}
 
 
-def parse_brd_objectives(features_dir: Path) -> list[str]:
-    """Extract up to 10 BO-NNN objective lines from brd.md, for the
-    Feature/Epic issue's description. Returns [] if brd.md doesn't exist
-    yet (e.g. called before /specify-brd has run) -- callers fall back to
-    a placeholder line rather than failing."""
+def _adf_heading(text: str, level: int = 3) -> dict:
+    return {"type": "heading", "attrs": {"level": level},
+            "content": [{"type": "text", "text": str(text)}]}
+
+
+def adf_sections(*sections: tuple[str, str | list[str]]) -> dict:
+    """Build an ADF doc from (heading, body) pairs -- body is either a
+    paragraph string or a list of strings rendered as a bullet list. A
+    section whose body is empty/falsy is skipped entirely (Jira never
+    shows a heading with nothing under it), so callers can pass every
+    section unconditionally, e.g. content that only exists once a later
+    SDLC document (srd.md) has been generated. Returns a single blank
+    paragraph if every section is empty -- callers decide separately
+    whether that warrants a placeholder line instead."""
+    content = []
+    for heading, body in sections:
+        if not body:
+            continue
+        content.append(_adf_heading(heading))
+        if isinstance(body, list):
+            content.append({
+                "type": "bulletList",
+                "content": [{"type": "listItem", "content": [_adf_paragraph(item)]}
+                            for item in body if item],
+            })
+        else:
+            content.append(_adf_paragraph(body))
+    return {"type": "doc", "version": 1, "content": content or [_adf_paragraph(" ")]}
+
+
+def _extract_heading_section(text: str, heading_re: re.Pattern) -> str:
+    """Plain-paragraph content directly under a markdown heading line
+    (any '#' level), ending at the next heading of any level. Returns ""
+    if the heading isn't found, or its content is still the unfilled
+    '{placeholder}' template text (doc scaffolded but not written yet)."""
+    lines = text.splitlines()
+    for idx, line in enumerate(lines):
+        if not heading_re.match(line):
+            continue
+        out = []
+        j = idx + 1
+        while j < len(lines) and not lines[j].lstrip().startswith("#"):
+            stripped = lines[j].strip()
+            if stripped:
+                out.append(stripped)
+            j += 1
+        paragraph = " ".join(out).strip()
+        return "" if (not paragraph or paragraph.startswith("{")) else paragraph
+    return ""
+
+
+def _extract_labeled_bullets(text: str, label: str) -> list[str]:
+    """Bullet items under a plain 'Label:' line (not a markdown heading),
+    e.g. brd.md's 'Out of Scope:' under its '### Scope' heading. Stops at
+    the first non-bullet, non-blank line."""
+    lines = text.splitlines()
+    label_re = re.compile(rf'(?i)^\s*{re.escape(label)}:\s*$')
+    for idx, line in enumerate(lines):
+        if not label_re.match(line):
+            continue
+        items = []
+        j = idx + 1
+        while j < len(lines):
+            stripped = lines[j].strip()
+            if not stripped:
+                j += 1
+                continue
+            m = re.match(r'^[-*]\s+(.*)$', stripped)
+            if not m:
+                break
+            item = m.group(1).strip()
+            if item and item != "{item}":
+                items.append(item)
+            j += 1
+        return items
+    return []
+
+
+_BRD_SECTION_HEADINGS = {
+    "problem_statement":   re.compile(r'(?i)^###\s+Problem Statement\s*$'),
+    "business_hypothesis": re.compile(r'(?i)^###\s+Business Hypothesis\s*$'),
+    "executive_summary":   re.compile(r'(?i)^##\s+\d*\.?\s*Executive Summary\s*$'),
+}
+
+
+def parse_brd_problem_statement(features_dir: Path) -> str:
+    """brd.md §4's 'Problem Statement' paragraph -- "" if brd.md doesn't
+    exist yet or the section is still unfilled template text."""
+    path = features_dir / "brd.md"
+    if not path.exists():
+        return ""
+    return _extract_heading_section(path.read_text(), _BRD_SECTION_HEADINGS["problem_statement"])
+
+
+def parse_brd_business_hypothesis(features_dir: Path) -> str:
+    """brd.md §4's 'Business Hypothesis' paragraph -- see
+    parse_brd_problem_statement()."""
+    path = features_dir / "brd.md"
+    if not path.exists():
+        return ""
+    return _extract_heading_section(path.read_text(), _BRD_SECTION_HEADINGS["business_hypothesis"])
+
+
+def parse_brd_executive_summary(features_dir: Path) -> str:
+    """brd.md §1's Executive Summary paragraph -- see
+    parse_brd_problem_statement()."""
+    path = features_dir / "brd.md"
+    if not path.exists():
+        return ""
+    return _extract_heading_section(path.read_text(), _BRD_SECTION_HEADINGS["executive_summary"])
+
+
+def parse_brd_out_of_scope(features_dir: Path) -> list[str]:
+    """brd.md §4's 'Out of Scope:' bullet list under '### Scope' -- []
+    if brd.md doesn't exist yet or the list is still unfilled."""
     path = features_dir / "brd.md"
     if not path.exists():
         return []
-    text = path.read_text()
-    objectives = []
-    for m in re.finditer(r"(BO-\d+[^\n]*)", text):
-        line = re.sub(r"[|*`_]", "", m.group(1)).strip()
-        if line and len(line) > 5:
-            objectives.append(line)
-    return objectives[:10]
+    return _extract_labeled_bullets(path.read_text(), "Out of Scope")
+
+
+_NFR_ROW_RE = re.compile(r"^\s*\|\s*NFR-\d+\s*\|")
+
+
+def parse_srd_nfr_rows(features_dir: Path) -> list[str]:
+    """'{Category}: {Requirement}' lines for every NFR-NNN row in srd.md
+    §3's Non-Functional Requirements table. Returns [] if srd.md doesn't
+    exist yet -- the Feature/Epic is typically bootstrapped right after
+    /specify, before srd.md exists, and is re-pushed (upserted, not
+    duplicated) once it does."""
+    path = features_dir / "srd.md"
+    if not path.exists():
+        return []
+    items = []
+    for line in path.read_text().splitlines():
+        stripped = line.strip()
+        if not _NFR_ROW_RE.match(stripped):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        category, requirement = cells[1], cells[2]
+        if category.startswith("{") or requirement.startswith("{"):
+            continue
+        items.append(f"{category}: {requirement}")
+    return items
 
 
 def _apply_team_field(extra: dict, cfg: JiraConfig, level: str, fields: dict | None = None) -> None:
@@ -66,17 +197,33 @@ def _apply_team_field(extra: dict, cfg: JiraConfig, level: str, fields: dict | N
 
 def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str) -> dict:
     """Extra fields for the top-level Feature/Epic issue: a real
-    description built from brd.md's Business Objectives (falls back to a
-    pointer at brd.md if none are parsed yet), High priority, the Epic
-    Name custom field for classic/company-managed Jira projects (only if
-    custom_fields.epic_name is configured), and the team field (if
-    cfg.team is set)."""
-    objectives = parse_brd_objectives(features_dir)
+    description built from five sections -- Problem Statement, Business
+    Hypothesis, Description (brd.md's Executive Summary), Out of Scope
+    (all from brd.md §4/§1), and NFR (srd.md §3's baseline table) --
+    each section omitted entirely if its source doc doesn't exist yet
+    (the Epic is typically bootstrapped right after /specify, before
+    brd.md/srd.md exist, and re-pushed/upserted as they're written) or
+    is still unfilled template text. Falls back to a single placeholder
+    paragraph if nothing is available at all. Also sets High priority,
+    the Epic Name custom field for classic/company-managed Jira projects
+    (only if custom_fields.epic_name is configured), and the team field
+    (if cfg.team is set)."""
+    sections = [
+        ("Problem Statement",   parse_brd_problem_statement(features_dir)),
+        ("Business Hypothesis", parse_brd_business_hypothesis(features_dir)),
+        ("Description",         parse_brd_executive_summary(features_dir)),
+        ("Out of Scope",        parse_brd_out_of_scope(features_dir)),
+        ("NFR",                 parse_srd_nfr_rows(features_dir)),
+    ]
+    description = (
+        adf_sections(*sections) if any(body for _, body in sections)
+        else adf_doc(
+            "Details pending — run /specify-brd (and /specify-srd for NFR) "
+            "to populate this description."
+        )
+    )
     extra: dict = {
-        "description": adf_doc(
-            "Business Objectives:",
-            bullet_list=objectives if objectives else ["See brd.md for full objectives."],
-        ),
+        "description": description,
         "priority": {"name": "High"},
     }
     fields = cfg.fields_for("feature")

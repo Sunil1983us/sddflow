@@ -653,9 +653,11 @@ def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | 
     """Create the Feature/Epic container if it doesn't already exist yet,
     using the same content and idempotency label `sdd jira push` uses — so a
     review ticket submitted before any dev Story/Task exists still lands
-    under the same Epic those will use later. Business Objectives are
-    already available at this point since BRD (the first document
-    reviewed) is always drafted before its own review ticket is submitted.
+    under the same Epic those will use later. brd.md's Problem
+    Statement/Business Hypothesis/Description/Out of Scope are already
+    available at this point since BRD (the first document reviewed) is
+    always drafted before its own review ticket is submitted -- NFR
+    (from srd.md) fills in on a later re-push once /specify-srd runs.
     Never blocks the review submission — prints a warning and returns None
     if Epic creation/lookup fails for any reason."""
     from sdd.commands.jira import _upsert_issue, feature_extra_fields
