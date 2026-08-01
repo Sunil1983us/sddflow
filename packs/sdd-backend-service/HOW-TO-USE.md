@@ -212,12 +212,18 @@ pack requires it, and you can run it later at any point, not just here.
 sdd config init
 ```
 
-Interactive wizard: Atlassian base URL, auth mode, and credential storage
-(OS keychain recommended), then optionally scaffolds
+Interactive wizard: first asks whether Jira and Confluence share the
+same site and credentials — **Yes** (the common Cloud case) collects one
+profile (base URL, auth mode, credential storage); **No** (typical for
+Server/Data Center, separate servers/tokens) runs that same round twice,
+producing two independent profiles. Then optionally scaffolds
 `.specify/integrations.yml` (Jira project key, Confluence space key,
-parent page ID) from this pack's own `.specify/integrations.yml.example`
-— every section it documents (reviewer routing, diagrams, PR automation,
-...) is included, most left commented out until you need them.
+parent page — paste either the numeric ID or the page URL, both work)
+from this pack's own `.specify/integrations.yml.example` — every section
+it documents (reviewer routing, diagrams, PR automation, ...) is included,
+most left commented out until you need them. In "No" mode, the two
+profiles are wired in automatically via `jira.profile`/
+`confluence.profile`.
 
 Verify it actually connects:
 ```bash

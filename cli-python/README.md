@@ -96,23 +96,40 @@ sdd config init
 ```
 
 Walks through:
-1. Profile name (e.g. `work-cloud`, `on-prem`)
-2. Atlassian base URL
-3. Auth mode — see [Auth Modes](#auth-modes) below
-4. **Credential storage** — system keychain (recommended) or environment
-   variable, see [Credential Storage](#credential-storage) below
-5. Optionally scaffolds `.specify/integrations.yml` — project key,
-   Confluence space key, and parent page ID are filled into your pack's own
-   shipped `.specify/integrations.yml.example`, so every section it
-   documents (`project_keys`, `parent_field_by_level`,
-   `custom_fields_by_level`, `diagrams`, `document_reviews`,
-   `pr_automation`, `code_review`, the full `page_map`) is present from the
-   start, not just the handful the wizard asks about — most stay commented
-   out until you need them. `document_reviews` ships with placeholder Jira
-   accountIds from the example; replace them with real reviewers (or delete
-   entries you don't want routed through Jira) before `sdd review submit`.
-   Falls back to a minimal built-in template only if no `.example` file
-   exists in the project.
+1. **Do Jira and Confluence share the same site and credentials?**
+   - **Yes** (the common Cloud case, one Atlassian site serving both) —
+     collects one profile: name (e.g. `work-cloud`, `on-prem`), Atlassian
+     base URL, auth mode (see [Auth Modes](#auth-modes)), and credential
+     storage (see [Credential Storage](#credential-storage)).
+   - **No** (typical for Server/Data Center, where Jira and Confluence run
+     as separate servers with separate credentials) — runs that same
+     round *twice*, once per service, producing two independent profiles
+     in `~/.sdd/config.yml`. A profile is the entire auth set — base URL +
+     auth mode + credential — not just a URL, so the two are never assumed
+     to overlap even if a base URL happens to coincide.
+2. Optionally scaffolds `.specify/integrations.yml` — project key,
+   Confluence space key, and parent page (ID **or** a pasted page URL —
+   see below) are filled into your pack's own shipped
+   `.specify/integrations.yml.example`, so every section it documents
+   (`project_keys`, `parent_field_by_level`, `custom_fields_by_level`,
+   `diagrams`, `document_reviews`, `pr_automation`, `code_review`, the full
+   `page_map`) is present from the start, not just the handful the wizard
+   asks about — most stay commented out until you need them.
+   `document_reviews` ships with placeholder Jira accountIds from the
+   example; replace them with real reviewers (or delete entries you don't
+   want routed through Jira) before `sdd review submit`. Falls back to a
+   minimal built-in template only if no `.example` file exists in the
+   project. In "No" mode, the top-level `profile:` is wired to Jira's
+   profile and `confluence.profile:` is filled with Confluence's — no
+   manual edit needed.
+
+**Confluence parent page — ID or URL, either works.** Paste whatever
+you have open: a bare numeric ID (`123456`), a Cloud URL
+(`.../spaces/ENG/pages/123456/Page+Title`), or a Server/Data Center URL
+(`...?pageId=123456`) — the numeric ID is extracted automatically. A
+Confluence "tiny link" (`.../x/AbCdEf`) isn't a page ID and can't be
+resolved without an API call; the wizard warns and uses it as-is if you
+paste one — open the page and copy the full URL instead.
 
 ---
 
@@ -936,6 +953,12 @@ profiles:
     pat_env: JIRA_PAT
 ```
 
+A profile is the *entire* auth set — base URL, auth mode, and credential —
+not just a URL. `sdd config init` answering "No" to "same site and
+credentials?" creates two of these (e.g. `jira-dc` + `confluence-dc`) in
+one run, for orgs where Jira and Confluence are separate Server/Data
+Center instances with separate tokens.
+
 ---
 
 ### `.specify/integrations.yml` — project-level, safe to commit
@@ -944,10 +967,13 @@ Wires SDD fields to your Jira project and Confluence space.
 Copy from `.specify/integrations.yml.example` and fill in your values.
 
 ```yaml
-profile: work-cloud     # references a profile in ~/.sdd/config.yml
+profile: work-cloud     # references a profile in ~/.sdd/config.yml -- Jira's
+                         # profile if jira.profile is unset (see below)
 
 jira:
   project_key: MYPROJ
+  # profile: jira-dc     # optional: override the top-level profile for
+                          # Jira calls only (separate Data Center server)
   # Optional: per-level overrides when Features live in one Jira project
   # and Stories/Tasks live in another. Any level not listed falls back
   # to project_key. Valid levels: feature, story, task, review, chg, cr.
@@ -985,13 +1011,23 @@ jira:
   #     story_points: customfield_99001
 
 confluence:
+  # profile: confluence-dc   # optional: override the top-level profile for
+                              # Confluence calls only (separate Data Center server)
   space_key: ENG
-  parent_page_id: "123456"
+  parent_page_id: "123456"   # bare ID, a Cloud URL, or a Server/DC "?pageId="
+                              # URL all work -- the ID is extracted automatically
   page_map:
     brd:     "{feature} — Business Requirements"
     hld:     "{feature} — High-Level Design"
     runbook: "Runbook"   # living doc -- no {feature}, nests under the Project page
 ```
+
+`jira.profile` / `confluence.profile` let the two services point at
+different `~/.sdd/config.yml` profiles — each falls back to the top-level
+`profile:` when unset, so existing single-profile projects need no
+changes. `sdd config init` wires these automatically when you answer "No"
+to the same-site question; hand-editing is only needed if you're adding
+the split to a project that was already scaffolded single-profile.
 
 Full reference: see `.specify/integrations.yml.example`.
 
