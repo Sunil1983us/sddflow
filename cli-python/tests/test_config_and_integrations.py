@@ -182,6 +182,9 @@ def test_load_integrations_local_svg_width_override(tmp_path, monkeypatch):
     ("  123456  ", "123456"),
     ("https://myorg.atlassian.net/wiki/spaces/ENG/pages/123456789/My+Page",
      "123456789"),
+    # Server/DC space-permalink form, no "/wiki" prefix: /spaces/{key}/pages/{id}/{title}
+    ("https://confluence.company.com/spaces/xxx/pages/1234/Title+of+the+page",
+     "1234"),
     ("https://confluence.example.com/pages/viewpage.action?pageId=98765",
      "98765"),
     ("https://confluence.example.com/display/ENG/x?spaceKey=ENG&pageId=42",
