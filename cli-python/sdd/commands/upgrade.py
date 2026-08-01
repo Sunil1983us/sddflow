@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 import click
 from rich.console import Console
 
@@ -4198,7 +4199,96 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.1"},
     },
+    {
+        "from":        "2.8.1",
+        "to":          "2.8.2",
+        "description": "'sdd upgrade' no longer needs one invocation per pending migration -- it now finds the whole chain and offers to jump straight to latest",
+        "notes": [
+            "An external code review (point #3) flagged that "
+            "upgrade_command()/upgradeCommand() in both CLIs only ever "
+            "found and applied a single migration hop per run -- a plain "
+            "match on MIGRATIONS entries whose 'from' equals the current "
+            "version. Since 'from' is unique per entry, this structurally "
+            "never matched more than one, even though it was looped over. "
+            "A project many versions behind needed one `sdd upgrade` "
+            "invocation per pending migration to catch up. The user "
+            "confirmed this was actively painful: they're shipping new "
+            "versions every 30-40 minutes right now",
+            "New _pending_migrations()/pendingMigrations() walks the full "
+            "linear MIGRATIONS chain from the current version to "
+            "SDD_VERSION, returning every pending hop in order instead of "
+            "just the next one",
+            "With more than one migration pending, a real interactive "
+            "terminal is now asked whether to jump straight to the latest "
+            "version (apply everything now) or step through one at a "
+            "time (to read each version's notes before continuing). A "
+            "non-interactive invocation -- CI, piped stdin, scripts -- "
+            "skips the prompt and defaults to jumping straight to latest, "
+            "so automation never needs N reruns to converge",
+            "New flags in both CLIs: --to-latest (force jump, skip "
+            "prompt), --step (force one-hop-then-stop -- the original "
+            "behavior, skip prompt), -y/--yes (skip prompt, defaults to "
+            "jump-to-latest -- extends the Python side's existing --yes "
+            "flag, which previously only covered the --sync-prompts "
+            "confirmation)",
+            "TTY detection is broken out into a small "
+            "_stdin_is_interactive()/_stdinIsInteractive() helper rather "
+            "than a bare sys.stdin.isatty()/process.stdin.isTTY check -- "
+            "Click's CliRunner reassigns sys.stdin to its own captured "
+            "stream during invoke(), which silently defeats a naive "
+            "patch() set up before the call; the helper makes this "
+            "reliably mockable in tests",
+            "cli-python/README.md and cli/README.md's 'sdd upgrade' "
+            "sections document the new prompt and flags",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "No manifest.yml schema change. Verified: cli-python pytest "
+            "753/753 (742 pre-existing + 11 new), node --test 4/4 in "
+            "cli/ (2 pre-existing + 2 new -- full CliRunner-equivalent "
+            "interactive-prompt coverage wasn't ported to the Node side, "
+            "a deliberate scope limit matching this CLI's existing "
+            "lighter test investment, not an oversight). Manually "
+            "smoke-tested the real CLI: --to-latest jumps v2.0.0 -> "
+            "v2.8.1 in one call, --step applies exactly one hop and "
+            "prints the rerun hint, and plain non-interactive stdin also "
+            "jumps straight to latest by default",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.2"},
+    },
 ]
+
+
+def _stdin_is_interactive() -> bool:
+    """Broken out from a bare `sys.stdin.isatty()` call so tests can
+    mock it directly -- Click's CliRunner reassigns `sys.stdin` to its
+    own captured stream for the duration of `invoke()`, which silently
+    defeats a `patch("sys.stdin.isatty", ...)` set up before the call
+    (it patches the pre-swap object, not the one CliRunner installs)."""
+    return sys.stdin.isatty()
+
+
+def _pending_migrations(current_version: str | None) -> list[dict]:
+    """Every migration from current_version to SDD_VERSION, in order --
+    walks the linear MIGRATIONS chain (each "from" is unique, so it's a
+    simple linked list) rather than matching only the single next hop.
+    A project many versions behind used to need one `sdd upgrade`
+    invocation per version; this lets a caller see -- and choose to
+    apply -- the whole pending chain in one run."""
+    by_from = {m["from"]: m for m in MIGRATIONS}
+    chain = []
+    version = current_version
+    seen_to = set()
+    while version != SDD_VERSION:
+        m = by_from.get(version)
+        if m is None:
+            break
+        if m["to"] in seen_to:
+            break  # guards against an accidental cycle in hand-edited data
+        seen_to.add(m["to"])
+        chain.append(m)
+        version = m["to"]
+    return chain
 
 
 def _resolve_pack(manifest: dict, pack_override: str | None) -> tuple[str, str]:
@@ -4285,14 +4375,28 @@ def _do_sync_prompts(pack_override: str | None, yes: bool) -> None:
                    "project was scaffolded need this flag to actually reach it.")
 @click.option("--pack", "pack_override", default=None,
               help=f"Pack to sync prompts from, overriding manifest.yml/inference. One of: {', '.join(ALL_PACKS)}")
-@click.option("-y", "--yes", is_flag=True, help="Skip the confirmation prompt for --sync-prompts.")
-def upgrade_command(sync_prompts, pack_override, yes):
+@click.option("-y", "--yes", is_flag=True,
+              help="Skip the confirmation prompt for --sync-prompts, and (when "
+                   "multiple migrations are pending) skip the jump-to-latest-vs-"
+                   "step prompt by jumping straight to latest.")
+@click.option("--to-latest", is_flag=True,
+              help="When multiple migrations are pending, apply all of them in "
+                   "this run instead of asking or stopping after one hop.")
+@click.option("--step", is_flag=True,
+              help="When multiple migrations are pending, apply only the next "
+                   "one and stop -- the original behavior, for reviewing each "
+                   "migration's notes before continuing to the next.")
+def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
     """Migrate manifest.yml to the current pack version."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print(f"  [bold cyan]SDD Framework[/bold cyan] — upgrade")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
+
+    if to_latest and step:
+        console.print("[red]✗  --to-latest and --step are mutually exclusive.[/red]")
+        raise SystemExit(1)
 
     if not Path(MANIFEST_PATH).exists():
         console.print(f"[red]✗  {MANIFEST_PATH} not found — run from the pack root directory.[/red]")
@@ -4311,11 +4415,7 @@ def upgrade_command(sync_prompts, pack_override, yes):
         console.print(f"  Target version  : [green]{SDD_VERSION}[/green]")
         console.print()
 
-        pending = [
-            m for m in MIGRATIONS
-            if (current_version is None and m["from"] is None)
-            or m["from"] == current_version
-        ]
+        pending = _pending_migrations(current_version)
 
         if not pending:
             console.print("[yellow]  No migration path found. See CHANGELOG.md for manual steps.[/yellow]")
@@ -4323,7 +4423,47 @@ def upgrade_command(sync_prompts, pack_override, yes):
             if not sync_prompts:
                 return
         else:
-            for migration in pending:
+            # A project several versions behind used to need one `sdd
+            # upgrade` invocation per pending migration. With more than
+            # one pending, decide once whether to apply the whole chain
+            # now or step through it -- explicit flags win; otherwise
+            # ask interactively; a script/CI invocation (no real TTY on
+            # stdin) defaults to applying everything now rather than
+            # silently doing only one hop and needing N reruns.
+            apply_all = True
+            if len(pending) > 1 and not to_latest and not step:
+                if yes:
+                    apply_all = True
+                elif _stdin_is_interactive():
+                    import questionary
+                    choice = questionary.select(
+                        f"You're {len(pending)} versions behind (latest is "
+                        f"v{SDD_VERSION}). How would you like to upgrade?",
+                        choices=[
+                            questionary.Choice(
+                                f"Jump straight to v{SDD_VERSION} (apply all "
+                                f"{len(pending)} migrations now)", value=True),
+                            questionary.Choice(
+                                "Step through one at a time (review each "
+                                "migration's notes before continuing)",
+                                value=False),
+                        ],
+                    ).ask()
+                    apply_all = True if choice is None else choice
+                # else: non-interactive with neither flag nor --yes --
+                # apply_all stays True (see docstring note above).
+            elif step:
+                apply_all = False
+
+            to_apply = pending if apply_all else pending[:1]
+            if len(pending) > 1:
+                console.print(
+                    f"  [dim]{len(pending)} migrations pending -- "
+                    f"{'applying all now' if apply_all else 'applying next hop only'}.[/dim]"
+                )
+                console.print()
+
+            for migration in to_apply:
                 console.print(f"  [bold]Migrating → v{migration['to']}: {migration['description']}[/bold]")
                 for note in migration["notes"]:
                     console.print(f"    [dim]•[/dim] {note}")

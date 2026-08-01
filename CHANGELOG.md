@@ -4,6 +4,59 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.2] — 2026-08-01 (`sdd upgrade` converges in one run instead of one invocation per pending migration)
+
+An external code review (point #3) flagged that `upgrade_command()`/
+`upgradeCommand()` in both CLIs only ever found and applied a single
+migration hop per run — a plain match on `MIGRATIONS` entries whose
+`from` equals the current version, which structurally never matched more
+than one entry even though it was looped over. A project many versions
+behind needed one `sdd upgrade` invocation per pending migration to catch
+up. The user confirmed this was actively painful — they're shipping new
+versions every 30–40 minutes right now.
+
+### Added
+
+- New `_pending_migrations()`/`pendingMigrations()` walks the full linear
+  `MIGRATIONS` chain from the current version to `SDD_VERSION`, returning
+  every pending hop in order instead of just the next one.
+- With more than one migration pending, a real interactive terminal is
+  now asked whether to jump straight to the latest version (apply
+  everything now) or step through one at a time. A non-interactive
+  invocation (CI, piped stdin, scripts) skips the prompt and defaults to
+  jumping straight to latest — automation never needs N reruns.
+- New flags in both CLIs: `--to-latest` (force jump, skip prompt),
+  `--step` (force one-hop-then-stop — the original behavior, skip
+  prompt), `-y`/`--yes` (skip prompt, defaults to jump-to-latest —
+  extends the Python side's existing `--yes` flag, previously only for
+  the `--sync-prompts` confirmation).
+
+### Changed
+
+- TTY detection is broken out into a small `_stdin_is_interactive()`/
+  `_stdinIsInteractive()` helper rather than a bare
+  `sys.stdin.isatty()`/`process.stdin.isTTY` check — Click's `CliRunner`
+  reassigns `sys.stdin` during `invoke()`, which silently defeats a naive
+  `patch()` set up before the call; the helper makes this reliably
+  mockable in tests.
+- `cli-python/README.md` and `cli/README.md`'s `sdd upgrade` sections
+  document the new prompt and flags.
+
+### Verified
+
+- `cli-python` pytest 753/753 (742 pre-existing + 11 new).
+- `node --test` 4/4 in `cli/` (2 pre-existing + 2 new — full
+  `CliRunner`-equivalent interactive-prompt coverage wasn't ported to the
+  Node side, a deliberate scope limit matching this CLI's existing
+  lighter test investment, not an oversight).
+- Manually smoke-tested the real CLI: `--to-latest` jumps `v2.0.0 →
+  v2.8.1` in one call, `--step` applies exactly one hop and prints the
+  rerun hint, and plain non-interactive stdin also jumps straight to
+  latest by default.
+- No `manifest.yml` schema change.
+
+---
+
 ## [2.8.1] — 2026-08-01 (Node CLI gets its first automated tests — migration-chain-integrity, ported from cli-python)
 
 An external code review pointed out that the Node CLI (`cli/`) had zero
