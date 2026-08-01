@@ -1,10 +1,17 @@
 # SDD Framework — Quick Start
 ## Pack: Universal (any project type)
 
-> **5 minutes to your first spec.** `setup.sh` auto-detects your project type.
-> For the full command reference, see [PROMPT-GUIDE.md](PROMPT-GUIDE.md).
+> **5 minutes to get set up.** `setup.sh` auto-detects your project type.
+> Your first full feature spec takes longer — budget half a day for a
+> first pass. For the full command reference, see [PROMPT-GUIDE.md](PROMPT-GUIDE.md).
 > Supported types: `backend-service` · `frontend-spa` · `mobile` · `fullstack`
 > · `cli` · `data-ml` · `serverless` · `library` · `iac` · `desktop`
+
+> **Building something small, solo, or just prototyping?** This pack is
+> enterprise SDLC rigor — BRD → Use Cases → SRD → validate → analyze →
+> clarify → design → task → implement → release, even at `pilot` scope.
+> If that's more process than you need, use
+> [`sdd-micro`](https://github.com/sunil1983us/universalguide/tree/main/packs/sdd-micro) instead — 3 commands, no BRD/UC/SRD ceremony.
 
 ---
 

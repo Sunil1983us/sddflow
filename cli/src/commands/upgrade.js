@@ -2975,6 +2975,52 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.2',
+    to:   '2.8.3',
+    description: "Onboarding-friction fixes from an end-user feedback review: sdd-micro redirect, honest 5-minute claim, optional-persona note, cli/ marked private",
+    notes: [
+      "A user shared an end-user feedback review that pointed out real " +
+      "onboarding friction: heavy reading load, an 8-persona team-" +
+      "routing system with no signal it's optional, and -- the " +
+      "sharpest finding -- no redirect toward sdd-micro for solo/" +
+      "prototype users until they'd already committed real time to a " +
+      "full pack's docs",
+      "Added an sdd-micro redirect callout to all 5 full packs' " +
+      "README.md and QUICKSTART.md intro sections. This previously " +
+      "only existed in the maintainer repo's own root README.md -- a " +
+      "user who copied a single pack into their own project never saw " +
+      "it. Caught and fixed a self-introduced bug while implementing " +
+      "this: the first draft used a relative link (../sdd-micro/) " +
+      "which only resolves inside the maintainer repo; fixed to an " +
+      "absolute GitHub URL that works regardless of how a user " +
+      "obtained the pack",
+      "Fixed QUICKSTART.md's self-contradicting headline in all 5 " +
+      "packs: 'Five minutes to your first spec' was directly " +
+      "contradicted by a '15-30 min' context-writing step 30 lines " +
+      "later in the same file. Reframed honestly",
+      "Added a one-line 'this is optional' note to the Virtual Team " +
+      "persona section in all 5 packs' README.md, before the " +
+      "Maya/Rex/Ava/etc. table",
+      "Added \"private\": true to this package.json -- CLAUDE.md " +
+      "already documents this package as 'unpublished, from source' " +
+      "but nothing enforced that",
+      "Not changed: the migration-table duplication between the two " +
+      "CLIs -- already test-covered on both sides from a prior round, " +
+      "and the review itself downgraded this to 'not urgent'",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "Documentation/config-only -- no functional code touched, no " +
+      "manifest.yml schema change, no CLI behavior differs. Verified: " +
+      "cli-python pytest 753/753 (unchanged), cross-reference linter " +
+      "clean across all 6 packs, package.json parses",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.3';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks
