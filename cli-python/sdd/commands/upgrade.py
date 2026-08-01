@@ -4256,6 +4256,60 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.2"},
     },
+    {
+        "from":        "2.8.2",
+        "to":          "2.8.3",
+        "description": "Onboarding-friction fixes from an end-user feedback review: sdd-micro redirect, honest 5-minute claim, optional-persona note, cli/ marked private",
+        "notes": [
+            "A user shared an end-user feedback review (from another chat "
+            "session) that pointed out real onboarding friction: heavy "
+            "reading load, an 8-persona team-routing system with no "
+            "signal it's optional, and -- the sharpest finding -- no "
+            "redirect toward sdd-micro for solo/prototype users until "
+            "they'd already committed real time to a full pack's docs",
+            "Added an sdd-micro redirect callout to all 5 full packs' "
+            "README.md and QUICKSTART.md 'What Is This?'/intro sections: "
+            "'Building something small, solo, or just prototyping? ... "
+            "use sdd-micro instead.' This previously only existed in the "
+            "maintainer repo's own root README.md -- a user who copied a "
+            "single pack into their own project (the documented "
+            "deployment model) never saw it. Caught and fixed a self-"
+            "introduced bug while implementing this: the first draft "
+            "used a relative link (../sdd-micro/) which only resolves "
+            "inside this maintainer repo where packs are siblings; fixed "
+            "to an absolute GitHub URL that works regardless of how a "
+            "user obtained the pack",
+            "Fixed QUICKSTART.md's self-contradicting headline in all 5 "
+            "packs: 'Five minutes to your first spec' was directly "
+            "contradicted by a '15-30 min' context-writing step 30 lines "
+            "later in the same file. Reframed honestly: '5 minutes to "
+            "get set up. Your first full feature spec takes longer -- "
+            "budget half a day for a first pass'",
+            "Added a one-line 'this is optional' note to the Virtual "
+            "Team persona section in all 5 packs' README.md, before the "
+            "Maya/Rex/Ava/etc. table -- the persona system itself isn't "
+            "the problem (it's a real convenience layer, not a second "
+            "required thing to learn), the problem was nothing telling "
+            "a first-time reader that before they hit an 8-row table",
+            "Added \"private\": true to cli/package.json -- CLAUDE.md "
+            "already documents this package as 'unpublished, from "
+            "source' but nothing enforced that; an accidental npm "
+            "publish would have succeeded",
+            "Not changed: the migration-table duplication between this "
+            "CLI and cli/upgrade.js -- already test-covered on both "
+            "sides from a prior round, and the review itself downgraded "
+            "this to 'not urgent'",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Documentation/config-only -- no functional code touched, no "
+            "manifest.yml schema change, no CLI behavior differs. "
+            "Verified: cli-python pytest 753/753 (unchanged), cross-"
+            "reference linter clean across all 6 packs, package.json "
+            "parses",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.3"},
+    },
 ]
 
 

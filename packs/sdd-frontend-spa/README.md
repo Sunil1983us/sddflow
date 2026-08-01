@@ -11,9 +11,18 @@ You write what your system does — agent generates everything else.
 Constitution Part 2 is auto-generated from your context as a DRAFT —
 you review and finalize it (GATE-1) before work continues.
 
+> **Building something small, solo, or just prototyping?** This is
+> enterprise SDLC rigor — BRD → Use Cases → SRD → validate → analyze →
+> clarify → design → task → implement → release, even at `pilot` scope.
+> If that's more process than you need, use
+> [`sdd-micro`](https://github.com/sunil1983us/universalguide/tree/main/packs/sdd-micro) instead — 3 commands, no BRD/UC/SRD ceremony.
+
 ---
 
 ## Virtual Team
+
+*Optional — you can use plain `/specify`, `/validate`, etc. throughout
+without ever addressing the team by name. Learn this later, if at all.*
 
 Your SDD project comes with a named team. Address them directly in any AI tool:
 

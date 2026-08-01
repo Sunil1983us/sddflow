@@ -1,8 +1,15 @@
 # SDD Framework — Quick Start
 ## Pack: Frontend SPA (React / Vue / Angular)
 
-> **5 minutes to your first spec.** This guide covers setup and first run.
+> **5 minutes to get set up. Your first full feature spec takes longer —
+> budget half a day for a first pass.** This guide covers setup and first run.
 > For the full command reference, see [PROMPT-GUIDE.md](PROMPT-GUIDE.md).
+
+> **Building something small, solo, or just prototyping?** This pack is
+> enterprise SDLC rigor — BRD → Use Cases → SRD → validate → analyze →
+> clarify → design → task → implement → release, even at `pilot` scope.
+> If that's more process than you need, use
+> [`sdd-micro`](https://github.com/sunil1983us/universalguide/tree/main/packs/sdd-micro) instead — 3 commands, no BRD/UC/SRD ceremony.
 
 ---
 

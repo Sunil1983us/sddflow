@@ -4,6 +4,58 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.3] — 2026-08-01 (Onboarding-friction fixes from an end-user feedback review)
+
+A user shared an end-user feedback review (from another chat session)
+that pointed out real onboarding friction: heavy reading load, an
+8-persona team-routing system with no signal it's optional, and — the
+sharpest finding — no redirect toward `sdd-micro` for solo/prototype
+users until they'd already committed real time to a full pack's docs.
+
+### Added
+
+- **`sdd-micro` redirect** — a callout in all 5 full packs' `README.md`
+  and `QUICKSTART.md` intro sections: *"Building something small, solo,
+  or just prototyping? ... use `sdd-micro` instead."* This previously
+  only existed in the maintainer repo's own root `README.md` — a user
+  who copied a single pack into their own project (the documented
+  deployment model) never saw it.
+- **Optional-persona note** — one line before the Virtual Team
+  (Maya/Rex/Ava/etc.) table in all 5 packs' `README.md`: *"Optional —
+  you can use plain `/specify`, `/validate`, etc. throughout without
+  ever addressing the team by name."*
+- **`"private": true`** in `cli/package.json` — `CLAUDE.md` already
+  documents this package as "unpublished, from source," but nothing
+  enforced that; an accidental `npm publish` would have succeeded.
+
+### Fixed
+
+- **QUICKSTART.md's self-contradicting headline**, all 5 packs: *"5
+  minutes to your first spec"* was directly contradicted by a "15-30
+  min" context-writing step 30 lines later in the same file. Reframed:
+  *"5 minutes to get set up. Your first full feature spec takes longer
+  — budget half a day for a first pass."*
+
+### Note
+
+- Caught and fixed a self-introduced bug while implementing the
+  `sdd-micro` redirect: the first draft used a relative link
+  (`../sdd-micro/`), which only resolves inside this maintainer repo
+  where packs are siblings under `packs/` — broken once a user has
+  copied a single pack out on its own. Fixed to an absolute GitHub URL.
+- Not changed: the migration-table duplication between the two CLIs —
+  already test-covered on both sides from a prior round, and the review
+  itself downgraded this to "not urgent."
+
+### Verified
+
+- Documentation/config-only — no functional code touched, no
+  `manifest.yml` schema change, no CLI behavior differs.
+- `cli-python` pytest 753/753 (unchanged), cross-reference linter clean
+  across all 6 packs, `package.json` parses.
+
+---
+
 ## [2.8.2] — 2026-08-01 (`sdd upgrade` converges in one run instead of one invocation per pending migration)
 
 An external code review (point #3) flagged that `upgrade_command()`/
