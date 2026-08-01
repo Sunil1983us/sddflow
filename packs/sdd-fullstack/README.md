@@ -4,6 +4,28 @@
 
 ---
 
+## Start Here — Which File Do I Read?
+
+| Read this | When |
+|---|---|
+| **[`QUICKSTART.md`](QUICKSTART.md)** | First — 5 minutes to get set up and run `/specify` |
+| **This file (`README.md`)** | Command reference and project overview — read once, skim after |
+| **`HOW-TO-USE.md`** | Step-by-step walkthrough of every command, in order |
+
+Everything else is reference material — skip it on your first pass, come back when you actually need it:
+
+| File | What it's for |
+|---|---|
+| `PROMPT-GUIDE.md` | Full prompt text for every command — a lookup reference, not a read-through |
+| `SDLC-COMPLETE-GUIDE.md` | Deep dive on the SDLC methodology behind this pack |
+| `FLOW-ROLES-GATES.md` | Detailed reference for every gate and who approves it |
+| `WHY-SDD.md` | Background and rationale — why this framework exists |
+| `CHANGE-GUIDE.md` | How `/change` works — read when you first need to change a shipped feature |
+| `CLAUDE.md` | The AI agent's own instructions — it reads this, you don't need to |
+| `CLAUDE.local.md` | Your personal agent preferences (output style, editor, shortcuts) — gitignored, edit anytime |
+
+---
+
 ## What Is This?
 
 Spec-Driven Development framework for full stack applications.
@@ -16,6 +38,12 @@ you review and finalize it (GATE-1) before work continues.
 > clarify → design → task → implement → release, even at `pilot` scope.
 > If that's more process than you need, use
 > [`sdd-micro`](https://github.com/sunil1983us/universalguide/tree/main/packs/sdd-micro) instead — 3 commands, no BRD/UC/SRD ceremony.
+
+> **Want to see a finished example first?** Browse
+> [`examples/`](https://github.com/sunil1983us/universalguide/tree/main/examples)
+> on GitHub — two complete, end-to-end SDD runs (a backend API and a
+> frontend web app) showing exactly what every command produces, with
+> full BO → BR → FR → UC → STORY → TASK traceability.
 
 ---
 

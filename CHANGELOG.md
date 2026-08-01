@@ -4,6 +4,103 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.5] — 2026-08-01 (Surface the worked examples to real users; implement TASK-001/002/003 of examples/todo-api for real)
+
+Two fixes shipped together, closing the remaining gap from the 2.8.3/2.8.4
+onboarding-friction rounds: the framework's worked examples were
+well-built but invisible to a real end user, and — even if found — proved
+only that the framework could produce specs, not working code.
+
+### Added
+
+- **"See a finished example" callout** — added to all 5 full packs'
+  `README.md` and `QUICKSTART.md`, linking to `examples/` on GitHub.
+  Previously `examples/todo-api` and `examples/habit-tracker-web` were
+  referenced from nowhere a real user running `sdd init` would ever see
+  them — only from this maintainer repo's own root `README.md` and the
+  CI regression harness (`assert-output.sh`).
+- **`examples/todo-api` now has real, passing implementation code** for
+  TASK-001 (Prisma schema + migration), TASK-002 (user-scope Prisma
+  extension, FR-007), and TASK-003 (`POST /tasks` endpoint, UC-001) — 3
+  of the 10 tasks in `tasks.md`. Actual TypeScript/Express/Prisma/
+  PostgreSQL 16 code, run against a live local Postgres 16 instance, 13
+  tests passing (5 unit + 8 integration), `tsc --noEmit` clean.
+  `tasks.md`'s acceptance-criteria checkboxes for those 3 tasks are now
+  `[x]`, each pointing at the implementing files. TASK-004 through
+  TASK-010 remain spec-only, unchanged.
+- **`examples/todo-api/IMPLEMENTATION.md`** — documents exactly what's
+  implemented, two deliberate simplifications (HS256 shared-secret JWT
+  instead of the RS256-from-env scheme `context.md` specifies; no
+  partial indexes in the Prisma schema DSL, since Prisma's declarative
+  schema can't express `hld.md`'s `WHERE` predicates without an unstable
+  preview feature), and how to run it locally.
+
+### Not done (called out explicitly, not silently skipped)
+
+- TASK-007 (full auth middleware wiring — RS256, expired-JWT handling)
+  is **not** marked done. Making TASK-003 testable end-to-end required
+  pulling forward a minimal HS256 stand-in for `auth.middleware.ts` and
+  `user-scope.middleware.ts`, but that stand-in doesn't satisfy
+  TASK-007's own acceptance criteria.
+- No simulated `/pre-review` or `/address-review` round — there's no
+  real reviewer for a maintainer-repo example, and simulating one would
+  read as staged rather than as proof.
+- TASK-004 through TASK-010 (GET/PATCH/DELETE, pagination, purge cron)
+  remain spec-only.
+
+### Verified
+
+- `cli-python` pytest: 753/753 (unchanged — no `cli-python` code touched)
+- Cross-reference linter: clean across all 6 packs
+- Both setup smoke-test suites: 15 + 12 passed
+- `assert-output.sh`'s 33 structural assertions: still pass against the
+  edited `tasks.md`
+- `examples/todo-api`'s own test suite: 13/13 passing (`jest
+  --testPathPattern user-scope` 5/5, `jest --testPathPattern
+  tasks.routes` 8/8), `tsc --noEmit` clean, `prisma migrate dev` applied
+  clean against a freshly created PostgreSQL 16 database
+
+---
+
+## [2.8.4] — 2026-08-01 (Doc-navigation fixes from a third end-user feedback review)
+
+A user shared a third, more detailed end-user feedback review (same theme
+as the 2.8.3 round, different reviewer): 11 top-level docs in each pack
+with no stated reading order, the self-approval-risk disclosure buried
+inside `CLAUDE.md` (agent-facing only, never surfaced to the human who
+actually needs to know it), and no signal at all about the token/cost
+footprint of running the full document-heavy pipeline.
+
+### Added
+
+- **"Start Here" doc map** — a table at the top of every full pack's
+  `README.md` listing the 3 files to read in order (`QUICKSTART.md` →
+  `README.md` → `HOW-TO-USE.md`), with the remaining reference files
+  listed separately as "skip on first pass, come back when you need it."
+  `sdd-fullstack`'s table omits the `IMPROVEMENT-BACKLOG.md` row since
+  that pack has only 10 root `.md` files, not 11 like the other 4.
+- **Self-approval-risk callout** — added to every pack's `QUICKSTART.md`,
+  right after the "review gates work out of the box" paragraph: default
+  chat-mode approval only checks that someone typed "approved" in the
+  same conversation that wrote the doc, with no independent identity
+  check. Points to `CLAUDE.md`'s existing "Self-approval risk" section
+  for the full explanation instead of duplicating it.
+- **Token/cost footprint callout** — added to every pack's
+  `QUICKSTART.md` intro, describing the pipeline's actual command
+  cadence (one agent command per phase, each reading/writing at least
+  one document) rather than a fabricated dollar figure — there is no
+  real token-usage data anywhere in this repo to cite
+  (`token-pricing.yml.example` ships with all rates `null`). Points to
+  enabling `token-pricing.yml` for a real per-command log instead.
+
+### Verified
+
+- `cli-python` pytest: 753/753 (unchanged — doc-only round)
+- Cross-reference linter: clean across all 6 packs
+- Both setup smoke-test suites: 15 + 12 passed
+
+---
+
 ## [2.8.3] — 2026-08-01 (Onboarding-friction fixes from an end-user feedback review)
 
 A user shared an end-user feedback review (from another chat session)

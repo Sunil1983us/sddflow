@@ -11,6 +11,21 @@
 > If that's more process than you need, use
 > [`sdd-micro`](https://github.com/sunil1983us/universalguide/tree/main/packs/sdd-micro) instead — 3 commands, no BRD/UC/SRD ceremony.
 
+> **Token/cost footprint.** This is a document-heavy pipeline — expect
+> one agent command per phase (specify, specify-brd, specify-uc,
+> specify-srd, each extended doc, checklist, validate, analyze, clarify,
+> plan-design, plan-lld, one `/implement` per task in `tasks.md`,
+> release), each reading and writing at least one document. There's no
+> live cost estimator; enable `.specify/memory/token-pricing.yml` (copy
+> from the `.example`) to log real per-command cost as you go — see
+> "Token Usage Logging" in `CLAUDE.md`.
+
+> **Want to see a finished example first?** Browse
+> [`examples/`](https://github.com/sunil1983us/universalguide/tree/main/examples)
+> on GitHub — two complete, end-to-end SDD runs (a backend API and a
+> frontend web app) showing exactly what every command produces, with
+> full BO → BR → FR → UC → STORY → TASK traceability.
+
 ---
 
 ## Step 0 — Copy the Pack (first time only)
@@ -69,6 +84,12 @@ chat and the agent flips the document's `Status:` header. If you configure
 Confluence/Jira later (`.specify/integrations.yml`), approvals automatically
 update the matching Confluence page too. See "Document Review Gates — Three
 Modes" in `CLAUDE.md`.
+
+> **Know what chat-mode approval actually checks.** By default (through
+> `pilot`), "approved" just means someone typed the word in the same
+> conversation that wrote the doc — there's no independent identity
+> check. Fine for solo/prototype use; for anything past `pilot`, read
+> `CLAUDE.md`'s "Self-approval risk" section before relying on it.
 
 ---
 

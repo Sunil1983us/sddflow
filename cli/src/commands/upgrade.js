@@ -3021,6 +3021,116 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.3',
+    to:   '2.8.4',
+    description: "Doc-navigation fixes from a third end-user feedback review: Start Here table, self-approval-risk callout, token/cost footprint callout",
+    notes: [
+      "A user shared a third, more detailed end-user feedback review " +
+      "(same theme as the 2.8.3 round, different reviewer): 11 top-" +
+      "level docs in each pack with no stated reading order, the self-" +
+      "approval-risk disclosure buried inside CLAUDE.md (agent-facing " +
+      "only, never surfaced to the human who actually needs to know " +
+      "it), and no signal at all about the token/cost footprint of " +
+      "running the full document-heavy pipeline",
+      "Added a 'Start Here -- Which File Do I Read?' table to the top " +
+      "of every full pack's README.md: 3 files to read in order " +
+      "(QUICKSTART.md -> README.md -> HOW-TO-USE.md), the remaining " +
+      "reference files listed separately as 'skip on first pass, come " +
+      "back when you need it'",
+      "Added a self-approval-risk callout to every pack's QUICKSTART.md, " +
+      "right after the 'review gates work out of the box' paragraph: " +
+      "default chat-mode approval only checks that someone typed " +
+      "'approved' in the same conversation that wrote the doc -- no " +
+      "independent identity check -- pointing to CLAUDE.md's existing " +
+      "'Self-approval risk' section for the full explanation instead of " +
+      "duplicating it",
+      "Added a token/cost footprint callout to every pack's " +
+      "QUICKSTART.md intro: describes the pipeline's actual command " +
+      "cadence (one agent command per phase, each reading/writing at " +
+      "least one document) rather than a fabricated dollar figure -- " +
+      "confirmed there is no real token-usage data anywhere in this " +
+      "repo to cite (token-pricing.yml.example ships with all rates " +
+      "null); points to enabling token-pricing.yml for a real per-" +
+      "command log instead",
+      "sdd-fullstack's Start Here table omits the IMPROVEMENT-BACKLOG.md " +
+      "row -- that pack has only 10 root .md files, unlike the other 4 " +
+      "packs' 11 -- verified via a directory listing before writing the " +
+      "table, not assumed",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Documentation-only -- no functional code touched, no manifest.yml " +
+      "schema change, no CLI behavior differs. Verified: cli-python " +
+      "pytest 753/753 (unchanged), cross-reference linter clean across " +
+      "all 6 packs, both setup smoke-test suites (15 + 12) pass",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.4';
+      return manifest;
+    },
+  },
+  {
+    from: '2.8.4',
+    to:   '2.8.5',
+    description: "Surface the worked examples to real end users; implement TASK-001/002/003 of examples/todo-api for real",
+    notes: [
+      "Two fixes shipped together, following on from the 2.8.3/2.8.4 " +
+      "onboarding-friction rounds",
+      "Fix 1 (this repo's packs -- the reason this bump exists): added a " +
+      "'Want to see a finished example first?' callout, linking to " +
+      "examples/ on GitHub, to all 5 full packs' README.md and " +
+      "QUICKSTART.md. Closes a real gap: examples/todo-api and " +
+      "examples/habit-tracker-web existed and were well-built, but were " +
+      "referenced from nowhere a real user running `sdd init` would ever " +
+      "see them -- only from the maintainer repo's own root README.md " +
+      "and the CI regression harness (assert-output.sh). A user who " +
+      "only ever works inside a copied-out pack folder never knew they " +
+      "existed",
+      "Fix 2 (examples/ only -- does not touch any pack, included here " +
+      "for the full story even though it doesn't change sdd_version-" +
+      "relevant files): TASK-001 (Prisma schema + migration), TASK-002 " +
+      "(user-scope Prisma extension, FR-007), and TASK-003 (POST /tasks " +
+      "endpoint, UC-001) of examples/todo-api's 10-task tasks.md are now " +
+      "implemented for real -- actual TypeScript/Express/Prisma/" +
+      "PostgreSQL 16 code, actually run against a live local Postgres " +
+      "16 instance, 13 tests actually passing (5 unit + 8 integration), " +
+      "`tsc --noEmit` clean. Both worked examples had a full spec chain " +
+      "(BRD through tasks.md) but zero implementation code before this",
+      "tasks.md's checkboxes for TASK-001/002/003's acceptance criteria " +
+      "are now [x], each with an 'Implemented:' line pointing at the " +
+      "actual files. TASK-004 through TASK-010 remain spec-only, " +
+      "unchanged",
+      "Two simplifications are called out explicitly in the new " +
+      "examples/todo-api/IMPLEMENTATION.md, not hidden: JWT " +
+      "verification uses HS256 with a shared secret instead of the " +
+      "RS256-from-env scheme context.md's Tech Stack row specifies; and " +
+      "the three partial indexes in hld.md's raw SQL aren't expressed " +
+      "in prisma/schema.prisma, since Prisma's declarative schema DSL " +
+      "doesn't support partial indexes without an unstable preview " +
+      "feature",
+      "TASK-007 (full auth middleware wiring -- RS256 verification, " +
+      "expired-JWT handling) is explicitly NOT marked done. Making " +
+      "TASK-003 testable end-to-end required pulling forward a minimal " +
+      "HS256 stand-in for auth.middleware.ts and user-scope." +
+      "middleware.ts, but that stand-in does not satisfy TASK-007's own " +
+      "acceptance criteria and its checkboxes were left unchecked",
+      "No simulated /pre-review or /address-review round is included -- " +
+      "there's no real reviewer for a maintainer-repo example, and " +
+      "simulating one would read as staged rather than as proof",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 753/753 (unchanged), cross-reference " +
+      "linter clean across all 6 packs, both setup smoke-test suites " +
+      "(15 + 12) pass, assert-output.sh's 33 structural assertions still " +
+      "pass, and the new examples/todo-api test suite itself: 13/13 " +
+      "passing, tsc --noEmit clean, prisma migrate dev applied clean " +
+      "against a freshly created PostgreSQL 16 database",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.5';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks
