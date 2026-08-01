@@ -4,6 +4,43 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.8] — 2026-08-01 (Root README "60-Second Overview" — first-time-visitor orientation)
+
+An external (ChatGPT) review flagged that a newcomer to the maintainer
+repo's root README can't quickly answer 7 orientation questions: which
+pack, which CLI, the smallest useful workflow, how many documents get
+generated, whether Jira/Confluence is required, the first 3 commands to
+run, and whether this is for solo devs or teams. Checked the claim
+against the actual repo — most were partially answered already, just
+buried rather than absent.
+
+### Added
+
+- **"60-Second Overview"** — a new section at the top of the root
+  `README.md`, right after the intro paragraph: one audience line
+  ("Built for teams that need audit trails and structured sign-offs...")
+  plus a 4-row table covering CLI choice + Jira/Confluence optionality,
+  the first 3 commands to run, document count, and a pointer to
+  `packs/CATALOG.md`'s existing pack-decision tree.
+- **Document count, verified not guessed** — 12 documents at `pilot`
+  scope, counted directly from the real `examples/todo-api` file
+  listing. An initial draft said "~13"; corrected against the actual
+  file count before shipping.
+- **Pack-catalog pointer on every pack's own README** — a one-line "not
+  sure this is the right pack? see the catalog" note (absolute GitHub
+  URL, matching the `sdd-micro`/`examples` redirect pattern from earlier
+  rounds) at the top of the "Start Here" section in all 5 full packs, so
+  a visitor who lands directly on one pack's page — not the root — still
+  gets routed to the decision tree.
+
+### Verified
+
+- `cli-python` pytest: 765/765 (unchanged — no code touched)
+- Cross-reference linter: clean across all 6 packs
+- Both setup smoke-test suites: 15 + 12 passed
+
+---
+
 ## [2.8.7] — 2026-08-01 (Removed IMPROVEMENT-BACKLOG.md from every pack — it was leaking maintainer-only content into real user projects)
 
 A user shared a photo of their own project directory (created via `sdd
