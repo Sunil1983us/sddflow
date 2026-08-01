@@ -2738,6 +2738,45 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.97',
+    to:   '2.7.98',
+    description: "Jira Feature/Epic description gains Business Objectives, Success Criteria, and a Confluence link, following up on the 2.7.97 structured template",
+    notes: [
+      "Follow-up to a user's structured-description request (2.7.97: " +
+      "Problem Statement / Business Hypothesis / Description / Out of " +
+      "Scope / NFR) -- asked what else was worth adding to a " +
+      "business-level Epic. Shipped three more: Success Criteria " +
+      "(closes the loop the Business Hypothesis opens), a Confluence " +
+      "link (so the Epic points at the full document, not just an " +
+      "excerpt), and Business Objectives (brought back as its own " +
+      "compact section, distinct from the free-text Description/" +
+      "Hypothesis prose)",
+      "New parsers: parse_brd_business_objectives() (brd.md §2's " +
+      "BO-NNN table) and parse_brd_success_criteria() (brd.md §8's " +
+      "checklist items, section-scoped so a stray checkbox elsewhere " +
+      "in the doc can't leak in)",
+      "New brd_confluence_link()/_resolve_confluence_base_url() read " +
+      "the local .specify/.confluence-drafts.json cache -- no network " +
+      "call, link omitted if Confluence isn't configured or brd.md " +
+      "hasn't been pushed there yet",
+      "feature_extra_fields() gained an optional confluence_base_url " +
+      "param (default None, fully backward compatible); " +
+      "_push_epic()/_push()/_ensure_epic() thread it through from " +
+      "their respective callers",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "No manifest.yml schema change -- every existing Epic picks up " +
+      "the two new sections and the link on its next push (idempotent " +
+      "upsert). Verified: cli-python pytest 739/739 (721 pre-existing " +
+      "+ 18 new), cross-reference linter clean, setup smoke tests clean",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.98';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

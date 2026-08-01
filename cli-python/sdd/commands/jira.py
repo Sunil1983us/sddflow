@@ -1,11 +1,12 @@
 from __future__ import annotations
+import json
 import re
 from pathlib import Path
 import click
 import yaml
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_jira_session
+from sdd.utils.atlassian_auth import load_jira_session, load_profile
 from sdd.utils.integrations import load_integrations, JiraConfig
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.sdd_parser import parse_stories, parse_tasks, parse_use_cases, Story, Task, UseCase
@@ -185,6 +186,127 @@ def parse_srd_nfr_rows(features_dir: Path) -> list[str]:
     return items
 
 
+_BO_ROW_RE = re.compile(r"^\s*\|\s*BO-\d+\s*\|")
+
+
+def parse_brd_business_objectives(features_dir: Path) -> list[str]:
+    """'BO-NNN: {objective} — {success metric}' lines for every BO-NNN row
+    in brd.md §2's Business Objectives table. The metric is appended only
+    when the row actually has one -- some objectives are stated before a
+    measurable metric is agreed. Returns [] if brd.md doesn't exist yet."""
+    path = features_dir / "brd.md"
+    if not path.exists():
+        return []
+    items = []
+    for line in path.read_text().splitlines():
+        stripped = line.strip()
+        if not _BO_ROW_RE.match(stripped):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        bo_id, objective = cells[0], cells[1]
+        metric = cells[2] if len(cells) >= 3 else ""
+        if not objective or objective.startswith("{"):
+            continue
+        text = f"{bo_id}: {objective}"
+        if metric and not metric.startswith("{"):
+            text += f" — {metric}"
+        items.append(text)
+    return items
+
+
+_CHECKLIST_BULLET_RE = re.compile(r"^-\s*\[.\]\s*(.+)$")
+_BRD_SUCCESS_CRITERIA_HEADING = re.compile(r"(?i)^##\s+\d*\.?\s*Success Criteria\s*$")
+
+
+def _extract_heading_bullets(text: str, heading_re: re.Pattern, bullet_re: re.Pattern) -> list[str]:
+    """Bullet items matching bullet_re from directly under a markdown
+    heading, ending at the next heading of any level."""
+    lines = text.splitlines()
+    for idx, line in enumerate(lines):
+        if not heading_re.match(line):
+            continue
+        items = []
+        j = idx + 1
+        while j < len(lines) and not lines[j].lstrip().startswith("#"):
+            m = bullet_re.match(lines[j].strip())
+            if m:
+                item = m.group(1).strip()
+                if item and not item.startswith("{"):
+                    items.append(item)
+            j += 1
+        return items
+    return []
+
+
+def parse_brd_success_criteria(features_dir: Path) -> list[str]:
+    """brd.md §8's Success Criteria checklist items (checkbox state
+    dropped -- the Epic description isn't a live-syncing checklist, just
+    a snapshot of what "done" looks like from a business standpoint).
+    Returns [] if brd.md doesn't exist yet."""
+    path = features_dir / "brd.md"
+    if not path.exists():
+        return []
+    return _extract_heading_bullets(
+        path.read_text(), _BRD_SUCCESS_CRITERIA_HEADING, _CHECKLIST_BULLET_RE,
+    )
+
+
+def _resolve_confluence_base_url(cfg) -> str | None:
+    """Best-effort Confluence base_url for the "Full Document" link on
+    the Feature/Epic -- cfg here is the full IntegrationsConfig (not
+    just JiraConfig), so its confluence_profile_name() can differ from
+    Jira's (Data Center orgs with separate servers). This is a local
+    ~/.sdd/config.yml lookup only, never a network call, and is
+    genuinely optional: no confluence: section, no profile, or a
+    missing/misconfigured profile all just mean no link gets added --
+    never blocks the Jira push itself."""
+    if not cfg.confluence:
+        return None
+    try:
+        return load_profile(cfg.confluence_profile_name()).base_url
+    except Exception:
+        return None
+
+
+def brd_confluence_link(confluence_base_url: str | None) -> str | None:
+    """URL of the pushed brd.md Confluence page, read from the local
+    .specify/.confluence-drafts.json cache (written by `sdd confluence
+    push`/`draft`/`sdd review submit`/`apply`) -- no network call, and
+    project-wide rather than feature-scoped, matching status.py's
+    _local_confluence_links(), which reads the same file. None if
+    Confluence isn't configured, or brd.md hasn't been pushed to
+    Confluence yet."""
+    if not confluence_base_url:
+        return None
+    drafts_path = Path(".specify") / ".confluence-drafts.json"
+    if not drafts_path.exists():
+        return None
+    try:
+        drafts = json.loads(drafts_path.read_text())
+    except Exception:
+        return None
+    page_id = (drafts.get("brd") or {}).get("page_id")
+    if not page_id:
+        return None
+    return f"{confluence_base_url}/wiki/pages/viewpage.action?pageId={page_id}"
+
+
+def _append_link_section(doc: dict, heading: str, label: str, url: str) -> dict:
+    """Appends a heading + hyperlink paragraph to an ADF doc built by
+    adf_sections()/adf_doc() -- a link needs an ADF `link` mark, which
+    adf_sections' plain-string/bullet-list body support can't express."""
+    content = list(doc["content"])
+    if content == [_adf_paragraph(" ")]:   # replace the lone placeholder, don't append after it
+        content = []
+    content.append(_adf_heading(heading))
+    content.append({"type": "paragraph", "content": [
+        {"type": "text", "text": label, "marks": [{"type": "link", "attrs": {"href": url}}]},
+    ]})
+    return {"type": "doc", "version": 1, "content": content}
+
+
 def _apply_team_field(extra: dict, cfg: JiraConfig, level: str, fields: dict | None = None) -> None:
     """Stamps cfg.team onto `extra` via whichever custom field "team"
     maps to for this level, if both are configured. No-op otherwise."""
@@ -195,24 +317,30 @@ def _apply_team_field(extra: dict, cfg: JiraConfig, level: str, fields: dict | N
         extra[team_field] = cfg.team
 
 
-def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str) -> dict:
+def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str,
+                          confluence_base_url: str | None = None) -> dict:
     """Extra fields for the top-level Feature/Epic issue: a real
-    description built from five sections -- Problem Statement, Business
-    Hypothesis, Description (brd.md's Executive Summary), Out of Scope
-    (all from brd.md §4/§1), and NFR (srd.md §3's baseline table) --
-    each section omitted entirely if its source doc doesn't exist yet
-    (the Epic is typically bootstrapped right after /specify, before
-    brd.md/srd.md exist, and re-pushed/upserted as they're written) or
-    is still unfilled template text. Falls back to a single placeholder
-    paragraph if nothing is available at all. Also sets High priority,
-    the Epic Name custom field for classic/company-managed Jira projects
-    (only if custom_fields.epic_name is configured), and the team field
-    (if cfg.team is set)."""
+    description built from seven sections -- Problem Statement, Business
+    Hypothesis, Description (brd.md's Executive Summary), Business
+    Objectives, Out of Scope (all from brd.md §1/§2/§4), Success Criteria
+    (brd.md §8), and NFR (srd.md §3's baseline table) -- each section
+    omitted entirely if its source doc doesn't exist yet (the Epic is
+    typically bootstrapped right after /specify, before brd.md/srd.md
+    exist, and re-pushed/upserted as they're written) or is still
+    unfilled template text. Falls back to a single placeholder paragraph
+    if nothing is available at all. When confluence_base_url is given and
+    brd.md has already been pushed to Confluence (see
+    brd_confluence_link()), appends a "Full Document" section linking
+    there. Also sets High priority, the Epic Name custom field for
+    classic/company-managed Jira projects (only if custom_fields.epic_name
+    is configured), and the team field (if cfg.team is set)."""
     sections = [
         ("Problem Statement",   parse_brd_problem_statement(features_dir)),
         ("Business Hypothesis", parse_brd_business_hypothesis(features_dir)),
         ("Description",         parse_brd_executive_summary(features_dir)),
+        ("Business Objectives", parse_brd_business_objectives(features_dir)),
         ("Out of Scope",        parse_brd_out_of_scope(features_dir)),
+        ("Success Criteria",    parse_brd_success_criteria(features_dir)),
         ("NFR",                 parse_srd_nfr_rows(features_dir)),
     ]
     description = (
@@ -222,6 +350,9 @@ def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str)
             "to populate this description."
         )
     )
+    link = brd_confluence_link(confluence_base_url)
+    if link:
+        description = _append_link_section(description, "Full Document", "View BRD on Confluence", link)
     extra: dict = {
         "description": description,
         "priority": {"name": "High"},
@@ -425,7 +556,8 @@ def jira_push(profile, feature, level, cr, dry_run):
         console.print()
         return
 
-    _push(client, feature_name, features_dir, stories, tasks, jira_cfg, level=level, cr=cr)
+    _push(client, feature_name, features_dir, stories, tasks, jira_cfg, level=level, cr=cr,
+          confluence_base_url=_resolve_confluence_base_url(cfg))
 
 
 def _print_dry_run(feature_name: str, stories: list[Story], tasks: list[Task],
@@ -561,8 +693,9 @@ def _find_story_key(client: JiraClient, project_key: str, feature_name: str, sto
     return issue["key"] if issue else None
 
 
-def _push_epic(client: JiraClient, feature_name: str, features_dir: Path, cfg: JiraConfig) -> str:
-    feature_extra = feature_extra_fields(features_dir, cfg, feature_name)
+def _push_epic(client: JiraClient, feature_name: str, features_dir: Path, cfg: JiraConfig,
+                confluence_base_url: str | None = None) -> str:
+    feature_extra = feature_extra_fields(features_dir, cfg, feature_name, confluence_base_url)
     key, created = _upsert_issue(
         client, cfg.key_for("feature"), cfg.issue_hierarchy["feature"], feature_name,
         feature_extra, f"sdd-feature:{feature_name}", cfg.labels,
@@ -763,7 +896,8 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
 
 def _push(client: JiraClient, feature_name: str, features_dir: Path,
           stories: list[Story], tasks: list[Task], cfg: JiraConfig,
-          level: str = "all", cr: str | None = None) -> None:
+          level: str = "all", cr: str | None = None,
+          confluence_base_url: str | None = None) -> None:
     levels   = ["epic", "story", "task"] if level == "all" else [level]
     do_epic  = "epic" in levels
     do_story = "story" in levels
@@ -777,7 +911,7 @@ def _push(client: JiraClient, feature_name: str, features_dir: Path,
 
     # ── Feature / Epic ───────────────────────────────────────────────────────
     if do_epic:
-        epic_key = _push_epic(client, feature_name, features_dir, cfg)
+        epic_key = _push_epic(client, feature_name, features_dir, cfg, confluence_base_url)
     elif do_story or do_chg:
         epic_key = _find_feature_key(client, cfg.key_for("feature"), feature_name)
         if not epic_key and do_story:

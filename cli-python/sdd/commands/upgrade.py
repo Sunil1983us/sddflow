@@ -3983,6 +3983,55 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.97"},
     },
+    {
+        "from":        "2.7.97",
+        "to":          "2.7.98",
+        "description": "Jira Feature/Epic description gains Business Objectives, Success Criteria, and a Confluence link, following up on the 2.7.97 structured template",
+        "notes": [
+            "Follow-up to a user's structured-description request "
+            "(2.7.97: Problem Statement / Business Hypothesis / "
+            "Description / Out of Scope / NFR) -- asked what else was "
+            "worth adding to a business-level Epic. Recommended and "
+            "shipped three more: Success Criteria (closes the loop the "
+            "Business Hypothesis opens -- 'we'll know this is true "
+            "when X'), a Confluence link (so the Epic points at the "
+            "full document, not just an excerpt), and Business "
+            "Objectives (brought back as its own compact section, "
+            "distinct from the free-text Description/Hypothesis prose)",
+            "New parsers: parse_brd_business_objectives() (brd.md §2's "
+            "BO-NNN table -- 'BO-NNN: {objective} — {success metric}' "
+            "per row, metric appended only when the row has one) and "
+            "parse_brd_success_criteria() (brd.md §8's checklist items, "
+            "section-scoped so a stray checkbox elsewhere in the doc, "
+            "e.g. a compliance table cell, can't leak in)",
+            "New brd_confluence_link()/_resolve_confluence_base_url() "
+            "read the local .specify/.confluence-drafts.json cache "
+            "(same file status.py's dashboard link resolution already "
+            "reads) -- no network call, None (link omitted) if "
+            "Confluence isn't configured or brd.md hasn't been pushed "
+            "there yet. sdd jira push resolves the base_url itself via "
+            "a local ~/.sdd/config.yml lookup; sdd review submit reuses "
+            "the Confluence Profile it already resolved for this doc's "
+            "own push, costing nothing extra",
+            "New _append_link_section() appends a 'Full Document' "
+            "heading + ADF link mark after adf_sections()'s output -- a "
+            "hyperlink needs a `link` mark, which adf_sections' plain-"
+            "string/bullet-list body support can't express",
+            "feature_extra_fields() gained an optional "
+            "confluence_base_url param (default None, fully backward "
+            "compatible); _push_epic()/_push()/_ensure_epic() thread it "
+            "through from their respective callers",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "No manifest.yml schema change -- every existing Epic picks "
+            "up the two new sections and the link on its next push "
+            "(idempotent upsert, no manual step). Verified: cli-python "
+            "pytest 739/739 (721 pre-existing + 18 new), cross-reference "
+            "linter clean, setup smoke tests clean",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.98"},
+    },
 ]
 
 

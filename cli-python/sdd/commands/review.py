@@ -649,15 +649,18 @@ def _number_legacy_markers(md_path: Path) -> int:
     return state["count"]
 
 
-def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | None:
+def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str,
+                  confluence_base_url: str | None = None) -> str | None:
     """Create the Feature/Epic container if it doesn't already exist yet,
     using the same content and idempotency label `sdd jira push` uses — so a
     review ticket submitted before any dev Story/Task exists still lands
     under the same Epic those will use later. brd.md's Problem
-    Statement/Business Hypothesis/Description/Out of Scope are already
-    available at this point since BRD (the first document reviewed) is
-    always drafted before its own review ticket is submitted -- NFR
-    (from srd.md) fills in on a later re-push once /specify-srd runs.
+    Statement/Business Hypothesis/Description/Business Objectives/Out of
+    Scope/Success Criteria are already available at this point since BRD
+    (the first document reviewed) is always drafted before its own review
+    ticket is submitted -- NFR (from srd.md) fills in on a later re-push
+    once /specify-srd runs. confluence_base_url, if given, adds a "Full
+    Document" link once brd.md has actually been pushed to Confluence.
     Never blocks the review submission — prints a warning and returns None
     if Epic creation/lookup fails for any reason."""
     from sdd.commands.jira import _upsert_issue, feature_extra_fields
@@ -665,7 +668,7 @@ def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str) -> str | 
 
     try:
         features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
-        extra = feature_extra_fields(features_dir, jira_cfg, feature_name)
+        extra = feature_extra_fields(features_dir, jira_cfg, feature_name, confluence_base_url)
         h = jira_cfg.issue_hierarchy
         key, _ = _upsert_issue(
             jira_client, jira_cfg.key_for("feature"), h["feature"], feature_name,
@@ -790,10 +793,12 @@ def review_submit(doc, profile, feature):
     # So every review ticket -- and later every dev Story/Task from
     # `sdd jira push` -- nests under one place in Jira. Self-bootstrapping
     # here (rather than requiring a separate manual step) works because
-    # BRD is always the first document reviewed, and its Business
-    # Objectives are already written the moment /specify-brd finishes --
-    # well before this review ticket exists to need a parent.
-    epic_key = _ensure_epic(jira_client, cfg.jira, feature_name)
+    # BRD is always the first document reviewed, and its content is
+    # already written the moment /specify-brd finishes -- well before this
+    # review ticket exists to need a parent. cf_prof is already resolved
+    # above (this doc was just pushed to Confluence), so the Epic's "Full
+    # Document" link costs no extra auth/config lookup here.
+    epic_key = _ensure_epic(jira_client, cfg.jira, feature_name, cf_prof.base_url)
 
     # ── Create / update Jira review story ─────────────────────────────────────
     # Issue type is "story" (not "task") so review tickets sit at the same
@@ -972,7 +977,13 @@ def review_push_questions(doc, profile, feature):
             console.print(f"  [yellow]!  Confluence push failed: {e}[/yellow]")
 
     # ── Ensure a Feature/Epic exists (same as review_submit) ──────────────────
-    epic_key = _ensure_epic(jira_client, cfg.jira, feature_name)
+    # No cf_prof already in scope here (the Confluence push above goes
+    # through _push_doc_page's own session, not exposed to this
+    # function), so resolve the base_url the same best-effort way sdd
+    # jira push does -- never blocks this command if it fails.
+    from sdd.commands.jira import _resolve_confluence_base_url
+    epic_key = _ensure_epic(jira_client, cfg.jira, feature_name,
+                             _resolve_confluence_base_url(cfg))
 
     # ── Create / update the SAME ticket review_submit will later find ─────────
     # Same idempotency_label as review_submit uses for --doc {doc} -- this

@@ -293,6 +293,34 @@ class TestEnsureEpic:
         cfg = JiraConfig(project_key="MYPROJ")
         assert review._ensure_epic(BrokenClient(), cfg, "auth") is None
 
+    def test_confluence_base_url_adds_full_document_link(self, project):
+        import json
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "## 4. Business Context\n### Problem Statement\nUsers churn.\n"
+        )
+        (project / ".specify" / ".confluence-drafts.json").write_text(
+            json.dumps({"brd": {"page_id": "42", "title": "BRD"}})
+        )
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ")
+        review._ensure_epic(client, cfg, "auth", "https://x.atlassian.net")
+        description = client.created[0]["description"]
+        texts = [n["content"][0]["text"] for n in description["content"]
+                 if n["type"] in ("heading", "paragraph")]
+        assert "Full Document" in texts
+
+    def test_no_confluence_base_url_omits_link(self, project):
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "## 4. Business Context\n### Problem Statement\nUsers churn.\n"
+        )
+        client = FakeJiraClient()
+        cfg = JiraConfig(project_key="MYPROJ")
+        review._ensure_epic(client, cfg, "auth")
+        description = client.created[0]["description"]
+        texts = [n["content"][0]["text"] for n in description["content"]
+                 if n["type"] in ("heading", "paragraph")]
+        assert "Full Document" not in texts
+
 
 class TestRecordConfluenceDraftLink:
     def test_writes_entry_compatible_with_confluence_load_drafts(self, project):

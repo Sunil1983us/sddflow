@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.98] — 2026-08-01 (Jira Feature/Epic gains Business Objectives, Success Criteria, and a Confluence link)
+
+Follow-up to 2.7.97's structured description template (Problem Statement /
+Business Hypothesis / Description / Out of Scope / NFR) — asked what else
+was worth adding to a business-level Epic. Added the three recommended
+sections.
+
+### Added
+
+- **Success Criteria** — `brd.md` §8's checklist items, closing the loop
+  the Business Hypothesis opens ("we'll know this is true when X").
+- **Business Objectives** — brought back as its own compact section
+  (`BO-NNN: {objective} — {success metric}` per row from `brd.md` §2),
+  distinct from the free-text Description/Hypothesis prose.
+- **Full Document (Confluence link)** — if `brd.md` has already been
+  pushed to Confluence, the Epic description links straight to the page
+  instead of only carrying an excerpt. Read from the local
+  `.specify/.confluence-drafts.json` cache — no network call, silently
+  omitted if Confluence isn't configured or `brd.md` hasn't been pushed
+  yet.
+
+### Verified
+
+- New tests for both parsers, the link resolution, and end-to-end through
+  `feature_extra_fields()`/`sdd review submit`'s Epic self-bootstrap.
+- Full suite: `cli-python` pytest 739/739 (721 pre-existing + 18 new),
+  cross-reference linter clean, setup smoke tests clean.
+- No `manifest.yml` schema change — every existing Epic picks up the new
+  sections and link on its next push (idempotent upsert).
+
+---
+
 ## [2.7.97] — 2026-08-01 (Jira Feature/Epic description now uses a structured template)
 
 A user asked for a specific description template on the Jira Feature/Epic
