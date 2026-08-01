@@ -1,6 +1,6 @@
 # Resilience Design
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Date: {date: YYYY-MM-DD}
 > Scope: MVP+ only — skip for pilot
 
 ---

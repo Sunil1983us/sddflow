@@ -1,6 +1,6 @@
 # System Context — {Service Name}
 # Version: {version} | Scope: {pilot | mvp | full}
-# Date: {date} | Author: {author}
+# Date: {date: YYYY-MM-DD} | Author: {author}
 
 > This is the single source of truth for this service.
 > All documents, code, tasks, and tests are derived from this file.
@@ -60,7 +60,7 @@ Steps: {what happens + resolution}
 ## 10. Open Questions
 | ID | Question | Owner | Due |
 |---|---|---|---|
-| OQ-{NNN} | {question} | {owner} | {date} |
+| OQ-{NNN} | {question} | {owner} | {date: YYYY-MM-DD} |
 
 ## 11. Tech Stack
 > Drives constitution.md Part 2 (Tech Stack table) at /specify Action 1.
@@ -94,11 +94,11 @@ Steps: {what happens + resolution}
 
 ## CHANGELOG
 
-### v1.0 — {date} — {author}
+### v1.0 — {date: YYYY-MM-DD} — {author}
 - Added: Initial version
 
 ### How to add future entries:
-v{N.N} — {date} — {author}
+v{N.N} — {date: YYYY-MM-DD} — {author}
 Added:   {new capability or rule}
 Changed: {what was modified and why}
 Fixed:   {what was corrected}

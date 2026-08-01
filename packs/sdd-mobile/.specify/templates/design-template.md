@@ -1,6 +1,6 @@
 # Design Document
 # Feature: {Feature Name}
-> Version: 1.0 | Status: Draft | Date: {date} | Author: {author} | Scope: {pilot|mvp|full}
+> Version: 1.0 | Status: Draft | Date: {date: YYYY-MM-DD} | Author: {author} | Scope: {pilot|mvp|full}
 
 ---
 
@@ -236,7 +236,7 @@ per-feature, as this isn't something the component itself owns:
 
 ### ADR-{NNN} — {Decision Title}
 **Status:** Accepted
-**Date:** {date}
+**Date:** {date: YYYY-MM-DD}
 
 **Context:**
 {What situation required this decision? What forces were at play?}
@@ -285,4 +285,4 @@ Chosen: Option {A|B|C} — {what was decided, one clear statement}
 
 | Version | Date | Changed By | Summary of Changes | CHG-NNN |
 |---|---|---|---|---|
-| 1.0 | {date} | {author} | Initial draft | — |
+| 1.0 | {date: YYYY-MM-DD} | {author} | Initial draft | — |

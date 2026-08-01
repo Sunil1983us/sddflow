@@ -1,6 +1,6 @@
 # Frontend State & Storage Model
 # App: {App Name}
-> Version: 1.0 | Date: {date} | Scope: MVP+
+> Version: 1.0 | Date: {date: YYYY-MM-DD} | Scope: MVP+
 >
 > **Living document** — describes the whole app's global state shape and
 > browser storage usage, not one feature. Lives at
@@ -127,4 +127,4 @@ Any storage location marked PII = Yes must:
 
 | Version | Date | Feature | Change | CR |
 |---|---|---|---|---|
-| 1.0 | {date} | {feature that first created this document} | Initial state/storage model | — |
+| 1.0 | {date: YYYY-MM-DD} | {feature that first created this document} | Initial state/storage model | — |

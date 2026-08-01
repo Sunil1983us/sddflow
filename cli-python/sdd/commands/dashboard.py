@@ -183,6 +183,7 @@ _PAGE = """<!doctype html>
   .doc-next-ask em { color: var(--fg); font-style: normal; font-weight: 600; }
   .doc-approval-line { font-size: .74rem; color: var(--muted); margin-top: .25rem; }
   .doc-approval-pending strong { color: var(--fg); }
+  .doc-timing-line { font-size: .74rem; color: var(--muted); margin-top: .1rem; }
   .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
   .theme-toggle {
     display: inline-flex; gap: .15rem; background: var(--card); border: 1px solid var(--border);
@@ -226,6 +227,11 @@ _PAGE = """<!doctype html>
     <div class="info-content">
       Everything below is a snapshot of local files under <code>.specify/</code> and <code>docs/jira/</code> — refreshed
       every 5s, no network calls. Task status reflects <code>tasks.md</code>, not live PR state.
+      🕐 next to a document's status is its own <code>## Version History</code> table: created date (first row),
+      days since/until approval, and revision-round count (version bumps after the first row). Needs
+      <code>{date}</code> fields written as <code>YYYY-MM-DD</code> — older documents, or hand-edited dates in another
+      format, just don't show it. The feature-level <strong>Timeline</strong> card rolls this up: start = earliest
+      document's created date, end = <code>release.md</code>'s approval date.
       "Details" → Content reads the raw .md file from disk. Jira/Confluence pills next to a document come from a local cache written
       the last time you ran <code>sdd jira push</code> / <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code> —
       they can go stale if the ticket changed since then. Click <strong>"Check Jira/Confluence status"</strong> to make a
@@ -475,6 +481,32 @@ function approvalSummaryLine(d) {
     who ? ': ' + escapeHtml(who) : ' <span class="sub">(name not set in roles.yml)</span>'}</div>`;
 }
 
+// "How long has this document taken, and how many rounds did it go
+// through" — derived server-side (status.py's _doc_timing) from the
+// document's own '## Version History' table, so it works the same way
+// regardless of review mode. Silent (renders nothing) whenever there's no
+// created_date at all — an old document written before dates were
+// standardized to ISO 8601, or one with no Version History table (e.g.
+// release.md), rather than guessing or showing a broken "NaN days".
+function timingSummaryLine(d) {
+  const t = d.timing;
+  if (!t || !t.created_date) return '';
+  const parts = [];
+  if (t.duration_days !== null && t.duration_days !== undefined) {
+    parts.push(`${t.duration_days} day${t.duration_days === 1 ? '' : 's'}`);
+  } else {
+    parts.push(`created ${t.created_date}`);
+  }
+  if (t.revision_rounds) {
+    parts.push(`${t.revision_rounds} revision${t.revision_rounds === 1 ? '' : 's'}`);
+  }
+  const title = [
+    `Created ${t.created_date}`,
+    t.approved_date ? `Approved ${t.approved_date}` : 'Not yet approved',
+  ].join(' · ');
+  return `<div class="doc-timing-line" title="${escapeHtml(title)}">🕐 ${escapeHtml(parts.join(' · '))}</div>`;
+}
+
 function renderApprovalsBody(d, mode) {
   const rows = d.approvals || [];
   const modeLine = mode
@@ -577,7 +609,7 @@ function renderDocRow(d, feature, localConfluence, localJiraReview, reviewEntry)
   const row = `
     <tr>
       <td>${d.label}</td>
-      <td>${badge(d.status, 'doc')}${approvalSummaryLine(d)}</td>
+      <td>${badge(d.status, 'doc')}${approvalSummaryLine(d)}${timingSummaryLine(d)}</td>
       <td class="links-cell">
         ${approveControl}
         ${detailsBtn}${links}${reviewStatusBadge}
@@ -657,6 +689,25 @@ function renderTokenUsage(tu) {
   `;
 }
 
+// Feature-level rollup of the same per-doc timing (status.py's
+// _feature_timeline): start_date is the earliest doc's created_date
+// (normally brd.md), end_date is release.md's approved_date. Either can be
+// missing independently — a feature can have a known start with no end yet
+// (release not approved), but never an end with no start.
+function renderTimeline(t) {
+  if (!t || (!t.start_date && !t.end_date)) {
+    return '<div class="empty">Not enough dated documents yet to compute a timeline.</div>';
+  }
+  const duration = (t.duration_days !== null && t.duration_days !== undefined)
+    ? `${t.duration_days} day${t.duration_days === 1 ? '' : 's'}`
+    : '—';
+  return `
+    <div class="kv"><span>Start</span><span>${t.start_date || '—'}</span></div>
+    <div class="kv"><span>End</span><span>${t.end_date || '— (release not yet approved)'}</span></div>
+    <div class="kv"><span>Duration</span><span>${duration}</span></div>
+  `;
+}
+
 // Converts `code` spans in an already-plain-text sentence (built server-side
 // in status.py's _next_action_sentence) into <code> — escapeHtml runs first
 // so this is safe against anything the sentence happens to contain.
@@ -721,6 +772,7 @@ function renderFeature(f, project) {
       <div class="card card-wide"><h2>Full Pipeline</h2>${renderPipelineFlow(f, project)}</div>
       <div class="card card-wide"><h2>Documents</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence, local.jira_review)}</div>
       <div class="card card-wide"><h2>Business Objectives</h2>${renderBusinessObjectives(f.business_objectives)}</div>
+      <div class="card"><h2>Timeline</h2>${renderTimeline(f.timeline)}</div>
       <div class="card"><h2>Tasks</h2>${renderTasks(f.tasks)}</div>
       <div class="card"><h2>Token Usage</h2>${renderTokenUsage(f.token_usage)}</div>
       <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira, exportEntry)}</div>

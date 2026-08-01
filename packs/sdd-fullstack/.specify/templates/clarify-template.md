@@ -1,5 +1,5 @@
 # Clarification Report — {Feature Name}
-> Version: {spec version} | Status: Draft | Date: {date} | Author: {author}
+> Version: {spec version} | Status: Draft | Date: {date: YYYY-MM-DD} | Author: {author}
 > Fill all answers before PLAN begins
 
 ---
@@ -105,4 +105,4 @@ All items must be resolved before PLAN begins.
 
 | Version | Date | Changed By | Summary of Changes | CHG-NNN |
 |---|---|---|---|---|
-| 1.0 | {date} | {author} | Initial draft | — |
+| 1.0 | {date: YYYY-MM-DD} | {author} | Initial draft | — |

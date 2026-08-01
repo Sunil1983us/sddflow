@@ -1,6 +1,6 @@
 # Runbook
 # Service: {Service Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Date: {date: YYYY-MM-DD}
 > Scope: MVP+ only — skip for pilot
 > Covers: Backend service ops (§1-7) AND Frontend ops (§1a-7a)
 >

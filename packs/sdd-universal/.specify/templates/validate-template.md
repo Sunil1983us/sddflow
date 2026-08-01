@@ -1,6 +1,6 @@
 # Validation Report — Business Sign-Off
 # Feature: {Feature Name}
-> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
+> Version: 1.0 | Status: Draft | Date: {date: YYYY-MM-DD} | Author: {author}
 > Run after: Constitution Part 2 finalized | Gate before: /analyze
 
 ---
@@ -137,4 +137,4 @@ State one of:
 
 | Version | Date | Changed By | Summary of Changes | CHG-NNN |
 |---|---|---|---|---|
-| 1.0 | {date} | {author} | Initial draft | — |
+| 1.0 | {date: YYYY-MM-DD} | {author} | Initial draft | — |

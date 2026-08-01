@@ -1,6 +1,6 @@
 # Local Data & Cache Model
 # App: {App Name}
-> Version: 1.0 | Date: {date} | Scope: MVP+
+> Version: 1.0 | Date: {date: YYYY-MM-DD} | Scope: MVP+
 >
 > **Living document** — describes the whole app's local schema (tables,
 > key-value entries, sync outbox), not one feature. Lives at
@@ -157,4 +157,4 @@ Any table/key marked PII = Yes must:
 
 | Version | Date | Feature | Change | CR |
 |---|---|---|---|---|
-| 1.0 | {date} | {feature that first created this document} | Initial local schema | — |
+| 1.0 | {date: YYYY-MM-DD} | {feature that first created this document} | Initial local schema | — |

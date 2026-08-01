@@ -4430,6 +4430,70 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.5"},
     },
+    {
+        "from":        "2.8.5",
+        "to":          "2.8.6",
+        "description": "Dashboard: per-stage duration, review-round count, and an overall feature Timeline card",
+        "notes": [
+            "User request: 'sdd dashboard' showed each document's status "
+            "but not how long each stage took, how many review rounds it "
+            "went through, or an overall feature start/end",
+            "Added per-document Created date, Approved date, duration (in "
+            "days), and revision-round count -- computed from the "
+            "document's own '## Version History' table, data that was "
+            "already being written by the shared review-decision-step "
+            "block (used by every /specify-*, /plan-*, and /task command) "
+            "but never read back out anywhere. First row = creation date; "
+            "when Status says Approved, the last row is always the "
+            "approval event (that block always appends a same-version "
+            "'Approved' row on the final approval, regardless of chat/"
+            "local/jira mode); revision_rounds counts actual version "
+            "bumps in the table, i.e. rounds that changed content, not "
+            "every review check -- a pure re-read-and-approve with no "
+            "edit doesn't bump the version so isn't counted",
+            "Added a feature-level Timeline card: start_date is the "
+            "earliest document's created date (normally brd.md), "
+            "end_date is release.md's approved date (falls back to its "
+            "own Approvals-table Date column, since release.md has no "
+            "Version History table), duration in days once both resolve",
+            "Required standardizing the {date} placeholder across every "
+            "doc template to {date: YYYY-MM-DD} so dates are machine-"
+            "parseable -- both the shared _shared/full/.specify/templates "
+            "(synced to all 5 packs) and each pack's own non-shared "
+            "templates (release, arch, api-spec, security-design, "
+            "data-model, resilience, investigation, runbook, and the "
+            "frontend/mobile-specific variants). sdd-micro's own "
+            "context-template.md was deliberately left untouched -- it's "
+            "outside the shared-block/version-lockstep system",
+            "Old documents, or any hand-edited date that isn't ISO 8601, "
+            "simply don't show duration/rounds -- no warning badge, "
+            "nothing else on the page affected. This was an explicit "
+            "choice (silent degradation over a visible warning state) "
+            "made this round rather than assumed",
+            "New status.py functions: _parse_iso_date, "
+            "_parse_version_history_table, _doc_timing, "
+            "_feature_timeline. New dashboard.py JS: timingSummaryLine() "
+            "(per-doc line under the status badge), renderTimeline() (the "
+            "feature-level card)",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. The dashboard itself is Python-only "
+            "(cli-python's `sdd dashboard`) -- this bump has no "
+            "corresponding functional change on the Node CLI side",
+            "Verified: cli-python pytest 765/765 (753 pre-existing + 12 "
+            "new, covering the Version History parser, ISO date parser, "
+            "per-doc timing including the release.md Approvals-table "
+            "fallback, and feature timeline rollup), cross-reference "
+            "linter clean across all 6 packs, both setup smoke-test "
+            "suites (15 + 12), assert-output.sh's 33 structural "
+            "assertions, the embedded dashboard JS re-verified with "
+            "`node --check`, and a live end-to-end smoke test running "
+            "the actual `sdd dashboard` HTTP server against a synthetic "
+            "project confirming /api/status returns correct timing/"
+            "timeline JSON and the page includes the new Timeline card",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.6"},
+    },
 ]
 
 

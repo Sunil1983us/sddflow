@@ -1,6 +1,6 @@
 # Constitution Amendment
 # Feature: {Feature Name} | Part 2 Version Bump
-> Previous Version: v{N.M} | New Version: v{N.M+1} | Date: {date}
+> Previous Version: v{N.M} | New Version: v{N.M+1} | Date: {date: YYYY-MM-DD}
 > Amended By: {agent/user} | Triggered By: CHG-{NNN} / {reason}
 
 ---
@@ -11,7 +11,7 @@
 |---|---|---|
 | Version | v{N.M} | v{N.M+1} |
 | Amendment Type | Minor (0.X) — additive change \| Major (X.0) — breaking change |
-| Approved By | — | {role} on {date} |
+| Approved By | — | {role} on {date: YYYY-MM-DD} |
 
 **Minor amendment (0.X):** new field, new integration, new domain rule — does not invalidate existing spec docs
 **Major amendment (X.0):** tech stack change, scope change, core principle change — may require re-run of spec docs

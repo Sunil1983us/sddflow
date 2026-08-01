@@ -1,6 +1,6 @@
 # Security Design
 # Service: {Service Name}
-> Version: 1.0 | Date: {date} | Generated at ALL scopes — depth scales
+> Version: 1.0 | Date: {date: YYYY-MM-DD} | Generated at ALL scopes — depth scales
 > with scope (see section markers)
 >
 > **Living document** — describes the whole service's security baseline,
@@ -23,13 +23,13 @@
 
 | Control | Requirement | Status | Evidence |
 |---|---|---|---|
-| AuthN | All endpoints require auth (NFR-{NNN}) | {Yes/No} | {TC-NNN / TASK-NNN / scan on {date}} |
+| AuthN | All endpoints require auth (NFR-{NNN}) | {Yes/No} | {TC-NNN / TASK-NNN / scan on {date: YYYY-MM-DD}} |
 | AuthZ | Role/scope check before business logic | {Yes/No} | {TC-NNN controller test + constitution rule reference} |
 | Input validation | All request fields validated (no raw passthrough) | {Yes/No} | {TC-NNN validation tests} |
-| Secrets | No secrets in code/config/logs — env vars or vault | {Yes/No} | {secret-scan tool run on {date}, report at {location}} |
-| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} | {log review / SAST result on {date}} |
+| Secrets | No secrets in code/config/logs — env vars or vault | {Yes/No} | {secret-scan tool run on {date: YYYY-MM-DD}, report at {location}} |
+| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} | {log review / SAST result on {date: YYYY-MM-DD}} |
 | Transport | TLS enforced — no plaintext HTTP | {Yes/No} | {TC-NNN / infrastructure config reference} |
-| Dependency check | No known-critical CVEs in dependencies | {Yes/No} | {{tool} scan on {date} — {N} critical, {N} high CVEs, all resolved/accepted} |
+| Dependency check | No known-critical CVEs in dependencies | {Yes/No} | {{tool} scan on {date: YYYY-MM-DD} — {N} critical, {N} high CVEs, all resolved/accepted} |
 | Error responses | No stack traces / internals leaked to caller | {Yes/No} | {TC-NNN error response tests} |
 
 > `Evidence` must reference a specific artefact (test case, scan report, task, or date). "Yes" without evidence is not accepted at mvp+ scope.
@@ -126,7 +126,7 @@
 
 ## Approvals
 
-<!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->
+<!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date: YYYY-MM-DD} -->
 
 | Role | Approver | Status | Date |
 |---|---|---|---|
@@ -137,4 +137,4 @@
 
 | Version | Date | Feature | Change | CR |
 |---|---|---|---|---|
-| 1.0 | {date} | {feature that first created this document} | Initial security baseline | — |
+| 1.0 | {date: YYYY-MM-DD} | {feature that first created this document} | Initial security baseline | — |

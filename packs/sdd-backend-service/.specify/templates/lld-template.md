@@ -1,6 +1,6 @@
 # Low Level Design (LLD)
 # Feature: {Feature Name}
-> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
+> Version: 1.0 | Status: Draft | Date: {date: YYYY-MM-DD} | Author: {author}
 
 ---
 
@@ -178,4 +178,4 @@ public record {Feature}Response(
 
 | Version | Date | Changed By | Summary of Changes | CHG-NNN |
 |---|---|---|---|---|
-| 1.0 | {date} | {author} | Initial draft | — |
+| 1.0 | {date: YYYY-MM-DD} | {author} | Initial draft | — |

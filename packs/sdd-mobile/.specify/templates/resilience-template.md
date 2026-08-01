@@ -1,6 +1,6 @@
 # Mobile Resilience
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Scope: Full only — skip for pilot + mvp
+> Version: 1.0 | Date: {date: YYYY-MM-DD} | Scope: Full only — skip for pilot + mvp
 
 ---
 
