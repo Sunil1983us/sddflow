@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.4] — 2026-08-01 (Doc-navigation fixes from a third end-user feedback review)
+
+A user shared a third, more detailed end-user feedback review (same theme
+as the 2.8.3 round, different reviewer): 11 top-level docs in each pack
+with no stated reading order, the self-approval-risk disclosure buried
+inside `CLAUDE.md` (agent-facing only, never surfaced to the human who
+actually needs to know it), and no signal at all about the token/cost
+footprint of running the full document-heavy pipeline.
+
+### Added
+
+- **"Start Here" doc map** — a table at the top of every full pack's
+  `README.md` listing the 3 files to read in order (`QUICKSTART.md` →
+  `README.md` → `HOW-TO-USE.md`), with the remaining reference files
+  listed separately as "skip on first pass, come back when you need it."
+  `sdd-fullstack`'s table omits the `IMPROVEMENT-BACKLOG.md` row since
+  that pack has only 10 root `.md` files, not 11 like the other 4.
+- **Self-approval-risk callout** — added to every pack's `QUICKSTART.md`,
+  right after the "review gates work out of the box" paragraph: default
+  chat-mode approval only checks that someone typed "approved" in the
+  same conversation that wrote the doc, with no independent identity
+  check. Points to `CLAUDE.md`'s existing "Self-approval risk" section
+  for the full explanation instead of duplicating it.
+- **Token/cost footprint callout** — added to every pack's
+  `QUICKSTART.md` intro, describing the pipeline's actual command
+  cadence (one agent command per phase, each reading/writing at least
+  one document) rather than a fabricated dollar figure — there is no
+  real token-usage data anywhere in this repo to cite
+  (`token-pricing.yml.example` ships with all rates `null`). Points to
+  enabling `token-pricing.yml` for a real per-command log instead.
+
+### Verified
+
+- `cli-python` pytest: 753/753 (unchanged — doc-only round)
+- Cross-reference linter: clean across all 6 packs
+- Both setup smoke-test suites: 15 + 12 passed
+
+---
+
 ## [2.8.3] — 2026-08-01 (Onboarding-friction fixes from an end-user feedback review)
 
 A user shared an end-user feedback review (from another chat session)

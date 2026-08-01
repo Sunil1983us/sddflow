@@ -4,6 +4,29 @@
 
 ---
 
+## Start Here — Which File Do I Read?
+
+| Read this | When |
+|---|---|
+| **[`QUICKSTART.md`](QUICKSTART.md)** | First — 5 minutes to get set up and run `/specify` |
+| **This file (`README.md`)** | Command reference and project overview — read once, skim after |
+| **`HOW-TO-USE.md`** | Step-by-step walkthrough of every command, in order |
+
+Everything else is reference material — skip it on your first pass, come back when you actually need it:
+
+| File | What it's for |
+|---|---|
+| `PROMPT-GUIDE.md` | Full prompt text for every command — a lookup reference, not a read-through |
+| `SDLC-COMPLETE-GUIDE.md` | Deep dive on the SDLC methodology behind this pack |
+| `FLOW-ROLES-GATES.md` | Detailed reference for every gate and who approves it |
+| `WHY-SDD.md` | Background and rationale — why this framework exists |
+| `CHANGE-GUIDE.md` | How `/change` works — read when you first need to change a shipped feature |
+| `CLAUDE.md` | The AI agent's own instructions — it reads this, you don't need to |
+| `CLAUDE.local.md` | Your personal agent preferences (output style, editor, shortcuts) — gitignored, edit anytime |
+| `IMPROVEMENT-BACKLOG.md` | The maintainers' internal backlog — not needed to use the pack |
+
+---
+
 ## What Is This?
 
 Spec-Driven Development framework for single page applications.

@@ -3021,6 +3021,54 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.3',
+    to:   '2.8.4',
+    description: "Doc-navigation fixes from a third end-user feedback review: Start Here table, self-approval-risk callout, token/cost footprint callout",
+    notes: [
+      "A user shared a third, more detailed end-user feedback review " +
+      "(same theme as the 2.8.3 round, different reviewer): 11 top-" +
+      "level docs in each pack with no stated reading order, the self-" +
+      "approval-risk disclosure buried inside CLAUDE.md (agent-facing " +
+      "only, never surfaced to the human who actually needs to know " +
+      "it), and no signal at all about the token/cost footprint of " +
+      "running the full document-heavy pipeline",
+      "Added a 'Start Here -- Which File Do I Read?' table to the top " +
+      "of every full pack's README.md: 3 files to read in order " +
+      "(QUICKSTART.md -> README.md -> HOW-TO-USE.md), the remaining " +
+      "reference files listed separately as 'skip on first pass, come " +
+      "back when you need it'",
+      "Added a self-approval-risk callout to every pack's QUICKSTART.md, " +
+      "right after the 'review gates work out of the box' paragraph: " +
+      "default chat-mode approval only checks that someone typed " +
+      "'approved' in the same conversation that wrote the doc -- no " +
+      "independent identity check -- pointing to CLAUDE.md's existing " +
+      "'Self-approval risk' section for the full explanation instead of " +
+      "duplicating it",
+      "Added a token/cost footprint callout to every pack's " +
+      "QUICKSTART.md intro: describes the pipeline's actual command " +
+      "cadence (one agent command per phase, each reading/writing at " +
+      "least one document) rather than a fabricated dollar figure -- " +
+      "confirmed there is no real token-usage data anywhere in this " +
+      "repo to cite (token-pricing.yml.example ships with all rates " +
+      "null); points to enabling token-pricing.yml for a real per-" +
+      "command log instead",
+      "sdd-fullstack's Start Here table omits the IMPROVEMENT-BACKLOG.md " +
+      "row -- that pack has only 10 root .md files, unlike the other 4 " +
+      "packs' 11 -- verified via a directory listing before writing the " +
+      "table, not assumed",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Documentation-only -- no functional code touched, no manifest.yml " +
+      "schema change, no CLI behavior differs. Verified: cli-python " +
+      "pytest 753/753 (unchanged), cross-reference linter clean across " +
+      "all 6 packs, both setup smoke-test suites (15 + 12) pass",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.4';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks
