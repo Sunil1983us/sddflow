@@ -3174,6 +3174,45 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.6',
+    to:   '2.8.7',
+    description: "Removed IMPROVEMENT-BACKLOG.md from every pack -- it was maintainer-only content that sdd init was shipping into every real user's project",
+    notes: [
+      "A user shared a photo of their own project directory (created via " +
+      "`sdd init`) showing IMPROVEMENT-BACKLOG.md sitting right there " +
+      "alongside README.md/QUICKSTART.md/etc. -- confirming a real bug",
+      "IMPROVEMENT-BACKLOG.md existed in 4 of the 5 full packs as the " +
+      "*maintainer's own* internal notes about deferred pack-template " +
+      "work. Nothing about it concerned an end user's own project",
+      "Root cause: scaffold_pack() (cli-python's sdd/utils/scaffold.py) " +
+      "copies a pack's entire folder into a user's project with zero " +
+      "exclusion filter -- unlike package.sh's zip builder, which " +
+      "already excludes .git/ and CLAUDE.local.md",
+      "Fix: deleted the file from all 4 packs (rather than adding an " +
+      "exclusion-list mechanism -- the user's explicit choice), removed " +
+      "its row from each pack's README.md 'Start Here' table, and " +
+      "consolidated the actual content into this maintainer repo's own " +
+      "OWNER-GUIDE.md, which is already explicitly the maintainer-only " +
+      "document",
+      "No functional code changed. A project that already has " +
+      "IMPROVEMENT-BACKLOG.md from an earlier `sdd init` keeps its local " +
+      "copy -- this migration doesn't delete anything from an existing " +
+      "project, it only stops the file from being scaffolded into new " +
+      "ones",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 765/765 (unchanged), cross-reference " +
+      "linter clean across all 6 packs, both setup smoke-test suites " +
+      "(15 + 12), and a live smoke test running `sdd init` end-to-end " +
+      "confirming the scaffolded output no longer includes " +
+      "IMPROVEMENT-BACKLOG.md",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.7';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

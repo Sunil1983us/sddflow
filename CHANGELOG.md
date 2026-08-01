@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.7] — 2026-08-01 (Removed IMPROVEMENT-BACKLOG.md from every pack — it was leaking maintainer-only content into real user projects)
+
+A user shared a photo of their own project directory (created via `sdd
+init`) showing `IMPROVEMENT-BACKLOG.md` sitting right there alongside
+`README.md`/`QUICKSTART.md`/etc. — confirming a real bug, not a
+hypothetical one.
+
+### Fixed
+
+- **`IMPROVEMENT-BACKLOG.md` no longer ships with any pack.** It existed
+  in `sdd-backend-service`, `sdd-frontend-spa`, `sdd-mobile`, and
+  `sdd-universal` (`sdd-fullstack` never had it) as the *maintainer's
+  own* internal notes about deferred pack-template work — e.g. "Add an
+  `observability-template.md` if this pack is used for services with
+  formal SLOs." Nothing about it concerned an end user's own project.
+  Root cause: `scaffold_pack()` (`cli-python/sdd/utils/scaffold.py`)
+  copies a pack's entire folder into a user's project with zero
+  exclusion filter — unlike `package.sh`'s zip builder, which already
+  excludes `.git/` and `CLAUDE.local.md`.
+- Deleted the file from all 4 packs, removed its row from each pack's
+  `README.md` "Start Here" table, and consolidated the actual content —
+  deduped, `sdd-backend-service` and `sdd-universal` were byte-identical
+  — into this maintainer repo's own `OWNER-GUIDE.md` as a new section,
+  "8. Deferred Improvement Items."
+
+### Verified
+
+- `cli-python` pytest: 765/765 (unchanged — no code touched)
+- Cross-reference linter: clean across all 6 packs
+- Both setup smoke-test suites: 15 + 12 passed
+- Live smoke test: ran `sdd init` end-to-end, confirmed the scaffolded
+  output no longer includes `IMPROVEMENT-BACKLOG.md`
+
+---
+
 ## [2.8.6] — 2026-08-01 (Dashboard: per-stage duration, review-round count, and an overall feature Timeline)
 
 `sdd dashboard` showed each document's status but not how long each stage

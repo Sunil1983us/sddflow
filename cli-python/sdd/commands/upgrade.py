@@ -4494,6 +4494,57 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.6"},
     },
+    {
+        "from":        "2.8.6",
+        "to":          "2.8.7",
+        "description": "Removed IMPROVEMENT-BACKLOG.md from every pack -- it was maintainer-only content that sdd init was shipping into every real user's project",
+        "notes": [
+            "A user shared a photo of their own project directory (created "
+            "via `sdd init`) showing IMPROVEMENT-BACKLOG.md sitting right "
+            "there alongside README.md/QUICKSTART.md/etc. -- confirming a "
+            "real bug rather than a hypothetical one",
+            "IMPROVEMENT-BACKLOG.md existed in packs/sdd-backend-service, "
+            "sdd-frontend-spa, sdd-mobile, and sdd-universal (sdd-fullstack "
+            "never had it) as the *maintainer's own* internal notes about "
+            "deferred pack-template work -- e.g. 'Add an "
+            "observability-template.md if this pack is used for services "
+            "with formal SLOs'. Nothing about it concerned an end user's "
+            "own project",
+            "Root cause: scaffold_pack() (sdd/utils/scaffold.py) copies a "
+            "pack's entire folder into a user's project via "
+            "pack_src.rglob('*') with zero exclusion filter -- unlike "
+            "package.sh's zip builder, which already excludes .git/ and "
+            "CLAUDE.local.md. This maintainer-only file had no such "
+            "exclusion and landed in every real user's project, "
+            "indistinguishable from anything actually meant for them",
+            "Fix: deleted the file from all 4 packs (rather than adding "
+            "an exclusion-list mechanism to scaffold_pack()/package.sh -- "
+            "the user's explicit choice), removed its row from each of "
+            "those packs' README.md 'Start Here' reference table, and "
+            "consolidated all the actual content -- deduped, backend-"
+            "service and universal were byte-identical -- into this "
+            "maintainer repo's own OWNER-GUIDE.md as a new section '8. "
+            "Deferred Improvement Items', since OWNER-GUIDE.md is already "
+            "explicitly the maintainer-only document",
+            "No functional code changed -- scaffold_pack.py itself is "
+            "untouched. This is a content-only fix: 4 files deleted, 4 "
+            "README rows removed, 1 new OWNER-GUIDE.md section added. A "
+            "project that already has IMPROVEMENT-BACKLOG.md from an "
+            "earlier `sdd init` keeps its local copy -- this migration "
+            "doesn't delete anything from an existing project, it only "
+            "stops the file from being scaffolded into new ones",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 765/765 (unchanged -- no code "
+            "touched, no test referenced IMPROVEMENT-BACKLOG.md), cross-"
+            "reference linter clean across all 6 packs, both setup "
+            "smoke-test suites (15 + 12), and a live smoke test actually "
+            "running `sdd init` end-to-end confirming the scaffolded "
+            "output (138 files) no longer includes IMPROVEMENT-BACKLOG.md",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.7"},
+    },
 ]
 
 
