@@ -53,6 +53,7 @@ class TestFillMode:
         with patch("questionary.select", return_value=_Answer("claude-code")):
             result = runner.invoke(init_command, [
                 "-p", "payments", "-f", "checkout", "-s", "mvp", "-t", "backend-service",
+                "--plan-mode", "unified", "--reading-mode", "auto",
             ])
 
         assert result.exit_code == 0, result.output
@@ -63,6 +64,8 @@ class TestFillMode:
         assert saved["project"]["scope"] == "mvp"
         assert saved["project_type"] == "backend-service"
         assert saved["ai_tool"] == "claude-code"
+        assert saved["plan_mode"] == "unified"
+        assert saved["reading_mode"] == "auto"
         assert saved["sdd_version"]
 
         assert (tmp_path / ".specify" / "contexts" / "checkout.md").exists()
@@ -78,6 +81,7 @@ class TestFillMode:
         with patch("questionary.select", return_value=_Answer("claude-code")):
             result = runner.invoke(init_command, [
                 "-p", "payments", "-f", "checkout", "-s", "mvp", "-t", "backend-service",
+                "--plan-mode", "unified", "--reading-mode", "auto",
             ])
 
         assert result.exit_code == 0, result.output
@@ -102,6 +106,8 @@ class TestFillMode:
         assert saved["project"]["name"] == "notes-app"
         assert "scope" not in saved["project"]
         assert "project_type" not in saved
+        assert "plan_mode" not in saved
+        assert "reading_mode" not in saved
 
     def test_invalid_project_name_raises(self, runner, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -113,6 +119,64 @@ class TestFillMode:
             ])
 
         assert result.exit_code != 0
+
+
+class TestPlanAndReadingModePrompts:
+    """`sdd init` previously never asked about plan_mode/reading_mode at
+    all -- both silently stayed at whatever the pack's shipped
+    manifest.yml template default was ("unified"/"auto"), even though
+    setup.sh (a separate scaffolding entry point) has asked both
+    interactively since v2.7.92. A user pointed this gap out directly
+    after noticing `sdd init` never asked. Call order in fill mode with
+    scope supplied via flag: plan_mode -> reading_mode -> ai_tool."""
+
+    def test_interactive_selection_written_to_manifest(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        manifest_path = _write_manifest(tmp_path)
+
+        with patch("questionary.select", side_effect=[
+                _Answer("separate"), _Answer("full"), _Answer("claude-code"),
+            ]):
+            result = runner.invoke(init_command, [
+                "-p", "payments", "-f", "checkout", "-s", "mvp", "-t", "backend-service",
+            ])
+
+        assert result.exit_code == 0, result.output
+        saved = yaml.safe_load(manifest_path.read_text())
+        assert saved["plan_mode"] == "separate"
+        assert saved["reading_mode"] == "full"
+        assert "Plan    : separate" in result.output
+        assert "Reading : full" in result.output
+
+    def test_cli_flags_skip_both_prompts(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        manifest_path = _write_manifest(tmp_path)
+
+        with patch("questionary.select", side_effect=[_Answer("claude-code")]):
+            result = runner.invoke(init_command, [
+                "-p", "payments", "-f", "checkout", "-s", "mvp", "-t", "backend-service",
+                "--plan-mode", "separate", "--reading-mode", "summary",
+            ])
+
+        assert result.exit_code == 0, result.output
+        saved = yaml.safe_load(manifest_path.read_text())
+        assert saved["plan_mode"] == "separate"
+        assert saved["reading_mode"] == "summary"
+
+    def test_micro_manifest_never_prompts_for_either(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        manifest_dir = tmp_path / ".specify"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "manifest.yml").write_text(yaml.dump({
+            "project": {"name": "old", "feature": "old-feature"},
+        }))
+
+        # Only one canned answer (ai_tool) -- a plan_mode/reading_mode
+        # prompt would raise StopIteration and fail this test.
+        with patch("questionary.select", side_effect=[_Answer("claude-code")]):
+            result = runner.invoke(init_command, ["-p", "notes-app", "-f", "capture"])
+
+        assert result.exit_code == 0, result.output
 
 
 class TestScaffoldMode:
@@ -139,6 +203,7 @@ class TestScaffoldMode:
              patch("questionary.confirm", return_value=_Answer(True)):
             result = runner.invoke(init_command, [
                 "-p", "payments", "-f", "checkout", "-s", "pilot",
+                "--plan-mode", "unified", "--reading-mode", "auto",
             ])
 
         assert result.exit_code == 0, result.output
@@ -176,6 +241,7 @@ class TestScaffoldMode:
              ]):
             result = runner.invoke(init_command, [
                 "-p", "payments", "-f", "checkout", "-s", "pilot",
+                "--plan-mode", "unified", "--reading-mode", "auto",
             ])
 
         assert result.exit_code == 0, result.output

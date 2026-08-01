@@ -36,7 +36,9 @@ sdd init
 sdd init --project "my-payments-api" \
          --feature "user-authentication" \
          --scope   pilot \
-         --type    backend-service
+         --type    backend-service \
+         --plan-mode    unified \
+         --reading-mode auto
 ```
 
 | Flag | Description | Default |
@@ -45,6 +47,11 @@ sdd init --project "my-payments-api" \
 | `-f, --feature <name>` | First feature name | prompted |
 | `-s, --scope <scope>` | `pilot` \| `mvp` \| `full` | prompted |
 | `-t, --type <type>` | Project type (auto-detected if omitted) | auto |
+| `--plan-mode <mode>` | `unified` \| `separate` — see "PLAN Sub-Commands" in a pack's own CLAUDE.md | prompted |
+| `--reading-mode <mode>` | `auto` \| `summary` \| `full` — AI-2 token-economy setting | prompted |
+
+`--plan-mode`/`--reading-mode` (and their prompts) are skipped entirely for
+`sdd-micro` — its manifest.yml has no such fields.
 
 ---
 

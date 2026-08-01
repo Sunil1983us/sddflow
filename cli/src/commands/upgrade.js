@@ -2813,6 +2813,40 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.99',
+    to:   '2.7.100',
+    description: "'sdd init' now asks plan_mode and reading_mode interactively, like setup.sh already does -- both previously stayed silently at the pack default",
+    notes: [
+      "A user ran 'sdd init' (the pip-installed CLI, not setup.sh) and " +
+      "asked when reading_mode gets asked -- it never was. init.py " +
+      "only ever asked project type, project name, feature name, " +
+      "scope, and AI tool; plan_mode and reading_mode were silently " +
+      "left at whatever the pack's shipped manifest.yml template " +
+      "defaults to ('unified'/'auto')",
+      "cli-python's README already documents 'sdd init' as 'Replaces " +
+      "bash setup.sh / .\\setup.ps1' -- setup.sh has asked both " +
+      "interactively since v2.7.92 (reading_mode) and earlier " +
+      "(plan_mode), so this was a real parity gap between the two " +
+      "scaffolding entry points",
+      "init_command() now asks 'Plan document style:' " +
+      "(unified/separate) and 'Document reading mode:' " +
+      "(auto/summary/full) right after scope, using the same option " +
+      "wording as setup.sh's prompts. New --plan-mode/--reading-mode " +
+      "flags skip them non-interactively",
+      "sdd-micro is exempt -- its manifest.yml template has neither " +
+      "field, same is_micro guard already used for scope/project_type",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "No manifest.yml schema change. Verified: cli-python pytest " +
+      "742/742 (739 pre-existing + 3 new)",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.100';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {

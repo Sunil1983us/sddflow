@@ -4078,6 +4078,50 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.99"},
     },
+    {
+        "from":        "2.7.99",
+        "to":          "2.7.100",
+        "description": "'sdd init' now asks plan_mode and reading_mode interactively, like setup.sh already does -- both previously stayed silently at the pack default",
+        "notes": [
+            "A user ran 'sdd init' (the pip-installed CLI, not "
+            "setup.sh) and asked when reading_mode gets asked -- it "
+            "never was. init.py only ever asked project type, project "
+            "name, feature name, scope, and AI tool; plan_mode and "
+            "reading_mode were silently left at whatever the pack's "
+            "shipped manifest.yml template defaults to ('unified'/"
+            "'auto'), with no way to choose otherwise short of hand-"
+            "editing manifest.yml afterward",
+            "This README already documents 'sdd init' as 'Replaces "
+            "bash setup.sh / .\\setup.ps1' -- setup.sh has asked both "
+            "interactively since v2.7.92 (reading_mode) and earlier "
+            "(plan_mode), so this was a real parity gap between the "
+            "two scaffolding entry points, not a new feature",
+            "init_command() now asks 'Plan document style:' "
+            "(unified/separate) and 'Document reading mode:' "
+            "(auto/summary/full) right after scope, using the exact "
+            "same option wording as setup.sh's prompts. New "
+            "--plan-mode/--reading-mode flags skip them non-"
+            "interactively, matching --scope/--type's existing pattern",
+            "sdd-micro is exempt -- its manifest.yml template has "
+            "neither field (3-command pack, no plan/design gates), same "
+            "is_micro guard already used for scope/project_type",
+            "New tests: interactive selection written to manifest, CLI "
+            "flags skip both prompts, sdd-micro never prompts for "
+            "either. 4 pre-existing scaffold/fill-mode tests updated to "
+            "pass --plan-mode/--reading-mode so their questionary.select "
+            "side_effect lists (and stated intent, e.g. 'only ai_tool "
+            "prompted') stay accurate now that two more prompts exist "
+            "in the call sequence",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "No manifest.yml schema change -- both fields already "
+            "existed, this just makes them reachable from 'sdd init' "
+            "the same way they're reachable from setup.sh. Verified: "
+            "cli-python pytest 742/742 (739 pre-existing + 3 new)",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.100"},
+    },
 ]
 
 

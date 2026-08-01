@@ -4,6 +4,37 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.7.100] — 2026-08-01 (`sdd init` now asks plan_mode and reading_mode, matching setup.sh)
+
+A user ran `sdd init` (the pip-installed CLI) and asked when
+`reading_mode` gets asked — it never was. `init.py` only ever asked
+project type, project name, feature name, scope, and AI tool;
+`plan_mode`/`reading_mode` silently stayed at the pack's shipped default
+(`unified`/`auto`). This README already documents `sdd init` as
+"Replaces `bash setup.sh` / `.\setup.ps1`" — but `setup.sh` has asked both
+interactively since v2.7.92 (reading_mode) and earlier (plan_mode), so
+this was a real parity gap between the two scaffolding entry points.
+
+### Added
+
+- `sdd init` now asks "Plan document style:" (unified/separate) and
+  "Document reading mode:" (auto/summary/full) right after scope, using
+  the same option wording as `setup.sh`'s prompts.
+- New `--plan-mode`/`--reading-mode` flags skip the prompts
+  non-interactively, matching `--scope`/`--type`'s existing pattern.
+- `sdd-micro` is exempt — its `manifest.yml` template has neither field.
+
+### Verified
+
+- New tests: interactive selection written to manifest, CLI flags skip
+  both prompts, `sdd-micro` never prompts for either.
+- Full suite: `cli-python` pytest 742/742 (739 pre-existing + 3 new).
+- No `manifest.yml` schema change — both fields already existed, this
+  just makes them reachable from `sdd init` the same way they're
+  reachable from `setup.sh`.
+
+---
+
 ## [2.7.99] — 2026-08-01 (PyPI/npm package Summary and keywords rewritten for discoverability)
 
 A user looked at the sddflow PyPI page and pointed out the Summary
