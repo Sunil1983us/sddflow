@@ -1,6 +1,6 @@
 # Architecture Decision Record — ADR-{NNN}
 # {Decision Title}
-> Status: Proposed | Date: {date} | Author: {author}
+> Status: Proposed | Date: {date: YYYY-MM-DD} | Author: {author}
 > Scope: MVP+ only
 
 ---

@@ -1,6 +1,6 @@
 # Security Design
 # App: {App Name}
-> Version: 1.0 | Date: {date} | Generated at ALL scopes — depth scales
+> Version: 1.0 | Date: {date: YYYY-MM-DD} | Generated at ALL scopes — depth scales
 > with scope (see section markers)
 >
 > **Living document** — describes the whole app's client-side security
@@ -23,15 +23,15 @@
 
 | Control | Requirement | Status | Evidence |
 |---|---|---|---|
-| AuthN | All authenticated routes require a valid session/token (NFR-{NNN}) | {Yes/No} | {TC-NNN / TASK-NNN / scan on {date}} |
+| AuthN | All authenticated routes require a valid session/token (NFR-{NNN}) | {Yes/No} | {TC-NNN / TASK-NNN / scan on {date: YYYY-MM-DD}} |
 | Token storage | Auth token stored per the chosen trade-off — httpOnly+Secure cookie (preferred) or in-memory; never `localStorage`/`sessionStorage` for long-lived tokens | {Yes/No} | {TC-NNN / architecture decision reference} |
-| XSS / DOM-XSS | No raw HTML injection (`innerHTML`, `v-html`, `dangerouslySetInnerHTML`) without sanitization | {Yes/No} | {TC-NNN / SAST result on {date}} |
+| XSS / DOM-XSS | No raw HTML injection (`innerHTML`, `v-html`, `dangerouslySetInnerHTML`) without sanitization | {Yes/No} | {TC-NNN / SAST result on {date: YYYY-MM-DD}} |
 | CSP | `Content-Security-Policy` header set — no `unsafe-inline`/`unsafe-eval` for scripts | {Yes/No} | {TC-NNN / infrastructure config reference} |
 | Input validation | All user input validated/escaped before render or submission | {Yes/No} | {TC-NNN validation tests} |
-| Secrets | No API keys/secrets in source, `.env` committed, or baked into the JS bundle | {Yes/No} | {secret-scan tool run on {date}, report at {location}} |
-| PII in logs | Never logged to console or error tracker at any level (constitution Logging rule) | {Yes/No} | {log review / SAST result on {date}} |
+| Secrets | No API keys/secrets in source, `.env` committed, or baked into the JS bundle | {Yes/No} | {secret-scan tool run on {date: YYYY-MM-DD}, report at {location}} |
+| PII in logs | Never logged to console or error tracker at any level (constitution Logging rule) | {Yes/No} | {log review / SAST result on {date: YYYY-MM-DD}} |
 | Transport | TLS enforced for all API calls — no plaintext HTTP, no mixed content | {Yes/No} | {TC-NNN / infrastructure config reference} |
-| Dependency check | No known-critical CVEs in `package.json` dependencies | {Yes/No} | {{tool} scan on {date} — {N} critical, {N} high CVEs, all resolved/accepted} |
+| Dependency check | No known-critical CVEs in `package.json` dependencies | {Yes/No} | {{tool} scan on {date: YYYY-MM-DD} — {N} critical, {N} high CVEs, all resolved/accepted} |
 | Error responses | No stack traces / internals shown to the user | {Yes/No} | {TC-NNN error response tests} |
 
 > `Evidence` must reference a specific artefact (test case, scan report, task, or date). "Yes" without evidence is not accepted at mvp+ scope.
@@ -113,7 +113,7 @@
 *Pilot: section 1 only | MVP: + section 2 | Full: + sections 3-4*
 
 ## Approvals
-<!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->
+<!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date: YYYY-MM-DD} -->
 
 | Role | Approver | Status | Date |
 |---|---|---|---|
@@ -124,4 +124,4 @@
 
 | Version | Date | Feature | Change | CR |
 |---|---|---|---|---|
-| 1.0 | {date} | {feature that first created this document} | Initial security baseline | — |
+| 1.0 | {date: YYYY-MM-DD} | {feature that first created this document} | Initial security baseline | — |

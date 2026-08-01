@@ -1,7 +1,7 @@
 # Change Request — CR-{NNN}
 # Feature: {Feature Name}
 > Raised at stage: {/specify-brd | /specify-uc | /specify-srd | /validate | /analyze | /clarify | /plan-design | /plan-lld | /task | /implement | post-release}
-> Date: {date} | Raised by: {role}
+> Date: {date: YYYY-MM-DD} | Raised by: {role}
 > Type: {Business | Technical | Security | Data | UX | Performance | Operational | Defect}
 > Status: OPEN → IN PROGRESS → COMPLETE
 
@@ -79,7 +79,7 @@ Affected" cell, e.g. `§4 Endpoints (cross-feature: instant-payment)` — see
 
 **Reason:** {why this specific section needs to change given the CR type and description}
 
-**Approved by:** {role} on {date}
+**Approved by:** {role} on {date: YYYY-MM-DD}
 
 ---
 
@@ -95,7 +95,7 @@ _(repeat §3 block for each document that receives UPDATE or RERUN action)_
 |---|---|---|---|---|---|
 | CHG-{NNN} | {what to implement} | FR-{NNN} / NFR-{NNN} / CR-{NNN} | ~{N} | single / SPLIT | Pending |
 
-> If tasks.md already exists: CHG-NNN `### CHG-{N}` heading blocks (matching TASK-NNN's own shape — required for `sdd dashboard`'s task-completion parser to recognize them) are appended under `## Change Set: CR-{NNN} — {date}`.
+> If tasks.md already exists: CHG-NNN `### CHG-{N}` heading blocks (matching TASK-NNN's own shape — required for `sdd dashboard`'s task-completion parser to recognize them) are appended under `## Change Set: CR-{NNN} — {date: YYYY-MM-DD}`.
 > If tasks.md not yet created: these tasks are incorporated when `/task` runs.
 
 ---

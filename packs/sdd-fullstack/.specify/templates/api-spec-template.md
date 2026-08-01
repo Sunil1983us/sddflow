@@ -1,6 +1,6 @@
 # API Specification
 # Service: {Service Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Date: {date: YYYY-MM-DD}
 >
 > **Living document** — describes the whole service's API surface, not one
 > feature. Lives at `.specify/service/api-spec.md`. Every feature after the
@@ -145,4 +145,4 @@
 
 | Version | Date | Feature | Change | CR |
 |---|---|---|---|---|
-| 1.0 | {date} | {feature that first created this document} | Initial API surface | — |
+| 1.0 | {date: YYYY-MM-DD} | {feature that first created this document} | Initial API surface | — |

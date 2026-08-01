@@ -1,6 +1,6 @@
 # Architecture Document
 # Feature: {Feature Name}
-> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
+> Version: 1.0 | Status: Draft | Date: {date: YYYY-MM-DD} | Author: {author}
 
 ---
 
@@ -119,4 +119,4 @@ Every NFR from `analyze.summary.md §5` must appear here with the decision that 
 ## Version History
 | Version | Date | Changed By | Summary | CHG-NNN |
 |---|---|---|---|---|
-| 1.0 | {date} | {author} | Initial draft | — |
+| 1.0 | {date: YYYY-MM-DD} | {author} | Initial draft | — |

@@ -1,6 +1,6 @@
 # Data Model
 # Service: {Service Name}
-> Version: 1.0 | Date: {date} | Scope: MVP+
+> Version: 1.0 | Date: {date: YYYY-MM-DD} | Scope: MVP+
 >
 > **Living document** — describes the whole service's schema, not one
 > feature. Lives at `.specify/service/data-model.md`. Every feature after
@@ -107,4 +107,4 @@ Any column marked PII = Yes must:
 
 | Version | Date | Feature | Change | CR |
 |---|---|---|---|---|
-| 1.0 | {date} | {feature that first created this document} | Initial schema | — |
+| 1.0 | {date: YYYY-MM-DD} | {feature that first created this document} | Initial schema | — |

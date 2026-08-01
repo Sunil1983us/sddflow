@@ -1,6 +1,6 @@
 # Release Plan
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Date: {date: YYYY-MM-DD}
 > Run after: /implement — all tasks complete ("PR ready" + merged in
 > github mode, or "Task accepted" in local mode)
 > Gate before: production go-live
@@ -20,7 +20,7 @@
 - [ ] All PRs referenced TASK-NNN/CHG-NNN (constitution Git rule)
 - [ ] Test suite green (unit + component + E2E)
 - [ ] Coverage ≥ gate (constitution Part 2)
-- [ ] Security checklist passed — see `security-design.md §1` signed by {security_officer} on {date} (evidence required, not self-attestation)
+- [ ] Security checklist passed — see `security-design.md §1` signed by {security_officer} on {date: YYYY-MM-DD} (evidence required, not self-attestation)
 - [ ] stories.md Traceability Matrix — every FR-NNN has ≥ 1 TC-NNN and is passing
 
 ---

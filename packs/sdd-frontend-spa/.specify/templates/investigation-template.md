@@ -1,6 +1,6 @@
 # Production Debugging & Error Tracking
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Date: {date: YYYY-MM-DD}
 > Scope: Full only — skip for pilot + mvp
 
 ---

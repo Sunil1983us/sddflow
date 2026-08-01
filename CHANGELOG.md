@@ -4,6 +4,86 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.7] — 2026-08-01 (Removed IMPROVEMENT-BACKLOG.md from every pack — it was leaking maintainer-only content into real user projects)
+
+A user shared a photo of their own project directory (created via `sdd
+init`) showing `IMPROVEMENT-BACKLOG.md` sitting right there alongside
+`README.md`/`QUICKSTART.md`/etc. — confirming a real bug, not a
+hypothetical one.
+
+### Fixed
+
+- **`IMPROVEMENT-BACKLOG.md` no longer ships with any pack.** It existed
+  in `sdd-backend-service`, `sdd-frontend-spa`, `sdd-mobile`, and
+  `sdd-universal` (`sdd-fullstack` never had it) as the *maintainer's
+  own* internal notes about deferred pack-template work — e.g. "Add an
+  `observability-template.md` if this pack is used for services with
+  formal SLOs." Nothing about it concerned an end user's own project.
+  Root cause: `scaffold_pack()` (`cli-python/sdd/utils/scaffold.py`)
+  copies a pack's entire folder into a user's project with zero
+  exclusion filter — unlike `package.sh`'s zip builder, which already
+  excludes `.git/` and `CLAUDE.local.md`.
+- Deleted the file from all 4 packs, removed its row from each pack's
+  `README.md` "Start Here" table, and consolidated the actual content —
+  deduped, `sdd-backend-service` and `sdd-universal` were byte-identical
+  — into this maintainer repo's own `OWNER-GUIDE.md` as a new section,
+  "8. Deferred Improvement Items."
+
+### Verified
+
+- `cli-python` pytest: 765/765 (unchanged — no code touched)
+- Cross-reference linter: clean across all 6 packs
+- Both setup smoke-test suites: 15 + 12 passed
+- Live smoke test: ran `sdd init` end-to-end, confirmed the scaffolded
+  output no longer includes `IMPROVEMENT-BACKLOG.md`
+
+---
+
+## [2.8.6] — 2026-08-01 (Dashboard: per-stage duration, review-round count, and an overall feature Timeline)
+
+`sdd dashboard` showed each document's status but not how long each stage
+took, how many review rounds it went through, or an overall feature
+start/end. All of that turned out to already be latent in data the
+framework was writing anyway — it just wasn't being read back out.
+
+### Added
+
+- **Per-document Created date, Approved date, duration, and revision
+  rounds** — computed from the document's own `## Version History` table
+  (already written by the shared review-decision-step block on every
+  `/specify-*`, `/plan-*`, and `/task` command). The first row is the
+  creation date; once `Status:` says Approved, the last row is always the
+  approval event. `revision_rounds` counts actual version bumps — content
+  edits made in response to review feedback — not every review check; a
+  pure re-read-and-approve with no edit doesn't bump the version and
+  isn't counted.
+- **Feature-level Timeline card** — overall `start_date` (earliest
+  document's created date, normally `brd.md`), `end_date` (`release.md`'s
+  approved date, falling back to its own Approvals-table Date column
+  since it has no Version History table), and duration in days once both
+  resolve.
+- **`{date}` standardized to `{date: YYYY-MM-DD}`** across every document
+  template (shared and per-pack) so dates are machine-parseable. Old
+  documents, or any hand-edited date that isn't ISO 8601, simply don't
+  show duration/rounds — silent degradation, no warning badge, by
+  explicit choice this round rather than assumption. `sdd-micro` was
+  deliberately left untouched (outside the shared-block/version-lockstep
+  system).
+
+### Verified
+
+- `cli-python` pytest: 765/765 (753 pre-existing + 12 new)
+- Cross-reference linter: clean across all 6 packs
+- Both setup smoke-test suites: 15 + 12 passed
+- `assert-output.sh`'s 33 structural assertions: still pass
+- Embedded dashboard JS: re-verified with `node --check` after extraction
+- Live end-to-end smoke test: the actual `sdd dashboard` HTTP server
+  against a synthetic project, confirming `/api/status` returns correct
+  `timing`/`timeline` JSON and the rendered page includes the new
+  Timeline card
+
+---
+
 ## [2.8.5] — 2026-08-01 (Surface the worked examples to real users; implement TASK-001/002/003 of examples/todo-api for real)
 
 Two fixes shipped together, closing the remaining gap from the 2.8.3/2.8.4

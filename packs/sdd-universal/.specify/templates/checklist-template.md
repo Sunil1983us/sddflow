@@ -1,6 +1,6 @@
 # Spec Quality Checklist
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date} | Scope: {pilot | mvp | full}
+> Version: 1.0 | Date: {date: YYYY-MM-DD} | Scope: {pilot | mvp | full}
 
 ---
 

@@ -8,6 +8,7 @@ from sdd.utils.status import (
     build_project_status, build_feature_status, build_pipeline,
     _current_stage, persona_for,
     _parse_approvals_table, _normalize_role_key, _resolve_expected_approver,
+    _parse_version_history_table, _parse_iso_date, _doc_timing, _feature_timeline,
 )
 
 
@@ -127,6 +128,175 @@ def test_parse_approvals_table_missing_section_returns_empty(tmp_path):
     doc = tmp_path / "brd.md"
     doc.write_text("# BRD\nStatus: Draft\n")
     assert _parse_approvals_table(doc) == []
+
+
+# --- Version History / stage timing (created/approved dates, duration,
+# revision-round count) --------------------------------------------------
+
+def test_parse_version_history_table_basic(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\n\n## Version History\n\n"
+        "| Version | Date | Changed By | Summary of Changes | CHG-NNN |\n"
+        "|---|---|---|---|---|\n"
+        "| 1.0 | 2026-01-01 | Jane | Initial draft | — |\n"
+        "| 1.1 | 2026-01-03 | reviewer feedback | Clarified scope | — |\n"
+        "| 1.1 | 2026-01-05 | Jane Smith | Approved | — |\n"
+    )
+    assert _parse_version_history_table(doc) == [
+        {"version": "1.0", "date": "2026-01-01", "changed_by": "Jane", "summary": "Initial draft"},
+        {"version": "1.1", "date": "2026-01-03", "changed_by": "reviewer feedback", "summary": "Clarified scope"},
+        {"version": "1.1", "date": "2026-01-05", "changed_by": "Jane Smith", "summary": "Approved"},
+    ]
+
+
+def test_parse_version_history_table_missing_section_returns_empty(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text("# BRD\nStatus: Draft\n")
+    assert _parse_version_history_table(doc) == []
+
+
+def test_parse_version_history_table_skips_unfilled_placeholder(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\n\n## Version History\n\n"
+        "| Version | Date | Changed By | Summary of Changes | CHG-NNN |\n"
+        "|---|---|---|---|---|\n"
+        "| {version} | {date: YYYY-MM-DD} | {author} | Initial draft | — |\n"
+    )
+    assert _parse_version_history_table(doc) == []
+
+
+def test_parse_iso_date_accepts_strict_format():
+    parsed = _parse_iso_date("2026-01-01")
+    assert parsed is not None
+    assert parsed.isoformat() == "2026-01-01"
+
+
+def test_parse_iso_date_rejects_free_text_missing_and_invalid():
+    assert _parse_iso_date("January 1, 2026") is None
+    assert _parse_iso_date("") is None
+    assert _parse_iso_date(None) is None
+    assert _parse_iso_date("2026-13-01") is None  # invalid month
+
+
+def test_doc_timing_computes_duration_and_revision_rounds(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\n> Version: 1.1 | Status: Approved | Date: 2026-01-05\n\n"
+        "## Version History\n\n"
+        "| Version | Date | Changed By | Summary of Changes | CHG-NNN |\n"
+        "|---|---|---|---|---|\n"
+        "| 1.0 | 2026-01-01 | Jane | Initial draft | — |\n"
+        "| 1.1 | 2026-01-03 | reviewer feedback | Clarified scope | — |\n"
+        "| 1.1 | 2026-01-05 | Jane Smith | Approved | — |\n"
+    )
+    assert _doc_timing(doc, "Approved", []) == {
+        "created_date": "2026-01-01",
+        "approved_date": "2026-01-05",
+        "duration_days": 4,
+        "revision_rounds": 1,
+    }
+
+
+def test_doc_timing_not_yet_approved_has_no_approved_date_or_duration(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\n\n## Version History\n\n"
+        "| Version | Date | Changed By | Summary of Changes | CHG-NNN |\n"
+        "|---|---|---|---|---|\n"
+        "| 1.0 | 2026-01-01 | Jane | Initial draft | — |\n"
+    )
+    timing = _doc_timing(doc, "Draft", [])
+    assert timing["created_date"] == "2026-01-01"
+    assert timing["approved_date"] is None
+    assert timing["duration_days"] is None
+    assert timing["revision_rounds"] == 0
+
+
+def test_doc_timing_falls_back_to_approvals_table_when_no_version_history(tmp_path):
+    doc = tmp_path / "release.md"
+    doc.write_text("# Release\n> Version: 1.0 | Date: 2026-02-01\n")
+    approvals = [{"role": "QA Lead", "approver": "Sam", "status": "Approved", "date": "2026-02-10"}]
+    timing = _doc_timing(doc, "Approved", approvals)
+    assert timing["created_date"] is None
+    assert timing["approved_date"] == "2026-02-10"
+    assert timing["duration_days"] is None  # no created_date to diff against
+    assert timing["revision_rounds"] is None  # no Version History table at all
+
+
+def test_doc_timing_unparseable_dates_are_silently_none(tmp_path):
+    doc = tmp_path / "brd.md"
+    doc.write_text(
+        "# BRD\n\n## Version History\n\n"
+        "| Version | Date | Changed By | Summary of Changes | CHG-NNN |\n"
+        "|---|---|---|---|---|\n"
+        "| 1.0 | January 1, 2026 | Jane | Initial draft | — |\n"
+    )
+    timing = _doc_timing(doc, "Draft", [])
+    assert timing["created_date"] is None
+    assert timing["duration_days"] is None
+
+
+def test_feature_timeline_start_is_earliest_created_date_no_release_yet(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\n> Version: 1.0 | Status: Approved | Date: 2026-01-01\n\n"
+        "## Version History\n\n"
+        "| Version | Date | Changed By | Summary of Changes | CHG-NNN |\n"
+        "|---|---|---|---|---|\n"
+        "| 1.0 | 2026-01-01 | Jane | Initial draft | — |\n"
+        "| 1.0 | 2026-01-02 | Jane | Approved | — |\n"
+    )
+    (feature_dir / "srd.md").write_text(
+        "# SRD\n> Version: 1.0 | Status: Draft | Date: 2026-01-05\n\n"
+        "## Version History\n\n"
+        "| Version | Date | Changed By | Summary of Changes | CHG-NNN |\n"
+        "|---|---|---|---|---|\n"
+        "| 1.0 | 2026-01-05 | Jane | Initial draft | — |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["timeline"]["start_date"] == "2026-01-01"
+    assert feat["timeline"]["end_date"] is None
+    assert feat["timeline"]["duration_days"] is None
+
+
+def test_feature_timeline_end_is_release_approved_date(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\n> Version: 1.0 | Status: Approved | Date: 2026-01-01\n\n"
+        "## Version History\n\n"
+        "| Version | Date | Changed By | Summary of Changes | CHG-NNN |\n"
+        "|---|---|---|---|---|\n"
+        "| 1.0 | 2026-01-01 | Jane | Initial draft | — |\n"
+    )
+    (feature_dir / "release.md").write_text(
+        "# Release\n> Version: 1.0 | Status: Approved | Date: 2026-03-01\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| QA Lead | Sam | Approved | 2026-03-01 |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["timeline"]["start_date"] == "2026-01-01"
+    assert feat["timeline"]["end_date"] == "2026-03-01"
+    assert feat["timeline"]["duration_days"] == 59
+
+
+def test_feature_timeline_empty_when_no_dated_docs(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text("# BRD\n> Version: 1.0 | Status: Draft\n")
+    feat = build_feature_status(tmp_path, "payments")
+    assert feat["timeline"] == {"start_date": None, "end_date": None, "duration_days": None}
 
 
 def test_feature_docs_approvals_resolve_expected_approver_when_pending(tmp_path, monkeypatch):

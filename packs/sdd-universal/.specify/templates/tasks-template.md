@@ -1,6 +1,6 @@
 # Task List
 # Feature: {Feature Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Date: {date: YYYY-MM-DD}
 
 ---
 

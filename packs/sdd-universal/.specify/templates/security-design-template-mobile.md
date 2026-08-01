@@ -1,6 +1,6 @@
 # Security Design
 # App: {App Name}
-> Version: 1.0 | Date: {date} | Generated at ALL scopes — depth scales
+> Version: 1.0 | Date: {date: YYYY-MM-DD} | Generated at ALL scopes — depth scales
 > with scope (see section markers)
 >
 > **Living document** — describes the whole app's security baseline
@@ -23,13 +23,13 @@
 
 | Control | Requirement | Status | Evidence |
 |---|---|---|---|
-| AuthN | All API calls require auth token (NFR-{NNN}) | {Yes/No} | {TC-NNN / TASK-NNN / scan on {date}} |
+| AuthN | All API calls require auth token (NFR-{NNN}) | {Yes/No} | {TC-NNN / TASK-NNN / scan on {date: YYYY-MM-DD}} |
 | Secure local storage | Tokens/secrets in Keychain (iOS) / Keystore (Android) — never plain AsyncStorage/SharedPreferences | {Yes/No} | {TC-NNN / code review reference} |
 | Transport | TLS enforced for all API calls — no plaintext HTTP | {Yes/No} | {TC-NNN / network config reference} |
 | Input validation | All user input validated before use (no raw passthrough) | {Yes/No} | {TC-NNN validation tests} |
-| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} | {log review / SAST result on {date}} |
-| Secrets in bundle | No API keys/secrets baked into app bundle — secure config injection at build time | {Yes/No} | {secret-scan tool run on {date}, report at {location}} |
-| Dependency check | No known-critical CVEs in dependencies | {Yes/No} | {{tool} scan on {date} — {N} critical, {N} high CVEs, all resolved/accepted} |
+| PII in logs | Never logged at any level (constitution Logging rule) | {Yes/No} | {log review / SAST result on {date: YYYY-MM-DD}} |
+| Secrets in bundle | No API keys/secrets baked into app bundle — secure config injection at build time | {Yes/No} | {secret-scan tool run on {date: YYYY-MM-DD}, report at {location}} |
+| Dependency check | No known-critical CVEs in dependencies | {Yes/No} | {{tool} scan on {date: YYYY-MM-DD} — {N} critical, {N} high CVEs, all resolved/accepted} |
 | Error responses | No stack traces / internals shown to user | {Yes/No} | {TC-NNN error response tests} |
 
 > `Evidence` must reference a specific artefact (test case, scan report, task, or date). "Yes" without evidence is not accepted at mvp+ scope.
@@ -120,7 +120,7 @@
 *Pilot: section 1 only | MVP: + section 2 | Full: + sections 3-4*
 
 ## Approvals
-<!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date} -->
+<!-- security-sign-off: pending | reviewer: {Security Officer name from roles.yml} | date: {date: YYYY-MM-DD} -->
 
 | Role | Approver | Status | Date |
 |---|---|---|---|
@@ -131,4 +131,4 @@
 
 | Version | Date | Feature | Change | CR |
 |---|---|---|---|---|
-| 1.0 | {date} | {feature that first created this document} | Initial security baseline | — |
+| 1.0 | {date: YYYY-MM-DD} | {feature that first created this document} | Initial security baseline | — |

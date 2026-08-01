@@ -467,7 +467,84 @@ bash packs/_shared/package.sh sdd-universal
 
 ---
 
-## 8. Quick Diagnostic Checklist
+## 8. Deferred Improvement Items
+
+These used to live as `IMPROVEMENT-BACKLOG.md` inside `packs/sdd-backend-service/`,
+`sdd-frontend-spa/`, `sdd-mobile/`, and `sdd-universal/` — but `sdd init` copies a
+pack's *entire* folder into a real user's project with no exclusion filter
+(`scaffold_pack()` in `cli-python/sdd/utils/scaffold.py`), so every one of these
+maintainer-only notes was landing in real users' repos, indistinguishable from
+anything actually relevant to them. Moved here instead — this repo is the
+right place for "things the framework's own author should pick up later."
+Pick these up as needed; delete an item once it's actually done.
+
+**Shared across backend-service and universal** (identical content — both
+packs converge on the same generic tech-stack gaps):
+
+- **OBS-1 — Observability / SLO Depth.** `security-design.md`/`resilience.md`
+  cover alerting at a high level only. Missing: SLO definitions (error
+  budget, burn-rate alerts), dashboards-as-code, a standard golden-signals
+  template. Add `observability-template.md` if a pack is used for services
+  with formal SLOs.
+- **SEC-8 — Data Classification Depth.** `data-model-template.md` §6 gives a
+  starting classification/PII/retention table; a full data-governance pass
+  (field-level lineage, cross-border transfer, anonymization strategy for
+  non-prod) is deferred.
+- **FW-9 — License + Versioning Policy.** No template captures third-party
+  license compliance or a semver policy for the service's own API. Add to
+  `security-design.md` §2 (SCA) or a new `compliance-template.md`.
+- **AI-9 — Prompt-Caching / Token-Cost Strategy.** `summary-rules.md` (AI-2)
+  keeps per-command reads small but there's no guidance on prompt ordering
+  for provider-side caching (e.g. a stable `CLAUDE.md`/`constitution.md`
+  prefix). Document a recommended ordering once usage data exists.
+- **QA-2 — Test Data Management.** `qa-testcases-template.md` defines cases
+  but not seed/test-data management across environments. Consider a
+  `test-data-strategy.md` for mvp+/full.
+
+**sdd-frontend-spa only:**
+
+- **OBS-1 — Visual Regression Testing.** No Chromatic/Percy/Playwright-snapshot
+  integration, baseline approval workflow, or which components/states are
+  snapshot-tested. Add `visual-regression-template.md` for design-system-heavy
+  projects.
+- **OPS-8 — Performance Budgets / Core Web Vitals SLOs.** No formal
+  LCP/CLS/INP/TTI thresholds per route, no Lighthouse CI in
+  `quality-gate.yml`, no PR-regression alerting.
+- **SEC-8 — i18n / l10n Strategy.** No locale/string-extraction/RTL/
+  formatting/translation-review template. Add `i18n-template.md` for
+  multi-market apps.
+- **FW-9 — Design-Token / Theming Governance.** No token source-of-truth,
+  theming (light/dark, multi-brand), or new-token proposal process captured.
+- **AI-9 — Feature-Flag Strategy.** No flag-provider/naming/default-state/
+  cleanup process captured (referenced from `release-template.md` §3).
+- **QA-2 — Mock Service Worker / Test-Data Strategy.** No MSW handler
+  organization or fixture/factory convention, and no process for keeping
+  mock data in sync with `design.md` §3's API contract.
+- **AI-10 — Bundle-Size Budget + Code-Splitting Audit.** No JS bundle-size
+  budget per route/chunk, no code-splitting audit against the constitution's
+  "Performant" principle.
+
+**sdd-mobile only:**
+
+- **QA-2 — Device/OS Coverage Matrix + Farm Testing.** No min/target/max OS
+  version or device-tier matrix, no device-farm strategy (Firebase Test Lab
+  / BrowserStack App Automate). Add `device-matrix-template.md`.
+- **OPS-8 — Performance Budgets as SLOs.** No cold-start time, sustained
+  frame rate, or app-binary-size budget as a tracked SLO.
+- **AI-9 — Accessibility Audit Template.** No screen-reader label /
+  dynamic-type / contrast-ratio / touch-target-size audit template.
+- **FW-9 — Offline-First Sync Conflict Resolution Depth.** `resilience-template.md`
+  covers retry/backoff and degraded-connectivity UX; a deeper per-entity
+  conflict-resolution strategy (last-write-wins vs. merge vs. user-prompted)
+  is deferred until sync volume/patterns are known.
+- **SEC-8 — App Store Compliance Checklist.** No dedicated privacy-label /
+  permission-justification / export-compliance checklist.
+- **OBS-1 — Localization / i18n Strategy.** No locale/string-extraction/RTL/
+  formatting template.
+
+---
+
+## 9. Quick Diagnostic Checklist
 
 When something doesn't work as expected, run through this:
 

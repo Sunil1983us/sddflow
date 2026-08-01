@@ -3131,6 +3131,88 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.5',
+    to:   '2.8.6',
+    description: "Dashboard: per-stage duration, review-round count, and an overall feature Timeline card",
+    notes: [
+      "User request: 'sdd dashboard' showed each document's status but " +
+      "not how long each stage took, how many review rounds it went " +
+      "through, or an overall feature start/end",
+      "Added per-document Created date, Approved date, duration (in " +
+      "days), and revision-round count -- computed from the document's " +
+      "own '## Version History' table, data that was already being " +
+      "written by the shared review-decision-step block but never read " +
+      "back out anywhere. First row = creation date; when Status says " +
+      "Approved, the last row is always the approval event; " +
+      "revision_rounds counts actual version bumps, not every review " +
+      "check -- a pure re-read-and-approve with no edit isn't counted",
+      "Added a feature-level Timeline card: start_date is the earliest " +
+      "document's created date, end_date is release.md's approved date " +
+      "(falls back to its own Approvals-table Date column), duration in " +
+      "days once both resolve",
+      "Required standardizing the {date} placeholder across every doc " +
+      "template to {date: YYYY-MM-DD} so dates are machine-parseable. " +
+      "Old documents, or any hand-edited date that isn't ISO 8601, " +
+      "simply don't show duration/rounds -- no warning badge, nothing " +
+      "else on the page affected (an explicit choice this round, not " +
+      "assumed)",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. The " +
+      "dashboard itself is Python-only (cli-python's `sdd dashboard`) " +
+      "-- this bump has no corresponding functional change on the Node " +
+      "CLI side",
+      "Verified: cli-python pytest 765/765 (753 pre-existing + 12 new), " +
+      "cross-reference linter clean across all 6 packs, both setup " +
+      "smoke-test suites (15 + 12), assert-output.sh's 33 structural " +
+      "assertions, the embedded dashboard JS re-verified with `node " +
+      "--check`, and a live end-to-end smoke test against a synthetic " +
+      "project confirming /api/status and the rendered page both work",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.6';
+      return manifest;
+    },
+  },
+  {
+    from: '2.8.6',
+    to:   '2.8.7',
+    description: "Removed IMPROVEMENT-BACKLOG.md from every pack -- it was maintainer-only content that sdd init was shipping into every real user's project",
+    notes: [
+      "A user shared a photo of their own project directory (created via " +
+      "`sdd init`) showing IMPROVEMENT-BACKLOG.md sitting right there " +
+      "alongside README.md/QUICKSTART.md/etc. -- confirming a real bug",
+      "IMPROVEMENT-BACKLOG.md existed in 4 of the 5 full packs as the " +
+      "*maintainer's own* internal notes about deferred pack-template " +
+      "work. Nothing about it concerned an end user's own project",
+      "Root cause: scaffold_pack() (cli-python's sdd/utils/scaffold.py) " +
+      "copies a pack's entire folder into a user's project with zero " +
+      "exclusion filter -- unlike package.sh's zip builder, which " +
+      "already excludes .git/ and CLAUDE.local.md",
+      "Fix: deleted the file from all 4 packs (rather than adding an " +
+      "exclusion-list mechanism -- the user's explicit choice), removed " +
+      "its row from each pack's README.md 'Start Here' table, and " +
+      "consolidated the actual content into this maintainer repo's own " +
+      "OWNER-GUIDE.md, which is already explicitly the maintainer-only " +
+      "document",
+      "No functional code changed. A project that already has " +
+      "IMPROVEMENT-BACKLOG.md from an earlier `sdd init` keeps its local " +
+      "copy -- this migration doesn't delete anything from an existing " +
+      "project, it only stops the file from being scaffolded into new " +
+      "ones",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 765/765 (unchanged), cross-reference " +
+      "linter clean across all 6 packs, both setup smoke-test suites " +
+      "(15 + 12), and a live smoke test running `sdd init` end-to-end " +
+      "confirming the scaffolded output no longer includes " +
+      "IMPROVEMENT-BACKLOG.md",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.7';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

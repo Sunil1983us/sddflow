@@ -1,6 +1,6 @@
 # Component Library
 # Service: {Service Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Date: {date: YYYY-MM-DD}
 >
 > **Living document** — catalogs shared/reusable frontend components used
 > across multiple features, not one feature's own page-specific
@@ -36,7 +36,7 @@
 ## Version History
 | Version | Date | Feature | Change |
 |---|---|---|---|
-| 1.0 | {date} | {feature} | Initial component(s) added |
+| 1.0 | {date: YYYY-MM-DD} | {feature} | Initial component(s) added |
 
 ## Approvals
 | Role | Approver | Status | Date |

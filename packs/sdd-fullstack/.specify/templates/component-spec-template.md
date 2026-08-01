@@ -1,5 +1,5 @@
 # Component Specification — {Feature Name}
-> Version: 1.0 | Status: Draft | Date: {date} | Author: {author}
+> Version: 1.0 | Status: Draft | Date: {date: YYYY-MM-DD} | Author: {author}
 
 ## References
 | Source | Sections / IDs Used |
@@ -52,7 +52,7 @@ this feature's hierarchy — see the living-doc-update shared block in
 ## Version History
 | Version | Date | Changed By | Summary of Changes | CHG-NNN |
 |---|---|---|---|---|
-| 1.0 | {date} | {author} | Initial draft | — |
+| 1.0 | {date: YYYY-MM-DD} | {author} | Initial draft | — |
 
 ## Summary
 > Lines: {N} / {SUMMARY_MAX_LINES}

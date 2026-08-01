@@ -1,6 +1,6 @@
 # Runbook
 # App: {App Name}
-> Version: 1.0 | Date: {date}
+> Version: 1.0 | Date: {date: YYYY-MM-DD}
 > Scope: MVP+ only — skip for pilot
 >
 > **Living artifact** — `docs/runbook/local-setup.md` describes the whole

@@ -8,7 +8,7 @@ Gates"). This is what `sdd dashboard` and `sdd status` render.
 from __future__ import annotations
 import json
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -189,6 +189,114 @@ def _parse_approvals_table(path: Path) -> list[dict]:
     return rows
 
 
+_ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
+
+
+def _parse_iso_date(s: str | None) -> date | None:
+    """Strict YYYY-MM-DD parse -- returns None for anything else (free text,
+    a different format, empty/missing). Templates now instruct the agent to
+    always write dates as {date: YYYY-MM-DD} (see CHANGELOG), but existing
+    documents written before that, or hand-edited afterward, won't parse --
+    that's fine, this never raises and callers treat None as 'not
+    computable', not an error."""
+    if not s:
+        return None
+    m = _ISO_DATE_RE.match(s.strip())
+    if not m:
+        return None
+    try:
+        return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return None
+
+
+def _parse_version_history_table(path: Path) -> list[dict]:
+    """Parses a document's own '## Version History' table. Per the shared
+    review-decision-step block, exactly two things append a row here: a
+    reviewer-requested content edit (bumps the version -- 'Revision
+    Logging'), and the final approval (same version as the row before it,
+    summary 'Approved'). So the first row is always the creation/draft
+    entry and, once the doc is Approved, the last row is always the
+    approval event -- see _doc_timing() for how that's used.
+
+    Not every document type has this table (release.md doesn't, for
+    instance) -- an empty list means 'no version history', not an error.
+    Tolerates the optional trailing CHG-NNN column (5 cells) alongside the
+    4-cell base shape."""
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return []
+    rows = []
+    for cells in _table_rows_after_heading(text.splitlines(), "Version History"):
+        if len(cells) == 5:
+            version, when, changed_by, summary, _chg = cells
+        elif len(cells) == 4:
+            version, when, changed_by, summary = cells
+        else:
+            continue
+        if not version or version.startswith("{"):
+            continue  # unfilled template placeholder -- doc never regenerated
+        rows.append({"version": version, "date": when or None,
+                      "changed_by": changed_by or None, "summary": summary or None})
+    return rows
+
+
+def _doc_timing(path: Path, status: str | None, approvals: list[dict]) -> dict:
+    """Created/approved dates, duration, and revision-round count for one
+    document. Every field is None when it can't be computed (unparseable
+    or missing dates, no Version History table, not yet approved) -- the
+    dashboard shows '--' rather than guessing; see the "Missing/bad dates"
+    decision in the version-history dashboard-enhancement round.
+
+    created_date: the Version History table's first row -- never rewritten
+        after being appended, so it's a stable creation timestamp even
+        after later revisions change the doc's current Version: header.
+    approved_date: the Version History table's LAST row, but only when the
+        doc's Status: header says Approved (the shared review-decision-step
+        block always appends exactly one same-version 'Approved' row as
+        its last write, regardless of which mode -- chat/local/jira --
+        surfaced the approval). Falls back to the Approvals table's own
+        Date column (latest Approved row) for doc types with no Version
+        History table at all, e.g. release.md.
+    revision_rounds: count of version bumps in the table -- each one is a
+        reviewer-requested content edit (Revision Logging), so this
+        excludes both the creation row and the final same-version Approved
+        row and only counts rounds that actually changed something.
+    duration_days: approved_date - created_date, only when both parse.
+    """
+    history = _parse_version_history_table(path)
+    created = _parse_iso_date(history[0]["date"]) if history else None
+    is_approved = bool(status) and "approved" in status.lower()
+
+    approved = None
+    if is_approved:
+        if history:
+            approved = _parse_iso_date(history[-1]["date"])
+        else:
+            approved_dates = [
+                d for d in (
+                    _parse_iso_date(row.get("date")) for row in approvals
+                    if (row.get("status") or "").lower() == "approved"
+                ) if d is not None
+            ]
+            approved = max(approved_dates) if approved_dates else None
+
+    revision_rounds = None
+    if history:
+        revision_rounds = sum(
+            1 for i in range(1, len(history))
+            if history[i]["version"] != history[i - 1]["version"]
+        )
+
+    return {
+        "created_date":   created.isoformat() if created else None,
+        "approved_date":  approved.isoformat() if approved else None,
+        "duration_days":  (approved - created).days if (created and approved) else None,
+        "revision_rounds": revision_rounds,
+    }
+
+
 def _load_roles_map(root: Path) -> dict:
     """roles.yml's top-level `roles:` map (snake_case key -> name filled in
     once per project), or {} if the file/section is missing/unreadable."""
@@ -278,17 +386,44 @@ def _feature_docs(root: Path, feature: str) -> list[dict]:
     roles_map = _load_roles_map(root)
     for path in md_files:
         key = path.stem
+        status = _doc_status(path)
+        approvals_table = _annotate_approvals(_parse_approvals_table(path), roles_map)
         docs.append({
             "key": key,
             "label": _PIPELINE_LABELS.get(key, key.replace("-", " ").title()),
             "exists": True,
-            "status": _doc_status(path),
+            "status": status,
             "path": str(path),
             "local_approval": approvals.get(key),
             "comments": _dashboard_comments(root, feature, key),
-            "approvals": _annotate_approvals(_parse_approvals_table(path), roles_map),
+            "approvals": approvals_table,
+            "timing": _doc_timing(path, status, approvals_table),
         })
     return docs
+
+
+def _feature_timeline(docs: list[dict]) -> dict:
+    """Feature-level start/end rolled up from each document's own timing
+    (_doc_timing). start_date is the earliest created_date across every doc
+    that has one -- normally brd.md's v1.0 row, since it's first in the
+    pipeline. end_date is release.md's approved_date, once release.md
+    exists and is Approved -- the feature's actual last gate. Both stay
+    None until there's enough data to compute them; duration_days only once
+    both resolve. ISO date strings sort correctly with plain min(), no need
+    to re-parse for that part."""
+    created = [d["timing"]["created_date"] for d in docs if d.get("timing", {}).get("created_date")]
+    start = min(created) if created else None
+
+    release_doc = next((d for d in docs if d["key"] == "release"), None)
+    end = release_doc["timing"]["approved_date"] if release_doc else None
+
+    duration_days = None
+    if start and end:
+        start_d, end_d = _parse_iso_date(start), _parse_iso_date(end)
+        if start_d and end_d:
+            duration_days = (end_d - start_d).days
+
+    return {"start_date": start, "end_date": end, "duration_days": duration_days}
 
 
 def _current_stage(docs: list[dict], feature: str = "this feature",
@@ -1252,6 +1387,7 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
         "docs": docs,
         "current_stage": _current_stage(docs, feature, scope),
         "tasks": tasks,
+        "timeline": _feature_timeline(docs),
         "business_objectives": build_bo_rollup(root, feature),
         "token_usage": _parse_token_usage(feature_dir / "token-usage.md"),
         "local_links": {

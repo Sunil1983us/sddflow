@@ -23,7 +23,6 @@ Everything else is reference material — skip it on your first pass, come back 
 | `CHANGE-GUIDE.md` | How `/change` works — read when you first need to change a shipped feature |
 | `CLAUDE.md` | The AI agent's own instructions — it reads this, you don't need to |
 | `CLAUDE.local.md` | Your personal agent preferences (output style, editor, shortcuts) — gitignored, edit anytime |
-| `IMPROVEMENT-BACKLOG.md` | The maintainers' internal backlog — not needed to use the pack |
 
 ---
 
