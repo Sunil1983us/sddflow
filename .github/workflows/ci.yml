@@ -107,6 +107,9 @@ jobs:
       - name: Install dependencies
         working-directory: cli
         run: npm install
+      - name: Run tests
+        working-directory: cli
+        run: npm test
       - name: Smoke test the entry point
         working-directory: cli
         run: node bin/sdd.js --help

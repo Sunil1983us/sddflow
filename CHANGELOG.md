@@ -4,6 +4,39 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.1] — 2026-08-01 (Node CLI gets its first automated tests — migration-chain-integrity, ported from cli-python)
+
+An external code review pointed out that the Node CLI (`cli/`) had zero
+automated tests — no `test` script, no test files, and the
+`node-cli-sanity` CI job only ran `node bin/sdd.js --help`. Both CLIs
+hand-mirror the same ~100-entry `MIGRATIONS` table on every release, and
+until now only the Python side had a test that would catch a broken
+`from`/`to` link — a typo on the Node side would go undetected by CI
+until a real user's `sdd upgrade` hit "No migration path found."
+
+### Added
+
+- `MIGRATIONS` is now exported from `cli/src/commands/upgrade.js` (was
+  module-private).
+- New `cli/tests/upgrade.test.js`, ported from `cli-python`'s
+  chain-integrity tests: the migration table forms a connected chain
+  ending at `SDD_VERSION`, and every entry's `migrate()` stamps its own
+  `to` version. Uses Node's built-in `node:test`/`node:assert` — zero new
+  dependencies.
+- New `"test": "node --test"` script in `cli/package.json`; the
+  `node-cli-sanity` CI job now runs `npm test` before the existing
+  `--help` smoke test.
+
+### Verified
+
+- `node --test` — 2/2 passing.
+- No functional CLI behavior change, no `manifest.yml` schema change —
+  purely closing a test-coverage gap.
+- `cli-python` pytest 742/742 (unchanged), `ast.parse` on `upgrade.py`,
+  `node --check` on `upgrade.js`.
+
+---
+
 ## [2.8.0] — 2026-08-01 (Versioning scheme change: capped major.minor.patch, one-time reset off the runaway 2.7.100)
 
 The old scheme just incremented the patch number forever — it had reached

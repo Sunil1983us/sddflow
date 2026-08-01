@@ -4161,6 +4161,43 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.0"},
     },
+    {
+        "from":        "2.8.0",
+        "to":          "2.8.1",
+        "description": "Node CLI gets its first automated tests -- ported cli-python's migration-chain-integrity tests to close a coverage gap flagged in code review",
+        "notes": [
+            "An external code review pointed out that cli/ (the Node CLI) "
+            "had zero automated tests -- no test script in package.json, "
+            "no test files anywhere, and the node-cli-sanity CI job only "
+            "ran `node bin/sdd.js --help`. By contrast this Python CLI "
+            "has hundreds of tests covering the same surface, including "
+            "test_migration_table_is_a_connected_chain_ending_at_current, "
+            "which verifies every MIGRATIONS entry's 'from' matches the "
+            "previous entry's 'to' and the chain ends at SDD_VERSION",
+            "Both CLIs hand-mirror the same ~100-entry MIGRATIONS table "
+            "on every release (the Node CLI is scaffolding-only and "
+            "doesn't implement most of what it's narrating, per its own "
+            "README) -- until now, only this Python side had a test that "
+            "would catch a broken from/to link. A typo on the Node side "
+            "would go undetected by CI until a real user's `sdd upgrade` "
+            "hit 'No migration path found'",
+            "cli/src/commands/upgrade.js's MIGRATIONS const is now "
+            "exported (was module-private) so a test file can import it. "
+            "New cli/tests/upgrade.test.js ports two tests: the chain-"
+            "connectivity check above, and a check that every entry's "
+            "migrate() stamps its own 'to' version",
+            "Uses Node's built-in node:test/node:assert -- zero new "
+            "dependencies. New 'test': 'node --test' script in "
+            "cli/package.json, and the node-cli-sanity CI job now runs "
+            "`npm test` before the existing --help smoke test",
+            "No functional CLI behavior change, no manifest.yml schema "
+            "change -- purely closing a test-coverage gap. Verified: "
+            "cli-python pytest 742/742 (unchanged), node --test 2/2 "
+            "passing in cli/, ast.parse on upgrade.py, node --check on "
+            "upgrade.js",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.1"},
+    },
 ]
 
 

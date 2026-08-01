@@ -5,7 +5,12 @@ import { readManifest, patchManifest, MANIFEST_PATH, SDD_VERSION } from '../util
 // Version migration table — describes what changed between pack versions.
 // Extend this when releasing a new pack version.
 // Each migrate() stamps its own "to" version so chained upgrades stay truthful.
-const MIGRATIONS = [
+// Exported (not just module-local) so tests/upgrade.test.js can assert the
+// chain is connected and ends at SDD_VERSION -- this table is hand-mirrored
+// from cli-python/sdd/commands/upgrade.py's MIGRATIONS on every release, and
+// only that Python side ever had a test that would catch a broken from/to
+// link in it.
+export const MIGRATIONS = [
   {
     from: null,          // null = pre-versioning (v1.x, no sdd_version field)
     to:   '2.0.0',
@@ -2880,6 +2885,42 @@ const MIGRATIONS = [
     ],
     migrate: (manifest) => {
       manifest.sdd_version = '2.8.0';
+      return manifest;
+    },
+  },
+  {
+    from: '2.8.0',
+    to:   '2.8.1',
+    description: "Node CLI gets its first automated tests -- ported cli-python's migration-chain-integrity tests to close a coverage gap flagged in code review",
+    notes: [
+      "An external code review pointed out that this Node CLI had zero " +
+      "automated tests -- no test script in package.json, no test " +
+      "files anywhere, and the node-cli-sanity CI job only ran " +
+      "`node bin/sdd.js --help`. By contrast the Python CLI has " +
+      "hundreds of tests covering the same surface, including a test " +
+      "that verifies every MIGRATIONS entry's 'from' matches the " +
+      "previous entry's 'to' and the chain ends at SDD_VERSION",
+      "Both CLIs hand-mirror the same ~100-entry MIGRATIONS table on " +
+      "every release (this Node CLI is scaffolding-only and doesn't " +
+      "implement most of what it's narrating, per its own README) -- " +
+      "until now, only the Python side had a test that would catch a " +
+      "broken from/to link. A typo here would go undetected by CI " +
+      "until a real user's `sdd upgrade` hit 'No migration path found'",
+      "MIGRATIONS is now exported (was module-private) so a test file " +
+      "can import it. New cli/tests/upgrade.test.js ports two tests: " +
+      "the chain-connectivity check above, and a check that every " +
+      "entry's migrate() stamps its own 'to' version",
+      "Uses Node's built-in node:test/node:assert -- zero new " +
+      "dependencies. New 'test': 'node --test' script in package.json, " +
+      "and the node-cli-sanity CI job now runs `npm test` before the " +
+      "existing --help smoke test",
+      "No functional CLI behavior change, no manifest.yml schema " +
+      "change -- purely closing a test-coverage gap. Verified: " +
+      "cli-python pytest 742/742 (unchanged), node --test 2/2 passing, " +
+      "ast.parse on upgrade.py, node --check on upgrade.js",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.1';
       return manifest;
     },
   },
