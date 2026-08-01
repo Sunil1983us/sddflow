@@ -4032,6 +4032,52 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.7.98"},
     },
+    {
+        "from":        "2.7.98",
+        "to":          "2.7.99",
+        "description": "Packaging metadata only: PyPI/npm Summary and keywords rewritten for discoverability -- no functional change, no manifest.yml effect",
+        "notes": [
+            "A user looked at the sddflow PyPI page and pointed out the "
+            "Summary ('SDD Framework CLI -- initialize and upgrade "
+            "Spec-Driven Development packs') undersold what the CLI "
+            "actually does now -- it reads like a scaffolding tool, with "
+            "no mention of the Jira/Confluence sync, multi-host PR "
+            "automation, or dashboard that make up most of it",
+            "cli-python/pyproject.toml's description (PyPI 'Summary') is "
+            "now: 'Spec-Driven Development CLI for AI coding agents -- "
+            "SDLC workflows with Jira/Confluence sync, multi-host PR "
+            "automation, and live progress dashboards'. keywords gained "
+            "jira/confluence/atlassian/pull-request/code-review/"
+            "requirements/ai-agent/claude-code for search visibility",
+            "cli/package.json's description was written separately, not "
+            "copied verbatim -- the Node CLI genuinely doesn't have "
+            "Jira/Confluence integration, PR automation, or a dashboard "
+            "(cli-python-only features per this repo's own CLAUDE.md), "
+            "so claiming them there would be inaccurate. It now reads "
+            "'CLI for the Spec-Driven Development (SDD) Framework -- "
+            "initialize and upgrade AI-agent SDLC packs (Claude Code, "
+            "GitHub Copilot, and any AI coding tool)'",
+            "'Author: None' on the PyPI page (also raised) is expected, "
+            "not a bug: PEP 621's authors=[{name,email}] maps to the "
+            "combined 'Author-email' Core Metadata field per spec, "
+            "leaving the legacy 'Author' field blank -- there's no "
+            "separate name-only field to populate instead",
+            "This is the one migration entry in this chain that changes "
+            "nothing a user's project would notice -- no manifest.yml "
+            "field, no generated file, no CLI behavior differs. It exists "
+            "purely so a fresh `pip install`/`npm install` after this "
+            "point reports the new sdd_version, and so `sdd upgrade` on "
+            "an older project doesn't get stuck on an unreachable target",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Publishing this to PyPI (so the new Summary is actually "
+            "visible on pypi.org) still requires the maintainer's own "
+            "`python -m build && twine upload` (or equivalent CI step) "
+            "-- this repo has no PyPI credentials or publish automation",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.7.99"},
+    },
 ]
 
 

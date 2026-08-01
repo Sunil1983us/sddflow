@@ -2777,6 +2777,42 @@ const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.7.98',
+    to:   '2.7.99',
+    description: "Packaging metadata only: PyPI/npm Summary and keywords rewritten for discoverability -- no functional change, no manifest.yml effect",
+    notes: [
+      "A user looked at the sddflow PyPI page and pointed out the " +
+      "Summary undersold what the CLI actually does now -- it read " +
+      "like a scaffolding tool, with no mention of the Jira/Confluence " +
+      "sync, multi-host PR automation, or dashboard that make up most " +
+      "of it",
+      "cli-python/pyproject.toml's description (PyPI 'Summary') is now " +
+      "'Spec-Driven Development CLI for AI coding agents -- SDLC " +
+      "workflows with Jira/Confluence sync, multi-host PR automation, " +
+      "and live progress dashboards'. keywords gained jira/confluence/" +
+      "atlassian/pull-request/code-review/requirements/ai-agent/" +
+      "claude-code for search visibility",
+      "cli/package.json's description was written separately, not " +
+      "copied verbatim -- this Node CLI genuinely doesn't have " +
+      "Jira/Confluence integration, PR automation, or a dashboard " +
+      "(cli-python-only features), so claiming them here would be " +
+      "inaccurate. It now reads 'CLI for the Spec-Driven Development " +
+      "(SDD) Framework -- initialize and upgrade AI-agent SDLC packs " +
+      "(Claude Code, GitHub Copilot, and any AI coding tool)'",
+      "This is the one migration entry in this chain that changes " +
+      "nothing a user's project would notice -- no manifest.yml field, " +
+      "no generated file, no CLI behavior differs. It exists purely so " +
+      "a fresh install after this point reports the new sdd_version",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.7.99';
+      return manifest;
+    },
+  },
 ];
 
 export async function upgradeCommand() {
