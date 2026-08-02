@@ -150,6 +150,70 @@ class TestFillMode:
         assert result.exit_code != 0
         assert "not-a-real-scope" in result.output
 
+    def test_ai_tool_flag_suppresses_the_prompt(self, runner, tmp_path, monkeypatch):
+        # Before --ai-tool existed, this was the one value always prompted
+        # for even with every other flag supplied -- the gap a
+        # package-verify CI job (running sdd init with no TTY at all) hit
+        # directly. questionary.select is patched to raise if called, to
+        # prove the CLI flag path never reaches it.
+        monkeypatch.chdir(tmp_path)
+        manifest_path = _write_manifest(tmp_path)
+
+        with patch(
+            "questionary.select",
+            side_effect=AssertionError("questionary.select should not be called"),
+        ):
+            result = runner.invoke(
+                init_command,
+                [
+                    "-p",
+                    "payments",
+                    "-f",
+                    "checkout",
+                    "-s",
+                    "mvp",
+                    "-t",
+                    "backend-service",
+                    "--plan-mode",
+                    "unified",
+                    "--reading-mode",
+                    "auto",
+                    "--ai-tool",
+                    "cursor",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        saved = yaml.safe_load(manifest_path.read_text())
+        assert saved["ai_tool"] == "cursor"
+
+    def test_invalid_ai_tool_value_is_rejected(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_manifest(tmp_path)
+
+        result = runner.invoke(
+            init_command,
+            [
+                "-p",
+                "payments",
+                "-f",
+                "checkout",
+                "-s",
+                "mvp",
+                "-t",
+                "backend-service",
+                "--plan-mode",
+                "unified",
+                "--reading-mode",
+                "auto",
+                "--ai-tool",
+                "not-a-real-tool",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "not-a-real-tool" in result.output
+
     def test_context_file_not_overwritten_if_it_already_exists(
         self, runner, tmp_path, monkeypatch
     ):

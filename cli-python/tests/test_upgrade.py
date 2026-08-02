@@ -8,6 +8,7 @@ from click.testing import CliRunner
 import sdd.commands.upgrade as upgrade_mod
 from sdd.commands.upgrade import (
     MIGRATIONS,
+    _migrate_fn,
     _pending_migrations,
     _resolve_pack,
     upgrade_command,
@@ -57,7 +58,7 @@ def test_migration_table_is_a_connected_chain_ending_at_current():
 
 def test_each_migration_stamps_its_own_to_version():
     for m in MIGRATIONS:
-        result = m["migrate"]({"project": {}})
+        result = _migrate_fn(m["to"])({"project": {}})
         assert result["sdd_version"] == m["to"]
 
 

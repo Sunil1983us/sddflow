@@ -95,12 +95,29 @@ _BANNER = f"""
 @click.option("--pack", default=None, help=f"Pack to scaffold: {', '.join(ALL_PACKS)}")
 @click.option("--plan-mode", default=None, help="unified | separate")
 @click.option("--reading-mode", default=None, help="auto | summary | full")
+@click.option(
+    "--ai-tool",
+    default=None,
+    help=f"AI tool: {', '.join(str(c.value) for c in AI_TOOLS)}",
+)
 def init_command(
-    project_name, feature_name, scope, project_type, pack, plan_mode, reading_mode
+    project_name,
+    feature_name,
+    scope,
+    project_type,
+    pack,
+    plan_mode,
+    reading_mode,
+    ai_tool,
 ):
     """Initialize an SDD pack in the current project directory."""
     console.print(_BANNER)
     scope = _resolve_scope(scope)
+    if ai_tool is not None and ai_tool not in {str(c.value) for c in AI_TOOLS}:
+        raise click.BadParameter(
+            f"'{ai_tool}' — must be one of: {', '.join(str(c.value) for c in AI_TOOLS)}",
+            param_hint="'--ai-tool'",
+        )
 
     # ── Scaffold mode: no pack present yet ───────────────────────────────────
     chosen_pack = None
@@ -232,10 +249,11 @@ def init_command(
             ],
         ).ask()
 
-    ai_tool = questionary.select(
-        "Which AI tool will you use?",
-        choices=AI_TOOLS,
-    ).ask()
+    if not ai_tool:
+        ai_tool = questionary.select(
+            "Which AI tool will you use?",
+            choices=AI_TOOLS,
+        ).ask()
 
     # Validate CLI-supplied values (questionary validates interactive ones)
     assert_valid_name(project_name, "Project name")

@@ -4,6 +4,210 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.18] — 2026-08-02 (Fix two real project-type misdetection bugs; add cross-implementation fixture tests)
+
+The final item from the second external review round: building a shared
+fixture-test suite across all four project-type detection implementations
+(`cli-python/sdd/utils/detect.py`, `cli/src/utils/detect.js`,
+`packs/sdd-universal/setup.sh`, `packs/sdd-universal/setup.ps1`) surfaced
+two real, previously-unnoticed bugs, fixed alongside the new tests.
+
+### Fixed
+
+- **`setup.sh`/`setup.ps1`: `react-native-web` was misdetected as
+  `mobile`.** A plain substring/word-boundary check on the `react-native`
+  dependency name also matched `react-native-web` — a real, common npm
+  package for running React Native components on the web, not a mobile
+  project. Fixed with a space-padded whole-token match instead.
+  `detect.py`/`detect.js` already did exact list/array membership and
+  never had this bug.
+- **`detect.py`/`detect.js`: modern Angular projects were never
+  detected at all.** The Angular check used `startswith('angular')` /
+  `startsWith('angular')`, which no real Angular 2+ project satisfies —
+  they depend on scoped packages like `@angular/core`, which start with
+  `@`, not `angular`. Only ancient AngularJS 1.x used the bare `angular`
+  package name. Fixed by switching to a substring check, matching
+  `setup.sh`/`setup.ps1`'s existing (correct) behavior.
+
+### Added
+
+- `cli-python/tests/test_detect.py`, `cli/tests/detect.test.js`
+  (extended), and `packs/_shared/tests/test-detect-fixtures.sh` (new,
+  wired into the `setup-smoke-tests` CI job) all assert the same ~20
+  synthetic project fixtures against their respective implementation —
+  there was no dedicated detection test coverage at all before this in
+  any of the three.
+
+Scoped down from the original review suggestion of making `detect.py`
+canonical and having `setup.sh`/`setup.ps1` shell out to it: that would
+make Python a hard runtime dependency of pack setup scripts (currently
+only a soft dependency, for `package.json` parsing). Keeping four
+independent implementations in sync via identical fixture tests achieves
+the same goal — catching divergence — without that new dependency.
+
+### Verified
+
+- `cli-python` pytest: 848/848 (825 pre-existing + 23 new)
+- ruff check/format, mypy, and bandit all clean
+- `cli` `node --test`: 27/27
+- `bash test-detect-fixtures.sh`: 23/23
+- sync-drift check and cross-reference checker both clean
+- `setup.ps1`'s fix was verified by direct code inspection, not an
+  automated fixture loop (no `pwsh` available in this session's test
+  environment) — PowerShell's `-match` has the same non-anchored
+  substring semantics as bash's `grep -E`, so the identical fix applies
+
+---
+
+## [2.8.17] — 2026-08-02 (Widen js-yaml's range; friendly dashboard port-conflict error; lazy page assembly)
+
+A batch of three small, independently-verified fixes from the second
+external review round's final tier.
+
+### Changed
+
+- **Widened `js-yaml`'s declared range** in `cli/package.json` from
+  `^4.1.0` (effectively `<5.0.0`) to `>=4.1.0 <6.0.0`. An earlier fix
+  (`import * as yaml from 'js-yaml'` instead of the default export)
+  already made the code work correctly under js-yaml 5.x — verified again
+  here by installing `js-yaml@5.2.3` and re-running the full test suite.
+  The old range was needlessly holding users back from picking up
+  js-yaml's own security/bug fixes.
+- **`sdd dashboard`'s page HTML is now assembled lazily.** `_load_page()`
+  used to run at import time — and `dashboard.py` is imported
+  unconditionally by every `sdd` invocation (`sdd --help`, `sdd init`,
+  anything), so every command paid the cost of reading and concatenating
+  4 static files even when nowhere near the dashboard. Now
+  `@lru_cache`'d and only assembled on the first request that actually
+  needs it.
+
+### Fixed
+
+- **`sdd dashboard` binding to a port already in use no longer crashes
+  with a raw traceback.** `ThreadingHTTPServer(...)`'s bind is now
+  wrapped in a `try/except OSError` that prints a clear message and,
+  specifically for "address already in use," suggests `--port` as the
+  way out, then exits cleanly.
+
+### Verified
+
+- `cli-python` pytest: 825/825 (824 pre-existing + 1 new port-conflict
+  test)
+- ruff check/format, mypy, and bandit all clean
+- `cli` `node --test`, `npm test`, and the `--help` smoke test all pass
+  under js-yaml 5.2.3
+
+---
+
+## [2.8.16] — 2026-08-02 (Fix a silent detect.js bug: Terraform projects were never detected as iac)
+
+`cli/src/utils/detect.js`'s Terraform-file check called
+`require('fs').readdirSync(...)` inside a try/catch — but this file is
+loaded as an ES module (`"type": "module"` in `cli/package.json`), where
+`require` is not defined at all. The resulting `ReferenceError` was
+silently swallowed by the catch, so this branch always returned `false`: a
+pure-Terraform project with no `Pulumi.yaml` or `cdk.json` was never
+detected as `iac` by the Node CLI's project-type auto-detection.
+
+### Fixed
+
+- Imported `readdirSync` at the top of `detect.js` alongside the module's
+  other `fs` calls, instead of a runtime `require()`. Verified both the
+  bug and the fix directly: `require('fs')` throws `require is not
+  defined` in a real ESM context, and a scratch directory containing only
+  a `.tf` file now correctly detects as `iac` where it previously fell
+  through to `null`.
+
+### Added
+
+- `cli/tests/detect.test.js` — the Node CLI had no `detect.js` test
+  coverage at all before this.
+
+### Verified
+
+- `cli-python` pytest: 824/824 unaffected (Python's own `detect.py` does
+  exact dependency-key matching, no shell-out, no `require()`, and was
+  never affected by this bug)
+- `cli` `node --test`: 6/6 (4 pre-existing + 2 new), `npm test`, and the
+  `--help` smoke test all pass
+
+---
+
+## [2.8.15] — 2026-08-02 (CI now proves a clean pip install actually works; sdd init gets an --ai-tool flag)
+
+A second external review round flagged that CI never verifies the packaging
+path end to end: `sdd/packs/` is gitignored and only populated by
+`publish.sh`'s manual bundling step right before a real PyPI upload. This
+was proven to be a live, currently-undetected bug — a wheel built the way
+CI already builds it (`pip install ./cli-python`, no `publish.sh`),
+installed into a venv outside the repo, and run via `sdd init` from a real
+project directory, failed with `SDD pack files not found.` `scaffold.py`'s
+dev-fallback (walk up to a git checkout's `packs/` directory) silently
+masked this in every environment that still had the full repo checked out
+— which was every CI job and every dev machine, until now.
+
+### Added
+
+- **New `package-verify` CI job.** Bundles packs the same way `publish.sh`
+  does, builds sdist+wheel via `python -m build`, asserts both archives
+  contain `sdd/packs/sdd-universal/setup.sh`, installs the wheel into a
+  clean venv, and runs a full `sdd init` from a scratch directory outside
+  the repo — the exact reproduction that first surfaced the bug, now
+  guarded permanently in CI.
+- The same assertion now also runs inside `publish.sh` itself, between the
+  build and upload steps, so a manual publish run outside CI can't ship a
+  broken package either.
+- **`sdd init --ai-tool`** (`claude-code | copilot | cursor | windsurf |
+  other`). Running `sdd init` fully non-interactively for the CI job above
+  surfaced a real, separate gap: every other interactive prompt (project
+  type, scope, plan mode, reading mode) already had a CLI flag override,
+  but "Which AI tool will you use?" did not — the one prompt with no way
+  to skip, so any fully unattended `sdd init` would hang or abort on a
+  non-interactive stdin.
+
+### Verified
+
+- `cli-python` pytest: 819/819 (817 pre-existing + 2 new `--ai-tool`
+  tests)
+- ruff check/format, mypy, and bandit all clean
+- The full package-verify sequence (bundle → build → assert contents →
+  clean venv install → `sdd init` from outside the repo) was run manually
+  end to end before adding it to CI, confirming both the failure it
+  catches and the fix
+
+---
+
+## [2.8.14] — 2026-08-02 (Dashboard: gate /api/review-links behind the token in read-only share mode)
+
+A second external review round found a real gap in the dashboard
+hardening shipped earlier: read-only `--share` mode (no `--write`) already
+blocked the write endpoints without a token, but `GET /api/review-links`
+was never gated at all. That endpoint makes a *live* call to Jira/
+Confluence using the credentials stored on the machine running
+`sdd dashboard`, for whatever `--feature` the caller names — "read-only"
+only ever meant "no local file writes," it never meant "no outbound calls
+made under this machine's credentials."
+
+### Fixed
+
+- **`/api/review-links` now requires the session token even in read-only
+  `--share` mode.** Token generation happens for any non-local bind
+  (previously only when `--write` was also passed); a new
+  `_check_review_links_access()` helper reuses the existing Origin+token
+  check and gates the endpoint, skipped only when the bind is local.
+  Approve/comment endpoints are unchanged.
+- Console output and the in-page info banner reworded to state plainly
+  that "Check Jira/Confluence status" is not affected by read-only mode
+  and always requires the token.
+
+### Verified
+
+- `cli-python` pytest: 817/817 (812 pre-existing + 5 new access-control
+  tests for `/api/review-links`)
+- ruff check/format, mypy, and bandit all clean
+
+---
+
 ## [2.8.13] — 2026-08-02 (Add lean/standard/regulated as friendly scope aliases)
 
 An external review flagged that `examples/todo-api` (a real `pilot`-scope

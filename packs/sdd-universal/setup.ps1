@@ -35,8 +35,11 @@ function Detect-ProjectType {
       if ($pkg.devDependencies) { $deps += ($pkg.devDependencies | Get-Member -MemberType NoteProperty).Name }
       $depStr = $deps -join " "
 
-      # Mobile (React Native / Expo) — before fullstack
-      if ($depStr -match 'react-native|expo') { return "mobile" }
+      # Mobile (React Native / Expo) — before fullstack. Space-padded,
+      # whole-token match -- a plain substring match on "react-native"
+      # also matches "react-native-web" (a real npm package for running
+      # React Native components on the web, not a mobile project).
+      if (" $depStr " -match ' (react-native|expo) ') { return "mobile" }
 
       # Fullstack: JS frontend + separate backend (only after mobile ruled out)
       if ((Test-Path "$root/pom.xml") -or (Test-Path "$root/build.gradle") -or (Test-Path "$root/go.mod")) {
