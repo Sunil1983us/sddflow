@@ -4,6 +4,46 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.17] — 2026-08-02 (Widen js-yaml's range; friendly dashboard port-conflict error; lazy page assembly)
+
+A batch of three small, independently-verified fixes from the second
+external review round's final tier.
+
+### Changed
+
+- **Widened `js-yaml`'s declared range** in `cli/package.json` from
+  `^4.1.0` (effectively `<5.0.0`) to `>=4.1.0 <6.0.0`. An earlier fix
+  (`import * as yaml from 'js-yaml'` instead of the default export)
+  already made the code work correctly under js-yaml 5.x — verified again
+  here by installing `js-yaml@5.2.3` and re-running the full test suite.
+  The old range was needlessly holding users back from picking up
+  js-yaml's own security/bug fixes.
+- **`sdd dashboard`'s page HTML is now assembled lazily.** `_load_page()`
+  used to run at import time — and `dashboard.py` is imported
+  unconditionally by every `sdd` invocation (`sdd --help`, `sdd init`,
+  anything), so every command paid the cost of reading and concatenating
+  4 static files even when nowhere near the dashboard. Now
+  `@lru_cache`'d and only assembled on the first request that actually
+  needs it.
+
+### Fixed
+
+- **`sdd dashboard` binding to a port already in use no longer crashes
+  with a raw traceback.** `ThreadingHTTPServer(...)`'s bind is now
+  wrapped in a `try/except OSError` that prints a clear message and,
+  specifically for "address already in use," suggests `--port` as the
+  way out, then exits cleanly.
+
+### Verified
+
+- `cli-python` pytest: 825/825 (824 pre-existing + 1 new port-conflict
+  test)
+- ruff check/format, mypy, and bandit all clean
+- `cli` `node --test`, `npm test`, and the `--help` smoke test all pass
+  under js-yaml 5.2.3
+
+---
+
 ## [2.8.16] — 2026-08-02 (Fix a silent detect.js bug: Terraform projects were never detected as iac)
 
 `cli/src/utils/detect.js`'s Terraform-file check called

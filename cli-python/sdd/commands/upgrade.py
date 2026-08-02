@@ -4888,6 +4888,44 @@ MIGRATIONS: list[Migration] = [
             "smoke test both pass",
         ],
     },
+    {
+        "from": "2.8.16",
+        "to": "2.8.17",
+        "description": "Widen js-yaml's declared range; friendly error on dashboard port conflict; make dashboard's page assembly lazy",
+        "notes": [
+            "cli/package.json's js-yaml dependency was pinned to ^4.1.0 "
+            "(effectively <5.0.0), even though an earlier fix "
+            "(import * as yaml, not the default export) already made the "
+            "code work correctly under js-yaml 5.x -- verified again here "
+            "by actually installing js-yaml@5.2.3 and re-running the full "
+            "test suite + --help smoke test. Widened to >=4.1.0 <6.0.0 so "
+            "users aren't held back from picking up js-yaml security/bug "
+            "fixes for no real reason",
+            "sdd dashboard binding to a port already in use used to "
+            "surface as a raw, unhandled OSError traceback. Wrapped the "
+            "ThreadingHTTPServer(...) call in a try/except OSError that "
+            "prints a clear message and, specifically for EADDRINUSE, "
+            "suggests --port as the way out, then exits 1 cleanly. New "
+            "test simulates the collision with a real bound socket and "
+            "asserts no traceback reaches the user",
+            "dashboard.py's _load_page() (assembles the dashboard's HTML "
+            "page from dashboard_static/*.css/*.js/*.html) used to run at "
+            "import time -- and dashboard.py is imported by sdd/__main__.py "
+            "unconditionally, so every single `sdd` invocation (sdd "
+            "--help, sdd init, anything) paid the cost of reading and "
+            "concatenating those 4 files even when nowhere near the "
+            "dashboard command. Now @lru_cache(maxsize=1)'d and only "
+            "assembled on the first request that actually needs it",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. The port-conflict and lazy-page changes "
+            "are cli-python-only (the Node CLI has no dashboard command)",
+            "Verified: cli-python pytest 825/825 (824 pre-existing + 1 "
+            "new port-conflict test), ruff check/format, mypy, and bandit "
+            "all clean; cli node --test 6/6 unaffected, npm test and the "
+            "--help smoke test both pass under js-yaml 5.2.3",
+        ],
+    },
 ]
 
 

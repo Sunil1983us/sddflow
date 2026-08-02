@@ -5,13 +5,19 @@
 from pathlib import Path
 
 from sdd.commands.dashboard import (
-    _PAGE,
     _SAFE_TOKEN,
     _clip_text,
     _do_approve,
     _do_comment,
     _load_comments,
+    _load_page,
 )
+
+# _load_page() is lru_cache'd and lazy in production (assembled on first
+# request, not at import time) -- this module-level constant is purely a
+# test-file convenience so the many `assert "x" in _PAGE` lines below don't
+# each need their own call.
+_PAGE = _load_page()
 
 
 def _scaffold_feature(
@@ -557,3 +563,35 @@ def test_dashboard_static_dir_contains_exactly_the_expected_files():
     assert static_dir.is_dir()
     names = {p.name for p in static_dir.iterdir()}
     assert names == {"page.html", "style.css", "theme.js", "app.js"}
+
+
+def test_port_already_in_use_exits_cleanly_with_a_friendly_message(
+    tmp_path, monkeypatch
+):
+    """A raw, unhandled OSError (Address already in use) used to surface as
+    a traceback -- ThreadingHTTPServer's bind happens directly in
+    dashboard_command with nothing catching it."""
+    import socket
+
+    from click.testing import CliRunner
+
+    from sdd.commands.dashboard import dashboard_command
+
+    monkeypatch.chdir(tmp_path)
+
+    blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    blocker.bind(("127.0.0.1", 0))
+    blocker.listen(1)
+    busy_port = blocker.getsockname()[1]
+    try:
+        result = CliRunner().invoke(
+            dashboard_command, ["--port", str(busy_port), "--no-open"]
+        )
+        # Rich wraps long lines to terminal width, so join before matching.
+        output = " ".join(result.output.split())
+        assert result.exit_code == 1
+        assert "already in use" in output
+        assert "--port" in output  # points at the way out
+        assert "Traceback" not in output
+    finally:
+        blocker.close()

@@ -15,12 +15,14 @@ text) are length-clipped before being written anywhere.
 
 from __future__ import annotations
 
+import errno
 import json
 import re
 import secrets
 import socket
 import threading
 import webbrowser
+from functools import lru_cache
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -72,14 +74,17 @@ _WRITE_LOCK = threading.Lock()
 _DASHBOARD_STATIC_DIR = Path(__file__).parent / "dashboard_static"
 
 
+@lru_cache(maxsize=1)
 def _load_page() -> str:
     """Assembles the dashboard's single-response HTML page from the static
     files in dashboard_static/ -- CSS/JS live in real .css/.js files (for
     editor syntax highlighting/linting) rather than a giant Python string
     literal, but the page is still served as one self-contained HTML
     response with everything inlined (no extra HTTP round-trips, no new
-    routes) -- token substitution happens once at import time, not per
-    request."""
+    routes) -- token substitution happens once, on first request, not at
+    import time: nothing that imports this module (e.g. every `sdd`
+    command, not just `sdd dashboard`) pays the cost of reading and
+    assembling four files it will never serve."""
     template = (_DASHBOARD_STATIC_DIR / "page.html").read_text(encoding="utf-8")
     css = (_DASHBOARD_STATIC_DIR / "style.css").read_text(encoding="utf-8")
     theme_js = (_DASHBOARD_STATIC_DIR / "theme.js").read_text(encoding="utf-8")
@@ -89,9 +94,6 @@ def _load_page() -> str:
         .replace("__SDD_DASHBOARD_THEME_JS__", theme_js)
         .replace("__SDD_DASHBOARD_APP_JS__", app_js)
     )
-
-
-_PAGE = _load_page()
 
 
 def _fetch_doc_content(feature: str, doc: str) -> dict | None:
@@ -435,7 +437,7 @@ class _Handler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
 
         if parsed.path in ("/", "/index.html"):
-            body = _PAGE.encode("utf-8")
+            body = _load_page().encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -704,7 +706,18 @@ def dashboard_command(port, host, share, write, no_open):
 
     token_qs = f"?token={token}" if token else ""
     local_url = f"http://127.0.0.1:{port}/{token_qs}"
-    server = ThreadingHTTPServer((effective_host, port), _Handler)
+    try:
+        server = ThreadingHTTPServer((effective_host, port), _Handler)
+    except OSError as e:
+        console.print(
+            f"[red]✗  Could not start the dashboard on {effective_host}:{port} — {e}[/red]"
+        )
+        if e.errno == errno.EADDRINUSE:
+            console.print(
+                "  [dim]Another process is already using that port — try a "
+                "different one, e.g. `sdd dashboard --port 8899`.[/dim]"
+            )
+        raise SystemExit(1) from e
 
     console.print()
     console.print(

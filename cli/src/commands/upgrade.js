@@ -3103,6 +3103,30 @@ export const MIGRATIONS = [
       "the --help smoke test both pass",
     ],
   },
+  {
+    from: '2.8.16',
+    to:   '2.8.17',
+    description: "Widen js-yaml's declared range; friendly error on dashboard port conflict; make dashboard's page assembly lazy",
+    notes: [
+      "This package's js-yaml dependency was pinned to ^4.1.0 " +
+      "(effectively <5.0.0), even though an earlier fix (import * as " +
+      "yaml, not the default export) already made the code work " +
+      "correctly under js-yaml 5.x -- verified again here by actually " +
+      "installing js-yaml@5.2.3 and re-running the full test suite + " +
+      "--help smoke test. Widened to >=4.1.0 <6.0.0 so users aren't held " +
+      "back from picking up js-yaml security/bug fixes for no real " +
+      "reason",
+      "The other two changes in this release (a friendly error on `sdd " +
+      "dashboard` port conflicts instead of a raw traceback, and making " +
+      "the dashboard's HTML page assembly lazy instead of running at " +
+      "CLI-import time) are cli-python-only -- this Node CLI has no " +
+      "dashboard command",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: npm test and the --help smoke test both pass under " +
+      "js-yaml 5.2.3",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
