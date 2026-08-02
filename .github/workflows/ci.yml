@@ -244,6 +244,11 @@ jobs:
             exit 1
           }
           Write-Host "embedded double-quote correctly rejected (exit $LASTEXITCODE)"
+          # GitHub Actions checks $LASTEXITCODE again when a `shell: pwsh`
+          # script block ends, regardless of the control flow above -- left
+          # at 1 from the child process call, it would fail this step even
+          # though the assertion above passed. Reset it explicitly.
+          exit 0
 
   node-cli-sanity:
     name: Node CLI installs and runs cleanly
