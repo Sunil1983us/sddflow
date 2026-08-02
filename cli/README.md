@@ -1,10 +1,13 @@
 # sddflow — SDD Framework CLI (Node.js)
 
-> **Maintenance mode.** This Node.js CLI covers scaffolding only
-> (`sdd init` / `sdd upgrade`) and receives fixes, not new features.
-> New capabilities land in the **Python CLI** (`pip install sddflow`) —
-> Jira, Confluence, review gates, PR automation. If you install both,
-> they collide on the `sdd` binary name: prefer the Python CLI.
+> **Deprecated.** This Node.js CLI covers scaffolding only
+> (`sdd init` / `sdd upgrade`), receives fixes only — no new features are
+> planned — and is not published to npm. **Use the Python CLI instead**
+> (`pip install sddflow`) unless you specifically need a Node-only
+> environment with no Python available: it has all of this CLI's
+> functionality plus Jira, Confluence, review gates, and PR automation.
+> If you install both, they collide on the `sdd` binary name: prefer the
+> Python CLI.
 
 Cross-platform replacement for `setup.sh` / `setup.ps1`.  
 No bash required. Works on Mac, Linux, and Windows.

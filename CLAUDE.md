@@ -214,3 +214,9 @@ sense — only that the pointer resolves to something real. `*.summary.md §N`
 references are deliberately skipped (AI-2 summaries aren't guaranteed to
 preserve source section numbers); a `.md` reference to a doc key with no
 matching `*-template.md` is reported as a note, not a failure.
+
+---
+
+## Versioning Policy
+
+`sdd_version` only bumps for changes `sdd upgrade` actually carries to a user's project — CLI code, pack templates/commands/prompts, `_shared/` content, `setup.sh`/`setup.ps1`. Prose-only documentation (root `README.md`, `CHANGELOG.md`, this file, `SPEC-KIT-COMPARISON.md`, `PACK-SPEC.md`, a pack's own `README.md`/`WHY-SDD.md`) is committed directly with no version bump, no migration entry — its history is tracked by commit SHA/date instead. Full rule and rationale: `.claude/skills/version-bump/SKILL.md` → "When to bump (and when not to)". Use the `version-bump` skill for any actual bump — its carry/rollover arithmetic isn't standard semver and hand-editing gets it wrong.

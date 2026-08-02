@@ -7,6 +7,17 @@ description: Computes and applies the next sdd_version for this repo (SDD Framew
 
 This repo keeps one version number (`sdd_version`) in lockstep across 9 files, and every bump also needs a migration entry in two upgrade scripts plus a CHANGELOG entry. This skill covers the whole thing end to end, minus the final commit — leave that as an explicit, human-reviewed step.
 
+## When to bump (and when not to)
+
+`sdd_version` exists so `sdd upgrade` can tell an existing user's project it's behind and walk it forward through migrations. Only bump it for changes that `sdd upgrade` actually carries to a user's project:
+
+- **Bump**: CLI command code (`cli-python/sdd/**`, `cli/src/**`), anything under a pack's `.specify/templates/**`, `.claude/commands/**`, `.github/prompts/**`, `.github/instructions/**`, `setup.sh`/`setup.ps1`, `_shared/blocks/**`, `_shared/full/**` — anything a real `sdd upgrade` migration would touch or that changes CLI-observable behavior.
+- **Don't bump**: prose-only documentation that `sdd upgrade` never reads or writes — root `README.md`, `CHANGELOG.md`, `CLAUDE.md`, `SPEC-KIT-COMPARISON.md`, `PACK-SPEC.md`, a pack's own `README.md`/`WHY-SDD.md` prose, code comments, this skill file. Commit these directly with a normal descriptive message — no version bump, no migration entry, no MIGRATIONS-list touch. Their history is tracked by git commit SHA/date, not by a version number.
+- **Mixed commit** (touches both): bump for the functional part — don't let doc edits riding alongside a real change suppress the bump, and don't let a functional change hide behind a "docs" label to avoid one.
+- **Grey area**: default to *not* bumping unless you can point at the specific thing `sdd upgrade` would carry forward. It's cheaper to be wrong by under-bumping (a maintainer notices and bumps later) than by over-bumping (another entry in a 9-file lockstep and two migration scripts for something no user's project ever needed to know about).
+
+This replaced the earlier default of bumping for every shipped change regardless of content — six bumps landed in one day earlier in this repo's history, several of them for root-doc-only edits with zero functional code touched.
+
 ## The versioning rule
 
 The version still looks like semver (`X.Y.Z`), but `Y` and `Z` are **capped counters**, not open-ended — this replaced the old "just increment patch forever" scheme (which had run away to `.100` before this was introduced). Capping keeps the numbers small and the meaning intact: `Z` — a patch within the current minor; `Y` — a minor within the current major.

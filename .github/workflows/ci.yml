@@ -80,11 +80,15 @@ jobs:
   python-cli-sanity:
     name: Python CLI installs and imports cleanly
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
       - name: Install cli-python
         run: pip install ./cli-python
       - name: Byte-compile all modules
@@ -95,6 +99,60 @@ jobs:
         run: |
           pip install pytest
           python3 -m pytest cli-python/tests -q
+
+  windows-setup-smoke-test:
+    name: setup.ps1 smoke test (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run setup.ps1 in a scratch copy of sdd-universal
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP "sdd-universal-test"
+          Copy-Item -Recurse "packs/sdd-universal" $work
+          Set-Location $work
+          .\setup.ps1 -Project "Windows Smoke Test" -Feature "smoke-feature" -Type backend-service -Scope pilot
+      - name: Assert manifest.yml was populated
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP "sdd-universal-test"
+          $content = Get-Content (Join-Path $work ".specify\manifest.yml") -Raw
+          $checks = @(
+            'name: "Windows Smoke Test"',
+            'feature: "smoke-feature"',
+            'project_type: "backend-service"',
+            'scope: "pilot"'
+          )
+          $failed = $false
+          foreach ($c in $checks) {
+            if ($content -notmatch [regex]::Escape($c)) {
+              Write-Error "manifest.yml missing expected value: $c"
+              $failed = $true
+            }
+          }
+          if ($failed) { exit 1 }
+          Write-Host "manifest.yml populated correctly"
+      - name: Assert context file and feature directory were created
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP "sdd-universal-test"
+          $contextFile = Join-Path $work ".specify\contexts\smoke-feature.md"
+          $featureDir  = Join-Path $work ".specify\features\smoke-feature"
+          if (-not (Test-Path $contextFile)) { Write-Error "context file not created: $contextFile"; exit 1 }
+          if (-not (Test-Path $featureDir))  { Write-Error "feature directory not created: $featureDir"; exit 1 }
+          Write-Host "context file and feature directory present"
+      - name: Reject an embedded double-quote in -Project (injection-class input)
+        shell: pwsh
+        run: |
+          $work2 = Join-Path $env:RUNNER_TEMP "sdd-universal-test-2"
+          Copy-Item -Recurse "packs/sdd-universal" $work2
+          Set-Location $work2
+          & .\setup.ps1 -Project 'bad"name' -Feature "smoke-feature" -Type backend-service
+          if ($LASTEXITCODE -eq 0) {
+            Write-Error "setup.ps1 should reject a double-quote in -Project but exited 0"
+            exit 1
+          }
+          Write-Host "embedded double-quote correctly rejected (exit $LASTEXITCODE)"
 
   node-cli-sanity:
     name: Node CLI installs and runs cleanly
