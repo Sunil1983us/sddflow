@@ -16,7 +16,7 @@ jobs:
     name: Shared blocks are in sync
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run sync-blocks.sh
         run: bash packs/_shared/sync-blocks.sh
       - name: Fail if sync produced uncommitted changes
@@ -30,7 +30,7 @@ jobs:
     name: setup.sh smoke tests (non-interactive, injection-class inputs)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run test-setup.sh (sdd-universal)
         run: bash packs/_shared/tests/test-setup.sh
       - name: Run test-setup-micro.sh (sdd-micro)
@@ -40,7 +40,7 @@ jobs:
     name: Prompt cross-references resolve (no dead "Action N" / "§N" pointers)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run check-cross-references.py
         run: python3 packs/_shared/tests/check-cross-references.py
 
@@ -48,7 +48,7 @@ jobs:
     name: Worked example passes output assertions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run assert-output.sh against examples/todo-api
         run: |
           bash packs/_shared/tests/assert-output.sh \
@@ -62,7 +62,7 @@ jobs:
     name: Validate YAML templates and manifests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -85,7 +85,7 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -104,7 +104,7 @@ jobs:
     name: Python CLI coverage threshold
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -122,7 +122,7 @@ jobs:
     name: Python CLI lint (ruff + mypy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -147,7 +147,7 @@ jobs:
     name: Python CLI runs with minimum declared dependency versions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -174,7 +174,7 @@ jobs:
     name: pip-audit (dependency vulnerability scan)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -190,7 +190,7 @@ jobs:
     name: setup.ps1 smoke test (Windows)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run setup.ps1 in a scratch copy of sdd-universal
         shell: pwsh
         run: |
@@ -244,7 +244,7 @@ jobs:
     name: Node CLI installs and runs cleanly
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
