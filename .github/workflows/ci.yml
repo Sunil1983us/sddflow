@@ -100,6 +100,24 @@ jobs:
           pip install pytest
           python3 -m pytest cli-python/tests -q
 
+  python-cli-coverage:
+    name: Python CLI coverage threshold
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install cli-python + coverage
+        run: |
+          pip install ./cli-python
+          pip install pytest coverage
+      - name: Run tests under coverage and enforce the threshold
+        working-directory: cli-python
+        run: |
+          coverage run -m pytest tests -q
+          coverage report
+
   python-cli-lint:
     name: Python CLI lint (ruff + mypy)
     runs-on: ubuntu-latest

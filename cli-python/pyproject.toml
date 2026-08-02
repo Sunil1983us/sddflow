@@ -108,3 +108,16 @@ ignore = [
     "BLE001",
 ]
 
+[tool.coverage.run]
+source = ["sdd"]
+
+[tool.coverage.report]
+# 77% -- set with headroom below the real baseline (79% when this was
+# added) rather than pinned to it, so a small incidental dip doesn't fail
+# CI for reasons unrelated to the change being reviewed. Not the review's
+# suggested 85% either -- that would fail immediately against the actual
+# baseline. Ratchet this upward over time as coverage improves, especially
+# once detect.py (9%), confluence_client.py (29%), and cf_to_md.py (18%)
+# get real unit tests -- see task tracker for the review this came from.
+fail_under = 77
+
