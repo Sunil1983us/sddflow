@@ -12,6 +12,18 @@ End-user usage (running `/specify`, `/validate`, etc.) happens inside a copy of 
 
 ---
 
+## Product Scope
+
+A standing filter for what belongs in this project, so feature requests get evaluated consistently rather than case by case:
+
+- **Core** — the SDD packs (document templates + AI prompts + workflow), the Python CLI (`sddflow`), the review-gate system (chat/local/jira modes), and the dashboard. This is what the project fundamentally is, and it must work completely on its own with none of the items below configured.
+- **Optional adapters, not core** — Jira, Confluence, PR automation (GitHub/GitLab/Bitbucket/Azure DevOps), and diagram rendering. These integrate with core when configured; core never depends on any of them being present (e.g. chat-mode review gates need no Jira, a local `sdd dashboard` needs no network sharing).
+- **Node CLI** — frozen at scaffolding-only (`init`/`upgrade`), maintenance-mode, no new features. See the deprecation notice in `README.md` and `cli/README.md`.
+
+Before building something new, place it in one of the three buckets above (or decide it doesn't belong in the project at all) rather than defaulting to "add it."
+
+---
+
 ## Repository Layout
 
 ```
