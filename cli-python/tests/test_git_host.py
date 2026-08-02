@@ -1,22 +1,21 @@
 # Unit tests for the git-host provider abstraction behind `sdd pr create`.
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from sdd.utils.git_host import (
-    parse_remote,
-    detect_host,
-    get_provider,
-    get_origin_url,
+    AzureDevOpsProvider,
+    BitbucketProvider,
     GitHubProvider,
     GitLabProvider,
-    BitbucketProvider,
-    AzureDevOpsProvider,
-    UnknownHostProvider,
     PrCreateError,
     RemoteInfo,
+    UnknownHostProvider,
+    detect_host,
+    get_origin_url,
+    get_provider,
+    parse_remote,
 )
-
 
 # ── URL parsing (pure — no mocking) ─────────────────────────────────────────
 
@@ -110,7 +109,7 @@ def test_run_missing_binary_returns_127_not_an_exception():
     _*_available() and create_pr() both depend on _run() failing gracefully."""
     from sdd.utils.git_host import _run
 
-    code, out, err = _run(["definitely-not-a-real-binary-xyz"])
+    code, _out, err = _run(["definitely-not-a-real-binary-xyz"])
     assert code == 127
     assert "not found" in err
 

@@ -3,6 +3,7 @@
 # (returns 410 Gone) in favor of POST /rest/api/3/search/jql, discovered
 # via a real "sdd review submit" failure during pre-publish testing.
 from __future__ import annotations
+
 from unittest.mock import MagicMock
 
 from sdd.utils.jira_client import JiraClient
@@ -73,7 +74,7 @@ class TestFindByLabel:
         assert 'labels = "sdd-feature:auth"' in body["jql"]
 
     def test_returns_first_match_or_none(self):
-        client, session = _client_with_mock_session(
+        client, _session = _client_with_mock_session(
             {"issues": [{"key": "PROJ-1"}, {"key": "PROJ-2"}]}
         )
         assert client.find_by_label("MYPROJ", "sdd-feature:auth") == {"key": "PROJ-1"}

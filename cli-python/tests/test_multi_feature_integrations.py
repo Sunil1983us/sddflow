@@ -1,9 +1,9 @@
 # Unit tests for multi-feature safety in Confluence page titles and Jira
 # issue labels — both bugs found while reviewing how /change, sdd jira
 # push, and sdd confluence push behave on a project with 2+ features.
-from sdd.utils.validate import LIVING_SERVICE_DOCS
 from sdd.commands.confluence import _resolve_page_title
 from sdd.commands.jira import _item_label
+from sdd.utils.validate import LIVING_SERVICE_DOCS
 
 
 def test_component_library_is_a_living_service_doc():

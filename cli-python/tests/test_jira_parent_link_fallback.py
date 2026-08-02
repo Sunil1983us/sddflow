@@ -6,6 +6,7 @@
 # issue link works across projects, so this is attempted as a fallback
 # instead of just printing a dead-end warning.
 from __future__ import annotations
+
 from unittest.mock import MagicMock
 
 from sdd.commands.jira import _warn_parent_link_failed

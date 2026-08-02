@@ -7,6 +7,7 @@ Gates"). This is what `sdd dashboard` and `sdd status` render.
 """
 
 from __future__ import annotations
+
 import json
 import re
 from datetime import date, datetime, timezone

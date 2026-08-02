@@ -1,22 +1,24 @@
 from __future__ import annotations
+
 import re
 import subprocess
 from pathlib import Path
+
 import click
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import load_jira_session
-from sdd.utils.integrations import load_integrations
-from sdd.utils.jira_client import JiraClient
-from sdd.utils.sdd_parser import parse_tasks
-from sdd.utils.manifest import read_manifest
-from sdd.utils.validate import safe_feature_path
 from sdd.utils.git_host import (
-    detect_host,
-    get_provider,
     PrCreateError,
     ReviewActionError,
+    detect_host,
+    get_provider,
 )
+from sdd.utils.integrations import load_integrations
+from sdd.utils.jira_client import JiraClient
+from sdd.utils.manifest import read_manifest
+from sdd.utils.sdd_parser import parse_tasks
+from sdd.utils.validate import safe_feature_path
 
 console = Console()
 
@@ -28,7 +30,7 @@ def _slug(title: str) -> str:
 
 
 def _run(cmd: list[str]) -> tuple[int, str, str]:
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, check=False)
     return r.returncode, r.stdout.strip(), r.stderr.strip()
 
 
@@ -113,7 +115,7 @@ def pr_create(task, base, profile, feature):
     if code != 0:
         console.print(f"  [yellow]·[/yellow]  Push failed (push manually): {err}")
     else:
-        console.print(f"  [green]✓[/green]  Pushed to origin")
+        console.print("  [green]✓[/green]  Pushed to origin")
 
     # ── Build PR content ──────────────────────────────────────────────────────
     title_pattern = (
@@ -145,7 +147,7 @@ def pr_create(task, base, profile, feature):
             pre_review_section = (
                 f"\n## Pre-Review\n\n{summary_path.read_text().strip()}\n\n"
             )
-            console.print(f"  [green]✓[/green]  Pre-review summary included")
+            console.print("  [green]✓[/green]  Pre-review summary included")
         else:
             console.print(
                 f"  [yellow]⚠[/yellow]  Pre-review enabled but not run for {task.upper()}. "
@@ -197,11 +199,11 @@ def pr_create(task, base, profile, feature):
             jira_client.add_comment(jira_key, f"PR created: {pr_url}")
             console.print(f"  [green]✓[/green]  Jira [{jira_key}] updated with PR link")
         except Exception:
-            console.print(f"  [dim]·  Could not update Jira (PR still created)[/dim]")
+            console.print("  [dim]·  Could not update Jira (PR still created)[/dim]")
 
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print(f"  [bold green]PR created![/bold green]")
+    console.print("  [bold green]PR created![/bold green]")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
 

@@ -1,23 +1,25 @@
 from __future__ import annotations
+
 import json
 import re
 from pathlib import Path
+
 import click
 import yaml
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import load_jira_session, load_profile
-from sdd.utils.integrations import load_integrations, JiraConfig
+from sdd.utils.integrations import JiraConfig, load_integrations
 from sdd.utils.jira_client import JiraClient
+from sdd.utils.manifest import read_manifest
 from sdd.utils.sdd_parser import (
-    parse_stories,
-    parse_tasks,
-    parse_use_cases,
     Story,
     Task,
     UseCase,
+    parse_stories,
+    parse_tasks,
+    parse_use_cases,
 )
-from sdd.utils.manifest import read_manifest
 from sdd.utils.validate import safe_feature_path
 
 console = Console()
@@ -1204,8 +1206,8 @@ def _save_keys_summary(
                 existing, default_flow_style=False, sort_keys=False, allow_unicode=True
             )
         )
-    except Exception:
-        pass
+    except Exception:  # noqa: S110 -- this local record file is a human-readable
+        pass  # convenience only (see comment above); never block a push over it
 
 
 def _log(issue_type: str, key: str, title: str, created: bool) -> None:

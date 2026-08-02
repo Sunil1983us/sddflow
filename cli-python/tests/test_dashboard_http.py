@@ -5,13 +5,13 @@
 import json
 import threading
 from http.client import HTTPConnection
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
 
 import sdd.commands.dashboard as dashboard_mod
 from sdd.commands.dashboard import _Handler
-from http.server import ThreadingHTTPServer
 
 
 def _scaffold_feature(root: Path, feature: str = "payments", doc: str = "brd") -> None:
@@ -104,7 +104,9 @@ def test_get_api_doc_valid_feature_returns_content(server):
 
 def test_get_api_doc_missing_doc_returns_404(server):
     httpd, _ = server
-    status, _, body = _get(httpd.server_address[1], "/api/doc?feature=payments&doc=brd")
+    status, _, _body = _get(
+        httpd.server_address[1], "/api/doc?feature=payments&doc=brd"
+    )
     assert status == 404
 
 
@@ -119,7 +121,7 @@ def test_get_api_doc_rejects_path_traversal(server):
 
 def test_get_api_review_links_rejects_invalid_feature(server):
     httpd, _ = server
-    status, _, body = _get(
+    status, _, _body = _get(
         httpd.server_address[1], "/api/review-links?feature=..%2Fescape"
     )
     assert status == 400

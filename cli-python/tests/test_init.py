@@ -3,12 +3,14 @@
 # questionary's prompt_toolkit UI needs a real TTY-like input source that
 # CliRunner's plain stdin feeding doesn't provide. Same pattern as
 # test_config_and_integrations.py's TestConfigInitCommand.
+from __future__ import annotations
+
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
 from click.testing import CliRunner
-from unittest.mock import patch
 
 from sdd.commands.init import init_command
 

@@ -1,21 +1,23 @@
 from __future__ import annotations
-from datetime import date
-from pathlib import Path
+
 import json
 import re
-import yaml
+from datetime import date
+from pathlib import Path
+
 import click
+import yaml
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_jira_session, load_confluence_session
-from sdd.utils.integrations import load_integrations, IntegrationsConfig
-from sdd.utils.jira_client import JiraClient
+from sdd.utils.atlassian_auth import load_confluence_session, load_jira_session
 from sdd.utils.confluence_client import ConfluenceClient
-from sdd.utils.md_to_cf import md_to_storage
+from sdd.utils.dashboard_comments import acknowledge, unacknowledged
+from sdd.utils.integrations import IntegrationsConfig, load_integrations
+from sdd.utils.jira_client import JiraClient
 from sdd.utils.manifest import read_manifest
+from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.status import persona_for
-from sdd.utils.validate import resolve_doc_path, PROJECT_SCOPED_DOCS
-from sdd.utils.dashboard_comments import unacknowledged, acknowledge
+from sdd.utils.validate import PROJECT_SCOPED_DOCS, resolve_doc_path
 
 console = Console()
 
@@ -35,7 +37,7 @@ def _save_local_approval(doc: str, approved_by: str, note: str = "") -> None:
     approvals = _load_local_approvals()
     approvals[doc] = {
         "approved_by": approved_by,
-        "approved_at": str(date.today()),
+        "approved_at": str(date.today()),  # noqa: DTZ011 -- local calendar date by design, not a UTC instant
         "note": note,
     }
     _LOCAL_APPROVALS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -114,7 +116,7 @@ def _mark_md_approved(md_path: Path) -> bool:
         count=1,
         flags=re.IGNORECASE,
     )
-    new = _mark_approvals_table(new, str(date.today()))
+    new = _mark_approvals_table(new, str(date.today()))  # noqa: DTZ011 -- local calendar date by design
     if new == text:
         return False
     md_path.write_text(new)
@@ -211,7 +213,7 @@ def _push_doc_page(
                     status,
                     cfg.document_reviews[doc].reviewer_role,
                 )
-        except Exception:
+        except Exception:  # noqa: S110 -- see comment above
             pass  # banner is a best-effort addition -- never blocks the page push itself
 
     body_html, attachments, diagram_warnings = md_to_storage(
@@ -506,7 +508,7 @@ def _bump_version_and_log(text: str, note: str) -> str:
     if not sep_match:
         return text
     insert_at = heading.end() + sep_match.end()
-    row = f"| {new_version} | {date.today()} | Jira/Confluence | {note} | — |\n"
+    row = f"| {new_version} | {date.today()} | Jira/Confluence | {note} | — |\n"  # noqa: DTZ011 -- local calendar date by design
     return text[:insert_at] + row + text[insert_at:]
 
 
@@ -966,7 +968,7 @@ def review_submit(doc, profile, feature):
                     f"All open questions resolved — {doc.upper()} has been updated "
                     f"and is now ready for full review.",
                 )
-            except Exception:
+            except Exception:  # noqa: S110 -- see comment above
                 pass  # best-effort notification only; the ticket update above already succeeded
     else:
         result = jira_client.create_issue(fields)
@@ -1370,7 +1372,7 @@ def review_check(doc, profile, feature):
     try:
         cfg = load_integrations()
         jira_prof, session = load_jira_session(cfg, profile)
-    except Exception as e:
+    except Exception:
         if _print_local_comments_if_any(doc, feature_name):
             raise SystemExit(1)
         console.print(
@@ -1405,7 +1407,7 @@ def review_check(doc, profile, feature):
             md_path = resolve_doc_path(doc, feature_name)
             if md_path.exists():
                 _push_doc_page(doc, md_path, feature_name)
-        except Exception:
+        except Exception:  # noqa: S110 -- best-effort banner refresh, see comment above
             pass
 
     if status == "APPROVED":
@@ -1618,7 +1620,7 @@ def review_apply(doc, profile, feature):
     try:
         cfg = load_integrations()
         jira_prof, session = load_jira_session(cfg, profile)
-    except Exception as e:
+    except Exception:
         # No integrations.yml at all -- still acknowledge any local
         # dashboard comments so `sdd review check` stops repeating them.
         acknowledge(feature_name, doc)
@@ -1726,8 +1728,8 @@ def review_status(profile, feature):
     phases: dict[str, list] = {}
     for key, dc in cfg.document_reviews.items():
         phases.setdefault(dc.phase, []).append((key, dc))
-    for ph in phases:
-        phases[ph].sort(key=lambda x: x[1].sequence)
+    for entries in phases.values():
+        entries.sort(key=lambda x: x[1].sequence)
 
     all_statuses: dict[str, str] = {}
     ordered_phases = sorted(

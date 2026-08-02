@@ -5,12 +5,11 @@
 # collision-safe titles (that's covered separately by the {feature}
 # title-substitution tests in test_multi_feature_integrations.py and
 # test_review_helpers.py). Run from repo root: pytest cli-python/tests -q
-import pytest
 
 from sdd.commands.confluence import (
     _ensure_container_page,
-    resolve_feature_parent_id,
     resolve_doc_parent_id,
+    resolve_feature_parent_id,
     upload_diagram_attachments,
 )
 from sdd.utils.integrations import ConfluenceConfig

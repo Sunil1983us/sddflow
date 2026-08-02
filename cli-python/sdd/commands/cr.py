@@ -1,15 +1,16 @@
 from __future__ import annotations
-import re
+
 from pathlib import Path
+
 import click
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_jira_session, load_confluence_session
+from sdd.utils.atlassian_auth import load_confluence_session, load_jira_session
+from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.integrations import load_integrations
 from sdd.utils.jira_client import JiraClient
-from sdd.utils.confluence_client import ConfluenceClient
-from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.manifest import read_manifest
+from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.validate import safe_feature_path
 
 console = Console()
@@ -169,8 +170,8 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
             f"Please review Change Request {cr_id}.\n\n"
             f"Summary: {cr_summary}\n\n"
             + (f"Confluence: {page_url}\n\n" if page_url else "")
-            + f"To APPROVE: set task to Done and comment 'Approved'.\n"
-            f"To REQUEST CHANGES: add comments and leave the task open."
+            + "To APPROVE: set task to Done and comment 'Approved'.\n"
+            "To REQUEST CHANGES: add comments and leave the task open."
         )
         fields: dict = {
             "project": {"key": cr_project_key},

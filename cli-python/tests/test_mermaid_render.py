@@ -1,13 +1,14 @@
 # Unit tests for mermaid_render.py -- the optional local-svg renderer
 # wrapper. Run from repo root: pytest cli-python/tests -q
 from __future__ import annotations
+
 import builtins
 import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sdd.utils.mermaid_render import render_mermaid_svg, MermaidRendererNotInstalled
+from sdd.utils.mermaid_render import MermaidRendererNotInstalled, render_mermaid_svg
 
 
 class TestRenderMermaidSvg:
@@ -22,9 +23,11 @@ class TestRenderMermaidSvg:
                 raise ImportError("No module named 'mmdr'")
             return real_import(name, *args, **kwargs)
 
-        with patch.object(builtins, "__import__", side_effect=fake_import):
-            with pytest.raises(MermaidRendererNotInstalled) as exc_info:
-                render_mermaid_svg("flowchart LR; A-->B")
+        with (
+            patch.object(builtins, "__import__", side_effect=fake_import),
+            pytest.raises(MermaidRendererNotInstalled) as exc_info,
+        ):
+            render_mermaid_svg("flowchart LR; A-->B")
         assert 'pip install "sddflow[diagrams]"' in str(exc_info.value)
 
     def test_returns_svg_string_on_success(self):
@@ -41,6 +44,8 @@ class TestRenderMermaidSvg:
         it (fall back to a code block), this wrapper doesn't swallow it."""
         fake_mmdr = MagicMock()
         fake_mmdr.render.side_effect = ValueError("no diagram type detected")
-        with patch.dict(sys.modules, {"mmdr": fake_mmdr}):
-            with pytest.raises(ValueError, match="no diagram type detected"):
-                render_mermaid_svg("not a diagram")
+        with (
+            patch.dict(sys.modules, {"mmdr": fake_mmdr}),
+            pytest.raises(ValueError, match="no diagram type detected"),
+        ):
+            render_mermaid_svg("not a diagram")

@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 from sdd.commands import review
-from sdd.utils.integrations import JiraConfig, IntegrationsConfig
+from sdd.utils.integrations import IntegrationsConfig, JiraConfig
 
 
 @pytest.fixture()
@@ -1224,7 +1224,7 @@ class TestJiraStatusBanner:
             result = review._push_doc_page("constitution", constitution, "auth")
 
         assert result is not None
-        title, url = result
+        title, _url = result
         assert title == "Demo — Constitution"
         assert "Jira review" not in cf_client.body_by_title["Demo — Constitution"]
 
@@ -2165,7 +2165,7 @@ class TestPushPullQuestionsCommands:
             runner.invoke(review.review_command, ["submit", "--doc", "validate"])
 
         assert len(fake_jira.added_comments) == 1
-        issue_key, text = fake_jira.added_comments[0]
+        _issue_key, text = fake_jira.added_comments[0]
         assert "ready for full review" in text
 
     def test_pull_answers_patches_both_docs_and_multi_location_question(

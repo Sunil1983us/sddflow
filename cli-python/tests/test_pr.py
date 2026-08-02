@@ -3,16 +3,16 @@
 # layer (task lookup, branch/PR-body construction, error handling), not
 # the individual git-host providers (already covered by test_git_host.py).
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
-from unittest.mock import MagicMock, patch
 
 from sdd.commands.pr import pr_command
 from sdd.utils.git_host import (
     PrCreateError,
-    ReviewActionError,
     RemoteInfo,
+    ReviewActionError,
     ReviewComment,
 )
 

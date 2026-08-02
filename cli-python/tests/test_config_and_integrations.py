@@ -8,17 +8,16 @@ from click.testing import CliRunner
 
 from sdd.commands import config as config_mod
 from sdd.commands.config import (
-    _integrations_template,
     _integrations_from_example,
+    _integrations_template,
     config_command,
 )
 from sdd.utils import atlassian_auth
 from sdd.utils.integrations import (
+    _DEFAULT_PAGE_MAP,
     load_integrations,
     parse_confluence_page_id,
-    _DEFAULT_PAGE_MAP,
 )
-
 
 EXPECTED_DOC_KEYS = [
     "brd",
@@ -913,7 +912,7 @@ class TestConfigSetSecretCommand:
         )
         fake_answer = type("Q", (), {"ask": lambda self: "new-secret"})()
         with (
-            patch("questionary.password", return_value=fake_answer) as pw,
+            patch("questionary.password", return_value=fake_answer),
             patch.object(config_mod, "store_secret") as store,
         ):
             result = runner.invoke(config_command, ["set-secret", "--profile", "work"])

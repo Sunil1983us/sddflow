@@ -100,6 +100,23 @@ jobs:
           pip install pytest
           python3 -m pytest cli-python/tests -q
 
+  python-cli-lint:
+    name: Python CLI lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Run ruff check
+        working-directory: cli-python
+        run: ruff check .
+      - name: Run ruff format --check
+        working-directory: cli-python
+        run: ruff format --check .
+
   windows-setup-smoke-test:
     name: setup.ps1 smoke test (Windows)
     runs-on: windows-latest

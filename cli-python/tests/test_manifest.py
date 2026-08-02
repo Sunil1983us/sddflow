@@ -6,13 +6,12 @@
 from pathlib import Path
 
 import pytest
-import yaml
 
 from sdd.utils.manifest import (
     ManifestError,
+    patch_manifest,
     read_manifest,
     write_manifest,
-    patch_manifest,
 )
 
 

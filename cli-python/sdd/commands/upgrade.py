@@ -1,9 +1,12 @@
-from pathlib import Path
+from __future__ import annotations
+
 import sys
+from pathlib import Path
+
 import click
 from rich.console import Console
 
-from sdd.utils.manifest import read_manifest, patch_manifest, MANIFEST_PATH, SDD_VERSION
+from sdd.utils.manifest import MANIFEST_PATH, SDD_VERSION, patch_manifest, read_manifest
 from sdd.utils.scaffold import (
     ALL_PACKS,
     TYPE_TO_PACK,
@@ -4718,6 +4721,52 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.10"},
     },
+    {
+        "from": "2.8.10",
+        "to": "2.8.11",
+        "description": "Fix a real Python 3.9 import crash (PEP 604 `X | None` used without `from __future__ import annotations`) plus a ruff lint/format pass",
+        "notes": [
+            "Real bug, not a lint nitpick: 7 modules (init.py, upgrade.py, "
+            "detect.py, manifest.py, scaffold.py, validate.py, plus one "
+            "test file) used `str | None` / `dict | None` union syntax "
+            "directly in function signatures with no `from __future__ "
+            "import annotations` at the top of the file. PEP 604's `X | Y` "
+            "union syntax is only evaluable at runtime from Python 3.10 "
+            "onward -- on 3.9 (which pyproject.toml's own `requires-python "
+            "= \">=3.9\"` and classifiers claim to support), importing "
+            "any of these modules raised `TypeError: unsupported operand "
+            "type(s) for |` at function-definition time, before a single "
+            "line of the CLI's own logic ever ran. Caught by ruff's FA102 "
+            "rule while setting up CI's new ruff job (task #32 in this "
+            "session's review-tracker) -- and would have been caught "
+            "immediately by the Python 3.9 CI matrix job added one round "
+            "earlier (v2.8.10 -> this bump's sibling change), since a "
+            "3.9 job would fail on `sdd --help` alone",
+            "Added ruff to CI (`ruff check .` + `ruff format --check .`), "
+            "configured in cli-python/pyproject.toml's new [tool.ruff] "
+            "section. Ran a full pass first: fixed or noqa'd (with a "
+            "reason comment) everything ruff's default ruleset flagged "
+            "except two deliberately-ignored rules -- ISC004 (674 hits, "
+            "this codebase's own style of writing long prose as adjacent "
+            "string literals in lists, not a bug) and BLE001 (67 hits, "
+            "`except Exception:` -- flagged for a dedicated manual triage "
+            "pass, tracked separately, not blanket-suppressed or blanket-"
+            "narrowed blind)",
+            "Applied `ruff format` across the whole package as its own "
+            "prior isolated commit (no functional change, same test "
+            "results before/after) so this commit's diff isn't dominated "
+            "by pure reformatting noise",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. Both fixes are Python-only; no Node CLI "
+            "equivalent exists for either",
+            "Verified: cli-python pytest 789/789 (unchanged pass count "
+            "throughout this round), `ruff check .` and `ruff format "
+            "--check .` both clean, and the specific fix confirmed via "
+            "`ruff check . --select FA102` going from 11 hits to 0",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.11"},
+    },
 ]
 
 
@@ -4888,7 +4937,7 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
     """Migrate manifest.yml to the current pack version."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print(f"  [bold cyan]SDD Framework[/bold cyan] — upgrade")
+    console.print("  [bold cyan]SDD Framework[/bold cyan] — upgrade")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
 

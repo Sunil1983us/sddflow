@@ -3,7 +3,6 @@
 # routing through jira.py's _upsert_issue(), and had silently skipped
 # cfg.jira.labels (base_fields.labels) and the team stamp that every other
 # issue type (Epic/Story/Task/CHG) gets. Run from repo root: pytest cli-python/tests -q
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest

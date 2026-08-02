@@ -4,12 +4,12 @@ from pathlib import Path
 import pytest
 
 from sdd.utils.validate import (
-    validate_name,
-    assert_valid_name,
-    safe_feature_path,
-    resolve_doc_path,
     LIVING_SERVICE_DOCS,
     PROJECT_SCOPED_DOCS,
+    assert_valid_name,
+    resolve_doc_path,
+    safe_feature_path,
+    validate_name,
 )
 
 

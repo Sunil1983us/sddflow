@@ -14,6 +14,7 @@ text) are length-clipped before being written anywhere.
 """
 
 from __future__ import annotations
+
 import json
 import re
 import secrets
@@ -23,13 +24,13 @@ import webbrowser
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 import click
 from rich.console import Console
 
-from sdd.utils.status import build_project_status
 from sdd.utils.manifest import read_manifest
+from sdd.utils.status import build_project_status
 
 console = Console()
 
@@ -1205,11 +1206,11 @@ def _fetch_review_links(feature: str) -> dict:
     review.py's own classification helper rather than re-deriving it here
     (keeps the two in lockstep instead of drifting).
     """
-    from sdd.utils.integrations import load_integrations
-    from sdd.utils.atlassian_auth import load_jira_session, load_confluence_session
-    from sdd.utils.jira_client import JiraClient
+    from sdd.commands.review import _extract_text, _get_review_status
+    from sdd.utils.atlassian_auth import load_confluence_session, load_jira_session
     from sdd.utils.confluence_client import ConfluenceClient
-    from sdd.commands.review import _get_review_status, _extract_text
+    from sdd.utils.integrations import load_integrations
+    from sdd.utils.jira_client import JiraClient
 
     try:
         cfg = load_integrations()
@@ -1306,8 +1307,8 @@ def _clip_text(value, max_len=_MAX_TEXT_LEN) -> str:
 def _jira_client_for_comments():
     """Build (client, cfg) for posting a Jira comment, or None if Jira isn't
     configured. Never raises — callers treat None as 'skip, not an error'."""
-    from sdd.utils.integrations import load_integrations
     from sdd.utils.atlassian_auth import load_jira_session
+    from sdd.utils.integrations import load_integrations
     from sdd.utils.jira_client import JiraClient
 
     try:
@@ -1362,10 +1363,10 @@ def _do_approve(feature: str, doc: str, by: str, note: str) -> dict:
     those CLI commands, not something introduced by the dashboard.
     """
     from sdd.commands.review import (
-        _save_local_approval,
+        _doc_md_path,
         _mark_md_approved,
         _push_doc_page,
-        _doc_md_path,
+        _save_local_approval,
     )
 
     by = _clip_text(by) or "dashboard user"
@@ -1434,7 +1435,7 @@ def _do_comment(feature: str, doc: str, by: str, text: str) -> dict:
 
 
 class _Handler(BaseHTTPRequestHandler):
-    def log_message(self, fmt, *args):  # noqa: A003 - silence default access logging
+    def log_message(self, fmt, *args):
         pass
 
     def _send_json(self, data: dict, status: int = 200) -> None:
@@ -1445,7 +1446,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self):  # noqa: N802 - http.server API
+    def do_GET(self):
         parsed = urlparse(self.path)
         qs = parse_qs(parsed.query)
 
@@ -1556,7 +1557,7 @@ class _Handler(BaseHTTPRequestHandler):
             return "Missing or invalid X-SDD-Token header."
         return None
 
-    def do_POST(self):  # noqa: N802 - http.server API
+    def do_POST(self):
         parsed = urlparse(self.path)
 
         write_error = self._check_write_access()

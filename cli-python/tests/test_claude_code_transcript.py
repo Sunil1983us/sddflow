@@ -8,7 +8,6 @@ from pathlib import Path
 from sdd.utils.claude_code_transcript import (
     ModelUsage,
     _sanitize_cwd,
-    claude_projects_dir,
     find_session_transcripts,
     sum_usage_since,
 )
@@ -81,7 +80,7 @@ class TestFindSessionTranscripts:
         _write_jsonl(older, [])
         _write_jsonl(newer, [])
         # Force distinguishable mtimes regardless of filesystem timestamp resolution
-        import os, time
+        import os
 
         os.utime(older, (1000, 1000))
         os.utime(newer, (2000, 2000))

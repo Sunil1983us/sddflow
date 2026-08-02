@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from pathlib import Path
-import yaml
+
+import keyring
 import requests
 import requests.auth
+import yaml
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-import keyring
 
 # Every Jira/Confluence API call in this codebase goes through a Session
 # built by build_session() below, so configuring resilience once here --
@@ -151,7 +153,7 @@ def _get_keyring_secret(profile_name: str) -> str:
             f"in ~/.sdd/config.yml as a fallback."
         ) from e
     if not token:
-        raise EnvironmentError(
+        raise OSError(
             f"No credential found in the system keychain for profile "
             f"'{profile_name}'. Run 'sdd config set-secret --profile "
             f"{profile_name}' to store it."
@@ -171,7 +173,7 @@ def _resolve_secret(profile: Profile, env_var_name: str | None, field_name: str)
         raise ValueError(f"credential_store=env requires {field_name} in config")
     token = os.environ.get(env_var_name, "")
     if not token:
-        raise EnvironmentError(
+        raise OSError(
             f"Environment variable {env_var_name} is not set. Export it "
             f"before running sdd commands, or switch this profile to "
             f"credential_store: keyring (run 'sdd config init') so it "

@@ -11,6 +11,7 @@
 # exercised in tests by mocking subprocess.run / requests.
 
 from __future__ import annotations
+
 import os
 import re
 import subprocess
@@ -59,7 +60,7 @@ def _run(cmd: list[str]) -> tuple[int, str, str]:
     (returncode 127, shell convention) rather than an uncaught exception —
     gh/glab/az are all optional and commonly absent."""
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
     except FileNotFoundError:
         return 127, "", f"{cmd[0]}: command not found"
     return r.returncode, r.stdout.strip(), r.stderr.strip()

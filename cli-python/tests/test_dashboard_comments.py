@@ -5,7 +5,7 @@
 import json
 from pathlib import Path
 
-from sdd.utils.dashboard_comments import all_comments, unacknowledged, acknowledge
+from sdd.utils.dashboard_comments import acknowledge, all_comments, unacknowledged
 
 
 def _write_comments(root: Path, feature: str, doc: str, entries: list[dict]) -> None:

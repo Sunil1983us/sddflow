@@ -3,6 +3,7 @@
 # Detection order must match setup.sh detect_project_type() and specify.prompt.md
 # Step 0 table. Update all three together when adding a new type.
 # INVARIANT: mobile checks must appear before fullstack.
+from __future__ import annotations
 
 import json
 from pathlib import Path

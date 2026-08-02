@@ -2,7 +2,6 @@
 # sync_pack_prompts() specifically (re-copies .github/prompts/ and
 # .claude/commands/ into an already-scaffolded project, since `sdd upgrade`
 # alone never touches these files after the initial `sdd init`).
-from pathlib import Path
 
 import pytest
 

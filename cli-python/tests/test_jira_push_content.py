@@ -1,30 +1,29 @@
 # Unit tests for jira.py's content-parity fixes: Feature/Epic gets a real
 # description from brd.md, Story/Task always carry Acceptance Criteria.
 from __future__ import annotations
+
 import json
-from pathlib import Path
 
 import pytest
 
 from sdd.commands.jira import (
-    adf_doc,
-    adf_sections,
-    feature_extra_fields,
-    parse_brd_problem_statement,
-    parse_brd_business_hypothesis,
-    parse_brd_executive_summary,
-    parse_brd_out_of_scope,
-    parse_srd_nfr_rows,
-    parse_brd_business_objectives,
-    parse_brd_success_criteria,
-    brd_confluence_link,
+    _push,
     _resolve_confluence_base_url,
     _upsert_issue,
-    _push,
+    adf_doc,
+    adf_sections,
+    brd_confluence_link,
+    feature_extra_fields,
+    parse_brd_business_hypothesis,
+    parse_brd_business_objectives,
+    parse_brd_executive_summary,
+    parse_brd_out_of_scope,
+    parse_brd_problem_statement,
+    parse_brd_success_criteria,
+    parse_srd_nfr_rows,
 )
 from sdd.utils.integrations import JiraConfig
 from sdd.utils.sdd_parser import Story, Task
-
 
 # ── adf_doc ──────────────────────────────────────────────────────────────────
 

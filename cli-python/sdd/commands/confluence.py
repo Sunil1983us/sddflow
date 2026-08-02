@@ -1,19 +1,21 @@
 from __future__ import annotations
+
 import json
 from pathlib import Path
+
 import click
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import load_confluence_session
-from sdd.utils.integrations import load_integrations
-from sdd.utils.confluence_client import ConfluenceClient
-from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.cf_to_md import cf_to_md
+from sdd.utils.confluence_client import ConfluenceClient
+from sdd.utils.integrations import load_integrations
 from sdd.utils.manifest import read_manifest
+from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.validate import (
-    resolve_doc_path,
     LIVING_SERVICE_DOCS,
     PROJECT_SCOPED_DOCS,
+    resolve_doc_path,
 )
 
 console = Console()
@@ -531,8 +533,6 @@ def confluence_pull(doc, profile, feature, page_id):
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
     doc_path.parent.mkdir(parents=True, exist_ok=True)
-
-    old_text = doc_path.read_text() if doc_path.exists() else ""
     doc_path.write_text(markdown + "\n")
 
     body_lines = len(cf_to_md(storage_body).splitlines())
@@ -559,6 +559,6 @@ def confluence_pull(doc, profile, feature, page_id):
         )
         console.print("  and comments, then continue.")
     else:
-        console.print(f"  Say [bold]'done'[/bold] in chat to resume the SDD workflow.")
+        console.print("  Say [bold]'done'[/bold] in chat to resume the SDD workflow.")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()

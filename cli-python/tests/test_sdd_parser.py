@@ -15,10 +15,10 @@
 from pathlib import Path
 
 from sdd.utils.sdd_parser import (
+    UseCase,
     _parse_stories_text,
     _parse_tasks_text,
     parse_use_cases,
-    UseCase,
 )
 
 _PACKS_ROOT = (

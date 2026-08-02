@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sddflow"
-version = "2.8.10"
+version = "2.8.11"
 description = "Spec-Driven Development CLI for AI coding agents — SDLC workflows with Jira/Confluence sync, multi-host PR automation, and live progress dashboards"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -81,5 +81,30 @@ include = [
     "sdd/",
     "README.md",
     "pyproject.toml",
+]
+
+[tool.ruff]
+target-version = "py39"
+
+[tool.ruff.lint]
+# Uses ruff's own default rule selection rather than a hand-picked list --
+# a full pass fixed or noqa'd (with reasons) everything it flagged except
+# the two ignores below. Re-run `ruff check .` after a ruff upgrade in
+# case its defaults change.
+ignore = [
+    # This codebase deliberately writes long prose as adjacent string
+    # literals inside list/tuple literals (e.g. migration `notes` lists,
+    # test docstrings) -- a deliberate style choice, not a bug. 674 hits,
+    # all of this same shape, verified during the review pass that added
+    # this config.
+    "ISC004",
+    # `except Exception:` appears broadly across the CLI/API-client layers.
+    # Some instances are clearly intentional and already documented inline
+    # (search for "noqa: S110" nearby for the best-effort-fallback cases);
+    # most of the 67 hits haven't been triaged one at a time. Flagged for a
+    # dedicated manual review pass rather than blanket-suppressed here or
+    # blanket-narrowed to specific exception types without understanding
+    # what each call site actually needs to catch.
+    "BLE001",
 ]
 

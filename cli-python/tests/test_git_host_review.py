@@ -1,21 +1,20 @@
 # Unit tests for the review-comment provider methods behind /address-review
 # (sdd pr comments / reply / resolve / request-review).
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from sdd.utils.git_host import (
+    AzureDevOpsProvider,
+    BitbucketProvider,
     GitHubProvider,
     GitLabProvider,
-    BitbucketProvider,
-    AzureDevOpsProvider,
-    UnknownHostProvider,
-    ReviewComment,
-    ReviewActionError,
     RemoteInfo,
+    ReviewActionError,
+    ReviewComment,
+    UnknownHostProvider,
 )
-
 
 # ── GitHubProvider ───────────────────────────────────────────────────────────
 

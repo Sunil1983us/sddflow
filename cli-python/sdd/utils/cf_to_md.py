@@ -6,6 +6,7 @@ macros, unordered/ordered lists, paragraphs, hr, and links.
 """
 
 from __future__ import annotations
+
 import html
 import re
 

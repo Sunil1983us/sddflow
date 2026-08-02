@@ -1,15 +1,16 @@
 import click
+
 from sdd import __version__
-from sdd.commands.init import init_command
-from sdd.commands.upgrade import upgrade_command
 from sdd.commands.config import config_command
-from sdd.commands.jira import jira_command
 from sdd.commands.confluence import confluence_command
-from sdd.commands.review import review_command
 from sdd.commands.cr import cr_command
-from sdd.commands.pr import pr_command
 from sdd.commands.dashboard import dashboard_command
+from sdd.commands.init import init_command
+from sdd.commands.jira import jira_command
+from sdd.commands.pr import pr_command
+from sdd.commands.review import review_command
 from sdd.commands.token_log import token_log_command
+from sdd.commands.upgrade import upgrade_command
 
 
 @click.group()

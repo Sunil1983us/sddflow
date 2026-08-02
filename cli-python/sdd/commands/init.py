@@ -1,18 +1,21 @@
+from __future__ import annotations
+
 from pathlib import Path
+
 import click
 import questionary
 from rich.console import Console
 
-from sdd.utils.detect import detect_project_type, PROJECT_TYPES
-from sdd.utils.validate import validate_name, assert_valid_name
-from sdd.utils.manifest import patch_manifest, read_manifest, MANIFEST_PATH, SDD_VERSION
+from sdd.utils.detect import PROJECT_TYPES, detect_project_type
+from sdd.utils.manifest import MANIFEST_PATH, SDD_VERSION, patch_manifest, read_manifest
 from sdd.utils.scaffold import (
+    ALL_PACKS,
+    PACK_DESCRIPTIONS,
+    TYPE_TO_PACK,
     recommended_pack,
     scaffold_pack,
-    PACK_DESCRIPTIONS,
-    ALL_PACKS,
-    TYPE_TO_PACK,
 )
+from sdd.utils.validate import assert_valid_name, validate_name
 
 # Reverse of TYPE_TO_PACK — packs dedicated to one project type don't need
 # to ask (or auto-detect) project_type at all, since choosing the pack
@@ -266,7 +269,7 @@ def init_command(
     next_step = _AI_TOOL_NEXT_STEP.get(ai_tool, _AI_TOOL_NEXT_STEP["other"])
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print(f"  [bold green]Setup complete![/bold green]  Next steps:")
+    console.print("  [bold green]Setup complete![/bold green]  Next steps:")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
     console.print(f"  1. Edit [cyan]{context_path}[/cyan]")

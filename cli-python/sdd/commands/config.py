@@ -1,21 +1,23 @@
 from __future__ import annotations
-from pathlib import Path
+
 import re
-import yaml
+from pathlib import Path
+
 import click
 import requests
+import yaml
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import (
-    load_profile,
+    CONFIG_PATH,
     build_session,
+    load_profile,
     save_config,
     store_secret,
-    CONFIG_PATH,
 )
+from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.integrations import parse_confluence_page_id
 from sdd.utils.jira_client import JiraClient
-from sdd.utils.confluence_client import ConfluenceClient
 
 console = Console()
 
@@ -252,14 +254,17 @@ def _scaffold_integrations(
     actually be able to resolve a jira.profile/confluence.profile split
     (it can't without the file)."""
     import questionary
+
     from sdd.utils.manifest import read_manifest
 
     dest = Path(".specify/integrations.yml")
-    if dest.exists():
-        if not questionary.confirm(
+    if (
+        dest.exists()
+        and not questionary.confirm(
             f"  {dest} already exists — overwrite?", default=False
-        ).ask():
-            return False
+        ).ask()
+    ):
+        return False
 
     project_key = questionary.text("Jira project key (e.g. MYPROJ):").ask()
     space_key = questionary.text("Confluence space key (e.g. ENG):").ask()
@@ -371,7 +376,7 @@ def _integrations_from_example(
     above being Jira's. When None (the common case, one shared profile),
     that line is left commented out exactly as shipped."""
     text = re.sub(
-        r"^profile: default$", f"profile: {profile}", text, count=1, flags=re.M
+        r"^profile: default$", f"profile: {profile}", text, count=1, flags=re.MULTILINE
     )
     if project_key:
         text = re.sub(
@@ -379,11 +384,15 @@ def _integrations_from_example(
             rf"\g<1>{project_key}",
             text,
             count=1,
-            flags=re.M,
+            flags=re.MULTILINE,
         )
     if space_key:
         text = re.sub(
-            r"^(  space_key: )ENG$", rf"\g<1>{space_key}", text, count=1, flags=re.M
+            r"^(  space_key: )ENG$",
+            rf"\g<1>{space_key}",
+            text,
+            count=1,
+            flags=re.MULTILINE,
         )
     if parent_page_id:
         text = re.sub(
@@ -391,7 +400,7 @@ def _integrations_from_example(
             f'  parent_page_id: "{parent_page_id}"',
             text,
             count=1,
-            flags=re.M,
+            flags=re.MULTILINE,
         )
     if confluence_profile:
         text = re.sub(
@@ -399,7 +408,7 @@ def _integrations_from_example(
             f"  profile: {confluence_profile}",
             text,
             count=1,
-            flags=re.M,
+            flags=re.MULTILINE,
         )
     return text
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
+
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
-import re
+
 import yaml
 
 INTEGRATIONS_PATH = ".specify/integrations.yml"

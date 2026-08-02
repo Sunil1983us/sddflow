@@ -1,4 +1,6 @@
 # Input validation for project/feature names.
+from __future__ import annotations
+
 from pathlib import Path
 
 _INVALID_CHARS = ['"']

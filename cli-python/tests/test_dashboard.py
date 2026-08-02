@@ -178,11 +178,11 @@ def test_page_renders_review_status_badge_and_jira_comments():
 
 def test_fetch_review_links_surfaces_classification_and_comments(tmp_path, monkeypatch):
     import sdd.commands.dashboard as dashboard_mod
-    import sdd.utils.integrations as integrations_mod
     import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.integrations as integrations_mod
     import sdd.utils.jira_client as jira_client_mod
-    from sdd.utils.integrations import IntegrationsConfig, JiraConfig, DocumentReview
     from sdd.utils.atlassian_auth import Profile
+    from sdd.utils.integrations import DocumentReview, IntegrationsConfig, JiraConfig
 
     monkeypatch.chdir(tmp_path)
 
@@ -242,11 +242,11 @@ def test_fetch_review_links_surfaces_classification_and_comments(tmp_path, monke
 
 def test_fetch_review_links_classifies_approved_status(tmp_path, monkeypatch):
     import sdd.commands.dashboard as dashboard_mod
-    import sdd.utils.integrations as integrations_mod
     import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.integrations as integrations_mod
     import sdd.utils.jira_client as jira_client_mod
-    from sdd.utils.integrations import IntegrationsConfig, JiraConfig, DocumentReview
     from sdd.utils.atlassian_auth import Profile
+    from sdd.utils.integrations import DocumentReview, IntegrationsConfig, JiraConfig
 
     monkeypatch.chdir(tmp_path)
 
@@ -396,8 +396,9 @@ def test_fetch_export_ticket_statuses_no_keys_yml_returns_empty(tmp_path, monkey
 def test_fetch_export_ticket_statuses_rejects_malformed_keys(tmp_path, monkeypatch):
     # A hand-edited keys.yml with a garbage entry must never reach the JQL
     # string unescaped -- filtered out before the query is built.
-    import sdd.commands.dashboard as dashboard_mod
     import yaml
+
+    import sdd.commands.dashboard as dashboard_mod
 
     monkeypatch.chdir(tmp_path)
     keys_dir = tmp_path / "docs" / "jira" / "payments"
@@ -426,11 +427,11 @@ def test_fetch_export_ticket_statuses_rejects_malformed_keys(tmp_path, monkeypat
 
 def test_fetch_review_links_includes_export_status(tmp_path, monkeypatch):
     import sdd.commands.dashboard as dashboard_mod
-    import sdd.utils.integrations as integrations_mod
     import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.integrations as integrations_mod
     import sdd.utils.jira_client as jira_client_mod
-    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
     from sdd.utils.atlassian_auth import Profile
+    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
 
     monkeypatch.chdir(tmp_path)
     _scaffold_export_keys(tmp_path, "payments", epic="PROJ-1", stories=(), tasks=())
@@ -471,11 +472,11 @@ def test_fetch_review_links_works_without_document_reviews_configured(
     # review gates at all -- that's a legitimate, common setup and must not
     # block the export-status half of the same live check.
     import sdd.commands.dashboard as dashboard_mod
-    import sdd.utils.integrations as integrations_mod
     import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.integrations as integrations_mod
     import sdd.utils.jira_client as jira_client_mod
-    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
     from sdd.utils.atlassian_auth import Profile
+    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
 
     monkeypatch.chdir(tmp_path)
     _scaffold_export_keys(tmp_path, "payments", epic="PROJ-1", stories=(), tasks=())

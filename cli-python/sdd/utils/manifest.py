@@ -3,10 +3,12 @@
 # Values are treated as Python data — yaml.dump() handles all YAML
 # serialization including proper quoting of special characters.
 # No string interpolation, no regex substitution, no injection risk.
+from __future__ import annotations
 
 import os
 import tempfile
 from pathlib import Path
+
 import yaml
 
 from sdd import __version__ as SDD_VERSION

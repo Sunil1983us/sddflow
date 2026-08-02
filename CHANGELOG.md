@@ -4,6 +4,51 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.11] — 2026-08-02 (Fix a real Python 3.9 import crash; add ruff to CI)
+
+Found while wiring `ruff` into CI (task #32 in the review-tracker): a real
+installability bug, not a lint nitpick.
+
+### Fixed
+
+- **7 modules would crash on import under Python 3.9.** `init.py`,
+  `upgrade.py`, `detect.py`, `manifest.py`, `scaffold.py`, `validate.py`, and
+  one test file used `str | None` / `dict | None` union syntax directly in
+  function signatures with no `from __future__ import annotations` at the
+  top of the file. PEP 604's `X | Y` union syntax is only evaluable at
+  runtime from Python 3.10 onward — on 3.9 (which `pyproject.toml`'s own
+  `requires-python = ">=3.9"` and classifiers claim to support), importing
+  any of these modules raised `TypeError: unsupported operand type(s) for |`
+  at function-definition time, before any of the CLI's own logic ran. Fixed
+  by adding the missing `from __future__ import annotations` to each file.
+  This would have been caught immediately by the Python 3.9 CI matrix job
+  added the round before this one (v2.8.10's sibling PR) — that job would
+  have failed on `sdd --help` alone.
+
+### Added
+
+- **`ruff` added to CI** (`ruff check .` + `ruff format --check .`),
+  configured in `cli-python/pyproject.toml`'s new `[tool.ruff]` section. A
+  full pass fixed or `noqa`'d (with a reason comment) everything ruff's
+  default ruleset flagged except two deliberately-ignored rules: `ISC004`
+  (674 hits — this codebase's own style of writing long prose as adjacent
+  string literals in lists, not a bug) and `BLE001` (67 hits —
+  `except Exception:`, flagged for a dedicated manual triage pass, tracked
+  separately rather than blanket-suppressed or blanket-narrowed blind).
+- `ruff format` applied across the whole `cli-python` package in its own
+  prior isolated commit (formatting only, verified with identical test
+  results before and after) so this change's diff isn't dominated by
+  reformatting noise.
+
+### Verified
+
+- `cli-python` pytest: 789/789 (unchanged pass count throughout this round)
+- `ruff check .` and `ruff format --check .` both clean
+- The specific Python 3.9 fix confirmed via `ruff check . --select FA102`
+  going from 11 hits to 0
+
+---
+
 ## [2.8.10] — 2026-08-02 (manifest.py atomic writes + corrupt-file handling; Jira/Confluence HTTP timeout + retry/backoff)
 
 Next tier from the same ChatGPT-review verification pass — two more real gaps

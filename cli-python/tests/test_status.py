@@ -5,18 +5,16 @@ from pathlib import Path
 
 import sdd.utils.status as status_mod
 from sdd.utils.status import (
-    build_project_status,
+    _doc_timing,
+    _normalize_role_key,
+    _parse_approvals_table,
+    _parse_iso_date,
+    _parse_version_history_table,
+    _resolve_expected_approver,
     build_feature_status,
     build_pipeline,
-    _current_stage,
+    build_project_status,
     persona_for,
-    _parse_approvals_table,
-    _normalize_role_key,
-    _resolve_expected_approver,
-    _parse_version_history_table,
-    _parse_iso_date,
-    _doc_timing,
-    _feature_timeline,
 )
 
 
@@ -1626,11 +1624,11 @@ def test_persona_for_public_wrapper_matches_internal_lookup():
 # completion count.
 
 from sdd.utils.status import (
-    build_bo_rollup,
     _parse_brd_bo,
-    _parse_uc_traces,
-    _parse_srd_fr,
     _parse_release_bo_closure,
+    _parse_srd_fr,
+    _parse_uc_traces,
+    build_bo_rollup,
 )
 
 

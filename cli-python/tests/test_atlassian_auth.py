@@ -3,9 +3,10 @@
 # sandboxed environments have no working keychain backend at all, so a
 # real call would fail for reasons unrelated to the logic under test.
 from __future__ import annotations
+
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
+from typing import ClassVar
 from unittest.mock import patch
 
 import pytest
@@ -132,11 +133,11 @@ class TestResolveSecretKeyringPath:
             credential_store="keyring",
             profile_name="work",
         )
-        with patch.object(auth.keyring, "get_password", return_value=None):
-            with pytest.raises(
-                EnvironmentError, match="config set-secret --profile work"
-            ):
-                auth._resolve_secret(p, None, "api_token_env")
+        with (
+            patch.object(auth.keyring, "get_password", return_value=None),
+            pytest.raises(EnvironmentError, match="config set-secret --profile work"),
+        ):
+            auth._resolve_secret(p, None, "api_token_env")
 
     def test_backend_failure_wrapped_as_runtime_error(self):
         """A headless box with no Secret Service running raises something
@@ -148,11 +149,13 @@ class TestResolveSecretKeyringPath:
             credential_store="keyring",
             profile_name="work",
         )
-        with patch.object(
-            auth.keyring, "get_password", side_effect=RuntimeError("no backend")
+        with (
+            patch.object(
+                auth.keyring, "get_password", side_effect=RuntimeError("no backend")
+            ),
+            pytest.raises(RuntimeError, match="credential_store: env"),
         ):
-            with pytest.raises(RuntimeError, match="credential_store: env"):
-                auth._resolve_secret(p, None, "api_token_env")
+            auth._resolve_secret(p, None, "api_token_env")
 
     def test_env_var_name_ignored_for_keyring_profiles(self):
         """A keyring profile has no api_token_env at all -- must not be
@@ -174,11 +177,13 @@ class TestStoreSecret:
         m.assert_called_once_with(auth.KEYRING_SERVICE, "work", "my-token")
 
     def test_backend_failure_wrapped_as_runtime_error(self):
-        with patch.object(
-            auth.keyring, "set_password", side_effect=RuntimeError("no backend")
+        with (
+            patch.object(
+                auth.keyring, "set_password", side_effect=RuntimeError("no backend")
+            ),
+            pytest.raises(RuntimeError, match="Environment variable' storage"),
         ):
-            with pytest.raises(RuntimeError, match="Environment variable' storage"):
-                auth.store_secret("work", "my-token")
+            auth.store_secret("work", "my-token")
 
 
 class TestBuildSessionWithKeyring:
@@ -367,7 +372,9 @@ class _FlakyThenOKHandler(BaseHTTPRequestHandler):
     that would have raised actually succeeds) instead of only inspecting
     config values."""
 
-    fail_count = {}  # path -> remaining failures, reset per test via class patching
+    fail_count: ClassVar[
+        dict
+    ] = {}  # path -> remaining failures, reset per test via class patching
 
     def log_message(self, fmt, *args):
         pass

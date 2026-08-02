@@ -1,7 +1,6 @@
 # Unit tests for `sdd token-log` -- writes REAL Claude Code token usage
 # into token-usage.md, exiting with a distinct code for every reason a
 # calling prompt should fall back to the char/4 estimate instead.
-import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -248,9 +247,7 @@ class TestSecondCommandAppends:
                 "sdd.commands.token_log.find_session_transcripts",
                 return_value=(fake_transcript, []),
             ),
-            patch(
-                "sdd.commands.token_log.sum_usage_since", return_value=usage1
-            ) as mock_sum,
+            patch("sdd.commands.token_log.sum_usage_since", return_value=usage1),
         ):
             runner.invoke(token_log_command, ["--command", "specify-brd"])
 

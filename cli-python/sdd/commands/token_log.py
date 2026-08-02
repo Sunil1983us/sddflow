@@ -9,16 +9,17 @@ transcript found (fall back to the estimate), or nothing new to log.
 None of these are errors in the usual sense; only exit 1 is."""
 
 from __future__ import annotations
+
+import re
 from datetime import datetime, timezone
 from pathlib import Path
-import re
 
 import click
 import yaml
 from rich.console import Console
 
-from sdd.utils.manifest import read_manifest
 from sdd.utils.claude_code_transcript import find_session_transcripts, sum_usage_since
+from sdd.utils.manifest import read_manifest
 
 console = Console()
 

@@ -3,10 +3,11 @@
 # falling through to the generic paragraph handler and being flattened
 # onto one line, losing all row/column structure once pushed to Confluence.
 from __future__ import annotations
+
 from unittest.mock import patch
 
-from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.integrations import DiagramsConfig
+from sdd.utils.md_to_cf import md_to_storage
 
 
 class TestTables:

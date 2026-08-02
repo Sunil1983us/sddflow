@@ -6,8 +6,9 @@ Handles the subset of Markdown used in SDD documents:
 """
 
 from __future__ import annotations
-import re
+
 import html
+import re
 
 from sdd.utils.integrations import DiagramsConfig
 
@@ -281,8 +282,7 @@ def _split_table_row(line: str) -> list[str]:
     A backslash-escaped pipe (\\|) stays inside its cell rather than
     splitting it, so a cell can itself contain a literal '|'."""
     line = line.strip()
-    if line.startswith("|"):
-        line = line[1:]
+    line = line.removeprefix("|")
     if line.endswith("|") and not line.endswith(r"\|"):
         line = line[:-1]
     cells = re.split(r"(?<!\\)\|", line)

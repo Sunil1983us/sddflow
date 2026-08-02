@@ -3359,6 +3359,49 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.10',
+    to:   '2.8.11',
+    description: "Fix a real Python 3.9 import crash (PEP 604 `X | None` used without `from __future__ import annotations`) plus a ruff lint/format pass",
+    notes: [
+      "Real bug, not a lint nitpick: 7 modules used `str | None` / " +
+      "`dict | None` union syntax directly in function signatures with " +
+      "no `from __future__ import annotations` at the top of the file. " +
+      "PEP 604's `X | Y` union syntax is only evaluable at runtime from " +
+      "Python 3.10 onward -- on 3.9 (which pyproject.toml's own " +
+      "requires-python and classifiers claim to support), importing any " +
+      "of these modules raised a TypeError at function-definition time, " +
+      "before a single line of the CLI's own logic ever ran. Caught by " +
+      "ruff's FA102 rule while setting up CI's new ruff job -- and would " +
+      "have been caught immediately by the Python 3.9 CI matrix job " +
+      "added one round earlier, since that job would fail on `sdd " +
+      "--help` alone",
+      "Added ruff to CI (ruff check + ruff format --check), configured " +
+      "in cli-python/pyproject.toml. Ran a full pass first: fixed or " +
+      "noqa'd (with a reason comment) everything ruff's default ruleset " +
+      "flagged except two deliberately-ignored rules -- ISC004 (674 " +
+      "hits, this codebase's own style of writing long prose as adjacent " +
+      "string literals in lists, not a bug) and BLE001 (67 hits, " +
+      "`except Exception:` -- flagged for a dedicated manual triage " +
+      "pass, tracked separately, not blanket-suppressed or blanket-" +
+      "narrowed blind)",
+      "Applied ruff format across the whole package as its own prior " +
+      "isolated commit (no functional change, same test results before/" +
+      "after) so this commit's diff isn't dominated by pure reformatting " +
+      "noise",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. Both " +
+      "fixes are Python-only; no Node CLI equivalent exists for either",
+      "Verified: cli-python pytest 789/789 (unchanged pass count " +
+      "throughout this round), ruff check and ruff format --check both " +
+      "clean, and the specific fix confirmed via `ruff check . --select " +
+      "FA102` going from 11 hits to 0",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.11';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

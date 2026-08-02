@@ -1,16 +1,16 @@
 # Unit tests for the sdd upgrade migration chain.
 from unittest.mock import patch
 
-from click.testing import CliRunner
 import pytest
 import yaml
+from click.testing import CliRunner
 
 import sdd.commands.upgrade as upgrade_mod
 from sdd.commands.upgrade import (
-    upgrade_command,
     MIGRATIONS,
     _pending_migrations,
     _resolve_pack,
+    upgrade_command,
 )
 from sdd.utils.manifest import SDD_VERSION
 
