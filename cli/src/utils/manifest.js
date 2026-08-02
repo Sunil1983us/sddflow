@@ -6,7 +6,11 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { createRequire } from 'module';
-import yaml from 'js-yaml';
+// Namespace import, not a default import -- js-yaml 5.x dropped its
+// default export (ESM-only change; `load`/`dump` are still named exports),
+// so `import yaml from 'js-yaml'` throws SyntaxError under 5.x while still
+// silently working under 4.x. This form is resilient to either.
+import * as yaml from 'js-yaml';
 
 const require = createRequire(import.meta.url);
 const { version: SDD_VERSION } = require('../../package.json');
