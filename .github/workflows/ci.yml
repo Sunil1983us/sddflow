@@ -233,7 +233,12 @@ jobs:
           $work2 = Join-Path $env:RUNNER_TEMP "sdd-universal-test-2"
           Copy-Item -Recurse "packs/sdd-universal" $work2
           Set-Location $work2
-          & .\setup.ps1 -Project 'bad"name' -Feature "smoke-feature" -Type backend-service
+          # Invoked as a genuinely separate process (pwsh -File), not via the
+          # & call operator -- setup.ps1's own `exit 1` on rejection runs in
+          # the SAME runspace under `&`, which kills this whole step before
+          # the check below ever runs. A child process isolates that exit to
+          # itself and reports it back through $LASTEXITCODE instead.
+          pwsh -NoProfile -File .\setup.ps1 -Project 'bad"name' -Feature "smoke-feature" -Type backend-service
           if ($LASTEXITCODE -eq 0) {
             Write-Error "setup.ps1 should reject a double-quote in -Project but exited 0"
             exit 1
