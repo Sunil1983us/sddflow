@@ -23,7 +23,7 @@
   "dependencies": {
     "chalk": "^5.3.0",
     "commander": "^12.0.0",
-    "inquirer": "^9.2.0",
+    "inquirer": "^14.0.2",
     "js-yaml": "^4.1.0"
   },
   "keywords": ["sdd", "spec-driven-development", "ai", "ai-agent", "sdlc", "claude", "claude-code", "copilot", "llm", "specification"],
