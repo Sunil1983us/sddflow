@@ -36,9 +36,13 @@ def cf_to_md(storage_xml: str) -> str:
 
     # Headings (h1–h6)
     for lvl in range(6, 0, -1):
+
+        def _heading_repl(m: re.Match, level: int = lvl) -> str:
+            return "#" * level + " " + _plain(m.group(1))
+
         text = re.sub(
             rf"<h{lvl}>(.*?)</h{lvl}>",
-            lambda m, l=lvl: "#" * l + " " + _plain(m.group(1)),
+            _heading_repl,
             text,
             flags=re.DOTALL,
         )

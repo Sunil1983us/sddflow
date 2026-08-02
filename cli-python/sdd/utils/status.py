@@ -287,7 +287,7 @@ def _doc_timing(path: Path, status: str | None, approvals: list[dict]) -> dict:
     """
     history = _parse_version_history_table(path)
     created = _parse_iso_date(history[0]["date"]) if history else None
-    is_approved = bool(status) and "approved" in status.lower()
+    is_approved = status is not None and "approved" in status.lower()
 
     approved = None
     if is_approved:

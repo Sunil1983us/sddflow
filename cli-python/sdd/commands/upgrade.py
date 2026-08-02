@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Callable, TypedDict
 
 import click
 from rich.console import Console
@@ -16,9 +17,23 @@ from sdd.utils.scaffold import (
 
 console = Console()
 
+# "from" is a reserved word, so this uses TypedDict's functional (string-key)
+# form rather than class syntax -- the dict literals below use "from" as an
+# ordinary string key, which is fine, just not as a Python identifier.
+Migration = TypedDict(
+    "Migration",
+    {
+        "from": "str | None",  # None only for the very first entry (pre-versioning)
+        "to": str,
+        "description": str,
+        "notes": "list[str]",
+        "migrate": "Callable[[dict], dict]",
+    },
+)
+
 # Version migration table — extend when releasing a new pack version.
 # Each migrate() stamps its own "to" version so chained upgrades stay truthful.
-MIGRATIONS = [
+MIGRATIONS: list[Migration] = [
     {
         "from": None,  # None = pre-versioning (no sdd_version field)
         "to": "2.0.0",
@@ -4733,7 +4748,7 @@ MIGRATIONS = [
             "import annotations` at the top of the file. PEP 604's `X | Y` "
             "union syntax is only evaluable at runtime from Python 3.10 "
             "onward -- on 3.9 (which pyproject.toml's own `requires-python "
-            "= \">=3.9\"` and classifiers claim to support), importing "
+            '= ">=3.9"` and classifiers claim to support), importing '
             "any of these modules raised `TypeError: unsupported operand "
             "type(s) for |` at function-definition time, before a single "
             "line of the CLI's own logic ever ran. Caught by ruff's FA102 "
@@ -4779,7 +4794,7 @@ def _stdin_is_interactive() -> bool:
     return sys.stdin.isatty()
 
 
-def _pending_migrations(current_version: str | None) -> list[dict]:
+def _pending_migrations(current_version: str | None) -> list[Migration]:
     """Every migration from current_version to SDD_VERSION, in order --
     walks the linear MIGRATIONS chain (each "from" is unique, so it's a
     simple linked list) rather than matching only the single next hop.

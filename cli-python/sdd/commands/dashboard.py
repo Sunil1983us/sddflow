@@ -24,6 +24,7 @@ import webbrowser
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import TypedDict
 from urllib.parse import parse_qs, urlparse
 
 import click
@@ -36,6 +37,7 @@ console = Console()
 
 _SAFE_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
 
+
 # --- Access control for non-loopback binds --------------------------------
 # Set once by dashboard_command() before serve_forever(); read by every
 # _Handler instance (http.server makes a fresh handler per request, so this
@@ -44,7 +46,14 @@ _SAFE_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
 # no token, writes allowed -- matching today's loopback-only behavior
 # exactly, so a plain `sdd dashboard` with no flags is unaffected by any of
 # this.
-_ACCESS = {
+class _AccessState(TypedDict):
+    is_local: bool
+    writes_enabled: bool
+    token: str | None
+    allowed_origins: set[str]
+
+
+_ACCESS: _AccessState = {
     "is_local": True,
     "writes_enabled": True,
     "token": None,
@@ -1243,6 +1252,10 @@ def _fetch_review_links(feature: str) -> dict:
         entry: dict = {"jira": None, "confluence": None}
 
         if jira_client:
+            # jira_client is only ever set (above) when cfg.jira was truthy,
+            # so this is always non-None here -- mypy can't see the
+            # correlation across the two variables.
+            assert cfg.jira is not None
             try:
                 issue = jira_client.find_by_label(
                     cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc_key}"
@@ -1275,6 +1288,11 @@ def _fetch_review_links(feature: str) -> dict:
                 entry["jira"] = {"error": str(e)}
 
         if cf_client:
+            # cf_client/cf_prof are only ever set (above) when cfg.confluence
+            # was truthy -- same false-correlation gap as the jira_client
+            # case above.
+            assert cfg.confluence is not None
+            assert cf_prof is not None
             try:
                 title = dr.confluence_page.replace("{project}", project_name)
                 page = cf_client.get_page_by_title(cfg.confluence.space_key, title)

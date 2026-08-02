@@ -384,7 +384,7 @@ def feature_extra_fields(
     there. Also sets High priority, the Epic Name custom field for
     classic/company-managed Jira projects (only if custom_fields.epic_name
     is configured), and the team field (if cfg.team is set)."""
-    sections = [
+    sections: list[tuple[str, str | list[str]]] = [
         ("Problem Statement", parse_brd_problem_statement(features_dir)),
         ("Business Hypothesis", parse_brd_business_hypothesis(features_dir)),
         ("Description", parse_brd_executive_summary(features_dir)),
@@ -1129,6 +1129,10 @@ def _push(
 
     # ── CHG (change-request tasks) ───────────────────────────────────────────
     if do_chg:
+        # jira_push (the CLI command) already rejects level="chg" with no
+        # --cr before calling this function -- see the check right after
+        # the command's banner is printed.
+        assert cr is not None
         chg_key_map = _push_chg(
             client,
             feature_name,

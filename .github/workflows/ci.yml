@@ -101,21 +101,24 @@ jobs:
           python3 -m pytest cli-python/tests -q
 
   python-cli-lint:
-    name: Python CLI lint (ruff)
+    name: Python CLI lint (ruff + mypy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install ruff
-        run: pip install ruff
+      - name: Install ruff and mypy
+        run: pip install ruff mypy
       - name: Run ruff check
         working-directory: cli-python
         run: ruff check .
       - name: Run ruff format --check
         working-directory: cli-python
         run: ruff format --check .
+      - name: Run mypy
+        working-directory: cli-python
+        run: mypy --ignore-missing-imports sdd/
 
   windows-setup-smoke-test:
     name: setup.ps1 smoke test (Windows)

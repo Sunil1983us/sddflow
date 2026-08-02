@@ -147,8 +147,9 @@ def _rewrite_running_totals(text: str, all_rows: list[dict]) -> str:
     total_input = sum(_parse_int(r["input"]) for r in all_rows)
     total_output = sum(_parse_int(r["output"]) for r in all_rows)
     amounts = [_parse_amount(r["cost"]) for r in all_rows]
-    if all_rows and all(a is not None for a in amounts):
-        total_cost = f"${sum(amounts):.4f}"
+    valid_amounts = [a for a in amounts if a is not None]
+    if all_rows and len(valid_amounts) == len(amounts):
+        total_cost = f"${sum(valid_amounts):.4f}"
     elif all_rows:
         total_cost = "n/a — see notes"
     else:
