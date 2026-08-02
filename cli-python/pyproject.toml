@@ -62,8 +62,12 @@ Changelog = "https://github.com/sunil1983us/universalguide/blob/main/CHANGELOG.m
 
 [tool.hatch.build.targets.wheel]
 packages = ["sdd"]
-# include the bundled pack files so `sdd init` works after pip install
-artifacts = ["sdd/packs/**"]
+# include the bundled pack files so `sdd init` works after pip install, and
+# the dashboard's static CSS/JS/HTML so `sdd dashboard` works after pip
+# install -- "packages" mode only ships .py files by default, so any
+# non-.py file (tracked by git or not) needs an explicit artifacts entry
+# or it's silently missing from the wheel.
+artifacts = ["sdd/packs/**", "sdd/commands/dashboard_static/**"]
 
 [tool.hatch.build.targets.sdist]
 # artifacts here (not just on the wheel target) is required: `uv build` (and
@@ -76,7 +80,7 @@ artifacts = ["sdd/packs/**"]
 # doesn't hit this because it builds the wheel directly from source, bypassing
 # the sdist step entirely — which is why that command alone can't catch this
 # class of bug; verify with `uv build` (or `python -m build`, sdist+wheel).
-artifacts = ["sdd/packs/**"]
+artifacts = ["sdd/packs/**", "sdd/commands/dashboard_static/**"]
 include = [
     "sdd/",
     "README.md",

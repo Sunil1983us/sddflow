@@ -522,3 +522,30 @@ def test_fetch_review_links_errors_when_nothing_configured(tmp_path, monkeypatch
 
     result = dashboard_mod._fetch_review_links("payments")
     assert "error" in result
+
+
+# _PAGE is assembled from sdd/commands/dashboard_static/*.css/*.js/*.html at
+# import time (see dashboard.py's _load_page()) rather than being a single
+# inline Python string literal -- these guard the specific failure modes
+# that split introduced: an unsubstituted placeholder token leaking into
+# the served HTML, or a static file going missing from the package.
+def test_page_has_no_unsubstituted_placeholder_tokens():
+    assert "__SDD_DASHBOARD_" not in _PAGE
+
+
+def test_page_contains_css_and_both_js_files_inlined():
+    # One from each of the four static files, proving all of them were
+    # actually read and substituted in, not just that the template loaded.
+    assert ":root {" in _PAGE  # style.css
+    assert "const THEME_KEY" in _PAGE  # theme.js
+    assert "function renderPipelineFlow" in _PAGE  # app.js
+    assert "<!doctype html>" in _PAGE  # page.html shell
+
+
+def test_dashboard_static_dir_contains_exactly_the_expected_files():
+    import sdd.commands.dashboard as dashboard_mod
+
+    static_dir = Path(dashboard_mod.__file__).parent / "dashboard_static"
+    assert static_dir.is_dir()
+    names = {p.name for p in static_dir.iterdir()}
+    assert names == {"page.html", "style.css", "theme.js", "app.js"}
