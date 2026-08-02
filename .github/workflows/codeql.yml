@@ -1,0 +1,36 @@
+name: CodeQL
+# Static security analysis for this repo's own tooling (cli-python, cli) --
+# free for public repos. Separate workflow file from ci.yml because it
+# needs its own permissions (security-events: write, to upload results to
+# the repo's Security tab) and runs on its own schedule in addition to
+# push/PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, independent of push/PR activity -- catches newly-disclosed
+    # vulnerability patterns in code that hasn't changed.
+    - cron: "30 1 * * 0"
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["python", "javascript"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
