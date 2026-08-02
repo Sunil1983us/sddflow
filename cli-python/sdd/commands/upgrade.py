@@ -20,6 +20,12 @@ console = Console()
 # "from" is a reserved word, so this uses TypedDict's functional (string-key)
 # form rather than class syntax -- the dict literals below use "from" as an
 # ordinary string key, which is fine, just not as a Python identifier.
+#
+# No "migrate" field: every one of the 117 hops below has only ever stamped
+# sdd_version (verified -- none has transformed manifest.yml content). Rather
+# than hand-writing that identical lambda 117 times, _migrate_fn() below
+# supplies it by default; _CUSTOM_MIGRATE exists for the rare future entry
+# that genuinely needs to transform the manifest.
 Migration = TypedDict(
     "Migration",
     {
@@ -27,12 +33,20 @@ Migration = TypedDict(
         "to": str,
         "description": str,
         "notes": "list[str]",
-        "migrate": "Callable[[dict], dict]",
     },
 )
 
+_CUSTOM_MIGRATE: "dict[str, Callable[[dict], dict]]" = {}
+
+
+def _migrate_fn(to: str) -> "Callable[[dict], dict]":
+    custom = _CUSTOM_MIGRATE.get(to)
+    if custom is not None:
+        return custom
+    return lambda m: {**m, "sdd_version": to}
+
+
 # Version migration table — extend when releasing a new pack version.
-# Each migrate() stamps its own "to" version so chained upgrades stay truthful.
 MIGRATIONS: list[Migration] = [
     {
         "from": None,  # None = pre-versioning (no sdd_version field)
@@ -45,7 +59,6 @@ MIGRATIONS: list[Migration] = [
             "Detection order fix: mobile (react-native) now checked before fullstack",
             "Python CLI added alongside Node.js CLI (pip install sddflow)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.0.0"},
     },
     {
         "from": "2.0.0",
@@ -59,7 +72,6 @@ MIGRATIONS: list[Migration] = [
             "setup.sh/setup.ps1 safe in non-interactive runs (CI, piped input)",
             "Re-copy the pack (or run sdd init over it) to pick up new prompt files",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.0"},
     },
     {
         "from": "2.7.0",
@@ -73,7 +85,6 @@ MIGRATIONS: list[Migration] = [
             "Re-copy the pack (or run sdd init over it) to pick up the "
             "updated .github/prompts/create-context.prompt.md",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.1"},
     },
     {
         "from": "2.7.1",
@@ -87,7 +98,6 @@ MIGRATIONS: list[Migration] = [
             "No framework content changed in this step beyond the "
             "version scheme itself",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.3"},
     },
     {
         "from": "2.7.3",
@@ -106,7 +116,6 @@ MIGRATIONS: list[Migration] = [
             "updated .github/prompts/change.prompt.md and "
             "changeset-template.md",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.4"},
     },
     {
         "from": "2.7.4",
@@ -131,7 +140,6 @@ MIGRATIONS: list[Migration] = [
             "project.feature values with '../' in them, which was never "
             "valid usage",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.5"},
     },
     {
         "from": "2.7.5",
@@ -158,7 +166,6 @@ MIGRATIONS: list[Migration] = [
             "updated .github/prompts/specify-doc.prompt.md and "
             "plan-design.prompt.md",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.6"},
     },
     {
         "from": "2.7.6",
@@ -189,7 +196,6 @@ MIGRATIONS: list[Migration] = [
             "Re-copy the pack (or run sdd init over it) to pick up the "
             "updated prompt files",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.7"},
     },
     {
         "from": "2.7.7",
@@ -253,7 +259,6 @@ MIGRATIONS: list[Migration] = [
             "Re-copy the pack (or run sdd init over it) to pick up the "
             "updated prompt/template files",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.8"},
     },
     {
         "from": "2.7.8",
@@ -274,7 +279,6 @@ MIGRATIONS: list[Migration] = [
             "Re-copy the pack (or run sdd init over it) to pick up the "
             "updated .github/prompts/create-context.prompt.md",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.9"},
     },
     {
         "from": "2.7.9",
@@ -313,7 +317,6 @@ MIGRATIONS: list[Migration] = [
             "updated .github/prompts/change.prompt.md and "
             "changeset-template.md",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.10"},
     },
     {
         "from": "2.7.10",
@@ -374,7 +377,6 @@ MIGRATIONS: list[Migration] = [
             "updated .specify/integrations.yml.example (per-feature "
             "page_map entries now include {feature}) and .gitignore",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.11"},
     },
     {
         "from": "2.7.11",
@@ -412,7 +414,6 @@ MIGRATIONS: list[Migration] = [
             "this upgrade are not migrated automatically -- move them "
             "into docs/jira/{feature}/ manually if you want to keep them.",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.12"},
     },
     {
         "from": "2.7.12",
@@ -435,7 +436,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for the 5 existing packs",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.13"},
     },
     {
         "from": "2.7.13",
@@ -457,7 +457,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.14"},
     },
     {
         "from": "2.7.14",
@@ -493,7 +492,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.15"},
     },
     {
         "from": "2.7.15",
@@ -531,7 +529,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.16"},
     },
     {
         "from": "2.7.16",
@@ -560,7 +557,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.17"},
     },
     {
         "from": "2.7.17",
@@ -588,7 +584,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.18"},
     },
     {
         "from": "2.7.18",
@@ -626,7 +621,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.19"},
     },
     {
         "from": "2.7.19",
@@ -657,7 +651,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.20"},
     },
     {
         "from": "2.7.20",
@@ -697,7 +690,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.21"},
     },
     {
         "from": "2.7.21",
@@ -725,7 +717,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.22"},
     },
     {
         "from": "2.7.22",
@@ -756,7 +747,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.23"},
     },
     {
         "from": "2.7.23",
@@ -792,7 +782,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.24"},
     },
     {
         "from": "2.7.24",
@@ -818,7 +807,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.25"},
     },
     {
         "from": "2.7.25",
@@ -856,7 +844,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.26"},
     },
     {
         "from": "2.7.26",
@@ -891,7 +878,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.27"},
     },
     {
         "from": "2.7.27",
@@ -940,7 +926,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.28"},
     },
     {
         "from": "2.7.28",
@@ -985,7 +970,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.29"},
     },
     {
         "from": "2.7.29",
@@ -1035,7 +1019,6 @@ MIGRATIONS: list[Migration] = [
             "know which pack an existing project was scaffolded from "
             "(that's exactly the gap --pack/inference exists to cover)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.30"},
     },
     {
         "from": "2.7.30",
@@ -1107,7 +1090,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.31"},
     },
     {
         "from": "2.7.31",
@@ -1164,7 +1146,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.32"},
     },
     {
         "from": "2.7.32",
@@ -1210,7 +1191,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.33"},
     },
     {
         "from": "2.7.33",
@@ -1262,7 +1242,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.34"},
     },
     {
         "from": "2.7.34",
@@ -1332,7 +1311,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.35"},
     },
     {
         "from": "2.7.35",
@@ -1394,7 +1372,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.36"},
     },
     {
         "from": "2.7.36",
@@ -1453,7 +1430,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.37"},
     },
     {
         "from": "2.7.37",
@@ -1500,7 +1476,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.38"},
     },
     {
         "from": "2.7.38",
@@ -1542,7 +1517,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.39"},
     },
     {
         "from": "2.7.39",
@@ -1597,7 +1571,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.40"},
     },
     {
         "from": "2.7.40",
@@ -1652,7 +1625,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.41"},
     },
     {
         "from": "2.7.41",
@@ -1705,7 +1677,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.42"},
     },
     {
         "from": "2.7.42",
@@ -1739,7 +1710,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.43"},
     },
     {
         "from": "2.7.43",
@@ -1780,7 +1750,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.44"},
     },
     {
         "from": "2.7.44",
@@ -1818,7 +1787,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.45"},
     },
     {
         "from": "2.7.45",
@@ -1863,7 +1831,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.46"},
     },
     {
         "from": "2.7.46",
@@ -1896,7 +1863,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.47"},
     },
     {
         "from": "2.7.47",
@@ -1928,7 +1894,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.48"},
     },
     {
         "from": "2.7.48",
@@ -1970,7 +1935,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.49"},
     },
     {
         "from": "2.7.49",
@@ -2007,7 +1971,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.50"},
     },
     {
         "from": "2.7.50",
@@ -2052,7 +2015,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.51"},
     },
     {
         "from": "2.7.51",
@@ -2086,7 +2048,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.52"},
     },
     {
         "from": "2.7.52",
@@ -2139,7 +2100,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.53"},
     },
     {
         "from": "2.7.53",
@@ -2177,7 +2137,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.54"},
     },
     {
         "from": "2.7.54",
@@ -2226,7 +2185,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.55"},
     },
     {
         "from": "2.7.55",
@@ -2255,7 +2213,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.56"},
     },
     {
         "from": "2.7.56",
@@ -2290,7 +2247,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.57"},
     },
     {
         "from": "2.7.57",
@@ -2328,7 +2284,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.58"},
     },
     {
         "from": "2.7.58",
@@ -2364,7 +2319,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.59"},
     },
     {
         "from": "2.7.59",
@@ -2402,7 +2356,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.60"},
     },
     {
         "from": "2.7.60",
@@ -2429,7 +2382,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.61"},
     },
     {
         "from": "2.7.61",
@@ -2466,7 +2418,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.62"},
     },
     {
         "from": "2.7.62",
@@ -2496,7 +2447,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.63"},
     },
     {
         "from": "2.7.63",
@@ -2523,7 +2473,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.64"},
     },
     {
         "from": "2.7.64",
@@ -2587,7 +2536,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.65"},
     },
     {
         "from": "2.7.65",
@@ -2636,7 +2584,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.66"},
     },
     {
         "from": "2.7.66",
@@ -2660,7 +2607,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.67"},
     },
     {
         "from": "2.7.67",
@@ -2691,7 +2637,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.68"},
     },
     {
         "from": "2.7.68",
@@ -2719,7 +2664,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.69"},
     },
     {
         "from": "2.7.69",
@@ -2766,7 +2710,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.70"},
     },
     {
         "from": "2.7.70",
@@ -2799,7 +2742,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.71"},
     },
     {
         "from": "2.7.71",
@@ -2831,7 +2773,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.72"},
     },
     {
         "from": "2.7.72",
@@ -2864,7 +2805,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.73"},
     },
     {
         "from": "2.7.73",
@@ -2902,7 +2842,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.74"},
     },
     {
         "from": "2.7.74",
@@ -2943,7 +2882,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.75"},
     },
     {
         "from": "2.7.75",
@@ -2983,7 +2921,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.76"},
     },
     {
         "from": "2.7.76",
@@ -3029,7 +2966,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.77"},
     },
     {
         "from": "2.7.77",
@@ -3074,7 +3010,6 @@ MIGRATIONS: list[Migration] = [
             "This migration only bumps sdd_version -- no manifest.yml "
             "field changes for any pack",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.78"},
     },
     {
         "from": "2.7.78",
@@ -3126,7 +3061,6 @@ MIGRATIONS: list[Migration] = [
             "assert-output.sh 33/33 on both worked examples, setup smoke "
             "tests 15/15",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.79"},
     },
     {
         "from": "2.7.79",
@@ -3149,7 +3083,6 @@ MIGRATIONS: list[Migration] = [
             "Verified: sync-blocks.sh clean, cli-python pytest 648/648, "
             "assert-output.sh 33/33",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.80"},
     },
     {
         "from": "2.7.80",
@@ -3188,7 +3121,6 @@ MIGRATIONS: list[Migration] = [
             "sdd-micro itself ships to a user's project via `sdd init "
             "--pack sdd-micro`",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.81"},
     },
     {
         "from": "2.7.81",
@@ -3242,7 +3174,6 @@ MIGRATIONS: list[Migration] = [
             "cross-feature rollup",
             "Verified: sync-blocks.sh clean, cli-python pytest 664/664",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.82"},
     },
     {
         "from": "2.7.82",
@@ -3299,7 +3230,6 @@ MIGRATIONS: list[Migration] = [
             "CliRunner end-to-end tests (example present / absent)",
             "Verified: cli-python pytest 670/670",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.83"},
     },
     {
         "from": "2.7.83",
@@ -3330,7 +3260,6 @@ MIGRATIONS: list[Migration] = [
             "sdd_version chain",
             "Verified: cli-python pytest 670/670 (unaffected, docs-only)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.84"},
     },
     {
         "from": "2.7.84",
@@ -3405,7 +3334,6 @@ MIGRATIONS: list[Migration] = [
             "Verified: cli-python pytest 682/682, assert-output.sh clean "
             "on both worked examples",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.85"},
     },
     {
         "from": "2.7.85",
@@ -3462,7 +3390,6 @@ MIGRATIONS: list[Migration] = [
             "(unaffected), assert-output.sh clean on both worked examples, "
             "test-setup.sh 15/15",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.86"},
     },
     {
         "from": "2.7.86",
@@ -3502,7 +3429,6 @@ MIGRATIONS: list[Migration] = [
             "behavior change. Verified: cli-python pytest 682/682 "
             "(unaffected), assert-output.sh clean",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.87"},
     },
     {
         "from": "2.7.87",
@@ -3563,7 +3489,6 @@ MIGRATIONS: list[Migration] = [
             "confirmed byte-identical across _shared/full + all 5 packs "
             "via md5sum after sync-blocks.sh",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.88"},
     },
     {
         "from": "2.7.88",
@@ -3629,7 +3554,6 @@ MIGRATIONS: list[Migration] = [
             "ux-flow correctly appear only for the frontend-spa example, "
             "assert-output.sh clean on both worked examples",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.89"},
     },
     {
         "from": "2.7.89",
@@ -3661,7 +3585,6 @@ MIGRATIONS: list[Migration] = [
             "live build_pipeline() run at mvp scope confirmed "
             "next_action now reads 'Run `/specify-doc data-model`' first",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.90"},
     },
     {
         "from": "2.7.90",
@@ -3717,7 +3640,6 @@ MIGRATIONS: list[Migration] = [
             "(unaffected), assert-output.sh clean on both worked "
             "examples, test-setup.sh 15/15, test-setup-micro.sh 12/12",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.91"},
     },
     {
         "from": "2.7.91",
@@ -3758,7 +3680,6 @@ MIGRATIONS: list[Migration] = [
             "test-setup.sh 15/15, test-setup-micro.sh 12/12, "
             "assert-output.sh clean on both worked examples",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.92"},
     },
     {
         "from": "2.7.92",
@@ -3810,7 +3731,6 @@ MIGRATIONS: list[Migration] = [
             "test_review_helpers.py/test_confluence_push_cli.py/test_cr.py "
             "that mocked the old load_profile/build_session pair directly",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.93"},
     },
     {
         "from": "2.7.93",
@@ -3856,7 +3776,6 @@ MIGRATIONS: list[Migration] = [
             "wizard. Verified: cli-python pytest 697/697 (695 pre-existing "
             "+ 2 new)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.94"},
     },
     {
         "from": "2.7.94",
@@ -3896,7 +3815,6 @@ MIGRATIONS: list[Migration] = [
             "No manifest.yml schema change. Verified: cli-python pytest "
             "707/707 (697 pre-existing + 10 new)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.95"},
     },
     {
         "from": "2.7.95",
@@ -3950,7 +3868,6 @@ MIGRATIONS: list[Migration] = [
             "No manifest.yml schema change. Verified: cli-python pytest "
             "713/713 (707 pre-existing + 6 new)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.96"},
     },
     {
         "from": "2.7.96",
@@ -4004,7 +3921,6 @@ MIGRATIONS: list[Migration] = [
             "new), cross-reference linter clean, assert-output.sh clean "
             "against examples/todo-api, setup smoke tests clean",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.97"},
     },
     {
         "from": "2.7.97",
@@ -4053,7 +3969,6 @@ MIGRATIONS: list[Migration] = [
             "pytest 739/739 (721 pre-existing + 18 new), cross-reference "
             "linter clean, setup smoke tests clean",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.98"},
     },
     {
         "from": "2.7.98",
@@ -4099,7 +4014,6 @@ MIGRATIONS: list[Migration] = [
             "`python -m build && twine upload` (or equivalent CI step) "
             "-- this repo has no PyPI credentials or publish automation",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.99"},
     },
     {
         "from": "2.7.99",
@@ -4143,7 +4057,6 @@ MIGRATIONS: list[Migration] = [
             "the same way they're reachable from setup.sh. Verified: "
             "cli-python pytest 742/742 (739 pre-existing + 3 new)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.7.100"},
     },
     {
         "from": "2.7.100",
@@ -4182,7 +4095,6 @@ MIGRATIONS: list[Migration] = [
             "-- no code touched), ast.parse on upgrade.py, node --check "
             "on upgrade.js",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.0"},
     },
     {
         "from": "2.8.0",
@@ -4219,7 +4131,6 @@ MIGRATIONS: list[Migration] = [
             "passing in cli/, ast.parse on upgrade.py, node --check on "
             "upgrade.js",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.1"},
     },
     {
         "from": "2.8.1",
@@ -4276,7 +4187,6 @@ MIGRATIONS: list[Migration] = [
             "prints the rerun hint, and plain non-interactive stdin also "
             "jumps straight to latest by default",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.2"},
     },
     {
         "from": "2.8.2",
@@ -4330,7 +4240,6 @@ MIGRATIONS: list[Migration] = [
             "reference linter clean across all 6 packs, package.json "
             "parses",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.3"},
     },
     {
         "from": "2.8.3",
@@ -4377,7 +4286,6 @@ MIGRATIONS: list[Migration] = [
             "reference linter clean across all 6 packs, both setup "
             "smoke-test suites (15 + 12) pass",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.4"},
     },
     {
         "from": "2.8.4",
@@ -4450,7 +4358,6 @@ MIGRATIONS: list[Migration] = [
             "prisma migrate dev applied clean against a freshly created "
             "PostgreSQL 16 database",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.5"},
     },
     {
         "from": "2.8.5",
@@ -4514,7 +4421,6 @@ MIGRATIONS: list[Migration] = [
             "project confirming /api/status returns correct timing/"
             "timeline JSON and the page includes the new Timeline card",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.6"},
     },
     {
         "from": "2.8.6",
@@ -4565,7 +4471,6 @@ MIGRATIONS: list[Migration] = [
             "running `sdd init` end-to-end confirming the scaffolded "
             "output (138 files) no longer includes IMPROVEMENT-BACKLOG.md",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.7"},
     },
     {
         "from": "2.8.7",
@@ -4608,7 +4513,6 @@ MIGRATIONS: list[Migration] = [
             "reference linter clean across all 6 packs, both setup "
             "smoke-test suites (15 + 12)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.8"},
     },
     {
         "from": "2.8.8",
@@ -4673,7 +4577,6 @@ MIGRATIONS: list[Migration] = [
             "printed console output actually works and wrong/missing "
             "tokens are rejected",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.9"},
     },
     {
         "from": "2.8.9",
@@ -4734,7 +4637,6 @@ MIGRATIONS: list[Migration] = [
             "test showing a plain session without the adapter genuinely "
             "fails on the same server",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.10"},
     },
     {
         "from": "2.8.10",
@@ -4780,7 +4682,6 @@ MIGRATIONS: list[Migration] = [
             "--check .` both clean, and the specific fix confirmed via "
             "`ruff check . --select FA102` going from 11 hits to 0",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.11"},
     },
     {
         "from": "2.8.11",
@@ -4818,7 +4719,6 @@ MIGRATIONS: list[Migration] = [
             "ship correctly and the page renders with no leaked "
             "placeholder tokens",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.12"},
     },
     {
         "from": "2.8.12",
@@ -4864,7 +4764,6 @@ MIGRATIONS: list[Migration] = [
             'the happy path (--scope lean -> scope: "pilot") and the '
             "rejection path (--scope not-real -> exit 1) end to end",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.13"},
     },
     {
         "from": "2.8.13",
@@ -4899,7 +4798,6 @@ MIGRATIONS: list[Migration] = [
             "new access-control tests for /api/review-links), ruff check/"
             "format, mypy, and bandit all clean",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.14"},
     },
     {
         "from": "2.8.14",
@@ -4956,7 +4854,6 @@ MIGRATIONS: list[Migration] = [
             "outside the repo) was run manually end to end before adding "
             "it to CI, confirming both the failure it catches and the fix",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.8.15"},
     },
 ]
 
@@ -5219,7 +5116,7 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
                     console.print(f"    [dim]•[/dim] {note}")
                 console.print()
 
-                updated = migration["migrate"](read_manifest())
+                updated = _migrate_fn(migration["to"])(read_manifest())
                 patch_manifest({"sdd_version": updated["sdd_version"]})
                 console.print(
                     f"  [green]✓[/green]  {MANIFEST_PATH} updated to v{migration['to']}"

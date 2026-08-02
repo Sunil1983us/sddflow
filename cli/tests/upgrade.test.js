@@ -9,7 +9,7 @@
 // until a real user's `sdd upgrade` hit "No migration path found."
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MIGRATIONS, pendingMigrations } from '../src/commands/upgrade.js';
+import { MIGRATIONS, pendingMigrations, migrateFn } from '../src/commands/upgrade.js';
 import { SDD_VERSION } from '../src/utils/manifest.js';
 
 test('migration table is a connected chain ending at SDD_VERSION', () => {
@@ -23,7 +23,7 @@ test('migration table is a connected chain ending at SDD_VERSION', () => {
 
 test('every migration stamps its own "to" version', () => {
   for (const m of MIGRATIONS) {
-    const result = m.migrate({ project: {} });
+    const result = migrateFn(m.to)({ project: {} });
     assert.equal(result.sdd_version, m.to);
   }
 });

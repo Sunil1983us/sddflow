@@ -5,12 +5,16 @@ import { readManifest, patchManifest, MANIFEST_PATH, SDD_VERSION } from '../util
 
 // Version migration table — describes what changed between pack versions.
 // Extend this when releasing a new pack version.
-// Each migrate() stamps its own "to" version so chained upgrades stay truthful.
 // Exported (not just module-local) so tests/upgrade.test.js can assert the
 // chain is connected and ends at SDD_VERSION -- this table is hand-mirrored
 // from cli-python/sdd/commands/upgrade.py's MIGRATIONS on every release, and
 // only that Python side ever had a test that would catch a broken from/to
 // link in it.
+//
+// No per-entry migrate() function: every one of the 117 hops below has only
+// ever stamped sdd_version (verified -- none has transformed manifest.yml
+// content). migrateFn() below supplies that default; CUSTOM_MIGRATE exists
+// for the rare future entry that genuinely needs to transform the manifest.
 export const MIGRATIONS = [
   {
     from: null,          // null = pre-versioning (v1.x, no sdd_version field)
@@ -23,11 +27,6 @@ export const MIGRATIONS = [
       'Detection order fix: mobile (react-native) now checked before fullstack',
       'Cross-reference comment added to all 3 detection locations',
     ],
-    migrate: (manifest) => {
-      // Add sdd_version if missing — no other structural changes needed
-      manifest.sdd_version = '2.0.0';
-      return manifest;
-    },
   },
   {
     from: '2.0.0',
@@ -41,10 +40,6 @@ export const MIGRATIONS = [
       'setup.sh/setup.ps1 safe in non-interactive runs (CI, piped input)',
       'Re-copy the pack (or run sdd init over it) to pick up new prompt files',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.0';
-      return manifest;
-    },
   },
   {
     from: '2.7.0',
@@ -58,10 +53,6 @@ export const MIGRATIONS = [
       'Re-copy the pack (or run sdd init over it) to pick up the ' +
       'updated .github/prompts/create-context.prompt.md',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.1';
-      return manifest;
-    },
   },
   {
     from: '2.7.1',
@@ -75,10 +66,6 @@ export const MIGRATIONS = [
       'No framework content changed in this step beyond the version ' +
       'scheme itself',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.3';
-      return manifest;
-    },
   },
   {
     from: '2.7.3',
@@ -97,10 +84,6 @@ export const MIGRATIONS = [
       'updated .github/prompts/change.prompt.md and ' +
       'changeset-template.md',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.4';
-      return manifest;
-    },
   },
   {
     from: '2.7.4',
@@ -112,10 +95,6 @@ export const MIGRATIONS = [
       'equivalent commands) — nothing in the Node CLI changed. Version ' +
       'bumped to keep sdd_version aligned across both CLIs.',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.5';
-      return manifest;
-    },
   },
   {
     from: '2.7.5',
@@ -138,10 +117,6 @@ export const MIGRATIONS = [
       'Re-copy the pack (or run sdd init over it) to pick up the updated ' +
       '.github/prompts/specify-doc.prompt.md and plan-design.prompt.md',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.6';
-      return manifest;
-    },
   },
   {
     from: '2.7.6',
@@ -171,10 +146,6 @@ export const MIGRATIONS = [
       'Re-copy the pack (or run sdd init over it) to pick up the ' +
       'updated prompt files',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.7';
-      return manifest;
-    },
   },
   {
     from: '2.7.7',
@@ -230,10 +201,6 @@ export const MIGRATIONS = [
       'Re-copy the pack (or run sdd init over it) to pick up the ' +
       'updated prompt/template files',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.8';
-      return manifest;
-    },
   },
   {
     from: '2.7.8',
@@ -254,10 +221,6 @@ export const MIGRATIONS = [
       'Re-copy the pack (or run sdd init over it) to pick up the ' +
       'updated .github/prompts/create-context.prompt.md',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.9';
-      return manifest;
-    },
   },
   {
     from: '2.7.9',
@@ -292,10 +255,6 @@ export const MIGRATIONS = [
       'Re-copy the pack (or run sdd init over it) to pick up the updated ' +
       '.github/prompts/change.prompt.md and changeset-template.md',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.10';
-      return manifest;
-    },
   },
   {
     from: '2.7.10',
@@ -342,10 +301,6 @@ export const MIGRATIONS = [
       '.specify/integrations.yml.example (per-feature page_map entries ' +
       'now include {feature}) and .gitignore',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.11';
-      return manifest;
-    },
   },
   {
     from: '2.7.11',
@@ -379,10 +334,6 @@ export const MIGRATIONS = [
       'migrated automatically — move them into docs/jira/{feature}/ ' +
       'manually if you want to keep them.',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.12';
-      return manifest;
-    },
   },
   {
     from: '2.7.12',
@@ -405,10 +356,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for the 5 existing packs',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.13';
-      return manifest;
-    },
   },
   {
     from: '2.7.13',
@@ -427,10 +374,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.14';
-      return manifest;
-    },
   },
   {
     from: '2.7.14',
@@ -450,10 +393,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.15';
-      return manifest;
-    },
   },
   {
     from: '2.7.15',
@@ -477,10 +416,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.16';
-      return manifest;
-    },
   },
   {
     from: '2.7.16',
@@ -500,10 +435,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.17';
-      return manifest;
-    },
   },
   {
     from: '2.7.17',
@@ -525,10 +456,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.18';
-      return manifest;
-    },
   },
   {
     from: '2.7.18',
@@ -551,10 +478,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.19';
-      return manifest;
-    },
   },
   {
     from: '2.7.19',
@@ -582,10 +505,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.20';
-      return manifest;
-    },
   },
   {
     from: '2.7.20',
@@ -610,10 +529,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.21';
-      return manifest;
-    },
   },
   {
     from: '2.7.21',
@@ -638,10 +553,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.22';
-      return manifest;
-    },
   },
   {
     from: '2.7.22',
@@ -667,10 +578,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.23';
-      return manifest;
-    },
   },
   {
     from: '2.7.23',
@@ -698,10 +605,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.24';
-      return manifest;
-    },
   },
   {
     from: '2.7.24',
@@ -727,10 +630,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.25';
-      return manifest;
-    },
   },
   {
     from: '2.7.25',
@@ -760,10 +659,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.26';
-      return manifest;
-    },
   },
   {
     from: '2.7.26',
@@ -792,10 +687,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.27';
-      return manifest;
-    },
   },
   {
     from: '2.7.27',
@@ -822,10 +713,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.28';
-      return manifest;
-    },
   },
   {
     from: '2.7.28',
@@ -852,10 +739,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.29';
-      return manifest;
-    },
   },
   {
     from: '2.7.29',
@@ -879,10 +762,6 @@ export const MIGRATIONS = [
       'fresh scaffold; this migration does not backfill it onto existing ' +
       'projects',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.30';
-      return manifest;
-    },
   },
   {
     from: '2.7.30',
@@ -905,10 +784,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.31';
-      return manifest;
-    },
   },
   {
     from: '2.7.31',
@@ -935,10 +810,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.32';
-      return manifest;
-    },
   },
   {
     from: '2.7.32',
@@ -963,10 +834,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.33';
-      return manifest;
-    },
   },
   {
     from: '2.7.33',
@@ -991,10 +858,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.34';
-      return manifest;
-    },
   },
   {
     from: '2.7.34',
@@ -1020,10 +883,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.35';
-      return manifest;
-    },
   },
   {
     from: '2.7.35',
@@ -1049,10 +908,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.36';
-      return manifest;
-    },
   },
   {
     from: '2.7.36',
@@ -1079,10 +934,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.37';
-      return manifest;
-    },
   },
   {
     from: '2.7.37',
@@ -1103,10 +954,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.38';
-      return manifest;
-    },
   },
   {
     from: '2.7.38',
@@ -1129,10 +976,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.39';
-      return manifest;
-    },
   },
   {
     from: '2.7.39',
@@ -1154,10 +997,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.40';
-      return manifest;
-    },
   },
   {
     from: '2.7.40',
@@ -1179,10 +1018,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.41';
-      return manifest;
-    },
   },
   {
     from: '2.7.41',
@@ -1202,10 +1037,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.42';
-      return manifest;
-    },
   },
   {
     from: '2.7.42',
@@ -1223,10 +1054,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.43';
-      return manifest;
-    },
   },
   {
     from: '2.7.43',
@@ -1244,10 +1071,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.44';
-      return manifest;
-    },
   },
   {
     from: '2.7.44',
@@ -1266,10 +1089,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.45';
-      return manifest;
-    },
   },
   {
     from: '2.7.45',
@@ -1288,10 +1107,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.46';
-      return manifest;
-    },
   },
   {
     from: '2.7.46',
@@ -1309,10 +1124,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.47';
-      return manifest;
-    },
   },
   {
     from: '2.7.47',
@@ -1330,10 +1141,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.48';
-      return manifest;
-    },
   },
   {
     from: '2.7.48',
@@ -1353,10 +1160,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.49';
-      return manifest;
-    },
   },
   {
     from: '2.7.49',
@@ -1377,10 +1180,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.50';
-      return manifest;
-    },
   },
   {
     from: '2.7.50',
@@ -1400,10 +1199,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.51';
-      return manifest;
-    },
   },
   {
     from: '2.7.51',
@@ -1424,10 +1219,6 @@ export const MIGRATIONS = [
       'This migration only bumps sdd_version — no manifest.yml field ' +
       'changes for any pack',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.52';
-      return manifest;
-    },
   },
   {
     from: '2.7.52',
@@ -1451,10 +1242,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.53';
-      return manifest;
-    },
   },
   {
     from: '2.7.53',
@@ -1478,10 +1265,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.54';
-      return manifest;
-    },
   },
   {
     from: '2.7.54',
@@ -1507,10 +1290,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.55';
-      return manifest;
-    },
   },
   {
     from: '2.7.55',
@@ -1530,10 +1309,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.56';
-      return manifest;
-    },
   },
   {
     from: '2.7.56',
@@ -1556,10 +1331,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.57';
-      return manifest;
-    },
   },
   {
     from: '2.7.57',
@@ -1581,10 +1352,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.58';
-      return manifest;
-    },
   },
   {
     from: '2.7.58',
@@ -1607,10 +1374,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.59';
-      return manifest;
-    },
   },
   {
     from: '2.7.59',
@@ -1630,10 +1393,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.60';
-      return manifest;
-    },
   },
   {
     from: '2.7.60',
@@ -1653,10 +1412,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.61';
-      return manifest;
-    },
   },
   {
     from: '2.7.61',
@@ -1678,10 +1433,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.62';
-      return manifest;
-    },
   },
   {
     from: '2.7.62',
@@ -1702,10 +1453,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.63';
-      return manifest;
-    },
   },
   {
     from: '2.7.63',
@@ -1729,10 +1476,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.64';
-      return manifest;
-    },
   },
   {
     from: '2.7.64',
@@ -1767,10 +1510,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.65';
-      return manifest;
-    },
   },
   {
     from: '2.7.65',
@@ -1798,10 +1537,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.66';
-      return manifest;
-    },
   },
   {
     from: '2.7.66',
@@ -1820,10 +1555,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.67';
-      return manifest;
-    },
   },
   {
     from: '2.7.67',
@@ -1842,10 +1573,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.68';
-      return manifest;
-    },
   },
   {
     from: '2.7.68',
@@ -1864,10 +1591,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.69';
-      return manifest;
-    },
   },
   {
     from: '2.7.69',
@@ -1888,10 +1611,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.70';
-      return manifest;
-    },
   },
   {
     from: '2.7.70',
@@ -1908,10 +1627,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.71';
-      return manifest;
-    },
   },
   {
     from: '2.7.71',
@@ -1930,10 +1645,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.72';
-      return manifest;
-    },
   },
   {
     from: '2.7.72',
@@ -1952,10 +1663,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.73';
-      return manifest;
-    },
   },
   {
     from: '2.7.73',
@@ -1978,10 +1685,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.74';
-      return manifest;
-    },
   },
   {
     from: '2.7.74',
@@ -2006,10 +1709,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.75';
-      return manifest;
-    },
   },
   {
     from: '2.7.75',
@@ -2035,10 +1734,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.76';
-      return manifest;
-    },
   },
   {
     from: '2.7.76',
@@ -2071,10 +1766,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.77';
-      return manifest;
-    },
   },
   {
     from: '2.7.77',
@@ -2106,10 +1797,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.78';
-      return manifest;
-    },
   },
   {
     from: '2.7.78',
@@ -2143,10 +1830,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.79';
-      return manifest;
-    },
   },
   {
     from: '2.7.79',
@@ -2165,10 +1848,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.80';
-      return manifest;
-    },
   },
   {
     from: '2.7.80',
@@ -2187,10 +1866,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.81';
-      return manifest;
-    },
   },
   {
     from: '2.7.81',
@@ -2206,10 +1881,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.82';
-      return manifest;
-    },
   },
   {
     from: '2.7.82',
@@ -2227,10 +1898,6 @@ export const MIGRATIONS = [
       "This migration only bumps sdd_version — no manifest.yml field " +
       "changes for any pack",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.83';
-      return manifest;
-    },
   },
   {
     from: '2.7.83',
@@ -2245,10 +1912,6 @@ export const MIGRATIONS = [
       "This migration entry exists so both CLIs report the same " +
       "sdd_version chain",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.84';
-      return manifest;
-    },
   },
   {
     from: '2.7.84',
@@ -2282,10 +1945,6 @@ export const MIGRATIONS = [
       "Verified: cli-python pytest 682/682, assert-output.sh clean on " +
       "both worked examples",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.85';
-      return manifest;
-    },
   },
   {
     from: '2.7.85',
@@ -2324,10 +1983,6 @@ export const MIGRATIONS = [
       "Verified: cli-python pytest 682/682 (unaffected), assert-output.sh " +
       "clean on both worked examples, test-setup.sh 15/15",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.86';
-      return manifest;
-    },
   },
   {
     from: '2.7.86',
@@ -2354,10 +2009,6 @@ export const MIGRATIONS = [
       "behavior change. Verified: cli-python pytest 682/682 (unaffected), " +
       "assert-output.sh clean",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.87';
-      return manifest;
-    },
   },
   {
     from: '2.7.87',
@@ -2394,10 +2045,6 @@ export const MIGRATIONS = [
       "assert-output.sh clean on both worked examples, every 'Action 2' " +
       "reference across all 5 packs now resolves to a real heading",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.88';
-      return manifest;
-    },
   },
   {
     from: '2.7.88',
@@ -2432,10 +2079,6 @@ export const MIGRATIONS = [
       "against both worked examples confirmed independent tracking and " +
       "correct type-specific doc inclusion, assert-output.sh clean",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.89';
-      return manifest;
-    },
   },
   {
     from: '2.7.89',
@@ -2457,10 +2100,6 @@ export const MIGRATIONS = [
       "run at mvp scope confirmed next_action now reads " +
       "'Run `/specify-doc data-model`' first",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.90';
-      return manifest;
-    },
   },
   {
     from: '2.7.90',
@@ -2497,10 +2136,6 @@ export const MIGRATIONS = [
       "both worked examples, test-setup.sh 15/15, test-setup-micro.sh " +
       "12/12",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.91';
-      return manifest;
-    },
   },
   {
     from: '2.7.91',
@@ -2538,10 +2173,6 @@ export const MIGRATIONS = [
       "15/15, test-setup-micro.sh 12/12, assert-output.sh clean on both " +
       "worked examples",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.92';
-      return manifest;
-    },
   },
   {
     from: '2.7.92',
@@ -2572,10 +2203,6 @@ export const MIGRATIONS = [
       "schema change for existing projects",
       "Verified: cli-python pytest 695/695 (688 pre-existing + 7 new)",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.93';
-      return manifest;
-    },
   },
   {
     from: '2.7.93',
@@ -2619,10 +2246,6 @@ export const MIGRATIONS = [
       "wizard. Verified: cli-python pytest 697/697 (695 pre-existing " +
       "+ 2 new)",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.94';
-      return manifest;
-    },
   },
   {
     from: '2.7.94',
@@ -2654,10 +2277,6 @@ export const MIGRATIONS = [
       "No manifest.yml schema change. Verified: cli-python pytest " +
       "707/707 (697 pre-existing + 10 new)",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.95';
-      return manifest;
-    },
   },
   {
     from: '2.7.95',
@@ -2695,10 +2314,6 @@ export const MIGRATIONS = [
       "No manifest.yml schema change. Verified: cli-python pytest " +
       "713/713 (707 pre-existing + 6 new)",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.96';
-      return manifest;
-    },
   },
   {
     from: '2.7.96',
@@ -2739,10 +2354,6 @@ export const MIGRATIONS = [
       "cross-reference linter clean, assert-output.sh clean, setup " +
       "smoke tests clean",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.97';
-      return manifest;
-    },
   },
   {
     from: '2.7.97',
@@ -2778,10 +2389,6 @@ export const MIGRATIONS = [
       "upsert). Verified: cli-python pytest 739/739 (721 pre-existing " +
       "+ 18 new), cross-reference linter clean, setup smoke tests clean",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.98';
-      return manifest;
-    },
   },
   {
     from: '2.7.98',
@@ -2814,10 +2421,6 @@ export const MIGRATIONS = [
       "migration entry exists so both CLIs report the same sdd_version " +
       "chain",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.99';
-      return manifest;
-    },
   },
   {
     from: '2.7.99',
@@ -2848,10 +2451,6 @@ export const MIGRATIONS = [
       "No manifest.yml schema change. Verified: cli-python pytest " +
       "742/742 (739 pre-existing + 3 new)",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.7.100';
-      return manifest;
-    },
   },
   {
     from: '2.7.100',
@@ -2884,10 +2483,6 @@ export const MIGRATIONS = [
       "Verified: cli-python pytest 742/742 (unchanged -- no code " +
       "touched), ast.parse on upgrade.py, node --check on upgrade.js",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.0';
-      return manifest;
-    },
   },
   {
     from: '2.8.0',
@@ -2920,10 +2515,6 @@ export const MIGRATIONS = [
       "cli-python pytest 742/742 (unchanged), node --test 2/2 passing, " +
       "ast.parse on upgrade.py, node --check on upgrade.js",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.1';
-      return manifest;
-    },
   },
   {
     from: '2.8.1',
@@ -2970,10 +2561,6 @@ export const MIGRATIONS = [
       "applies exactly one hop and prints the rerun hint, and plain " +
       "non-interactive stdin also jumps straight to latest by default",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.2';
-      return manifest;
-    },
   },
   {
     from: '2.8.2',
@@ -3016,10 +2603,6 @@ export const MIGRATIONS = [
       "cli-python pytest 753/753 (unchanged), cross-reference linter " +
       "clean across all 6 packs, package.json parses",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.3';
-      return manifest;
-    },
   },
   {
     from: '2.8.3',
@@ -3064,10 +2647,6 @@ export const MIGRATIONS = [
       "pytest 753/753 (unchanged), cross-reference linter clean across " +
       "all 6 packs, both setup smoke-test suites (15 + 12) pass",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.4';
-      return manifest;
-    },
   },
   {
     from: '2.8.4',
@@ -3126,10 +2705,6 @@ export const MIGRATIONS = [
       "passing, tsc --noEmit clean, prisma migrate dev applied clean " +
       "against a freshly created PostgreSQL 16 database",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.5';
-      return manifest;
-    },
   },
   {
     from: '2.8.5',
@@ -3169,10 +2744,6 @@ export const MIGRATIONS = [
       "--check`, and a live end-to-end smoke test against a synthetic " +
       "project confirming /api/status and the rendered page both work",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.6';
-      return manifest;
-    },
   },
   {
     from: '2.8.6',
@@ -3208,10 +2779,6 @@ export const MIGRATIONS = [
       "confirming the scaffolded output no longer includes " +
       "IMPROVEMENT-BACKLOG.md",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.7';
-      return manifest;
-    },
   },
   {
     from: '2.8.7',
@@ -3246,10 +2813,6 @@ export const MIGRATIONS = [
       "linter clean across all 6 packs, both setup smoke-test suites " +
       "(15 + 12)",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.8';
-      return manifest;
-    },
   },
   {
     from: '2.8.8',
@@ -3297,10 +2860,6 @@ export const MIGRATIONS = [
       "plus three live end-to-end smoke tests against a real running " +
       "server in all three modes",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.9';
-      return manifest;
-    },
   },
   {
     from: '2.8.9',
@@ -3354,10 +2913,6 @@ export const MIGRATIONS = [
       "plus a control-case test showing a plain session without the " +
       "adapter genuinely fails on the same server",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.10';
-      return manifest;
-    },
   },
   {
     from: '2.8.10',
@@ -3397,10 +2952,6 @@ export const MIGRATIONS = [
       "clean, and the specific fix confirmed via `ruff check . --select " +
       "FA102` going from 11 hits to 0",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.11';
-      return manifest;
-    },
   },
   {
     from: '2.8.11',
@@ -3430,10 +2981,6 @@ export const MIGRATIONS = [
       "and a real wheel build + clean-venv install confirming the " +
       "dashboard's static files ship correctly",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.12';
-      return manifest;
-    },
   },
   {
     from: '2.8.12',
@@ -3464,10 +3011,6 @@ export const MIGRATIONS = [
       "+ 1 invalid-scope rejection case, cross-reference checker and " +
       "sync-drift check both clean across all 6 packs",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.13';
-      return manifest;
-    },
   },
   {
     from: '2.8.13',
@@ -3496,10 +3039,6 @@ export const MIGRATIONS = [
       "access-control tests for /api/review-links), ruff check/format, " +
       "mypy, and bandit all clean",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.14';
-      return manifest;
-    },
   },
   {
     from: '2.8.14',
@@ -3536,12 +3075,22 @@ export const MIGRATIONS = [
       "the full package-verify sequence was run manually end to end " +
       "before adding it to CI",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.8.15';
-      return manifest;
-    },
   },
 ];
+
+// Rare migrations that must transform manifest.yml beyond stamping
+// sdd_version go here, keyed by "to" version. Every other hop uses the
+// trivial default in migrateFn() (all 117 to date have).
+const CUSTOM_MIGRATE = {};
+
+export function migrateFn(to) {
+  const custom = CUSTOM_MIGRATE[to];
+  if (custom) return custom;
+  return (manifest) => {
+    manifest.sdd_version = to;
+    return manifest;
+  };
+}
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks
 // the linear MIGRATIONS chain (each "from" is unique, so it's a simple
@@ -3654,7 +3203,7 @@ export async function upgradeCommand(opts = {}) {
 
     // Apply migration
     let m = readManifest();
-    m = migration.migrate(m);
+    m = migrateFn(migration.to)(m);
     patchManifest({ sdd_version: m.sdd_version }, MANIFEST_PATH);
     console.log(`  ${chalk.green('✓')}  ${MANIFEST_PATH} updated to v${migration.to}`);
     console.log('');
