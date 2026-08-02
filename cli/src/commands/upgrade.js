@@ -3435,6 +3435,40 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.12',
+    to:   '2.8.13',
+    description: "Add lean/standard/regulated as friendly aliases for pilot/mvp/full scope",
+    notes: [
+      "Real gap the review flagged: examples/todo-api (a real pilot-scope " +
+      "run) generates exactly 12 documents, and 'pilot' reads as a small, " +
+      "informal effort right up until a team sees the actual document " +
+      "count. A full rename of the scope vocabulary would be a breaking " +
+      "change to manifest.yml's schema and every pack's scope-gating " +
+      "logic, so this ships a much smaller, safe version instead: lean/" +
+      "standard/regulated are accepted as friendlier input names " +
+      "wherever scope is set (setup.sh/setup.ps1's --scope, sdd init's " +
+      "-s/--scope), resolved to the canonical pilot/mvp/full before " +
+      "anything is written. manifest.yml's own scope: field never sees " +
+      "the aliases -- no downstream logic needed to change",
+      "Also added real input validation that didn't exist before: an " +
+      "unrecognized --scope value is now rejected with a clear error " +
+      "instead of being silently written into manifest.yml as-is",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. The " +
+      "Node CLI's own init/upgrade scaffolding doesn't take a --scope " +
+      "flag today, so there's no corresponding code change on that side",
+      "Verified: cli-python pytest 797/797 (793 pre-existing + 4 new), " +
+      "ruff check/format, mypy, and bandit all clean, coverage still " +
+      "79%; setup.sh smoke suite extended with 3 alias-resolution cases " +
+      "+ 1 invalid-scope rejection case, cross-reference checker and " +
+      "sync-drift check both clean across all 6 packs",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.13';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

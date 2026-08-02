@@ -89,6 +89,67 @@ class TestFillMode:
         assert (tmp_path / ".specify" / "contexts" / "checkout.md").exists()
         assert (tmp_path / ".specify" / "features" / "checkout").is_dir()
 
+    @pytest.mark.parametrize(
+        "alias,canonical",
+        [("lean", "pilot"), ("standard", "mvp"), ("regulated", "full")],
+    )
+    def test_scope_alias_resolves_to_canonical_name_in_manifest(
+        self, runner, tmp_path, monkeypatch, alias, canonical
+    ):
+        # manifest.yml's own schema only ever stores pilot/mvp/full -- the
+        # alias is a friendlier --scope spelling, resolved before anything
+        # is written, never persisted as-is.
+        monkeypatch.chdir(tmp_path)
+        manifest_path = _write_manifest(tmp_path)
+
+        with patch("questionary.select", return_value=_Answer("claude-code")):
+            result = runner.invoke(
+                init_command,
+                [
+                    "-p",
+                    "payments",
+                    "-f",
+                    "checkout",
+                    "-s",
+                    alias,
+                    "-t",
+                    "backend-service",
+                    "--plan-mode",
+                    "unified",
+                    "--reading-mode",
+                    "auto",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        saved = yaml.safe_load(manifest_path.read_text())
+        assert saved["project"]["scope"] == canonical
+
+    def test_invalid_scope_value_is_rejected(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_manifest(tmp_path)
+
+        result = runner.invoke(
+            init_command,
+            [
+                "-p",
+                "payments",
+                "-f",
+                "checkout",
+                "-s",
+                "not-a-real-scope",
+                "-t",
+                "backend-service",
+                "--plan-mode",
+                "unified",
+                "--reading-mode",
+                "auto",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "not-a-real-scope" in result.output
+
     def test_context_file_not_overwritten_if_it_already_exists(
         self, runner, tmp_path, monkeypatch
     ):

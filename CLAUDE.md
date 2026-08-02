@@ -171,13 +171,13 @@ When adding a new project type:
 
 ## Scope Levels
 
-Three scopes control which documents and commands run:
+Three scopes control which documents and commands run — `lean`/`standard`/`regulated` are accepted as friendlier aliases wherever scope is set (`setup.sh`/`setup.ps1`'s `--scope`, `sdd init`'s `-s`/`--scope`), resolved to the canonical name before anything is written. `manifest.yml`'s own `scope:` field only ever stores `pilot`/`mvp`/`full` — no pack template, gate, or command needs to know the aliases exist.
 
-| Scope | Commands skipped | Extra docs |
-|---|---|---|
-| `pilot` | `/plan-lld`, `/plan-adr` | BRD, SRD, Security-Design §1, Arch, HLD, Tasks, Stories, Release |
-| `mvp` | none | + API Spec, Data Model, Security-Design §1-2, LLD, ADR, QA Cases, Runbook |
-| `full` | none | + Resilience, Investigation, Security-Design §1-4, OpenAPI |
+| Scope | Alias | Commands skipped | Extra docs |
+|---|---|---|---|
+| `pilot` | `lean` | `/plan-lld`, `/plan-adr` | BRD, SRD, Security-Design §1, Arch, HLD, Tasks, Stories, Release |
+| `mvp` | `standard` | none | + API Spec, Data Model, Security-Design §1-2, LLD, ADR, QA Cases, Runbook |
+| `full` | `regulated` | none | + Resilience, Investigation, Security-Design §1-4, OpenAPI |
 
 Document inventory is defined in `specify.prompt.md` Action 2 — this is the single source of truth for what each scope produces.
 

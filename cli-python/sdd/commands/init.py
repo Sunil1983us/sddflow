@@ -33,6 +33,31 @@ AI_TOOLS = [
     questionary.Choice("Other / not sure", value="other"),
 ]
 
+# Friendly aliases for --scope -- manifest.yml's own schema only ever
+# stores pilot/mvp/full (every gate/command in every pack checks for those
+# three exact values), so aliases are resolved here, before anything is
+# written, rather than teaching every downstream check about them. Mirrors
+# the same alias handling in setup.sh/setup.ps1.
+_SCOPE_ALIASES: dict[str, str] = {
+    "lean": "pilot",
+    "standard": "mvp",
+    "regulated": "full",
+}
+_VALID_SCOPES = {"pilot", "mvp", "full"}
+
+
+def _resolve_scope(scope: str | None) -> str | None:
+    if not scope:
+        return scope
+    resolved = _SCOPE_ALIASES.get(scope, scope)
+    if resolved not in _VALID_SCOPES:
+        raise click.BadParameter(
+            f"'{scope}' — must be one of: pilot (lean), mvp (standard), full (regulated)",
+            param_hint="'-s' / '--scope'",
+        )
+    return resolved
+
+
 _AI_TOOL_NEXT_STEP: dict[str, str] = {
     "claude-code": "Open this folder in Claude Code and type:  [bold]/specify[/bold]",
     "copilot": "Open in VS Code with Copilot Chat and type:  [bold]/specify[/bold]",
@@ -54,7 +79,12 @@ _BANNER = f"""
 @click.option(
     "-f", "--feature", "feature_name", default=None, help="First feature name"
 )
-@click.option("-s", "--scope", default=None, help="pilot | mvp | full")
+@click.option(
+    "-s",
+    "--scope",
+    default=None,
+    help="pilot (lean) | mvp (standard) | full (regulated)",
+)
 @click.option(
     "-t",
     "--type",
@@ -70,6 +100,7 @@ def init_command(
 ):
     """Initialize an SDD pack in the current project directory."""
     console.print(_BANNER)
+    scope = _resolve_scope(scope)
 
     # ── Scaffold mode: no pack present yet ───────────────────────────────────
     chosen_pack = None

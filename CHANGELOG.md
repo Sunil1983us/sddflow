@@ -4,6 +4,40 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.13] — 2026-08-02 (Add lean/standard/regulated as friendly scope aliases)
+
+An external review flagged that `examples/todo-api` (a real `pilot`-scope
+run) generates exactly 12 documents, yet "pilot" reads as a small,
+informal effort until a team actually sees that count. A full rename of
+the scope vocabulary would be a breaking change to `manifest.yml`'s schema
+and every pack's scope-gating logic, so this ships a smaller, safe version
+instead.
+
+### Added
+
+- **`lean`/`standard`/`regulated` accepted as friendlier aliases** for
+  `pilot`/`mvp`/`full` wherever scope is set: `setup.sh`/`setup.ps1`'s
+  `--scope`, and `sdd init`'s `-s`/`--scope`. Resolved to the canonical
+  name before anything is written — `manifest.yml`'s own `scope:` field,
+  and every gate/command that reads it, never sees the aliases.
+- **Real input validation that didn't exist before.** An unrecognized
+  `--scope` value (a typo, or anything outside the 6 accepted spellings)
+  is now rejected with a clear error instead of being silently written
+  into `manifest.yml` as-is.
+
+### Verified
+
+- `cli-python` pytest: 797/797 (793 pre-existing + 4 new)
+- ruff check/format, mypy, and bandit all clean; coverage still 79%
+- `setup.sh` smoke suite extended with 3 alias-resolution cases + 1
+  invalid-scope rejection case (19/19 passing)
+- Cross-reference checker and sync-drift check both clean across all 6
+  packs
+- Direct manual run against a synced pack confirming both the happy path
+  (`--scope lean` → `scope: "pilot"`) and the rejection path end to end
+
+---
+
 ## [2.8.12] — 2026-08-02 (Dashboard: confirm before approving; HTML/CSS/JS moved to real files)
 
 ### Added

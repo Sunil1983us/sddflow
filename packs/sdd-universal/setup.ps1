@@ -128,14 +128,28 @@ if (-not $Scope) {
   if ($Interactive) {
     Write-Host ""
     Write-Host "Scope:"
-    Write-Host "  pilot  — quick prototype, minimal docs"
-    Write-Host "  mvp    — production-ready"
-    Write-Host "  full   — enterprise"
+    Write-Host "  pilot  (lean)       — quick prototype, minimal docs"
+    Write-Host "  mvp    (standard)   — production-ready"
+    Write-Host "  full   (regulated)  — enterprise"
     $ScopeInput = Read-Host "Scope [pilot]"
     $Scope = if ($ScopeInput) { $ScopeInput } else { "pilot" }
   } else {
     $Scope = "pilot"
   }
+}
+
+# Friendly aliases -- manifest.yml's own schema only ever stores
+# pilot/mvp/full (every gate/command in every pack checks for those three
+# exact values), so aliases are normalized here, before anything is
+# written, rather than teaching every downstream check about them.
+switch ($Scope) {
+  "lean"      { $Scope = "pilot" }
+  "standard"  { $Scope = "mvp" }
+  "regulated" { $Scope = "full" }
+}
+if ($Scope -ne "pilot" -and $Scope -ne "mvp" -and $Scope -ne "full") {
+  Write-Error "Invalid -Scope '$Scope' -- must be one of: pilot (lean), mvp (standard), full (regulated)"
+  exit 1
 }
 
 if (-not $PlanMode) {

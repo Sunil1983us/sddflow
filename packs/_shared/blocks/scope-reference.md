@@ -1,6 +1,8 @@
 ## Scope Reference — What Each Scope Produces
 
-| Document / Command | pilot | mvp | full |
+`lean`/`standard`/`regulated` are accepted as friendlier aliases for `pilot`/`mvp`/`full` wherever scope is set (`setup.sh`/`setup.ps1`'s `--scope`, `sdd init`'s `-s`/`--scope`) — resolved to the canonical name before anything is written. `manifest.yml`'s own `scope:` field, and everything below, only ever uses `pilot`/`mvp`/`full`.
+
+| Document / Command | pilot (lean) | mvp (standard) | full (regulated) |
 |---|---|---|---|
 | BRD, Use Cases, SRD | ✅ | ✅ | ✅ |
 | `/checklist` | Optional | **Mandatory** | **Mandatory** |
