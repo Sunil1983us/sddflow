@@ -4,7 +4,7 @@
 // Step 0 table. Update all three together when adding a new type.
 // INVARIANT: mobile checks must appear before fullstack.
 
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 export function detectProjectType(root = '.') {
@@ -52,7 +52,7 @@ export function detectProjectType(root = '.') {
   // IaC
   const tfFiles = (() => {
     try {
-      return require('fs').readdirSync(root).some(f => f.endsWith('.tf'));
+      return readdirSync(root).some(f => f.endsWith('.tf'));
     } catch { return false; }
   })();
   if (tfFiles || has('Pulumi.yaml') || has('cdk.json')) return 'iac';

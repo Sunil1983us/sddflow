@@ -4,6 +4,40 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.16] — 2026-08-02 (Fix a silent detect.js bug: Terraform projects were never detected as iac)
+
+`cli/src/utils/detect.js`'s Terraform-file check called
+`require('fs').readdirSync(...)` inside a try/catch — but this file is
+loaded as an ES module (`"type": "module"` in `cli/package.json`), where
+`require` is not defined at all. The resulting `ReferenceError` was
+silently swallowed by the catch, so this branch always returned `false`: a
+pure-Terraform project with no `Pulumi.yaml` or `cdk.json` was never
+detected as `iac` by the Node CLI's project-type auto-detection.
+
+### Fixed
+
+- Imported `readdirSync` at the top of `detect.js` alongside the module's
+  other `fs` calls, instead of a runtime `require()`. Verified both the
+  bug and the fix directly: `require('fs')` throws `require is not
+  defined` in a real ESM context, and a scratch directory containing only
+  a `.tf` file now correctly detects as `iac` where it previously fell
+  through to `null`.
+
+### Added
+
+- `cli/tests/detect.test.js` — the Node CLI had no `detect.js` test
+  coverage at all before this.
+
+### Verified
+
+- `cli-python` pytest: 824/824 unaffected (Python's own `detect.py` does
+  exact dependency-key matching, no shell-out, no `require()`, and was
+  never affected by this bug)
+- `cli` `node --test`: 6/6 (4 pre-existing + 2 new), `npm test`, and the
+  `--help` smoke test all pass
+
+---
+
 ## [2.8.15] — 2026-08-02 (CI now proves a clean pip install actually works; sdd init gets an --ai-tool flag)
 
 A second external review round flagged that CI never verifies the packaging

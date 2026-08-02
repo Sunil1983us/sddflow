@@ -3076,6 +3076,33 @@ export const MIGRATIONS = [
       "before adding it to CI",
     ],
   },
+  {
+    from: '2.8.15',
+    to:   '2.8.16',
+    description: "Fix a silent detect.js bug: Terraform (.tf) projects were never detected as iac",
+    notes: [
+      "This file's own Terraform-file check called require('fs')." +
+      "readdirSync(...) inside a try/catch -- but this file is loaded as " +
+      "an ES module ('type': 'module' in package.json), where require " +
+      "is not defined at all. The resulting ReferenceError was silently " +
+      "swallowed by the catch, so this branch always returned false: a " +
+      "pure-Terraform project with no Pulumi.yaml or cdk.json was never " +
+      "detected as 'iac'",
+      "Fixed by importing readdirSync at the top of detect.js alongside " +
+      "the module's other fs calls, instead of a runtime require(). " +
+      "Verified the bug and the fix directly: require('fs') throws " +
+      "'require is not defined' in a real ESM context, and a scratch " +
+      "directory containing only a .tf file now correctly detects as " +
+      "'iac' where it previously fell through to null",
+      "New tests/detect.test.js covers this case directly -- there was " +
+      "no detect.js test coverage at all before this",
+      "cli-python's own detect.py does exact dependency-key matching (no " +
+      "shell-out, no require()) and was never affected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: node --test 6/6 (4 pre-existing + 2 new), npm test and " +
+      "the --help smoke test both pass",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

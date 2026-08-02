@@ -4855,6 +4855,39 @@ MIGRATIONS: list[Migration] = [
             "it to CI, confirming both the failure it catches and the fix",
         ],
     },
+    {
+        "from": "2.8.15",
+        "to": "2.8.16",
+        "description": "Fix a silent detect.js bug: Terraform (.tf) projects were never detected as iac",
+        "notes": [
+            "cli/src/utils/detect.js's Terraform-file check called "
+            "require('fs').readdirSync(...) inside a try/catch -- but "
+            "this file is loaded as an ES module ('type': 'module' in "
+            "cli/package.json), where require is not defined at all. The "
+            "resulting ReferenceError was silently swallowed by the "
+            "catch, so this branch always returned false: a pure-"
+            "Terraform project with no Pulumi.yaml or cdk.json was never "
+            "detected as 'iac' by the Node CLI's project-type auto-"
+            "detection",
+            "Fixed by importing readdirSync at the top of the file "
+            "alongside the module's other fs calls (existsSync, "
+            "readFileSync), instead of a runtime require(). Verified the "
+            "bug and the fix directly: require('fs') throws 'require is "
+            "not defined' in a real ESM context, and a scratch directory "
+            "containing only a .tf file now correctly detects as 'iac' "
+            "where it previously fell through to null",
+            "New cli/tests/detect.test.js covers this case directly (plus "
+            "a no-markers-detected sanity check) -- the Node CLI had no "
+            "detect.js test coverage at all before this",
+            "This Python CLI's own detect.py does exact dependency-key "
+            "matching (no shell-out, no require()) and was never affected "
+            "-- this migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 824/824 unaffected; cli node "
+            "--test 6/6 (4 pre-existing + 2 new), npm test and the --help "
+            "smoke test both pass",
+        ],
+    },
 ]
 
 
