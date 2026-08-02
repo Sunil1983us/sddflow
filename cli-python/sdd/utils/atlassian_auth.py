@@ -16,8 +16,8 @@ import keyring
 # covers all of them. Before this, a flaky network blip or an Atlassian
 # rate limit turned into a raw, unhandled stack trace mid-workflow.
 _DEFAULT_TIMEOUT = 20  # seconds -- generous for a REST call, short enough
-                       # that a hung connection doesn't block an
-                       # interactive CLI command indefinitely
+# that a hung connection doesn't block an
+# interactive CLI command indefinitely
 
 
 class _TimeoutHTTPAdapter(HTTPAdapter):
@@ -55,6 +55,7 @@ def _retrying_adapter() -> _TimeoutHTTPAdapter:
     )
     return _TimeoutHTTPAdapter(max_retries=retry)
 
+
 CONFIG_PATH = Path.home() / ".sdd" / "config.yml"
 
 # Service name under which credentials are stored in the OS-native secure
@@ -66,16 +67,16 @@ KEYRING_SERVICE = "sdd-framework"
 
 @dataclass
 class Profile:
-    auth_mode: str        # basic | pat | oauth2
+    auth_mode: str  # basic | pat | oauth2
     base_url: str
     email: str | None = None
-    credential_store: str = "env"   # env | keyring
+    credential_store: str = "env"  # env | keyring
     api_token_env: str | None = None
     pat_env: str | None = None
     client_id_env: str | None = None
     client_secret_env: str | None = None
     access_token_env: str | None = None
-    profile_name: str | None = None   # set by load_profile; the keyring lookup key
+    profile_name: str | None = None  # set by load_profile; the keyring lookup key
 
 
 def load_profile(name: str | None = None) -> Profile:
@@ -207,7 +208,9 @@ def build_session(profile: Profile) -> requests.Session:
     return session
 
 
-def load_jira_session(cfg, profile_override: str | None = None) -> tuple[Profile, requests.Session]:
+def load_jira_session(
+    cfg, profile_override: str | None = None
+) -> tuple[Profile, requests.Session]:
     """Resolve the Profile + authenticated Session to use for Jira calls.
 
     Honors integrations.yml's jira.profile override (see
@@ -222,7 +225,9 @@ def load_jira_session(cfg, profile_override: str | None = None) -> tuple[Profile
     return prof, build_session(prof)
 
 
-def load_confluence_session(cfg, profile_override: str | None = None) -> tuple[Profile, requests.Session]:
+def load_confluence_session(
+    cfg, profile_override: str | None = None
+) -> tuple[Profile, requests.Session]:
     """Resolve the Profile + authenticated Session to use for Confluence
     calls -- see load_jira_session(), which this mirrors for the
     confluence.profile override."""

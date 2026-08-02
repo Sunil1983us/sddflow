@@ -6,7 +6,7 @@ import requests
 
 def _strip_html(text: str) -> str:
     """Remove HTML tags and unescape entities (for comment bodies)."""
-    text = re.sub(r'<[^>]+>', ' ', text)
+    text = re.sub(r"<[^>]+>", " ", text)
     return html.unescape(text).strip()
 
 
@@ -26,25 +26,29 @@ class ConfluenceClient:
         return r.json()
 
     def get_page_by_title(self, space_key: str, title: str) -> dict | None:
-        r = self._s.get(self._api("/content"), params={
-            "type":     "page",
-            "spaceKey": space_key,
-            "title":    title,
-            "expand":   "version",
-        })
+        r = self._s.get(
+            self._api("/content"),
+            params={
+                "type": "page",
+                "spaceKey": space_key,
+                "title": title,
+                "expand": "version",
+            },
+        )
         r.raise_for_status()
         results = r.json().get("results", [])
         return results[0] if results else None
 
-    def create_page(self, space_key: str, title: str, body_html: str,
-                    parent_id: str | None = None) -> dict:
+    def create_page(
+        self, space_key: str, title: str, body_html: str, parent_id: str | None = None
+    ) -> dict:
         payload: dict = {
-            "type":  "page",
+            "type": "page",
             "title": title,
             "space": {"key": space_key},
             "body": {
                 "storage": {
-                    "value":          body_html,
+                    "value": body_html,
                     "representation": "storage",
                 }
             },
@@ -55,15 +59,16 @@ class ConfluenceClient:
         r.raise_for_status()
         return r.json()
 
-    def update_page(self, page_id: str, version: int, title: str,
-                    body_html: str) -> dict:
+    def update_page(
+        self, page_id: str, version: int, title: str, body_html: str
+    ) -> dict:
         payload = {
-            "type":    "page",
-            "title":   title,
+            "type": "page",
+            "title": title,
             "version": {"number": version + 1},
             "body": {
                 "storage": {
-                    "value":          body_html,
+                    "value": body_html,
                     "representation": "storage",
                 }
             },
@@ -78,8 +83,13 @@ class ConfluenceClient:
         r.raise_for_status()
         return r.json()
 
-    def upload_attachment(self, page_id: str, filename: str, content: bytes,
-                          media_type: str = "image/svg+xml") -> dict:
+    def upload_attachment(
+        self,
+        page_id: str,
+        filename: str,
+        content: bytes,
+        media_type: str = "image/svg+xml",
+    ) -> dict:
         """Attach a file to a page. Confluence's attachment endpoint
         automatically creates a new version of an existing attachment
         with the same filename rather than erroring or duplicating it --
@@ -133,19 +143,19 @@ class ConfluenceClient:
         results = r.json().get("results", [])
         comments = []
         for c in results:
-            author = (
-                c.get("version", {}).get("by", {}).get("displayName", "Unknown")
-            )
+            author = c.get("version", {}).get("by", {}).get("displayName", "Unknown")
             created = c.get("version", {}).get("when", "")
             body_html = c.get("body", {}).get("view", {}).get("value", "")
             body_text = _strip_html(body_html)
             if body_text.strip():
-                comments.append({
-                    "author":  author,
-                    "created": created[:10] if created else "",
-                    "text":    body_text.strip(),
-                    "type":    "comment",
-                })
+                comments.append(
+                    {
+                        "author": author,
+                        "created": created[:10] if created else "",
+                        "text": body_text.strip(),
+                        "type": "comment",
+                    }
+                )
         return comments
 
     def get_inline_comments(self, page_id: str) -> list[dict]:
@@ -153,8 +163,8 @@ class ConfluenceClient:
         r = self._s.get(
             self._api(f"/content/{page_id}/child/comment"),
             params={
-                "expand":   "body.view,version,extensions.inlineProperties",
-                "limit":    100,
+                "expand": "body.view,version,extensions.inlineProperties",
+                "limit": 100,
                 "location": "inline",
             },
         )
@@ -165,29 +175,29 @@ class ConfluenceClient:
         comments = []
         for c in results:
             resolved = (
-                c.get("extensions", {})
-                 .get("resolution", {})
-                 .get("status", "") == "resolved"
+                c.get("extensions", {}).get("resolution", {}).get("status", "")
+                == "resolved"
             )
             if resolved:
                 continue
-            author = (
-                c.get("version", {}).get("by", {}).get("displayName", "Unknown")
-            )
+            author = c.get("version", {}).get("by", {}).get("displayName", "Unknown")
             created = c.get("version", {}).get("when", "")
             body_html = c.get("body", {}).get("view", {}).get("value", "")
             body_text = _strip_html(body_html)
             if body_text.strip():
-                comments.append({
-                    "author":  author,
-                    "created": created[:10] if created else "",
-                    "text":    body_text.strip(),
-                    "type":    "inline",
-                })
+                comments.append(
+                    {
+                        "author": author,
+                        "created": created[:10] if created else "",
+                        "text": body_text.strip(),
+                        "type": "inline",
+                    }
+                )
         return comments
 
-    def upsert_page(self, space_key: str, title: str, body_html: str,
-                    parent_id: str | None = None) -> tuple[dict, bool]:
+    def upsert_page(
+        self, space_key: str, title: str, body_html: str, parent_id: str | None = None
+    ) -> tuple[dict, bool]:
         """Create or update a page. Returns (page_dict, was_created)."""
         existing = self.get_page_by_title(space_key, title)
         if existing:

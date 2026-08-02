@@ -4,8 +4,12 @@ from pathlib import Path
 import pytest
 
 from sdd.utils.validate import (
-    validate_name, assert_valid_name, safe_feature_path,
-    resolve_doc_path, LIVING_SERVICE_DOCS, PROJECT_SCOPED_DOCS,
+    validate_name,
+    assert_valid_name,
+    safe_feature_path,
+    resolve_doc_path,
+    LIVING_SERVICE_DOCS,
+    PROJECT_SCOPED_DOCS,
 )
 
 
@@ -69,7 +73,10 @@ def test_resolve_doc_path_routes_living_docs_to_service_dir(tmp_path, monkeypatc
     monkeypatch.chdir(tmp_path)
     for doc in LIVING_SERVICE_DOCS:
         for feature in ("instant-payment", "payment-dashboard", ""):
-            assert resolve_doc_path(doc, feature) == Path(".specify") / "service" / f"{doc}.md"
+            assert (
+                resolve_doc_path(doc, feature)
+                == Path(".specify") / "service" / f"{doc}.md"
+            )
 
 
 def test_resolve_doc_path_routes_constitution_to_memory_dir(tmp_path, monkeypatch):

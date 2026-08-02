@@ -30,10 +30,10 @@ class ReviewActionError(Exception):
 
 @dataclass
 class RemoteInfo:
-    host: str          # github | bitbucket | gitlab | azure | unknown
-    owner: str          # org/workspace/group (best-effort — empty for azure/unknown)
-    repo: str           # repo name (best-effort)
-    project: str = ""   # azure-only: the Azure DevOps "project" segment
+    host: str  # github | bitbucket | gitlab | azure | unknown
+    owner: str  # org/workspace/group (best-effort — empty for azure/unknown)
+    repo: str  # repo name (best-effort)
+    project: str = ""  # azure-only: the Azure DevOps "project" segment
 
 
 @dataclass
@@ -45,6 +45,7 @@ class ReviewComment:
       comment belongs to. Equal to comment_id on hosts with no separate
       thread concept.
     """
+
     comment_id: str
     thread_id: str
     path: str
@@ -72,8 +73,10 @@ def get_origin_url() -> str | None:
 # ── Pure URL parsing ─────────────────────────────────────────────────────────
 # Handles both SSH (git@host:path.git) and HTTPS (https://host/path.git) forms.
 
-_SSH_RE   = re.compile(r"^[\w.-]+@(?P<host>[\w.-]+):(?P<path>.+?)(?:\.git)?/?$")
-_HTTPS_RE = re.compile(r"^https?://(?:[^@/]+@)?(?P<host>[\w.-]+)(?::\d+)?/(?P<path>.+?)(?:\.git)?/?$")
+_SSH_RE = re.compile(r"^[\w.-]+@(?P<host>[\w.-]+):(?P<path>.+?)(?:\.git)?/?$")
+_HTTPS_RE = re.compile(
+    r"^https?://(?:[^@/]+@)?(?P<host>[\w.-]+)(?::\d+)?/(?P<path>.+?)(?:\.git)?/?$"
+)
 
 
 def _split_host_path(url: str) -> tuple[str, str] | None:
@@ -121,11 +124,19 @@ def parse_remote(url: str) -> RemoteInfo:
         if "visualstudio.com" in host:
             org = host.split(".visualstudio.com")[0]
             if len(clean) >= 2:
-                return RemoteInfo(host="azure", owner=org, repo=clean[-1], project=clean[-2])
+                return RemoteInfo(
+                    host="azure", owner=org, repo=clean[-1], project=clean[-2]
+                )
             return RemoteInfo(host="azure", owner=org, repo=clean[-1] if clean else "")
         if len(clean) >= 3:
-            return RemoteInfo(host="azure", owner=clean[0], repo=clean[-1], project=clean[-2])
-        return RemoteInfo(host="azure", owner=clean[0] if clean else "", repo=clean[-1] if clean else "")
+            return RemoteInfo(
+                host="azure", owner=clean[0], repo=clean[-1], project=clean[-2]
+            )
+        return RemoteInfo(
+            host="azure",
+            owner=clean[0] if clean else "",
+            repo=clean[-1] if clean else "",
+        )
 
     # Self-hosted / unrecognized — still return best-effort owner/repo so the
     # manual-fallback message can show something useful.
@@ -147,6 +158,7 @@ def detect_host() -> RemoteInfo:
 # manual-fallback message (title + body), same shape as the historical
 # gh-not-found path.
 
+
 class GitHubProvider:
     name = "GitHub"
 
@@ -158,10 +170,19 @@ class GitHubProvider:
         return code == 0
 
     def create_pr(self, title: str, body: str, base: str, branch: str) -> str:
-        code, out, err = _run([
-            "gh", "pr", "create",
-            "--title", title, "--body", body, "--base", base,
-        ])
+        code, out, err = _run(
+            [
+                "gh",
+                "pr",
+                "create",
+                "--title",
+                title,
+                "--body",
+                body,
+                "--base",
+                base,
+            ]
+        )
         if code != 0:
             raise PrCreateError(f"gh pr create failed: {err}")
         return out
@@ -169,9 +190,13 @@ class GitHubProvider:
     # ── Review comments (backs /address-review) ───────────────────────────
 
     def get_pr_number(self, branch: str) -> str:
-        code, out, err = _run(["gh", "pr", "view", "--json", "number", "--jq", ".number"])
+        code, out, err = _run(
+            ["gh", "pr", "view", "--json", "number", "--jq", ".number"]
+        )
         if code != 0 or not out:
-            raise ReviewActionError(f"gh pr view failed: {err or 'no PR found for this branch'}")
+            raise ReviewActionError(
+                f"gh pr view failed: {err or 'no PR found for this branch'}"
+            )
         return out
 
     def list_unresolved_comments(self, pr_id: str) -> list[ReviewComment]:
@@ -191,16 +216,25 @@ class GitHubProvider:
             }
           }
         }"""
-        code, out, err = _run([
-            "gh", "api", "graphql",
-            "-f", f"query={query}",
-            "-f", f"owner={self.info.owner}",
-            "-f", f"repo={self.info.repo}",
-            "-F", f"number={pr_id}",
-        ])
+        code, out, err = _run(
+            [
+                "gh",
+                "api",
+                "graphql",
+                "-f",
+                f"query={query}",
+                "-f",
+                f"owner={self.info.owner}",
+                "-f",
+                f"repo={self.info.repo}",
+                "-F",
+                f"number={pr_id}",
+            ]
+        )
         if code != 0:
             raise ReviewActionError(f"gh api graphql (list threads) failed: {err}")
         import json
+
         data = json.loads(out)
         threads = data["data"]["repository"]["pullRequest"]["reviewThreads"]["nodes"]
         result = []
@@ -208,30 +242,44 @@ class GitHubProvider:
             if t["isResolved"]:
                 continue
             c = t["comments"]["nodes"][0]
-            result.append(ReviewComment(
-                comment_id=str(c["databaseId"]), thread_id=t["id"],
-                path=c.get("path", ""), line=c.get("line"),
-                author=c.get("author", {}).get("login", "unknown"), body=c["body"],
-            ))
+            result.append(
+                ReviewComment(
+                    comment_id=str(c["databaseId"]),
+                    thread_id=t["id"],
+                    path=c.get("path", ""),
+                    line=c.get("line"),
+                    author=c.get("author", {}).get("login", "unknown"),
+                    body=c["body"],
+                )
+            )
         return result
 
     def reply_to_comment(self, pr_id: str, comment: ReviewComment, body: str) -> None:
-        code, _, err = _run([
-            "gh", "api", f"repos/{self.info.owner}/{self.info.repo}/pulls/comments/{comment.comment_id}/replies",
-            "-f", f"body={body}",
-        ])
+        code, _, err = _run(
+            [
+                "gh",
+                "api",
+                f"repos/{self.info.owner}/{self.info.repo}/pulls/comments/{comment.comment_id}/replies",
+                "-f",
+                f"body={body}",
+            ]
+        )
         if code != 0:
             raise ReviewActionError(f"gh api reply failed: {err}")
 
     def resolve_thread(self, pr_id: str, comment: ReviewComment) -> None:
-        mutation = (
-            'mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}'
+        mutation = "mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}"
+        code, _, err = _run(
+            [
+                "gh",
+                "api",
+                "graphql",
+                "-f",
+                f"query={mutation}",
+                "-f",
+                f"id={comment.thread_id}",
+            ]
         )
-        code, _, err = _run([
-            "gh", "api", "graphql",
-            "-f", f"query={mutation}",
-            "-f", f"id={comment.thread_id}",
-        ])
         if code != 0:
             raise ReviewActionError(f"gh api graphql (resolve) failed: {err}")
 
@@ -253,12 +301,22 @@ class GitLabProvider:
 
     def create_pr(self, title: str, body: str, base: str, branch: str) -> str:
         if self._glab_available():
-            code, out, err = _run([
-                "glab", "mr", "create",
-                "--title", title, "--description", body,
-                "--target-branch", base, "--source-branch", branch,
-                "--yes",
-            ])
+            code, out, err = _run(
+                [
+                    "glab",
+                    "mr",
+                    "create",
+                    "--title",
+                    title,
+                    "--description",
+                    body,
+                    "--target-branch",
+                    base,
+                    "--source-branch",
+                    branch,
+                    "--yes",
+                ]
+            )
             if code != 0:
                 raise PrCreateError(f"glab mr create failed: {err}")
             # glab prints progress lines then the MR URL last
@@ -272,19 +330,28 @@ class GitLabProvider:
                 "install glab (https://gitlab.com/gitlab-org/cli) or export GITLAB_TOKEN"
             )
         import requests
+
         resp = requests.post(
             f"https://gitlab.com/api/v4/projects/{self._encoded_project()}/merge_requests",
             headers={"PRIVATE-TOKEN": token},
-            json={"source_branch": branch, "target_branch": base,
-                  "title": title, "description": body},
+            json={
+                "source_branch": branch,
+                "target_branch": base,
+                "title": title,
+                "description": body,
+            },
             timeout=30,
         )
         if resp.status_code >= 300:
-            raise PrCreateError(f"GitLab API error {resp.status_code}: {resp.text[:200]}")
+            raise PrCreateError(
+                f"GitLab API error {resp.status_code}: {resp.text[:200]}"
+            )
         return resp.json().get("web_url", "")
 
     def _encoded_project(self) -> str:
-        project_path = f"{self.info.owner}/{self.info.repo}" if self.info.owner else self.info.repo
+        project_path = (
+            f"{self.info.owner}/{self.info.repo}" if self.info.owner else self.info.repo
+        )
         return project_path.replace("/", "%2F")
 
     def _token(self) -> str:
@@ -300,6 +367,7 @@ class GitLabProvider:
 
     def get_pr_number(self, branch: str) -> str:
         import requests
+
         resp = requests.get(
             f"https://gitlab.com/api/v4/projects/{self._encoded_project()}/merge_requests",
             headers={"PRIVATE-TOKEN": self._token()},
@@ -312,6 +380,7 @@ class GitLabProvider:
 
     def list_unresolved_comments(self, pr_id: str) -> list[ReviewComment]:
         import requests
+
         resp = requests.get(
             f"https://gitlab.com/api/v4/projects/{self._encoded_project()}"
             f"/merge_requests/{pr_id}/discussions",
@@ -320,7 +389,9 @@ class GitLabProvider:
             timeout=30,
         )
         if resp.status_code >= 300:
-            raise ReviewActionError(f"GitLab API error {resp.status_code}: {resp.text[:200]}")
+            raise ReviewActionError(
+                f"GitLab API error {resp.status_code}: {resp.text[:200]}"
+            )
         result = []
         for disc in resp.json():
             notes = disc.get("notes", [])
@@ -330,16 +401,21 @@ class GitLabProvider:
             if not first.get("resolvable") or first.get("resolved"):
                 continue
             pos = first.get("position") or {}
-            result.append(ReviewComment(
-                comment_id=str(first["id"]), thread_id=disc["id"],
-                path=pos.get("new_path", ""), line=pos.get("new_line"),
-                author=first.get("author", {}).get("username", "unknown"),
-                body=first["body"],
-            ))
+            result.append(
+                ReviewComment(
+                    comment_id=str(first["id"]),
+                    thread_id=disc["id"],
+                    path=pos.get("new_path", ""),
+                    line=pos.get("new_line"),
+                    author=first.get("author", {}).get("username", "unknown"),
+                    body=first["body"],
+                )
+            )
         return result
 
     def reply_to_comment(self, pr_id: str, comment: ReviewComment, body: str) -> None:
         import requests
+
         resp = requests.post(
             f"https://gitlab.com/api/v4/projects/{self._encoded_project()}"
             f"/merge_requests/{pr_id}/discussions/{comment.thread_id}/notes",
@@ -348,10 +424,13 @@ class GitLabProvider:
             timeout=30,
         )
         if resp.status_code >= 300:
-            raise ReviewActionError(f"GitLab API error {resp.status_code}: {resp.text[:200]}")
+            raise ReviewActionError(
+                f"GitLab API error {resp.status_code}: {resp.text[:200]}"
+            )
 
     def resolve_thread(self, pr_id: str, comment: ReviewComment) -> None:
         import requests
+
         resp = requests.put(
             f"https://gitlab.com/api/v4/projects/{self._encoded_project()}"
             f"/merge_requests/{pr_id}/discussions/{comment.thread_id}",
@@ -360,25 +439,34 @@ class GitLabProvider:
             timeout=30,
         )
         if resp.status_code >= 300:
-            raise ReviewActionError(f"GitLab API error {resp.status_code}: {resp.text[:200]}")
+            raise ReviewActionError(
+                f"GitLab API error {resp.status_code}: {resp.text[:200]}"
+            )
 
     def request_review(self, pr_id: str, reviewer: str) -> None:
         import requests
+
         token = self._token()
         headers = {"PRIVATE-TOKEN": token}
         user_resp = requests.get(
-            "https://gitlab.com/api/v4/users", headers=headers,
-            params={"username": reviewer}, timeout=30,
+            "https://gitlab.com/api/v4/users",
+            headers=headers,
+            params={"username": reviewer},
+            timeout=30,
         )
         if user_resp.status_code >= 300 or not user_resp.json():
             raise ReviewActionError(f"GitLab user '{reviewer}' not found")
         user_id = user_resp.json()[0]["id"]
         resp = requests.put(
             f"https://gitlab.com/api/v4/projects/{self._encoded_project()}/merge_requests/{pr_id}",
-            headers=headers, json={"reviewer_ids": [user_id]}, timeout=30,
+            headers=headers,
+            json={"reviewer_ids": [user_id]},
+            timeout=30,
         )
         if resp.status_code >= 300:
-            raise ReviewActionError(f"GitLab API error {resp.status_code}: {resp.text[:200]}")
+            raise ReviewActionError(
+                f"GitLab API error {resp.status_code}: {resp.text[:200]}"
+            )
 
 
 class BitbucketProvider:
@@ -397,9 +485,12 @@ class BitbucketProvider:
                 "(Pull requests: Write scope)"
             )
         if not self.info.owner or not self.info.repo:
-            raise PrCreateError("Could not determine Bitbucket workspace/repo from git remote")
+            raise PrCreateError(
+                "Could not determine Bitbucket workspace/repo from git remote"
+            )
 
         import requests
+
         resp = requests.post(
             f"https://api.bitbucket.org/2.0/repositories/{self.info.owner}/{self.info.repo}/pullrequests",
             auth=(username, app_password),
@@ -412,7 +503,9 @@ class BitbucketProvider:
             timeout=30,
         )
         if resp.status_code >= 300:
-            raise PrCreateError(f"Bitbucket API error {resp.status_code}: {resp.text[:200]}")
+            raise PrCreateError(
+                f"Bitbucket API error {resp.status_code}: {resp.text[:200]}"
+            )
         data = resp.json()
         return data.get("links", {}).get("html", {}).get("href", "")
 
@@ -435,12 +528,17 @@ class BitbucketProvider:
 
     def get_pr_number(self, branch: str) -> str:
         import requests
+
         resp = requests.get(
             f"https://api.bitbucket.org/2.0/repositories/{self.info.owner}/{self.info.repo}/pullrequests",
-            auth=self._auth(), params={"q": f'source.branch.name="{branch}"'}, timeout=30,
+            auth=self._auth(),
+            params={"q": f'source.branch.name="{branch}"'},
+            timeout=30,
         )
         if resp.status_code >= 300:
-            raise ReviewActionError(f"Bitbucket API error {resp.status_code}: {resp.text[:200]}")
+            raise ReviewActionError(
+                f"Bitbucket API error {resp.status_code}: {resp.text[:200]}"
+            )
         values = resp.json().get("values", [])
         if not values:
             raise ReviewActionError(f"No open pull request found for branch {branch}")
@@ -448,28 +546,38 @@ class BitbucketProvider:
 
     def list_unresolved_comments(self, pr_id: str) -> list[ReviewComment]:
         import requests
+
         resp = requests.get(
             f"https://api.bitbucket.org/2.0/repositories/{self.info.owner}/{self.info.repo}"
             f"/pullrequests/{pr_id}/comments",
-            auth=self._auth(), params={"pagelen": 100}, timeout=30,
+            auth=self._auth(),
+            params={"pagelen": 100},
+            timeout=30,
         )
         if resp.status_code >= 300:
-            raise ReviewActionError(f"Bitbucket API error {resp.status_code}: {resp.text[:200]}")
+            raise ReviewActionError(
+                f"Bitbucket API error {resp.status_code}: {resp.text[:200]}"
+            )
         result = []
         for c in resp.json().get("values", []):
             if c.get("deleted") or c.get("resolved"):
                 continue
             inline = c.get("inline") or {}
-            result.append(ReviewComment(
-                comment_id=str(c["id"]), thread_id=str(c["id"]),
-                path=inline.get("path", ""), line=inline.get("to") or inline.get("from"),
-                author=c.get("user", {}).get("display_name", "unknown"),
-                body=c.get("content", {}).get("raw", ""),
-            ))
+            result.append(
+                ReviewComment(
+                    comment_id=str(c["id"]),
+                    thread_id=str(c["id"]),
+                    path=inline.get("path", ""),
+                    line=inline.get("to") or inline.get("from"),
+                    author=c.get("user", {}).get("display_name", "unknown"),
+                    body=c.get("content", {}).get("raw", ""),
+                )
+            )
         return result
 
     def reply_to_comment(self, pr_id: str, comment: ReviewComment, body: str) -> None:
         import requests
+
         resp = requests.post(
             f"https://api.bitbucket.org/2.0/repositories/{self.info.owner}/{self.info.repo}"
             f"/pullrequests/{pr_id}/comments",
@@ -478,7 +586,9 @@ class BitbucketProvider:
             timeout=30,
         )
         if resp.status_code >= 300:
-            raise ReviewActionError(f"Bitbucket API error {resp.status_code}: {resp.text[:200]}")
+            raise ReviewActionError(
+                f"Bitbucket API error {resp.status_code}: {resp.text[:200]}"
+            )
 
     def resolve_thread(self, pr_id: str, comment: ReviewComment) -> None:
         # No distinct "resolve" endpoint is reliably documented for Bitbucket
@@ -493,15 +603,20 @@ class BitbucketProvider:
         # Bitbucket has no single "request re-review" call; adding/re-adding
         # a participant with role=REVIEWER is the closest equivalent.
         import requests
+
         resp = requests.put(
             f"https://api.bitbucket.org/2.0/repositories/{self.info.owner}/{self.info.repo}"
             f"/pullrequests/{pr_id}/",
             auth=self._auth(),
-            json={"participants": [{"user": {"nickname": reviewer}, "role": "REVIEWER"}]},
+            json={
+                "participants": [{"user": {"nickname": reviewer}, "role": "REVIEWER"}]
+            },
             timeout=30,
         )
         if resp.status_code >= 300:
-            raise ReviewActionError(f"Bitbucket API error {resp.status_code}: {resp.text[:200]}")
+            raise ReviewActionError(
+                f"Bitbucket API error {resp.status_code}: {resp.text[:200]}"
+            )
 
 
 class AzureDevOpsProvider:
@@ -520,12 +635,26 @@ class AzureDevOpsProvider:
                 "az CLI not found — install it and run "
                 "'az extension add --name azure-devops', then 'az devops login'"
             )
-        code, out, err = _run([
-            "az", "repos", "pr", "create",
-            "--title", title, "--description", body,
-            "--target-branch", base, "--source-branch", branch,
-            "--query", "url", "--output", "tsv",
-        ])
+        code, out, err = _run(
+            [
+                "az",
+                "repos",
+                "pr",
+                "create",
+                "--title",
+                title,
+                "--description",
+                body,
+                "--target-branch",
+                base,
+                "--source-branch",
+                branch,
+                "--query",
+                "url",
+                "--output",
+                "tsv",
+            ]
+        )
         if code != 0:
             raise PrCreateError(f"az repos pr create failed: {err}")
         return out
@@ -545,11 +674,22 @@ class AzureDevOpsProvider:
 
     def get_pr_number(self, branch: str) -> str:
         self._require_az()
-        code, out, err = _run([
-            "az", "repos", "pr", "list",
-            "--source-branch", branch, "--status", "active",
-            "--query", "[0].pullRequestId", "--output", "tsv",
-        ])
+        code, out, err = _run(
+            [
+                "az",
+                "repos",
+                "pr",
+                "list",
+                "--source-branch",
+                branch,
+                "--status",
+                "active",
+                "--query",
+                "[0].pullRequestId",
+                "--output",
+                "tsv",
+            ]
+        )
         if code != 0 or not out:
             raise ReviewActionError(f"No active PR found for branch {branch}: {err}")
         return out
@@ -559,13 +699,20 @@ class AzureDevOpsProvider:
 
     def list_unresolved_comments(self, pr_id: str) -> list[ReviewComment]:
         self._require_az()
-        code, out, err = _run([
-            "az", "rest", "--method", "get",
-            "--uri", f"{self._api_base()}/pullRequests/{pr_id}/threads?api-version=7.1",
-        ])
+        code, out, err = _run(
+            [
+                "az",
+                "rest",
+                "--method",
+                "get",
+                "--uri",
+                f"{self._api_base()}/pullRequests/{pr_id}/threads?api-version=7.1",
+            ]
+        )
         if code != 0:
             raise ReviewActionError(f"az rest (list threads) failed: {err}")
         import json
+
         data = json.loads(out)
         result = []
         for t in data.get("value", []):
@@ -576,43 +723,71 @@ class AzureDevOpsProvider:
                 continue
             first = comments[0]
             ctx = t.get("threadContext") or {}
-            result.append(ReviewComment(
-                comment_id=str(first["id"]), thread_id=str(t["id"]),
-                path=ctx.get("filePath", ""),
-                line=(ctx.get("rightFileStart") or {}).get("line"),
-                author=first.get("author", {}).get("displayName", "unknown"),
-                body=first.get("content", ""),
-            ))
+            result.append(
+                ReviewComment(
+                    comment_id=str(first["id"]),
+                    thread_id=str(t["id"]),
+                    path=ctx.get("filePath", ""),
+                    line=(ctx.get("rightFileStart") or {}).get("line"),
+                    author=first.get("author", {}).get("displayName", "unknown"),
+                    body=first.get("content", ""),
+                )
+            )
         return result
 
     def reply_to_comment(self, pr_id: str, comment: ReviewComment, body: str) -> None:
         self._require_az()
         import json
-        code, _, err = _run([
-            "az", "rest", "--method", "post",
-            "--uri", f"{self._api_base()}/pullRequests/{pr_id}/threads/{comment.thread_id}/comments?api-version=7.1",
-            "--body", json.dumps({"content": body, "commentType": "text"}),
-        ])
+
+        code, _, err = _run(
+            [
+                "az",
+                "rest",
+                "--method",
+                "post",
+                "--uri",
+                f"{self._api_base()}/pullRequests/{pr_id}/threads/{comment.thread_id}/comments?api-version=7.1",
+                "--body",
+                json.dumps({"content": body, "commentType": "text"}),
+            ]
+        )
         if code != 0:
             raise ReviewActionError(f"az rest (reply) failed: {err}")
 
     def resolve_thread(self, pr_id: str, comment: ReviewComment) -> None:
         import json
+
         self._require_az()
-        code, _, err = _run([
-            "az", "rest", "--method", "patch",
-            "--uri", f"{self._api_base()}/pullRequests/{pr_id}/threads/{comment.thread_id}?api-version=7.1",
-            "--body", json.dumps({"status": "fixed"}),
-        ])
+        code, _, err = _run(
+            [
+                "az",
+                "rest",
+                "--method",
+                "patch",
+                "--uri",
+                f"{self._api_base()}/pullRequests/{pr_id}/threads/{comment.thread_id}?api-version=7.1",
+                "--body",
+                json.dumps({"status": "fixed"}),
+            ]
+        )
         if code != 0:
             raise ReviewActionError(f"az rest (resolve) failed: {err}")
 
     def request_review(self, pr_id: str, reviewer: str) -> None:
         self._require_az()
-        code, _, err = _run([
-            "az", "repos", "pr", "reviewer", "add",
-            "--id", pr_id, "--reviewers", reviewer,
-        ])
+        code, _, err = _run(
+            [
+                "az",
+                "repos",
+                "pr",
+                "reviewer",
+                "add",
+                "--id",
+                pr_id,
+                "--reviewers",
+                reviewer,
+            ]
+        )
         if code != 0:
             raise ReviewActionError(f"az repos pr reviewer add failed: {err}")
 
@@ -621,6 +796,7 @@ class UnknownHostProvider:
     """No known API/CLI for this host — always raises, triggering the
     manual-fallback message. Preserves the pre-multi-host behavior for
     self-hosted git / anything not recognized."""
+
     name = "this git host"
 
     def __init__(self, info: RemoteInfo):
@@ -633,23 +809,31 @@ class UnknownHostProvider:
         raise ReviewActionError("no automated PR lookup available for this git host")
 
     def list_unresolved_comments(self, pr_id: str) -> list[ReviewComment]:
-        raise ReviewActionError("no automated comment listing available for this git host")
+        raise ReviewActionError(
+            "no automated comment listing available for this git host"
+        )
 
     def reply_to_comment(self, pr_id: str, comment: ReviewComment, body: str) -> None:
-        raise ReviewActionError("no automated comment reply available for this git host")
+        raise ReviewActionError(
+            "no automated comment reply available for this git host"
+        )
 
     def resolve_thread(self, pr_id: str, comment: ReviewComment) -> None:
-        raise ReviewActionError("no automated thread resolution available for this git host")
+        raise ReviewActionError(
+            "no automated thread resolution available for this git host"
+        )
 
     def request_review(self, pr_id: str, reviewer: str) -> None:
-        raise ReviewActionError("no automated re-review request available for this git host")
+        raise ReviewActionError(
+            "no automated re-review request available for this git host"
+        )
 
 
 _PROVIDERS = {
-    "github":    GitHubProvider,
-    "gitlab":    GitLabProvider,
+    "github": GitHubProvider,
+    "gitlab": GitLabProvider,
     "bitbucket": BitbucketProvider,
-    "azure":     AzureDevOpsProvider,
+    "azure": AzureDevOpsProvider,
 }
 
 

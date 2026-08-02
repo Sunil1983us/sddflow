@@ -8,8 +8,14 @@ import pytest
 import yaml
 
 from sdd.commands.jira import (
-    parse_changeset, _push, _push_chg, _keys_path, _push_uc_draft_stories, _push_stories,
-    _push_epic, _push_tasks,
+    parse_changeset,
+    _push,
+    _push_chg,
+    _keys_path,
+    _push_uc_draft_stories,
+    _push_stories,
+    _push_epic,
+    _push_tasks,
 )
 from sdd.utils.integrations import JiraConfig
 from sdd.utils.sdd_parser import Story, Task, UseCase
@@ -19,6 +25,7 @@ class FakeJiraClient:
     """Same in-memory double as test_jira_push_content.py's — duplicated
     here (rather than imported) so this file has no import-order coupling
     to the other test module."""
+
     def __init__(self):
         self.by_label: dict[str, dict] = {}
         self.created: list[dict] = []
@@ -50,12 +57,20 @@ def _cfg(**kw):
 
 
 def _story(id="STORY-001", satisfies=None):
-    return Story(id=id, title="Login", moscow="must-have", description="",
-                 acceptance_criteria=[], story_points=None,
-                 satisfies=satisfies or [])
+    return Story(
+        id=id,
+        title="Login",
+        moscow="must-have",
+        description="",
+        acceptance_criteria=[],
+        story_points=None,
+        satisfies=satisfies or [],
+    )
 
 
-def _write_changeset(tmp_path: Path, cr_id: str, rows: list[tuple[str, str, str, int]]) -> None:
+def _write_changeset(
+    tmp_path: Path, cr_id: str, rows: list[tuple[str, str, str, int]]
+) -> None:
     table = "\n".join(
         f"| {sdd_id} | {desc} | {satisfies} | ~{lines} | single | Pending |"
         for sdd_id, desc, satisfies, lines in rows
@@ -77,15 +92,24 @@ class TestParseChangeset:
             parse_changeset(tmp_path, "CR-001")
 
     def test_parses_chg_rows_skips_header(self, tmp_path):
-        _write_changeset(tmp_path, "CR-001", [
-            ("CHG-001", "Add validation", "FR-003", 40),
-            ("CHG-002", "Fix rate limit", "FR-004", 20),
-        ])
+        _write_changeset(
+            tmp_path,
+            "CR-001",
+            [
+                ("CHG-001", "Add validation", "FR-003", 40),
+                ("CHG-002", "Fix rate limit", "FR-004", 20),
+            ],
+        )
         rows = parse_changeset(tmp_path, "CR-001")
         assert len(rows) == 2
-        assert rows[0] == {"sdd_id": "CHG-001", "description": "Add validation",
-                            "satisfies": "FR-003", "est_lines": 40,
-                            "pr": "single", "status": "Pending"}
+        assert rows[0] == {
+            "sdd_id": "CHG-001",
+            "description": "Add validation",
+            "satisfies": "FR-003",
+            "est_lines": 40,
+            "pr": "single",
+            "status": "Pending",
+        }
         assert rows[1]["sdd_id"] == "CHG-002"
 
     def test_parses_pr_and_status_columns(self, tmp_path):
@@ -169,8 +193,15 @@ class TestLevelScopedPush:
         client = FakeJiraClient()
         client.by_label["sdd:feat:STORY-001"] = {"key": "PROJ-9"}
         story = _story()
-        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
-                    satisfies=[], estimate=None, description="", acceptance_criteria=[])
+        task = Task(
+            id="TASK-001",
+            title="Endpoint",
+            story_id="STORY-001",
+            satisfies=[],
+            estimate=None,
+            description="",
+            acceptance_criteria=[],
+        )
         _push(client, "feat", tmp_path, [story], [task], _cfg(), level="task")
         assert len(client.created) == 1  # only the Task, not the Story
         assert client.parents == [("PROJ-1", "PROJ-9", "parent")]
@@ -178,8 +209,15 @@ class TestLevelScopedPush:
     def test_level_all_still_pushes_everything(self, tmp_path):
         client = FakeJiraClient()
         story = _story()
-        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
-                    satisfies=[], estimate=None, description="", acceptance_criteria=[])
+        task = Task(
+            id="TASK-001",
+            title="Endpoint",
+            story_id="STORY-001",
+            satisfies=[],
+            estimate=None,
+            description="",
+            acceptance_criteria=[],
+        )
         _push(client, "feat", tmp_path, [story], [task], _cfg(), level="all")
         assert len(client.created) == 3  # Feature + Story + Task
 
@@ -188,6 +226,7 @@ class RecordingFakeJiraClient(FakeJiraClient):
     """Same fake, but also records the project_key argument every
     find_by_label call was made with -- lets tests confirm a level's
     lookup used the *overridden* key, not just that create used it."""
+
     def __init__(self):
         super().__init__()
         self.find_by_label_calls: list[tuple[str, str]] = []
@@ -240,8 +279,15 @@ class TestProjectKeysOverride:
         client = RecordingFakeJiraClient()
         client.by_label["sdd:feat:STORY-001"] = {"key": "SUNT-1"}
         cfg = self._cfg_with_override(story="SUNT", task="SUNK")
-        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
-                    satisfies=[], estimate=None, description="", acceptance_criteria=[])
+        task = Task(
+            id="TASK-001",
+            title="Endpoint",
+            story_id="STORY-001",
+            satisfies=[],
+            estimate=None,
+            description="",
+            acceptance_criteria=[],
+        )
         _push(client, "feat", tmp_path, [_story()], [task], cfg, level="task")
 
         # Story lookup (to find the parent to link the Task under) used the story key
@@ -275,9 +321,15 @@ class TestCustomFieldsAndTeam:
             custom_fields={"story_points": "customfield_10016"},
             custom_fields_by_level={"story": {"story_points": "customfield_99001"}},
         )
-        story = Story(id="STORY-001", title="Login", moscow="must-have",
-                       description="", acceptance_criteria=[], story_points=5,
-                       satisfies=[])
+        story = Story(
+            id="STORY-001",
+            title="Login",
+            moscow="must-have",
+            description="",
+            acceptance_criteria=[],
+            story_points=5,
+            satisfies=[],
+        )
         _push_stories(client, "feat", [story], cfg, epic_key=None)
         assert client.created[0]["customfield_99001"] == 5
         assert "customfield_10016" not in client.created[0]
@@ -287,11 +339,19 @@ class TestCustomFieldsAndTeam:
         cfg = JiraConfig(
             project_key="MYPROJ",
             custom_fields={"acceptance_criteria": "customfield_10017"},
-            custom_fields_by_level={"story": {"acceptance_criteria": "customfield_99002"}},
+            custom_fields_by_level={
+                "story": {"acceptance_criteria": "customfield_99002"}
+            },
         )
-        task = Task(id="TASK-001", title="Endpoint", story_id=None,
-                    satisfies=[], estimate=None, description="",
-                    acceptance_criteria=["Returns 200"])
+        task = Task(
+            id="TASK-001",
+            title="Endpoint",
+            story_id=None,
+            satisfies=[],
+            estimate=None,
+            description="",
+            acceptance_criteria=["Returns 200"],
+        )
         _push_tasks(client, "feat", [task], cfg, story_key_map={})
         # task level has no override -- uses the common mapping, not story's
         assert client.created[0]["customfield_10017"] == "Returns 200"
@@ -302,12 +362,24 @@ class TestCustomFieldsAndTeam:
             custom_fields={"team": "customfield_20000"},
             team="Team Phoenix",
         )
-        story = Story(id="STORY-001", title="Login", moscow="must-have",
-                       description="", acceptance_criteria=[], story_points=None,
-                       satisfies=["FR-003"])
-        task = Task(id="TASK-001", title="Endpoint", story_id=None,
-                    satisfies=[], estimate=None, description="",
-                    acceptance_criteria=[])
+        story = Story(
+            id="STORY-001",
+            title="Login",
+            moscow="must-have",
+            description="",
+            acceptance_criteria=[],
+            story_points=None,
+            satisfies=["FR-003"],
+        )
+        task = Task(
+            id="TASK-001",
+            title="Endpoint",
+            story_id=None,
+            satisfies=[],
+            estimate=None,
+            description="",
+            acceptance_criteria=[],
+        )
         uc = UseCase(id="UC-001", title="Login")
 
         epic_client = FakeJiraClient()
@@ -326,10 +398,20 @@ class TestCustomFieldsAndTeam:
         _push_uc_draft_stories(uc_draft_client, "feat", [uc], cfg, epic_key=None)
         assert uc_draft_client.created[0]["customfield_20000"] == "Team Phoenix"
 
-        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)])
+        _write_changeset(
+            tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)]
+        )
         chg_client = FakeJiraClient()
-        _push_chg(chg_client, "feat", cfg, "CR-001", tmp_path,
-                  [story], {"STORY-001": "PROJ-5"}, epic_key="PROJ-1")
+        _push_chg(
+            chg_client,
+            "feat",
+            cfg,
+            "CR-001",
+            tmp_path,
+            [story],
+            {"STORY-001": "PROJ-5"},
+            epic_key="PROJ-1",
+        )
         assert chg_client.created[0]["customfield_20000"] == "Team Phoenix"
 
     def test_team_not_stamped_when_unset(self, tmp_path):
@@ -337,10 +419,18 @@ class TestCustomFieldsAndTeam:
         if custom_fields.team happens to be configured (e.g. left over
         from a shared config template)."""
         client = FakeJiraClient()
-        cfg = JiraConfig(project_key="MYPROJ", custom_fields={"team": "customfield_20000"})
-        story = Story(id="STORY-001", title="Login", moscow="must-have",
-                       description="", acceptance_criteria=[], story_points=None,
-                       satisfies=[])
+        cfg = JiraConfig(
+            project_key="MYPROJ", custom_fields={"team": "customfield_20000"}
+        )
+        story = Story(
+            id="STORY-001",
+            title="Login",
+            moscow="must-have",
+            description="",
+            acceptance_criteria=[],
+            story_points=None,
+            satisfies=[],
+        )
         _push_stories(client, "feat", [story], cfg, epic_key=None)
         assert "customfield_20000" not in client.created[0]
 
@@ -358,52 +448,85 @@ class TestParentFieldOverride:
 
     def test_story_link_uses_story_level_override(self, tmp_path):
         client = FakeJiraClient()
-        cfg = JiraConfig(project_key="MYPROJ",
-                          parent_field_by_level={"story": "customfield_10014"})
-        story = Story(id="STORY-001", title="Login", moscow="must-have",
-                       description="", acceptance_criteria=[], story_points=None,
-                       satisfies=[])
+        cfg = JiraConfig(
+            project_key="MYPROJ", parent_field_by_level={"story": "customfield_10014"}
+        )
+        story = Story(
+            id="STORY-001",
+            title="Login",
+            moscow="must-have",
+            description="",
+            acceptance_criteria=[],
+            story_points=None,
+            satisfies=[],
+        )
         _push_stories(client, "feat", [story], cfg, epic_key="EPIC-1")
         assert client.parents == [("PROJ-1", "EPIC-1", "customfield_10014")]
 
     def test_task_link_falls_back_when_story_override_does_not_apply(self, tmp_path):
         client = FakeJiraClient()
-        cfg = JiraConfig(project_key="MYPROJ",
-                          parent_field_by_level={"story": "customfield_10014"})
-        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
-                    satisfies=[], estimate=None, description="",
-                    acceptance_criteria=[])
+        cfg = JiraConfig(
+            project_key="MYPROJ", parent_field_by_level={"story": "customfield_10014"}
+        )
+        task = Task(
+            id="TASK-001",
+            title="Endpoint",
+            story_id="STORY-001",
+            satisfies=[],
+            estimate=None,
+            description="",
+            acceptance_criteria=[],
+        )
         _push_tasks(client, "feat", [task], cfg, story_key_map={"STORY-001": "STORY-1"})
         # task level has no override -- default "parent" system field
         assert client.parents == [("PROJ-1", "STORY-1", "parent")]
 
     def test_task_link_uses_task_level_override(self, tmp_path):
         client = FakeJiraClient()
-        cfg = JiraConfig(project_key="MYPROJ",
-                          parent_field_by_level={"task": "customfield_10099"})
-        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
-                    satisfies=[], estimate=None, description="",
-                    acceptance_criteria=[])
+        cfg = JiraConfig(
+            project_key="MYPROJ", parent_field_by_level={"task": "customfield_10099"}
+        )
+        task = Task(
+            id="TASK-001",
+            title="Endpoint",
+            story_id="STORY-001",
+            satisfies=[],
+            estimate=None,
+            description="",
+            acceptance_criteria=[],
+        )
         _push_tasks(client, "feat", [task], cfg, story_key_map={"STORY-001": "STORY-1"})
         assert client.parents == [("PROJ-1", "STORY-1", "customfield_10099")]
 
     def test_uc_draft_story_link_uses_story_level_override(self, tmp_path):
         client = FakeJiraClient()
-        cfg = JiraConfig(project_key="MYPROJ",
-                          parent_field_by_level={"story": "customfield_10014"})
+        cfg = JiraConfig(
+            project_key="MYPROJ", parent_field_by_level={"story": "customfield_10014"}
+        )
         uc = UseCase(id="UC-001", title="Login")
         _push_uc_draft_stories(client, "feat", [uc], cfg, epic_key="EPIC-1")
         assert client.parents == [("PROJ-1", "EPIC-1", "customfield_10014")]
 
     def test_chg_link_uses_chg_level_override(self, tmp_path):
-        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)])
+        _write_changeset(
+            tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)]
+        )
         client = FakeJiraClient()
-        cfg = JiraConfig(project_key="MYPROJ",
-                          parent_field_by_level={"chg": "customfield_10020"})
+        cfg = JiraConfig(
+            project_key="MYPROJ", parent_field_by_level={"chg": "customfield_10020"}
+        )
         story = _story(satisfies=["FR-003"])
         story_key_map = {"STORY-001": "PROJ-5"}
-        chg_map = _push_chg(client, "feat", cfg, "CR-001", tmp_path,
-                             [story], story_key_map, epic_key="PROJ-1")
+        chg_map = _push_chg(
+            client,
+            "feat",
+            cfg,
+            "CR-001",
+            tmp_path,
+            [story],
+            story_key_map,
+            epic_key="PROJ-1",
+        )
         chg_key = chg_map["CHG-001"]
         assert client.parents == [(chg_key, "PROJ-5", "customfield_10020")]
 
@@ -416,24 +539,39 @@ class TestChgPush:
         monkeypatch.chdir(tmp_path)
 
     def test_chg_parented_to_story_via_fr_reference(self, tmp_path):
-        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)])
+        _write_changeset(
+            tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)]
+        )
         client = FakeJiraClient()
         story = _story(satisfies=["FR-003"])
         story_key_map = {"STORY-001": "PROJ-5"}
-        chg_map = _push_chg(client, "feat", _cfg(), "CR-001", tmp_path,
-                             [story], story_key_map, epic_key="PROJ-1")
+        chg_map = _push_chg(
+            client,
+            "feat",
+            _cfg(),
+            "CR-001",
+            tmp_path,
+            [story],
+            story_key_map,
+            epic_key="PROJ-1",
+        )
         chg_key = chg_map["CHG-001"]
         assert client.parents == [(chg_key, "PROJ-5", "parent")]
 
     def test_chg_falls_back_to_epic_when_no_fr_match(self, tmp_path):
-        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Unrelated fix", "NFR-002", 10)])
+        _write_changeset(
+            tmp_path, "CR-001", [("CHG-001", "Unrelated fix", "NFR-002", 10)]
+        )
         client = FakeJiraClient()
-        chg_map = _push_chg(client, "feat", _cfg(), "CR-001", tmp_path,
-                             [], {}, epic_key="PROJ-1")
+        chg_map = _push_chg(
+            client, "feat", _cfg(), "CR-001", tmp_path, [], {}, epic_key="PROJ-1"
+        )
         assert client.parents == [(chg_map["CHG-001"], "PROJ-1", "parent")]
 
     def test_chg_idempotency_label_is_feature_and_id_qualified(self, tmp_path):
-        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)])
+        _write_changeset(
+            tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)]
+        )
         client = FakeJiraClient()
         _push_chg(client, "feat", _cfg(), "CR-001", tmp_path, [], {}, epic_key=None)
         assert "sdd:feat:CHG-001" in client.created[0]["labels"]
@@ -441,14 +579,18 @@ class TestChgPush:
     def test_full_push_level_chg_end_to_end(self, tmp_path):
         """`--level chg` through the top-level _push() orchestrator: Story
         key is found live (not re-pushed), CHG is created and parented."""
-        _write_changeset(tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)])
+        _write_changeset(
+            tmp_path, "CR-001", [("CHG-001", "Add validation", "FR-003", 40)]
+        )
         client = FakeJiraClient()
         client.by_label["sdd-feature:feat"] = {"key": "PROJ-1"}
         client.by_label["sdd:feat:STORY-001"] = {"key": "PROJ-2"}
         story = _story(satisfies=["FR-003"])
         _push(client, "feat", tmp_path, [story], [], _cfg(), level="chg", cr="CR-001")
 
-        assert len(client.created) == 1  # only the CHG issue -- Feature/Story already existed
+        assert (
+            len(client.created) == 1
+        )  # only the CHG issue -- Feature/Story already existed
         chg_key = client.by_label["sdd:feat:CHG-001"]["key"]
         assert client.parents == [(chg_key, "PROJ-2", "parent")]
 
@@ -515,12 +657,15 @@ class RaisingParentClient(FakeJiraClient):
     rejecting the "parent" field on a Story/Task -- used to confirm a
     failed link now prints a diagnosable warning instead of silently
     vanishing (regression test for the bug found during manual QA)."""
+
     def set_parent(self, child_key, parent_key, parent_field="parent"):
         raise RuntimeError('HTTP 400 — cannot set field "parent"')
 
 
 class TestParentLinkFailureIsVisible:
-    def test_story_parent_link_failure_prints_warning(self, tmp_path, monkeypatch, capsys):
+    def test_story_parent_link_failure_prints_warning(
+        self, tmp_path, monkeypatch, capsys
+    ):
         monkeypatch.chdir(tmp_path)
         client = RaisingParentClient()
         client.by_label["sdd-feature:feat"] = {"key": "PROJ-1"}
@@ -531,13 +676,22 @@ class TestParentLinkFailureIsVisible:
         assert "PROJ-1" in out
         assert "cannot set field" in out
 
-    def test_task_parent_link_failure_prints_warning(self, tmp_path, monkeypatch, capsys):
+    def test_task_parent_link_failure_prints_warning(
+        self, tmp_path, monkeypatch, capsys
+    ):
         monkeypatch.chdir(tmp_path)
         client = RaisingParentClient()
         client.by_label["sdd:feat:STORY-001"] = {"key": "PROJ-9"}
         story = _story()
-        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
-                    satisfies=[], estimate=None, description="", acceptance_criteria=[])
+        task = Task(
+            id="TASK-001",
+            title="Endpoint",
+            story_id="STORY-001",
+            satisfies=[],
+            estimate=None,
+            description="",
+            acceptance_criteria=[],
+        )
         _push(client, "feat", tmp_path, [story], [task], _cfg(), level="task")
         out = capsys.readouterr().out
         assert "was not linked under" in out
@@ -561,7 +715,9 @@ class TestUcDraftStories:
             UseCase(id="UC-001", title="Submit payment"),
             UseCase(id="UC-002", title="Reconcile settlement"),
         ]
-        result = _push_uc_draft_stories(client, "feat", use_cases, _cfg(), epic_key=None)
+        result = _push_uc_draft_stories(
+            client, "feat", use_cases, _cfg(), epic_key=None
+        )
 
         assert len(client.created) == 2
         assert result == {"UC-001": "PROJ-1", "UC-002": "PROJ-2"}
@@ -579,7 +735,9 @@ class TestUcDraftStories:
         client = FakeJiraClient()
         client.by_label["sdd:feat:UC-001"] = {"key": "PROJ-9"}
         use_cases = [UseCase(id="UC-001", title="Submit payment")]
-        result = _push_uc_draft_stories(client, "feat", use_cases, _cfg(), epic_key=None)
+        result = _push_uc_draft_stories(
+            client, "feat", use_cases, _cfg(), epic_key=None
+        )
 
         assert client.created == []
         assert len(client.updated) == 1
@@ -592,10 +750,16 @@ class TestUcDraftStories:
         --level uc-draft created, not creating a second one."""
         client = FakeJiraClient()
         client.by_label["sdd:feat:UC-001"] = {"key": "PROJ-9"}
-        story = Story(id="STORY-001", title="Submit payment", moscow="must-have",
-                      description="As a user I want to pay",
-                      acceptance_criteria=[], story_points=3, satisfies=["FR-001"],
-                      derived_uc="UC-001")
+        story = Story(
+            id="STORY-001",
+            title="Submit payment",
+            moscow="must-have",
+            description="As a user I want to pay",
+            acceptance_criteria=[],
+            story_points=3,
+            satisfies=["FR-001"],
+            derived_uc="UC-001",
+        )
 
         story_key_map = _push_stories(client, "feat", [story], _cfg(), epic_key=None)
 

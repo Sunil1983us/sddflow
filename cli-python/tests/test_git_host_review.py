@@ -6,12 +6,19 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from sdd.utils.git_host import (
-    GitHubProvider, GitLabProvider, BitbucketProvider, AzureDevOpsProvider,
-    UnknownHostProvider, ReviewComment, ReviewActionError, RemoteInfo,
+    GitHubProvider,
+    GitLabProvider,
+    BitbucketProvider,
+    AzureDevOpsProvider,
+    UnknownHostProvider,
+    ReviewComment,
+    ReviewActionError,
+    RemoteInfo,
 )
 
 
 # ── GitHubProvider ───────────────────────────────────────────────────────────
+
 
 def test_github_get_pr_number(monkeypatch):
     monkeypatch.setattr("sdd.utils.git_host._run", lambda cmd: (0, "42", ""))
@@ -26,22 +33,56 @@ def test_github_get_pr_number_failure_raises(monkeypatch):
         p.get_pr_number("feature/x")
 
 
-GITHUB_GRAPHQL_RESPONSE = json.dumps({
-    "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": [
-        {"id": "THREAD_1", "isResolved": False, "comments": {"nodes": [
-            {"databaseId": 111, "body": "fix this", "path": "a.py", "line": 10,
-             "author": {"login": "jane"}}
-        ]}},
-        {"id": "THREAD_2", "isResolved": True, "comments": {"nodes": [
-            {"databaseId": 112, "body": "already resolved", "path": "b.py", "line": 5,
-             "author": {"login": "jane"}}
-        ]}},
-    ]}}}}
-})
+GITHUB_GRAPHQL_RESPONSE = json.dumps(
+    {
+        "data": {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "nodes": [
+                            {
+                                "id": "THREAD_1",
+                                "isResolved": False,
+                                "comments": {
+                                    "nodes": [
+                                        {
+                                            "databaseId": 111,
+                                            "body": "fix this",
+                                            "path": "a.py",
+                                            "line": 10,
+                                            "author": {"login": "jane"},
+                                        }
+                                    ]
+                                },
+                            },
+                            {
+                                "id": "THREAD_2",
+                                "isResolved": True,
+                                "comments": {
+                                    "nodes": [
+                                        {
+                                            "databaseId": 112,
+                                            "body": "already resolved",
+                                            "path": "b.py",
+                                            "line": 5,
+                                            "author": {"login": "jane"},
+                                        }
+                                    ]
+                                },
+                            },
+                        ]
+                    }
+                }
+            }
+        }
+    }
+)
 
 
 def test_github_list_unresolved_comments_filters_resolved(monkeypatch):
-    monkeypatch.setattr("sdd.utils.git_host._run", lambda cmd: (0, GITHUB_GRAPHQL_RESPONSE, ""))
+    monkeypatch.setattr(
+        "sdd.utils.git_host._run", lambda cmd: (0, GITHUB_GRAPHQL_RESPONSE, "")
+    )
     p = GitHubProvider(RemoteInfo("github", "acme", "widgets"))
     comments = p.list_unresolved_comments("42")
     assert len(comments) == 1
@@ -53,9 +94,11 @@ def test_github_list_unresolved_comments_filters_resolved(monkeypatch):
 
 def test_github_reply_to_comment(monkeypatch):
     calls = []
+
     def fake_run(cmd):
         calls.append(cmd)
         return 0, "", ""
+
     monkeypatch.setattr("sdd.utils.git_host._run", fake_run)
     p = GitHubProvider(RemoteInfo("github", "acme", "widgets"))
     comment = ReviewComment("111", "THREAD_1", "a.py", 10, "jane", "fix this")
@@ -65,9 +108,11 @@ def test_github_reply_to_comment(monkeypatch):
 
 def test_github_resolve_thread(monkeypatch):
     calls = []
+
     def fake_run(cmd):
         calls.append(cmd)
         return 0, "", ""
+
     monkeypatch.setattr("sdd.utils.git_host._run", fake_run)
     p = GitHubProvider(RemoteInfo("github", "acme", "widgets"))
     comment = ReviewComment("111", "THREAD_1", "a.py", 10, "jane", "fix this")
@@ -78,9 +123,11 @@ def test_github_resolve_thread(monkeypatch):
 
 def test_github_request_review(monkeypatch):
     calls = []
+
     def fake_run(cmd):
         calls.append(cmd)
         return 0, "", ""
+
     monkeypatch.setattr("sdd.utils.git_host._run", fake_run)
     p = GitHubProvider(RemoteInfo("github", "acme", "widgets"))
     p.request_review("42", "jane")
@@ -88,6 +135,7 @@ def test_github_request_review(monkeypatch):
 
 
 # ── GitLabProvider ───────────────────────────────────────────────────────────
+
 
 def test_gitlab_requires_token_for_review_ops(monkeypatch):
     monkeypatch.delenv("GITLAB_TOKEN", raising=False)
@@ -109,13 +157,43 @@ def test_gitlab_list_unresolved_comments(monkeypatch):
     monkeypatch.setenv("GITLAB_TOKEN", "tok")
     mock_resp = MagicMock(status_code=200)
     mock_resp.json.return_value = [
-        {"id": "disc1", "notes": [{"id": 1, "resolvable": True, "resolved": False,
-                                    "body": "fix", "author": {"username": "jane"},
-                                    "position": {"new_path": "a.py", "new_line": 10}}]},
-        {"id": "disc2", "notes": [{"id": 2, "resolvable": True, "resolved": True,
-                                    "body": "done", "author": {"username": "jane"}, "position": {}}]},
-        {"id": "disc3", "notes": [{"id": 3, "resolvable": False,
-                                    "body": "fyi not a review comment", "author": {"username": "bob"}}]},
+        {
+            "id": "disc1",
+            "notes": [
+                {
+                    "id": 1,
+                    "resolvable": True,
+                    "resolved": False,
+                    "body": "fix",
+                    "author": {"username": "jane"},
+                    "position": {"new_path": "a.py", "new_line": 10},
+                }
+            ],
+        },
+        {
+            "id": "disc2",
+            "notes": [
+                {
+                    "id": 2,
+                    "resolvable": True,
+                    "resolved": True,
+                    "body": "done",
+                    "author": {"username": "jane"},
+                    "position": {},
+                }
+            ],
+        },
+        {
+            "id": "disc3",
+            "notes": [
+                {
+                    "id": 3,
+                    "resolvable": False,
+                    "body": "fyi not a review comment",
+                    "author": {"username": "bob"},
+                }
+            ],
+        },
     ]
     with patch("requests.get", return_value=mock_resp):
         p = GitLabProvider(RemoteInfo("gitlab", "acme", "widgets"))
@@ -151,8 +229,10 @@ def test_gitlab_request_review_looks_up_user_then_assigns(monkeypatch):
     user_resp = MagicMock(status_code=200)
     user_resp.json.return_value = [{"id": 99}]
     put_resp = MagicMock(status_code=200)
-    with patch("requests.get", return_value=user_resp), \
-         patch("requests.put", return_value=put_resp) as put:
+    with (
+        patch("requests.get", return_value=user_resp),
+        patch("requests.put", return_value=put_resp) as put,
+    ):
         p = GitLabProvider(RemoteInfo("gitlab", "acme", "widgets"))
         p.request_review("7", "jane")
     assert put.call_args.kwargs["json"] == {"reviewer_ids": [99]}
@@ -169,6 +249,7 @@ def test_gitlab_request_review_user_not_found(monkeypatch):
 
 
 # ── BitbucketProvider ────────────────────────────────────────────────────────
+
 
 def test_bitbucket_review_ops_require_credentials(monkeypatch):
     monkeypatch.delenv("BITBUCKET_USERNAME", raising=False)
@@ -192,13 +273,25 @@ def test_bitbucket_list_unresolved_comments(monkeypatch):
     monkeypatch.setenv("BITBUCKET_USERNAME", "bob")
     monkeypatch.setenv("BITBUCKET_APP_PASSWORD", "secret")
     mock_resp = MagicMock(status_code=200)
-    mock_resp.json.return_value = {"values": [
-        {"id": 1, "deleted": False, "resolved": False,
-         "inline": {"path": "a.py", "to": 10},
-         "user": {"display_name": "Jane"}, "content": {"raw": "fix"}},
-        {"id": 2, "deleted": False, "resolved": True,
-         "user": {"display_name": "Jane"}, "content": {"raw": "done"}},
-    ]}
+    mock_resp.json.return_value = {
+        "values": [
+            {
+                "id": 1,
+                "deleted": False,
+                "resolved": False,
+                "inline": {"path": "a.py", "to": 10},
+                "user": {"display_name": "Jane"},
+                "content": {"raw": "fix"},
+            },
+            {
+                "id": 2,
+                "deleted": False,
+                "resolved": True,
+                "user": {"display_name": "Jane"},
+                "content": {"raw": "done"},
+            },
+        ]
+    }
     with patch("requests.get", return_value=mock_resp):
         p = BitbucketProvider(RemoteInfo("bitbucket", "acme-team", "widgets"))
         comments = p.list_unresolved_comments("5")
@@ -229,9 +322,12 @@ def test_bitbucket_resolve_thread_always_raises(monkeypatch):
 
 # ── AzureDevOpsProvider ──────────────────────────────────────────────────────
 
+
 def test_azure_review_ops_require_az_cli(monkeypatch):
     monkeypatch.setattr("sdd.utils.git_host._run", lambda cmd: (1, "", "not found"))
-    p = AzureDevOpsProvider(RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject"))
+    p = AzureDevOpsProvider(
+        RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject")
+    )
     with pytest.raises(ReviewActionError, match="az CLI not found"):
         p.get_pr_number("feature/x")
 
@@ -241,18 +337,35 @@ def test_azure_get_pr_number(monkeypatch):
         if cmd[:2] == ["az", "--version"]:
             return 0, "azure-cli", ""
         return 0, "17", ""
+
     monkeypatch.setattr("sdd.utils.git_host._run", fake_run)
-    p = AzureDevOpsProvider(RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject"))
+    p = AzureDevOpsProvider(
+        RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject")
+    )
     assert p.get_pr_number("feature/x") == "17"
 
 
-AZURE_THREADS_RESPONSE = json.dumps({"value": [
-    {"id": 501, "status": "active",
-     "comments": [{"id": 1, "content": "fix this", "author": {"displayName": "jane"}}],
-     "threadContext": {"filePath": "/a.py", "rightFileStart": {"line": 10}}},
-    {"id": 502, "status": "fixed",
-     "comments": [{"id": 2, "content": "done", "author": {"displayName": "jane"}}]},
-]})
+AZURE_THREADS_RESPONSE = json.dumps(
+    {
+        "value": [
+            {
+                "id": 501,
+                "status": "active",
+                "comments": [
+                    {"id": 1, "content": "fix this", "author": {"displayName": "jane"}}
+                ],
+                "threadContext": {"filePath": "/a.py", "rightFileStart": {"line": 10}},
+            },
+            {
+                "id": 502,
+                "status": "fixed",
+                "comments": [
+                    {"id": 2, "content": "done", "author": {"displayName": "jane"}}
+                ],
+            },
+        ]
+    }
+)
 
 
 def test_azure_list_unresolved_comments(monkeypatch):
@@ -260,8 +373,11 @@ def test_azure_list_unresolved_comments(monkeypatch):
         if cmd[:2] == ["az", "--version"]:
             return 0, "azure-cli", ""
         return 0, AZURE_THREADS_RESPONSE, ""
+
     monkeypatch.setattr("sdd.utils.git_host._run", fake_run)
-    p = AzureDevOpsProvider(RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject"))
+    p = AzureDevOpsProvider(
+        RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject")
+    )
     comments = p.list_unresolved_comments("17")
     assert len(comments) == 1
     assert comments[0].thread_id == "501"
@@ -271,13 +387,17 @@ def test_azure_list_unresolved_comments(monkeypatch):
 
 def test_azure_reply_and_resolve(monkeypatch):
     calls = []
+
     def fake_run(cmd):
         if cmd[:2] == ["az", "--version"]:
             return 0, "azure-cli", ""
         calls.append(cmd)
         return 0, "", ""
+
     monkeypatch.setattr("sdd.utils.git_host._run", fake_run)
-    p = AzureDevOpsProvider(RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject"))
+    p = AzureDevOpsProvider(
+        RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject")
+    )
     comment = ReviewComment("1", "501", "/a.py", 10, "jane", "fix")
     p.reply_to_comment("17", comment, "Fixed")
     p.resolve_thread("17", comment)
@@ -287,26 +407,47 @@ def test_azure_reply_and_resolve(monkeypatch):
 
 def test_azure_request_review(monkeypatch):
     calls = []
+
     def fake_run(cmd):
         if cmd[:2] == ["az", "--version"]:
             return 0, "azure-cli", ""
         calls.append(cmd)
         return 0, "", ""
+
     monkeypatch.setattr("sdd.utils.git_host._run", fake_run)
-    p = AzureDevOpsProvider(RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject"))
+    p = AzureDevOpsProvider(
+        RemoteInfo("azure", "acmeorg", "widgets", project="AcmeProject")
+    )
     p.request_review("17", "jane")
-    assert calls[0] == ["az", "repos", "pr", "reviewer", "add", "--id", "17", "--reviewers", "jane"]
+    assert calls[0] == [
+        "az",
+        "repos",
+        "pr",
+        "reviewer",
+        "add",
+        "--id",
+        "17",
+        "--reviewers",
+        "jane",
+    ]
 
 
 # ── UnknownHostProvider ──────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("method,args", [
-    ("get_pr_number", ("feature/x",)),
-    ("list_unresolved_comments", ("1",)),
-    ("reply_to_comment", ("1", ReviewComment("1", "1", "a.py", 1, "x", "y"), "body")),
-    ("resolve_thread", ("1", ReviewComment("1", "1", "a.py", 1, "x", "y"))),
-    ("request_review", ("1", "jane")),
-])
+
+@pytest.mark.parametrize(
+    "method,args",
+    [
+        ("get_pr_number", ("feature/x",)),
+        ("list_unresolved_comments", ("1",)),
+        (
+            "reply_to_comment",
+            ("1", ReviewComment("1", "1", "a.py", 1, "x", "y"), "body"),
+        ),
+        ("resolve_thread", ("1", ReviewComment("1", "1", "a.py", 1, "x", "y"))),
+        ("request_review", ("1", "jane")),
+    ],
+)
 def test_unknown_host_all_review_methods_raise(method, args):
     p = UnknownHostProvider(RemoteInfo("unknown", "", ""))
     with pytest.raises(ReviewActionError):

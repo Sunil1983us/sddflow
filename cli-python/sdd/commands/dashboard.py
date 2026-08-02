@@ -12,6 +12,7 @@ validated against _SAFE_TOKEN before touching the filesystem or building
 any path, closing off path traversal; free-text fields (by/note/comment
 text) are length-clipped before being written anywhere.
 """
+
 from __future__ import annotations
 import json
 import re
@@ -42,7 +43,12 @@ _SAFE_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
 # no token, writes allowed -- matching today's loopback-only behavior
 # exactly, so a plain `sdd dashboard` with no flags is unaffected by any of
 # this.
-_ACCESS = {"is_local": True, "writes_enabled": True, "token": None, "allowed_origins": set()}
+_ACCESS = {
+    "is_local": True,
+    "writes_enabled": True,
+    "token": None,
+    "allowed_origins": set(),
+}
 
 # Serializes every write triggered by a dashboard request (approve, comment)
 # behind one lock. ThreadingHTTPServer runs each request on its own thread,
@@ -1120,6 +1126,7 @@ def _fetch_doc_content(feature: str, doc: str) -> dict | None:
     same way every other CLI command does.
     """
     from sdd.utils.validate import resolve_doc_path
+
     try:
         path = resolve_doc_path(doc, feature)
     except ValueError:
@@ -1164,12 +1171,18 @@ def _fetch_export_ticket_statuses(feature: str, jira_client) -> dict:
 
     try:
         issues = jira_client.search(
-            f"key in ({', '.join(all_keys)})", fields=["status"], max_results=len(all_keys),
+            f"key in ({', '.join(all_keys)})",
+            fields=["status"],
+            max_results=len(all_keys),
         )
     except Exception as e:
         return {"error": str(e)}
-    return {"statuses": {issue["key"]: issue.get("fields", {}).get("status", {}).get("name")
-                          for issue in issues}}
+    return {
+        "statuses": {
+            issue["key"]: issue.get("fields", {}).get("status", {}).get("name")
+            for issue in issues
+        }
+    }
 
 
 def _fetch_review_links(feature: str) -> dict:
@@ -1203,7 +1216,9 @@ def _fetch_review_links(feature: str) -> dict:
     except FileNotFoundError as e:
         return {"error": str(e)}
     if not cfg.jira and not cfg.confluence:
-        return {"error": "Neither jira: nor confluence: configured in .specify/integrations.yml"}
+        return {
+            "error": "Neither jira: nor confluence: configured in .specify/integrations.yml"
+        }
 
     try:
         if cfg.jira:
@@ -1228,10 +1243,16 @@ def _fetch_review_links(feature: str) -> dict:
 
         if jira_client:
             try:
-                issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc_key}")
+                issue = jira_client.find_by_label(
+                    cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc_key}"
+                )
                 if issue:
                     review_status, comments, _ = _get_review_status(
-                        doc_key, jira_client, cfg.jira.key_for("review"), cfg, feature,
+                        doc_key,
+                        jira_client,
+                        cfg.jira.key_for("review"),
+                        cfg,
+                        feature,
                     )
                     entry["jira"] = {
                         "key": issue["key"],
@@ -1240,7 +1261,9 @@ def _fetch_review_links(feature: str) -> dict:
                         "review_status": review_status,
                         "comments": [
                             {
-                                "author": (c.get("author") or {}).get("displayName", "Unknown"),
+                                "author": (c.get("author") or {}).get(
+                                    "displayName", "Unknown"
+                                ),
                                 "created": c.get("created", "")[:10],
                                 "text": _extract_text(c.get("body", "")),
                             }
@@ -1286,6 +1309,7 @@ def _jira_client_for_comments():
     from sdd.utils.integrations import load_integrations
     from sdd.utils.atlassian_auth import load_jira_session
     from sdd.utils.jira_client import JiraClient
+
     try:
         cfg = load_integrations()
     except FileNotFoundError:
@@ -1310,9 +1334,14 @@ def _post_jira_comment(feature: str, doc: str, text: str) -> dict:
         return {"posted": False, "reason": "Jira not configured"}
     client, cfg = built
     try:
-        issue = client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc}")
+        issue = client.find_by_label(
+            cfg.jira.key_for("review"), f"sdd-doc:{feature}:{doc}"
+        )
         if not issue:
-            return {"posted": False, "reason": "no review ticket found for this document"}
+            return {
+                "posted": False,
+                "reason": "no review ticket found for this document",
+            }
         client.add_comment(issue["key"], text)
         return {"posted": True, "issue_key": issue["key"]}
     except Exception as e:
@@ -1333,20 +1362,28 @@ def _do_approve(feature: str, doc: str, by: str, note: str) -> dict:
     those CLI commands, not something introduced by the dashboard.
     """
     from sdd.commands.review import (
-        _save_local_approval, _mark_md_approved, _push_doc_page, _doc_md_path,
+        _save_local_approval,
+        _mark_md_approved,
+        _push_doc_page,
+        _doc_md_path,
     )
 
     by = _clip_text(by) or "dashboard user"
     note = _clip_text(note) or "approved via dashboard"
 
     _save_local_approval(doc, by, note)
-    result: dict = {"local_approval": True, "md_updated": False, "confluence": None, "jira_comment": None}
+    result: dict = {
+        "local_approval": True,
+        "md_updated": False,
+        "confluence": None,
+        "jira_comment": None,
+    }
 
     md_path = _doc_md_path(doc, feature)
     if md_path and md_path.exists():
         result["md_updated"] = _mark_md_approved(md_path)
         try:
-            manifest     = read_manifest() or {}
+            manifest = read_manifest() or {}
             feature_name = feature or (manifest.get("project") or {}).get("feature", "")
             title = _push_doc_page(doc, md_path, feature_name)
             result["confluence"] = {"updated": bool(title), "title": title}
@@ -1355,7 +1392,9 @@ def _do_approve(feature: str, doc: str, by: str, note: str) -> dict:
     else:
         result["error"] = f"{doc}.md not found for feature {feature}"
 
-    result["jira_comment"] = _post_jira_comment(feature, doc, f"Approved via SDD Dashboard by {by}.")
+    result["jira_comment"] = _post_jira_comment(
+        feature, doc, f"Approved via SDD Dashboard by {by}."
+    )
     return result
 
 
@@ -1381,7 +1420,11 @@ def _do_comment(feature: str, doc: str, by: str, text: str) -> dict:
 
     comments = _load_comments()
     key = f"{feature}/{doc}"
-    entry = {"by": by, "text": text, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    entry = {
+        "by": by,
+        "text": text,
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
     comments.setdefault(key, []).append(entry)
     _COMMENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
     _COMMENTS_FILE.write_text(json.dumps(comments, indent=2))
@@ -1450,10 +1493,12 @@ class _Handler(BaseHTTPRequestHandler):
             # printout, both of which only the person who ran `sdd
             # dashboard` sees. This endpoint just tells the page's own JS
             # whether to show write controls and the network-sharing banner.
-            self._send_json({
-                "is_local": _ACCESS["is_local"],
-                "writes_enabled": _ACCESS["writes_enabled"],
-            })
+            self._send_json(
+                {
+                    "is_local": _ACCESS["is_local"],
+                    "writes_enabled": _ACCESS["writes_enabled"],
+                }
+            )
 
         else:
             self.send_response(404)
@@ -1499,8 +1544,10 @@ class _Handler(BaseHTTPRequestHandler):
         if _ACCESS["is_local"]:
             return None
         if not _ACCESS["writes_enabled"]:
-            return ("Dashboard is read-only over the network. Restart with "
-                    "--share --write to enable writes (requires the printed token).")
+            return (
+                "Dashboard is read-only over the network. Restart with "
+                "--share --write to enable writes (requires the printed token)."
+            )
         origin = self.headers.get("Origin")
         if origin and origin not in _ACCESS["allowed_origins"]:
             return f"Origin not allowed: {origin}"
@@ -1531,7 +1578,9 @@ class _Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/approve":
             try:
                 with _WRITE_LOCK:
-                    result = _do_approve(feature, doc, payload.get("by", ""), payload.get("note", ""))
+                    result = _do_approve(
+                        feature, doc, payload.get("by", ""), payload.get("note", "")
+                    )
                 self._send_json(result)
             except Exception as e:
                 self._send_json({"error": str(e)}, status=500)
@@ -1539,7 +1588,9 @@ class _Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/comment":
             try:
                 with _WRITE_LOCK:
-                    result = _do_comment(feature, doc, payload.get("by", ""), payload.get("text", ""))
+                    result = _do_comment(
+                        feature, doc, payload.get("by", ""), payload.get("text", "")
+                    )
                 status = 400 if "error" in result else 200
                 self._send_json(result, status=status)
             except Exception as e:
@@ -1566,18 +1617,28 @@ def _lan_ip() -> str | None:
 
 @click.command()
 @click.option("--port", default=4747, show_default=True, help="Local port to serve on")
-@click.option("--host", default="127.0.0.1", show_default=True,
-              help="Bind address for advanced/custom use. Prefer --share for "
-                   "the common case of letting teammates on the same network in.")
-@click.option("--share", is_flag=True,
-              help="Shortcut for --host 0.0.0.0 — reachable by teammates on "
-                   "your network. Read-only by default; add --write to also "
-                   "allow approvals/comments (requires the printed token).")
-@click.option("--write", is_flag=True,
-              help="Allow write actions (approve/comment) over a non-local "
-                   "bind (--share or a manual --host). Ignored/always-on for "
-                   "the local-only default. Generates a session token that "
-                   "must be sent on every write request.")
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    show_default=True,
+    help="Bind address for advanced/custom use. Prefer --share for "
+    "the common case of letting teammates on the same network in.",
+)
+@click.option(
+    "--share",
+    is_flag=True,
+    help="Shortcut for --host 0.0.0.0 — reachable by teammates on "
+    "your network. Read-only by default; add --write to also "
+    "allow approvals/comments (requires the printed token).",
+)
+@click.option(
+    "--write",
+    is_flag=True,
+    help="Allow write actions (approve/comment) over a non-local "
+    "bind (--share or a manual --host). Ignored/always-on for "
+    "the local-only default. Generates a session token that "
+    "must be sent on every write request.",
+)
 @click.option("--no-open", is_flag=True, help="Don't auto-open a browser tab")
 def dashboard_command(port, host, share, write, no_open):
     """Local web UI over the current project's .specify/ status.
@@ -1621,11 +1682,15 @@ def dashboard_command(port, host, share, write, no_open):
     server = ThreadingHTTPServer((effective_host, port), _Handler)
 
     console.print()
-    console.print(f"  [bold cyan]SDD Dashboard[/bold cyan]  [dim]running at http://127.0.0.1:{port}/[/dim]")
+    console.print(
+        f"  [bold cyan]SDD Dashboard[/bold cyan]  [dim]running at http://127.0.0.1:{port}/[/dim]"
+    )
 
     if not is_local:
         if lan_ip:
-            console.print(f"  [dim]Reachable on your network at:[/dim]  http://{lan_ip}:{port}/{token_qs}")
+            console.print(
+                f"  [dim]Reachable on your network at:[/dim]  http://{lan_ip}:{port}/{token_qs}"
+            )
         if writes_enabled:
             console.print(
                 "  [yellow]⚠  Write access enabled over the network — anyone with the link "

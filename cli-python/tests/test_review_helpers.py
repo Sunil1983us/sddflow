@@ -29,9 +29,16 @@ def _write_doc(project, name, header):
 
 
 class TestMarkMdApproved:
-    @pytest.mark.parametrize("header", ["Status: Draft", "Status: DRAFT",
-                                        "Status: draft", "Status: Proposed",
-                                        "Status: PROPOSED"])
+    @pytest.mark.parametrize(
+        "header",
+        [
+            "Status: Draft",
+            "Status: DRAFT",
+            "Status: draft",
+            "Status: Proposed",
+            "Status: PROPOSED",
+        ],
+    )
     def test_flips_pre_approval_statuses(self, project, header):
         p = _write_doc(project, "brd", header)
         assert review._mark_md_approved(p) is True
@@ -76,7 +83,9 @@ class TestMarkApprovalsTable:
         assert "| Pending |" not in text
 
     def test_all_rows_in_multi_row_table_flipped(self, project):
-        p = self._doc_with_approvals(project, ["Architect", "Tech Lead", "Stakeholder (HLD sign-off)"])
+        p = self._doc_with_approvals(
+            project, ["Architect", "Tech Lead", "Stakeholder (HLD sign-off)"]
+        )
         review._mark_md_approved(p)
         text = p.read_text()
         assert text.count("| Approved |") == 3
@@ -94,7 +103,9 @@ class TestMarkApprovalsTable:
         review._mark_md_approved(p)
         after = p.read_text()
         assert "Status: Approved" in after  # header still flips
-        assert after.replace("Status: Approved", "Status: Draft") == before  # nothing else changed
+        assert (
+            after.replace("Status: Approved", "Status: Draft") == before
+        )  # nothing else changed
 
     def test_self_heals_stale_table_when_header_already_approved(self, project):
         """Regression: header was flipped by an older version of this code
@@ -110,7 +121,9 @@ class TestMarkApprovalsTable:
         p = self._doc_with_approvals(project, ["Product Owner"])
         review._mark_md_approved(p)  # first pass: Pending -> Approved (today)
         first = p.read_text()
-        assert review._mark_md_approved(p) is False  # second pass: nothing left to change
+        assert (
+            review._mark_md_approved(p) is False
+        )  # second pass: nothing left to change
         assert p.read_text() == first
 
 
@@ -166,9 +179,11 @@ class TestPushDocPage:
 
 # ── _ensure_epic / feature-qualified review labels ──────────────────────────
 
+
 class FakeJiraClient:
     """In-memory double — enough surface for _ensure_epic/_get_review_status,
     no real HTTP. Mirrors the fake used in test_jira_push_content.py."""
+
     def __init__(self):
         self.by_label: dict[str, dict] = {}
         self.created: list[dict] = []
@@ -208,6 +223,7 @@ class RaisingParentClient(FakeJiraClient):
     rejecting the "parent" field — used to confirm a failed review-ticket
     link now prints a diagnosable warning instead of vanishing silently
     (regression test for the bug found during manual QA)."""
+
     def set_parent(self, child_key, parent_key, parent_field="parent"):
         raise RuntimeError('HTTP 400 — cannot set field "parent"')
 
@@ -223,8 +239,9 @@ class TestLinkReviewStoryToEpic:
         """parent_field_by_level: {review: ...} must steer how the review
         Story links to its Epic, independently of the base parent_field."""
         client = FakeJiraClient()
-        cfg = JiraConfig(project_key="MYPROJ",
-                          parent_field_by_level={"review": "customfield_10014"})
+        cfg = JiraConfig(
+            project_key="MYPROJ", parent_field_by_level={"review": "customfield_10014"}
+        )
         review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)
         assert client.parents == [("PROJ-2", "PROJ-1", "customfield_10014")]
 
@@ -244,7 +261,9 @@ class TestLinkReviewStoryToEpic:
         cfg = JiraConfig(project_key="MYPROJ")
         review._link_review_story_to_epic(client, "PROJ-2", "PROJ-1", cfg)  # no raise
 
-    def test_failure_warning_names_the_review_override_project_key(self, project, capsys):
+    def test_failure_warning_names_the_review_override_project_key(
+        self, project, capsys
+    ):
         """The 'sdd config fields --project X' hint in a failed-link warning
         must name the project the review Story actually lives in, not the
         base project_key, when project_keys overrides "review"."""
@@ -295,6 +314,7 @@ class TestEnsureEpic:
 
     def test_confluence_base_url_adds_full_document_link(self, project):
         import json
+
         (project / ".specify" / "features" / "auth" / "brd.md").write_text(
             "## 4. Business Context\n### Problem Statement\nUsers churn.\n"
         )
@@ -305,8 +325,11 @@ class TestEnsureEpic:
         cfg = JiraConfig(project_key="MYPROJ")
         review._ensure_epic(client, cfg, "auth", "https://x.atlassian.net")
         description = client.created[0]["description"]
-        texts = [n["content"][0]["text"] for n in description["content"]
-                 if n["type"] in ("heading", "paragraph")]
+        texts = [
+            n["content"][0]["text"]
+            for n in description["content"]
+            if n["type"] in ("heading", "paragraph")
+        ]
         assert "Full Document" in texts
 
     def test_no_confluence_base_url_omits_link(self, project):
@@ -317,8 +340,11 @@ class TestEnsureEpic:
         cfg = JiraConfig(project_key="MYPROJ")
         review._ensure_epic(client, cfg, "auth")
         description = client.created[0]["description"]
-        texts = [n["content"][0]["text"] for n in description["content"]
-                 if n["type"] in ("heading", "paragraph")]
+        texts = [
+            n["content"][0]["text"]
+            for n in description["content"]
+            if n["type"] in ("heading", "paragraph")
+        ]
         assert "Full Document" not in texts
 
 
@@ -327,10 +353,15 @@ class TestRecordConfluenceDraftLink:
         from sdd.commands.confluence import _load_drafts
 
         page = {"id": "12345", "_links": {"webui": "/spaces/X/pages/12345"}}
-        review._record_confluence_draft_link("brd", page, "Demo — Business Requirements")
+        review._record_confluence_draft_link(
+            "brd", page, "Demo — Business Requirements"
+        )
 
         drafts = _load_drafts()
-        assert drafts["brd"] == {"page_id": "12345", "title": "Demo — Business Requirements"}
+        assert drafts["brd"] == {
+            "page_id": "12345",
+            "title": "Demo — Business Requirements",
+        }
 
     def test_preserves_other_docs_already_recorded(self, project):
         from sdd.commands.confluence import _load_drafts, _save_drafts
@@ -374,8 +405,9 @@ class TestRecordReviewLink:
 
 class TestGetReviewStatusFeatureQualified:
     def _cfg(self):
-        return IntegrationsConfig(profile=None, jira=JiraConfig(project_key="MYPROJ"),
-                                   confluence=None)
+        return IntegrationsConfig(
+            profile=None, jira=JiraConfig(project_key="MYPROJ"), confluence=None
+        )
 
     def test_label_is_feature_qualified(self, project):
         client = FakeJiraClient()
@@ -383,7 +415,9 @@ class TestGetReviewStatusFeatureQualified:
             "key": "PROJ-1",
             "fields": {"status": {"name": "Done"}},
         }
-        status, _, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "auth")
+        status, _, _ = review._get_review_status(
+            "brd", client, "MYPROJ", self._cfg(), "auth"
+        )
         assert status == "APPROVED"
 
     def test_unqualified_label_is_not_found(self, project):
@@ -395,7 +429,9 @@ class TestGetReviewStatusFeatureQualified:
             "key": "PROJ-1",
             "fields": {"status": {"name": "Done"}},
         }
-        status, _, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "auth")
+        status, _, _ = review._get_review_status(
+            "brd", client, "MYPROJ", self._cfg(), "auth"
+        )
         assert status == "NOT_SUBMITTED"
 
     def test_different_features_do_not_collide(self, project):
@@ -404,7 +440,9 @@ class TestGetReviewStatusFeatureQualified:
             "key": "PROJ-1",
             "fields": {"status": {"name": "Done"}},
         }
-        status, _, _ = review._get_review_status("brd", client, "MYPROJ", self._cfg(), "billing")
+        status, _, _ = review._get_review_status(
+            "brd", client, "MYPROJ", self._cfg(), "billing"
+        )
         assert status == "NOT_SUBMITTED"
 
 
@@ -417,6 +455,7 @@ class TestGetReviewStatusFeatureQualified:
 # regression at the one place the bug actually manifested, not just at the
 # level of the helper functions already covered above.
 
+
 class FakeConfluenceClient:
     def __init__(self, session=None, base_url=None):
         self.pages_by_title: dict[str, dict] = {}
@@ -427,7 +466,10 @@ class FakeConfluenceClient:
         return self.pages_by_title.get(title)
 
     def create_page(self, space_key, title, body_html, parent_id=None):
-        page = {"id": str(self._next_id), "_links": {"webui": f"/pages/{self._next_id}"}}
+        page = {
+            "id": str(self._next_id),
+            "_links": {"webui": f"/pages/{self._next_id}"},
+        }
         self._next_id += 1
         self.pages_by_title[title] = page
         self.body_by_title[title] = body_html
@@ -445,6 +487,7 @@ class TestReviewSubmitFieldWiring:
     @pytest.fixture()
     def runner(self):
         from click.testing import CliRunner
+
         return CliRunner()
 
     @pytest.fixture()
@@ -475,13 +518,29 @@ class TestReviewSubmitFieldWiring:
 
     def test_labels_and_team_are_sent_on_the_review_story(self, review_project, runner):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
             result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
@@ -494,13 +553,16 @@ class TestReviewSubmitFieldWiring:
         assert "org-required-label" in review_issue["labels"]
         assert review_issue["customfield_20000"] == "Team Phoenix"
 
-    def test_two_features_do_not_collide_on_the_same_confluence_page(self, project, runner):
+    def test_two_features_do_not_collide_on_the_same_confluence_page(
+        self, project, runner
+    ):
         """Regression test: document_reviews.confluence_page templates
         never had {feature} substituted (only {project} was), so two
         features submitting the same doc type used to silently upsert the
         SAME Confluence page -- the exact collision class {feature} was
         already added to page_map for (bug #82), just never fixed here."""
         from sdd.utils.atlassian_auth import Profile
+
         (project / ".specify" / "features" / "auth" / "brd.md").write_text(
             "# BRD\n\nBO-001 Reduce login friction.\n"
         )
@@ -521,22 +583,43 @@ class TestReviewSubmitFieldWiring:
             "    confluence_page: '{feature} — BRD'\n"
         )
         shared_cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=shared_cf_client):
-            r1 = runner.invoke(review.review_command, ["submit", "--doc", "brd", "--feature", "auth"])
-            r2 = runner.invoke(review.review_command, ["submit", "--doc", "brd", "--feature", "billing"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()),
+            patch(
+                "sdd.commands.review.ConfluenceClient", return_value=shared_cf_client
+            ),
+        ):
+            r1 = runner.invoke(
+                review.review_command, ["submit", "--doc", "brd", "--feature", "auth"]
+            )
+            r2 = runner.invoke(
+                review.review_command,
+                ["submit", "--doc", "brd", "--feature", "billing"],
+            )
 
         assert r1.exit_code == 0, r1.output
         assert r2.exit_code == 0, r2.output
         # Two distinct pages, not one page silently overwritten by the second call
         assert "auth — BRD" in shared_cf_client.pages_by_title
         assert "billing — BRD" in shared_cf_client.pages_by_title
-        assert shared_cf_client.pages_by_title["auth — BRD"]["id"] != \
-               shared_cf_client.pages_by_title["billing — BRD"]["id"]
+        assert (
+            shared_cf_client.pages_by_title["auth — BRD"]["id"]
+            != shared_cf_client.pages_by_title["billing — BRD"]["id"]
+        )
 
     def test_submit_records_the_review_link_locally(self, review_project, runner):
         """Regression: the dashboard's per-document Jira pill previously
@@ -545,12 +628,28 @@ class TestReviewSubmitFieldWiring:
         links" -- sdd review submit must record the review-gate ticket
         key the same way it already records the Confluence page."""
         from sdd.utils.atlassian_auth import Profile
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
             result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
@@ -562,6 +661,7 @@ class TestReviewApplyRecordsLink:
     @pytest.fixture()
     def runner(self):
         from click.testing import CliRunner
+
         return CliRunner()
 
     @pytest.fixture()
@@ -580,33 +680,72 @@ class TestReviewApplyRecordsLink:
         )
         return project
 
-    def test_apply_records_the_review_link_when_issue_found(self, review_project, runner):
+    def test_apply_records_the_review_link_when_issue_found(
+        self, review_project, runner
+    ):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
         fake_jira.by_label["sdd-doc:auth:brd"] = {
-            "key": "PROJ-7", "fields": {"status": {"name": "In Review"}},
+            "key": "PROJ-7",
+            "fields": {"status": {"name": "In Review"}},
         }
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
             result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
-        assert fake_jira.added_comments == [("PROJ-7", "Document updated per review comments. Please re-review:")]
+        assert fake_jira.added_comments == [
+            ("PROJ-7", "Document updated per review comments. Please re-review:")
+        ]
         links = review._load_review_links()
         assert links["brd"] == {"key": "PROJ-7"}
 
-    def test_apply_does_not_record_a_link_when_no_issue_found(self, review_project, runner):
+    def test_apply_does_not_record_a_link_when_no_issue_found(
+        self, review_project, runner
+    ):
         from sdd.utils.atlassian_auth import Profile
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
+
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
             result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
@@ -632,12 +771,25 @@ class TestReviewApplyRecordsLink:
             "    confluence_page: '{feature} — BRD'\n"
         )
         from sdd.utils.atlassian_auth import Profile
+
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.ConfluenceClient", return_value=cf_client),
+        ):
             result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
@@ -663,15 +815,29 @@ class TestReviewApplyRecordsLink:
             "    confluence_page: '{feature} — BRD'\n"
         )
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
         fake_jira.by_label["sdd-doc:auth:brd"] = {
-            "key": "PROJ-9", "fields": {"status": {"name": "In Review"}},
+            "key": "PROJ-9",
+            "fields": {"status": {"name": "In Review"}},
         }
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira):
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+        ):
             result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
@@ -694,6 +860,7 @@ class TestValidatePhaseDocKeys:
     @pytest.fixture()
     def runner(self):
         from click.testing import CliRunner
+
         return CliRunner()
 
     @pytest.fixture()
@@ -733,25 +900,49 @@ class TestValidatePhaseDocKeys:
         )
         return project
 
-    def test_submit_works_for_analyze_and_clarify_doc_keys(self, validate_phase_project, runner):
+    def test_submit_works_for_analyze_and_clarify_doc_keys(
+        self, validate_phase_project, runner
+    ):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
         # Satisfy the sequence gate for both: validate approved before
         # analyze submits, analyze approved before clarify submits.
         fake_jira.by_label["sdd-doc:auth:validate"] = {
-            "key": "PROJ-1", "fields": {"status": {"name": "Done"}},
+            "key": "PROJ-1",
+            "fields": {"status": {"name": "Done"}},
         }
         fake_jira.by_label["sdd-doc:auth:analyze"] = {
-            "key": "PROJ-2", "fields": {"status": {"name": "Done"}},
+            "key": "PROJ-2",
+            "fields": {"status": {"name": "Done"}},
         }
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
-            r_analyze = runner.invoke(review.review_command, ["submit", "--doc", "analyze"])
-            r_clarify = runner.invoke(review.review_command, ["submit", "--doc", "clarify"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            r_analyze = runner.invoke(
+                review.review_command, ["submit", "--doc", "analyze"]
+            )
+            r_clarify = runner.invoke(
+                review.review_command, ["submit", "--doc", "clarify"]
+            )
 
         assert r_analyze.exit_code == 0, r_analyze.output
         assert r_clarify.exit_code == 0, r_clarify.output
@@ -759,35 +950,69 @@ class TestValidatePhaseDocKeys:
         assert links["analyze"]["key"].startswith("PROJ-")
         assert links["clarify"]["key"].startswith("PROJ-")
 
-    def test_analyze_submission_blocked_until_validate_approved(self, validate_phase_project, runner):
+    def test_analyze_submission_blocked_until_validate_approved(
+        self, validate_phase_project, runner
+    ):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
         fake_jira.by_label["sdd-doc:auth:validate"] = {
-            "key": "PROJ-1", "fields": {"status": {"name": "In Review"}},
+            "key": "PROJ-1",
+            "fields": {"status": {"name": "In Review"}},
         }
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
-            result = runner.invoke(review.review_command, ["submit", "--doc", "analyze"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            result = runner.invoke(
+                review.review_command, ["submit", "--doc", "analyze"]
+            )
 
         assert result.exit_code == 1
         assert "VALIDATE is not yet approved" in result.output
 
-    def test_review_approve_local_flips_clarify_status_header(self, validate_phase_project, runner):
+    def test_review_approve_local_flips_clarify_status_header(
+        self, validate_phase_project, runner
+    ):
         """Regression: clarify-template.md's header used to say
         'Status: OPEN' instead of 'Status: Draft' -- _mark_md_approved's
         regex only recognizes Draft/Proposed, so the header would have
         silently never flipped to Approved. Confirms the template fix
         (OPEN -> Draft) makes the standard approval flow work for
         clarify.md exactly like every other document."""
-        result = runner.invoke(review.review_command, [
-            "approve", "--doc", "clarify", "--local", "--by", "Architect", "--no-confluence",
-        ])
+        result = runner.invoke(
+            review.review_command,
+            [
+                "approve",
+                "--doc",
+                "clarify",
+                "--local",
+                "--by",
+                "Architect",
+                "--no-confluence",
+            ],
+        )
         assert result.exit_code == 0, result.output
-        clarify_text = (validate_phase_project / ".specify" / "features" / "auth" / "clarify.md").read_text()
+        clarify_text = (
+            validate_phase_project / ".specify" / "features" / "auth" / "clarify.md"
+        ).read_text()
         assert "Status: Approved" in clarify_text
         assert "Status: Draft" not in clarify_text
 
@@ -798,7 +1023,9 @@ class TestJiraStatusBanner:
     has to leave Confluence to see where things stand."""
 
     def test_banner_for_pending_status(self):
-        html = review._jira_status_banner("PROJ-1", "https://x/browse/PROJ-1", "PENDING", "Product Owner")
+        html = review._jira_status_banner(
+            "PROJ-1", "https://x/browse/PROJ-1", "PENDING", "Product Owner"
+        )
         assert 'ac:name="info"' in html
         assert "PROJ-1" in html
         assert "https://x/browse/PROJ-1" in html
@@ -806,18 +1033,23 @@ class TestJiraStatusBanner:
         assert "Product Owner" in html
 
     def test_banner_for_approved_status(self):
-        html = review._jira_status_banner("PROJ-1", "https://x/browse/PROJ-1", "APPROVED", "Architect")
+        html = review._jira_status_banner(
+            "PROJ-1", "https://x/browse/PROJ-1", "APPROVED", "Architect"
+        )
         assert 'ac:name="success"' in html
         assert "Approved" in html
 
     def test_banner_for_needs_revision_status(self):
-        html = review._jira_status_banner("PROJ-1", "https://x/browse/PROJ-1", "NEEDS_REVISION", "Tech Lead")
+        html = review._jira_status_banner(
+            "PROJ-1", "https://x/browse/PROJ-1", "NEEDS_REVISION", "Tech Lead"
+        )
         assert 'ac:name="warning"' in html
         assert "Needs Revision" in html
 
     @pytest.fixture()
     def runner(self):
         from click.testing import CliRunner
+
         return CliRunner()
 
     @pytest.fixture()
@@ -839,18 +1071,33 @@ class TestJiraStatusBanner:
         )
         return project
 
-    def test_submit_stamps_pending_banner_on_confluence_page(self, banner_project, runner):
+    def test_submit_stamps_pending_banner_on_confluence_page(
+        self, banner_project, runner
+    ):
         """The first push (before the ticket exists) can't include a
         banner -- review_submit must re-push once the ticket is created so
         the page picks it up."""
         from sdd.utils.atlassian_auth import Profile
+
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=FakeJiraClient()),
+            patch("sdd.commands.review.ConfluenceClient", return_value=cf_client),
+        ):
             result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
@@ -861,17 +1108,31 @@ class TestJiraStatusBanner:
 
     def test_check_refreshes_banner_to_approved(self, banner_project, runner):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
         fake_jira.by_label["sdd-doc:auth:brd"] = {
-            "key": "PROJ-7", "fields": {"status": {"name": "Done"}},
+            "key": "PROJ-7",
+            "fields": {"status": {"name": "Done"}},
         }
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch("sdd.commands.review.ConfluenceClient", return_value=cf_client),
+        ):
             result = runner.invoke(review.review_command, ["check", "--doc", "brd"])
 
         assert result.exit_code == 0, result.output
@@ -879,7 +1140,9 @@ class TestJiraStatusBanner:
         assert "PROJ-7" in body
         assert "Approved" in body
 
-    def test_push_doc_page_omits_banner_when_doc_not_under_jira_review(self, project, runner):
+    def test_push_doc_page_omits_banner_when_doc_not_under_jira_review(
+        self, project, runner
+    ):
         """qa-testcases.md (and any doc key not in document_reviews) can
         still get a Confluence page via the page_map fallback -- it just
         never carries a Jira banner since there's no review ticket for it."""
@@ -894,12 +1157,25 @@ class TestJiraStatusBanner:
             "    qa-testcases: '{feature} — QA Test Cases'\n"
         )
         from sdd.utils.atlassian_auth import Profile
+
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.ConfluenceClient", return_value=cf_client),
+        ):
             result = review._push_doc_page(
                 "qa-testcases",
                 project / ".specify" / "features" / "auth" / "qa-testcases.md",
@@ -923,17 +1199,28 @@ class TestJiraStatusBanner:
         constitution.parent.mkdir(parents=True, exist_ok=True)
         constitution.write_text("# Constitution\n\nPart 1 ...\n")
         (project / ".specify" / "integrations.yml").write_text(
-            "profile: default\n"
-            "confluence:\n"
-            "  space_key: ENG\n"
+            "profile: default\nconfluence:\n  space_key: ENG\n"
         )
         from sdd.utils.atlassian_auth import Profile
+
         cf_client = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=cf_client):
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.ConfluenceClient", return_value=cf_client),
+        ):
             result = review._push_doc_page("constitution", constitution, "auth")
 
         assert result is not None
@@ -950,6 +1237,7 @@ class TestReviewStatusPersonaHint:
     @pytest.fixture()
     def runner(self):
         from click.testing import CliRunner
+
         return CliRunner()
 
     @pytest.fixture()
@@ -957,7 +1245,9 @@ class TestReviewStatusPersonaHint:
         monkeypatch.chdir(tmp_path)
         (tmp_path / ".specify" / "features" / "auth").mkdir(parents=True)
         (tmp_path / ".specify" / "manifest.yml").write_text(
-            yaml.dump({"project": {"name": "Demo", "feature": "auth", "scope": "pilot"}})
+            yaml.dump(
+                {"project": {"name": "Demo", "feature": "auth", "scope": "pilot"}}
+            )
         )
         (tmp_path / ".specify" / "integrations.yml").write_text(
             "profile: default\n"
@@ -974,11 +1264,24 @@ class TestReviewStatusPersonaHint:
 
     def _run(self, runner, fake_jira):
         from sdd.utils.atlassian_auth import Profile
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira):
+
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+        ):
             return runner.invoke(review.review_command, ["status"])
 
     def test_not_submitted_doc_shows_who_to_ask(self, review_project, runner):
@@ -989,7 +1292,8 @@ class TestReviewStatusPersonaHint:
     def test_approved_doc_shows_no_ask_hint(self, review_project, runner):
         fake_jira = FakeJiraClient()
         fake_jira.by_label["sdd-doc:auth:brd"] = {
-            "key": "PROJ-1", "fields": {"status": {"name": "Done"}},
+            "key": "PROJ-1",
+            "fields": {"status": {"name": "Done"}},
         }
         fake_jira.comments_by_key["PROJ-1"] = []
         result = self._run(runner, fake_jira)
@@ -999,7 +1303,8 @@ class TestReviewStatusPersonaHint:
     def test_needs_revision_doc_shows_who_to_ask(self, review_project, runner):
         fake_jira = FakeJiraClient()
         fake_jira.by_label["sdd-doc:auth:brd"] = {
-            "key": "PROJ-1", "fields": {"status": {"name": "In Review"}},
+            "key": "PROJ-1",
+            "fields": {"status": {"name": "In Review"}},
         }
         fake_jira.comments_by_key["PROJ-1"] = [{"body": "please clarify this section"}]
         result = self._run(runner, fake_jira)
@@ -1015,40 +1320,75 @@ class TestLocalDashboardCommentsFallback:
     @pytest.fixture()
     def runner(self):
         from click.testing import CliRunner
+
         return CliRunner()
 
     def _write_comment(self, project, feature, doc, by, text, at):
         import json
+
         path = project / ".specify" / ".dashboard-comments.json"
         data = json.loads(path.read_text()) if path.exists() else {}
-        data.setdefault(f"{feature}/{doc}", []).append({"by": by, "text": text, "at": at})
+        data.setdefault(f"{feature}/{doc}", []).append(
+            {"by": by, "text": text, "at": at}
+        )
         path.write_text(json.dumps(data))
 
-    def test_check_falls_back_to_local_comments_when_no_integrations_yml(self, project, runner):
-        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+    def test_check_falls_back_to_local_comments_when_no_integrations_yml(
+        self, project, runner
+    ):
+        self._write_comment(
+            project,
+            "auth",
+            "brd",
+            "PO",
+            "please clarify §2",
+            "2000-01-01T00:00:00+00:00",
+        )
         result = runner.invoke(review.review_command, ["check", "--doc", "brd"])
         assert result.exit_code == 1
         assert "please clarify" in result.output
         assert "NEEDS REVISION" in result.output
 
-    def test_check_reports_not_submitted_when_no_comments_and_no_config(self, project, runner):
+    def test_check_reports_not_submitted_when_no_comments_and_no_config(
+        self, project, runner
+    ):
         result = runner.invoke(review.review_command, ["check", "--doc", "brd"])
         assert result.exit_code == 3
         assert "NOT SUBMITTED" in result.output
 
     def test_apply_acknowledges_local_comments_with_no_config(self, project, runner):
-        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
-        assert runner.invoke(review.review_command, ["check", "--doc", "brd"]).exit_code == 1
+        self._write_comment(
+            project,
+            "auth",
+            "brd",
+            "PO",
+            "please clarify §2",
+            "2000-01-01T00:00:00+00:00",
+        )
+        assert (
+            runner.invoke(review.review_command, ["check", "--doc", "brd"]).exit_code
+            == 1
+        )
 
         apply_result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
         assert apply_result.exit_code == 0
         assert "acknowledged" in apply_result.output
 
         # Re-checking must not repeat the same already-addressed comment
-        assert runner.invoke(review.review_command, ["check", "--doc", "brd"]).exit_code == 3
+        assert (
+            runner.invoke(review.review_command, ["check", "--doc", "brd"]).exit_code
+            == 3
+        )
 
     def test_comments_command_lists_unacknowledged(self, project, runner):
-        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
+        self._write_comment(
+            project,
+            "auth",
+            "brd",
+            "PO",
+            "please clarify §2",
+            "2000-01-01T00:00:00+00:00",
+        )
         result = runner.invoke(review.review_command, ["comments", "--doc", "brd"])
         assert result.exit_code == 1
         assert "please clarify" in result.output
@@ -1059,8 +1399,17 @@ class TestLocalDashboardCommentsFallback:
         assert "no unacknowledged" in result.output
 
     def test_comments_command_ack_flag_clears_them(self, project, runner):
-        self._write_comment(project, "auth", "brd", "PO", "please clarify §2", "2000-01-01T00:00:00+00:00")
-        ack_result = runner.invoke(review.review_command, ["comments", "--doc", "brd", "--ack"])
+        self._write_comment(
+            project,
+            "auth",
+            "brd",
+            "PO",
+            "please clarify §2",
+            "2000-01-01T00:00:00+00:00",
+        )
+        ack_result = runner.invoke(
+            review.review_command, ["comments", "--doc", "brd", "--ack"]
+        )
         assert ack_result.exit_code == 0
 
         result = runner.invoke(review.review_command, ["comments", "--doc", "brd"])
@@ -1069,6 +1418,7 @@ class TestLocalDashboardCommentsFallback:
 
 
 # ── Open-questions push/pull (blocked-doc Jira Q&A) ────────────────────────────
+
 
 class TestParseOpenQuestions:
     def test_parses_single_location_row(self):
@@ -1124,7 +1474,8 @@ class TestExtractTextPreservesLineBoundaries:
 
     def _multi_paragraph_adf(self, *lines):
         return {
-            "type": "doc", "version": 1,
+            "type": "doc",
+            "version": 1,
             "content": [
                 {"type": "paragraph", "content": [{"type": "text", "text": line}]}
                 for line in lines
@@ -1140,12 +1491,18 @@ class TestExtractTextPreservesLineBoundaries:
 
     def test_hard_break_within_one_paragraph_becomes_newline(self):
         body = {
-            "type": "doc", "version": 1,
-            "content": [{"type": "paragraph", "content": [
-                {"type": "text", "text": "brd:NC-001: first"},
-                {"type": "hardBreak"},
-                {"type": "text", "text": "brd:NC-002: second"},
-            ]}],
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {
+                    "type": "paragraph",
+                    "content": [
+                        {"type": "text", "text": "brd:NC-001: first"},
+                        {"type": "hardBreak"},
+                        {"type": "text", "text": "brd:NC-002: second"},
+                    ],
+                }
+            ],
         }
         assert review._extract_text(body) == "brd:NC-001: first\nbrd:NC-002: second"
 
@@ -1177,17 +1534,23 @@ class TestParseAnswers:
         assert answers == {"brd:NC-002": "90 days"}
 
     def test_parses_multiple_lines_in_one_comment(self):
-        answers = review._parse_answers([self._comment(
-            "brd:NC-001: Some answer here\nsrd:NC-002: Another answer"
-        )])
+        answers = review._parse_answers(
+            [self._comment("brd:NC-001: Some answer here\nsrd:NC-002: Another answer")]
+        )
         assert answers["brd:NC-001"] == "Some answer here"
         assert answers["srd:NC-002"] == "Another answer"
 
     def test_later_comment_overrides_earlier_answer(self):
-        answers = review._parse_answers([
-            self._comment("brd:NC-002: first answer", created="2026-01-01T00:00:00+00:00"),
-            self._comment("brd:NC-002: corrected answer", created="2026-01-02T00:00:00+00:00"),
-        ])
+        answers = review._parse_answers(
+            [
+                self._comment(
+                    "brd:NC-002: first answer", created="2026-01-01T00:00:00+00:00"
+                ),
+                self._comment(
+                    "brd:NC-002: corrected answer", created="2026-01-02T00:00:00+00:00"
+                ),
+            ]
+        )
         assert answers["brd:NC-002"] == "corrected answer"
 
     def test_is_case_insensitive_on_doc_key(self):
@@ -1195,15 +1558,21 @@ class TestParseAnswers:
         assert answers == {"brd:NC-002": "value"}
 
     def test_ignores_comments_with_no_id(self):
-        answers = review._parse_answers([self._comment("just a general comment, no ID here")])
+        answers = review._parse_answers(
+            [self._comment("just a general comment, no ID here")]
+        )
         assert answers == {}
 
     def test_handles_adf_body(self):
         adf_body = {
-            "type": "doc", "version": 1,
-            "content": [{"type": "paragraph", "content": [
-                {"type": "text", "text": "brd:NC-002: 90 days"}
-            ]}],
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {
+                    "type": "paragraph",
+                    "content": [{"type": "text", "text": "brd:NC-002: 90 days"}],
+                }
+            ],
         }
         answers = review._parse_answers([self._comment(adf_body)])
         assert answers == {"brd:NC-002": "90 days"}
@@ -1216,41 +1585,53 @@ class TestPatchMarker:
         return p
 
     def test_replaces_marker_with_answer_text(self, project):
-        p = self._doc(project, "brd", (
-            "# BRD\n> Version: 1.0 | Status: Draft\n\n"
-            "§4 [NEEDS CLARIFICATION-002: What problem does this solve?]\n"
-        ))
+        p = self._doc(
+            project,
+            "brd",
+            (
+                "# BRD\n> Version: 1.0 | Status: Draft\n\n"
+                "§4 [NEEDS CLARIFICATION-002: What problem does this solve?]\n"
+            ),
+        )
         assert review._patch_marker(p, "002", "Real-time settlement demo.") is True
         text = p.read_text()
         assert "Real-time settlement demo." in text
         assert "NEEDS CLARIFICATION-002" not in text
 
     def test_bumps_version_header(self, project):
-        p = self._doc(project, "brd", (
-            "# BRD\n> Version: 1.0 | Status: Draft\n\n"
-            "[NEEDS CLARIFICATION-002: q?]\n"
-        ))
+        p = self._doc(
+            project,
+            "brd",
+            (
+                "# BRD\n> Version: 1.0 | Status: Draft\n\n"
+                "[NEEDS CLARIFICATION-002: q?]\n"
+            ),
+        )
         review._patch_marker(p, "002", "answer")
         assert "Version: 1.1" in p.read_text()
 
     def test_appends_version_history_row(self, project):
-        p = self._doc(project, "brd", (
-            "# BRD\n> Version: 1.0\n\n"
-            "[NEEDS CLARIFICATION-002: q?]\n\n"
-            "## Version History\n\n"
-            "| Version | Date | Changed By | Summary | CHG-NNN |\n"
-            "|---|---|---|---|---|\n"
-            "| 1.0 | 2026-01-01 | init | Initial draft | — |\n"
-        ))
+        p = self._doc(
+            project,
+            "brd",
+            (
+                "# BRD\n> Version: 1.0\n\n"
+                "[NEEDS CLARIFICATION-002: q?]\n\n"
+                "## Version History\n\n"
+                "| Version | Date | Changed By | Summary | CHG-NNN |\n"
+                "|---|---|---|---|---|\n"
+                "| 1.0 | 2026-01-01 | init | Initial draft | — |\n"
+            ),
+        )
         review._patch_marker(p, "002", "answer")
         text = p.read_text()
         assert "NC-002 resolved via Jira/Confluence comment" in text
         assert text.index("| 1.1 |") < text.index("| 1.0 |")  # new row inserted first
 
     def test_missing_marker_id_returns_false_and_leaves_file_untouched(self, project):
-        p = self._doc(project, "brd", (
-            "# BRD\n> Version: 1.0\n\n[NEEDS CLARIFICATION-002: q?]\n"
-        ))
+        p = self._doc(
+            project, "brd", ("# BRD\n> Version: 1.0\n\n[NEEDS CLARIFICATION-002: q?]\n")
+        )
         before = p.read_text()
         assert review._patch_marker(p, "999", "answer") is False
         assert p.read_text() == before
@@ -1262,9 +1643,9 @@ class TestPatchMarker:
     def test_no_version_history_section_still_patches_marker(self, project):
         """Best-effort: missing Version History table must not block the
         marker replacement itself, only skip that bonus bookkeeping."""
-        p = self._doc(project, "brd", (
-            "# BRD\n> Version: 1.0\n\n[NEEDS CLARIFICATION-002: q?]\n"
-        ))
+        p = self._doc(
+            project, "brd", ("# BRD\n> Version: 1.0\n\n[NEEDS CLARIFICATION-002: q?]\n")
+        )
         assert review._patch_marker(p, "002", "answer") is True
         assert "answer" in p.read_text()
 
@@ -1276,20 +1657,22 @@ class TestNumberLegacyMarkers:
         return p
 
     def test_numbers_unnumbered_markers_in_order(self, project):
-        p = self._doc(project, "brd", (
-            "# BRD\n\n"
-            "§4 [NEEDS CLARIFICATION: What problem does this solve?]\n\n"
-            "§5 [NEEDS CLARIFICATION: How long must records be retained?]\n"
-        ))
+        p = self._doc(
+            project,
+            "brd",
+            (
+                "# BRD\n\n"
+                "§4 [NEEDS CLARIFICATION: What problem does this solve?]\n\n"
+                "§5 [NEEDS CLARIFICATION: How long must records be retained?]\n"
+            ),
+        )
         assert review._number_legacy_markers(p) == 2
         text = p.read_text()
         assert "[NEEDS CLARIFICATION-001: What problem does this solve?]" in text
         assert "[NEEDS CLARIFICATION-002: How long must records be retained?]" in text
 
     def test_zero_pads_to_three_digits(self, project):
-        body = "\n".join(
-            f"[NEEDS CLARIFICATION: q{i}?]" for i in range(1, 11)
-        )
+        body = "\n".join(f"[NEEDS CLARIFICATION: q{i}?]" for i in range(1, 11))
         p = self._doc(project, "brd", body)
         review._number_legacy_markers(p)
         text = p.read_text()
@@ -1297,10 +1680,14 @@ class TestNumberLegacyMarkers:
         assert "[NEEDS CLARIFICATION-010:" in text
 
     def test_continues_after_highest_existing_number_in_mixed_doc(self, project):
-        p = self._doc(project, "brd", (
-            "[NEEDS CLARIFICATION-002: already numbered?]\n\n"
-            "[NEEDS CLARIFICATION: legacy, unnumbered?]\n"
-        ))
+        p = self._doc(
+            project,
+            "brd",
+            (
+                "[NEEDS CLARIFICATION-002: already numbered?]\n\n"
+                "[NEEDS CLARIFICATION: legacy, unnumbered?]\n"
+            ),
+        )
         assert review._number_legacy_markers(p) == 1
         text = p.read_text()
         assert "[NEEDS CLARIFICATION-002: already numbered?]" in text
@@ -1405,7 +1792,9 @@ class TestClarifyOpenItemsAndAnswers:
         answers = review._parse_clarify_answers(
             [{"body": "clarify:CF-001: Relaxed NFR-002 to allow FR-012's async path."}]
         )
-        assert answers == {"clarify:CF-001": "Relaxed NFR-002 to allow FR-012's async path."}
+        assert answers == {
+            "clarify:CF-001": "Relaxed NFR-002 to allow FR-012's async path."
+        }
 
         md = tmp_path / "clarify.md"
         md.write_text(text)
@@ -1413,7 +1802,10 @@ class TestClarifyOpenItemsAndAnswers:
         assert patched
         result = md.read_text()
         assert "{FILL THIS}" not in result
-        assert "| CF-001 | Consistency Finding (CRITICAL) | FR-012 violates NFR-002 | RESOLVED |" in result
+        assert (
+            "| CF-001 | Consistency Finding (CRITICAL) | FR-012 violates NFR-002 | RESOLVED |"
+            in result
+        )
 
     def test_parse_open_items_skips_resolved_rows(self):
         text = self._clarify_md().replace(
@@ -1451,7 +1843,10 @@ class TestClarifyOpenItemsAndAnswers:
     def test_patch_sets_confirmed_for_assumption_answered_yes(self, project):
         p = project / ".specify" / "features" / "auth" / "clarify.md"
         p.write_text(self._clarify_md())
-        assert review._patch_clarify_item(p, "ASM-001", "Yes, keep as monitored target.") is True
+        assert (
+            review._patch_clarify_item(p, "ASM-001", "Yes, keep as monitored target.")
+            is True
+        )
         text = p.read_text()
         assert "**Correct?** Yes, keep as monitored target." in text
         assert "| ASM-001 | Assumption | 99% availability target | CONFIRMED |" in text
@@ -1493,6 +1888,7 @@ class TestClarifyPushPullCommands:
     @pytest.fixture()
     def runner(self):
         from click.testing import CliRunner
+
         return CliRunner()
 
     @pytest.fixture()
@@ -1514,19 +1910,41 @@ class TestClarifyPushPullCommands:
         )
         return project
 
-    def test_push_questions_creates_ticket_with_clarify_items(self, clarify_project, runner):
+    def test_push_questions_creates_ticket_with_clarify_items(
+        self, clarify_project, runner
+    ):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
-            result = runner.invoke(review.review_command, ["push-questions", "--doc", "clarify"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            result = runner.invoke(
+                review.review_command, ["push-questions", "--doc", "clarify"]
+            )
 
         assert result.exit_code == 0, result.output
-        issue = next(f for f in fake_jira.created if "sdd-open-questions" in f.get("labels", []))
+        issue = next(
+            f for f in fake_jira.created if "sdd-open-questions" in f.get("labels", [])
+        )
         desc_text = issue["description"]["content"][0]["content"][0]["text"]
         assert "clarify:AMB-001" in desc_text
         assert "clarify:ASM-001" in desc_text
@@ -1536,25 +1954,45 @@ class TestClarifyPushPullCommands:
         self, clarify_project, runner
     ):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
         fake_confluence = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=fake_confluence):
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch("sdd.commands.review.ConfluenceClient", return_value=fake_confluence),
+        ):
             runner.invoke(review.review_command, ["push-questions", "--doc", "clarify"])
             issue_key = review._load_review_links()["clarify"]["key"]
-            fake_jira.comments_by_key[issue_key] = [{
-                "body": "clarify:AMB-001: Intentional split.\n"
-                        "clarify:ASM-001: Yes, keep as monitored target.",
-                "author": {"displayName": "Architect"}, "created": "2026-01-02T00:00:00+00:00",
-            }]
-            result = runner.invoke(review.review_command, ["pull-answers", "--doc", "clarify"])
+            fake_jira.comments_by_key[issue_key] = [
+                {
+                    "body": "clarify:AMB-001: Intentional split.\n"
+                    "clarify:ASM-001: Yes, keep as monitored target.",
+                    "author": {"displayName": "Architect"},
+                    "created": "2026-01-02T00:00:00+00:00",
+                }
+            ]
+            result = runner.invoke(
+                review.review_command, ["pull-answers", "--doc", "clarify"]
+            )
 
         assert result.exit_code == 0, result.output
-        text = (clarify_project / ".specify" / "features" / "auth" / "clarify.md").read_text()
+        text = (
+            clarify_project / ".specify" / "features" / "auth" / "clarify.md"
+        ).read_text()
         assert "Intentional split." in text
         assert "| AMB-001 | Ambiguity | clearing_ref naming | RESOLVED |" in text
         assert "| ASM-001 | Assumption | 99% availability target | CONFIRMED |" in text
@@ -1566,6 +2004,7 @@ class TestPushPullQuestionsCommands:
     @pytest.fixture()
     def runner(self):
         from click.testing import CliRunner
+
         return CliRunner()
 
     @pytest.fixture()
@@ -1603,40 +2042,84 @@ class TestPushPullQuestionsCommands:
         )
         return project
 
-    def test_push_questions_creates_ticket_with_open_questions_label(self, blocked_project, runner):
+    def test_push_questions_creates_ticket_with_open_questions_label(
+        self, blocked_project, runner
+    ):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
-            result = runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            result = runner.invoke(
+                review.review_command, ["push-questions", "--doc", "validate"]
+            )
 
         assert result.exit_code == 0, result.output
-        issue = next(f for f in fake_jira.created if "sdd-open-questions" in f.get("labels", []))
+        issue = next(
+            f for f in fake_jira.created if "sdd-open-questions" in f.get("labels", [])
+        )
         assert "sdd-doc:auth:validate" in issue["labels"]
         assert "brd:NC-001" in issue["description"]["content"][0]["content"][0]["text"]
         links = review._load_review_links()
         assert links["validate"]["key"].startswith("PROJ-")
 
-    def test_push_questions_uses_same_idempotency_label_as_submit(self, blocked_project, runner):
+    def test_push_questions_uses_same_idempotency_label_as_submit(
+        self, blocked_project, runner
+    ):
         """The whole point of reusing sdd-doc:{feature}:{doc} as the label
         is that `sdd review submit --doc validate` later finds this exact
         ticket via find_by_label and updates it in place, rather than
         creating a second one -- verified here by calling submit right
         after push-questions and checking only one ticket key exists."""
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
-            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
-            result = runner.invoke(review.review_command, ["submit", "--doc", "validate"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            runner.invoke(
+                review.review_command, ["push-questions", "--doc", "validate"]
+            )
+            result = runner.invoke(
+                review.review_command, ["submit", "--doc", "validate"]
+            )
 
         assert result.exit_code == 0, result.output
         # push-questions creates 2 issues (the Epic + the open-questions
@@ -1649,43 +2132,92 @@ class TestPushPullQuestionsCommands:
         open_questions_key = fake_jira.by_label["sdd-doc:auth:validate"]["key"]
         assert open_questions_key in [key for key, _ in fake_jira.updated]
 
-    def test_submit_posts_transition_comment_when_reusing_open_questions_ticket(self, blocked_project, runner):
+    def test_submit_posts_transition_comment_when_reusing_open_questions_ticket(
+        self, blocked_project, runner
+    ):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
-            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            runner.invoke(
+                review.review_command, ["push-questions", "--doc", "validate"]
+            )
             runner.invoke(review.review_command, ["submit", "--doc", "validate"])
 
         assert len(fake_jira.added_comments) == 1
         issue_key, text = fake_jira.added_comments[0]
         assert "ready for full review" in text
 
-    def test_pull_answers_patches_both_docs_and_multi_location_question(self, blocked_project, runner):
+    def test_pull_answers_patches_both_docs_and_multi_location_question(
+        self, blocked_project, runner
+    ):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
-            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            runner.invoke(
+                review.review_command, ["push-questions", "--doc", "validate"]
+            )
             issue_key = review._load_review_links()["validate"]["key"]
-            fake_jira.comments_by_key[issue_key] = [{
-                "body": "brd:NC-001: Demonstrates real-time settlement.\n"
-                        "brd:NC-002: 90 days per policy DR-014.",
-                "author": {"displayName": "PO"}, "created": "2026-01-02T00:00:00+00:00",
-            }]
-            result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+            fake_jira.comments_by_key[issue_key] = [
+                {
+                    "body": "brd:NC-001: Demonstrates real-time settlement.\n"
+                    "brd:NC-002: 90 days per policy DR-014.",
+                    "author": {"displayName": "PO"},
+                    "created": "2026-01-02T00:00:00+00:00",
+                }
+            ]
+            result = runner.invoke(
+                review.review_command, ["pull-answers", "--doc", "validate"]
+            )
 
         assert result.exit_code == 0, result.output
-        brd_text = (blocked_project / ".specify" / "features" / "auth" / "brd.md").read_text()
-        srd_text = (blocked_project / ".specify" / "features" / "auth" / "srd.md").read_text()
+        brd_text = (
+            blocked_project / ".specify" / "features" / "auth" / "brd.md"
+        ).read_text()
+        srd_text = (
+            blocked_project / ".specify" / "features" / "auth" / "srd.md"
+        ).read_text()
         assert "Demonstrates real-time settlement." in brd_text
         assert "NEEDS CLARIFICATION-001" not in brd_text
         # brd:NC-002's answer must also patch srd:NC-001 (multi-location row)
@@ -1693,12 +2225,18 @@ class TestPushPullQuestionsCommands:
         assert "90 days per policy DR-014." in srd_text
         assert "NEEDS CLARIFICATION-001" not in srd_text
 
-    def test_pull_answers_exits_quietly_when_no_ticket_recorded_yet(self, blocked_project, runner):
-        result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+    def test_pull_answers_exits_quietly_when_no_ticket_recorded_yet(
+        self, blocked_project, runner
+    ):
+        result = runner.invoke(
+            review.review_command, ["pull-answers", "--doc", "validate"]
+        )
         assert result.exit_code == 0
 
     def test_pull_answers_exits_quietly_when_not_configured(self, project, runner):
-        result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+        result = runner.invoke(
+            review.review_command, ["pull-answers", "--doc", "validate"]
+        )
         assert result.exit_code == 0
 
     @pytest.fixture()
@@ -1746,38 +2284,69 @@ class TestPushPullQuestionsCommands:
         self, legacy_blocked_project, runner
     ):
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=FakeConfluenceClient()):
-            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            runner.invoke(
+                review.review_command, ["push-questions", "--doc", "validate"]
+            )
             issue_key = review._load_review_links()["validate"]["key"]
-            fake_jira.comments_by_key[issue_key] = [{
-                "body": "brd:NC-001: Demonstrates real-time settlement.\n"
-                        "uc:NC-001: 409 Conflict.",
-                "author": {"displayName": "PO"}, "created": "2026-01-02T00:00:00+00:00",
-            }]
+            fake_jira.comments_by_key[issue_key] = [
+                {
+                    "body": "brd:NC-001: Demonstrates real-time settlement.\n"
+                    "uc:NC-001: 409 Conflict.",
+                    "author": {"displayName": "PO"},
+                    "created": "2026-01-02T00:00:00+00:00",
+                }
+            ]
             # Before the fix, brd.md/use-cases.md still have the OLD
             # unnumbered `[NEEDS CLARIFICATION: ...]` form -- confirm that
             # precondition explicitly, matching the live `grep -o
             # "NEEDS CLARIFICATION-[0-9]*"` diagnostic that proved the bug.
-            brd_before = (legacy_blocked_project / ".specify" / "features" / "auth" / "brd.md").read_text()
+            brd_before = (
+                legacy_blocked_project / ".specify" / "features" / "auth" / "brd.md"
+            ).read_text()
             assert "NEEDS CLARIFICATION-" not in brd_before
 
-            result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+            result = runner.invoke(
+                review.review_command, ["pull-answers", "--doc", "validate"]
+            )
 
         assert result.exit_code == 0, result.output
-        brd_text = (legacy_blocked_project / ".specify" / "features" / "auth" / "brd.md").read_text()
-        uc_text = (legacy_blocked_project / ".specify" / "features" / "auth" / "use-cases.md").read_text()
+        brd_text = (
+            legacy_blocked_project / ".specify" / "features" / "auth" / "brd.md"
+        ).read_text()
+        uc_text = (
+            legacy_blocked_project / ".specify" / "features" / "auth" / "use-cases.md"
+        ).read_text()
         assert "Demonstrates real-time settlement." in brd_text
         assert "NEEDS CLARIFICATION" not in brd_text
         assert "409 Conflict." in uc_text
         assert "NEEDS CLARIFICATION" not in uc_text
 
-    def test_pull_answers_refreshes_confluence_pages_of_patched_docs(self, blocked_project, runner):
+    def test_pull_answers_refreshes_confluence_pages_of_patched_docs(
+        self, blocked_project, runner
+    ):
         """BRD/SRD's Confluence pages (created back at their own
         /specify-brd -> `sdd review submit` time) must not go stale once
         pull-answers resolves their markers -- each patched doc's page
@@ -1785,23 +2354,45 @@ class TestPushPullQuestionsCommands:
         pre-answer [NEEDS CLARIFICATION] text until someone remembers to
         run `sdd confluence push --doc brd` by hand."""
         from sdd.utils.atlassian_auth import Profile
+
         fake_jira = FakeJiraClient()
         fake_confluence = FakeConfluenceClient()
-        with patch("sdd.commands.review.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.load_confluence_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.review.JiraClient", return_value=fake_jira), \
-             patch("sdd.commands.review.ConfluenceClient", return_value=fake_confluence), \
-             patch("sdd.commands.confluence.ConfluenceClient", return_value=fake_confluence):
-            runner.invoke(review.review_command, ["push-questions", "--doc", "validate"])
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch("sdd.commands.review.ConfluenceClient", return_value=fake_confluence),
+            patch(
+                "sdd.commands.confluence.ConfluenceClient", return_value=fake_confluence
+            ),
+        ):
+            runner.invoke(
+                review.review_command, ["push-questions", "--doc", "validate"]
+            )
             issue_key = review._load_review_links()["validate"]["key"]
-            fake_jira.comments_by_key[issue_key] = [{
-                "body": "brd:NC-001: Demonstrates real-time settlement.\n"
-                        "brd:NC-002: 90 days per policy DR-014.",
-                "author": {"displayName": "PO"}, "created": "2026-01-02T00:00:00+00:00",
-            }]
-            result = runner.invoke(review.review_command, ["pull-answers", "--doc", "validate"])
+            fake_jira.comments_by_key[issue_key] = [
+                {
+                    "body": "brd:NC-001: Demonstrates real-time settlement.\n"
+                    "brd:NC-002: 90 days per policy DR-014.",
+                    "author": {"displayName": "PO"},
+                    "created": "2026-01-02T00:00:00+00:00",
+                }
+            ]
+            result = runner.invoke(
+                review.review_command, ["pull-answers", "--doc", "validate"]
+            )
 
         assert result.exit_code == 0, result.output
         # brd:NC-002's answer patches both brd.md and srd.md (multi-location

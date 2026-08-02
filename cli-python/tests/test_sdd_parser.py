@@ -21,7 +21,13 @@ from sdd.utils.sdd_parser import (
     UseCase,
 )
 
-_PACKS_ROOT = Path(__file__).resolve().parents[2] / "packs" / "sdd-backend-service" / ".specify" / "templates"
+_PACKS_ROOT = (
+    Path(__file__).resolve().parents[2]
+    / "packs"
+    / "sdd-backend-service"
+    / ".specify"
+    / "templates"
+)
 
 
 def _load_template(name: str) -> str:
@@ -29,6 +35,7 @@ def _load_template(name: str) -> str:
 
 
 # ── golden: the actual shipped templates must parse correctly ─────────────────
+
 
 def test_current_shipped_story_template_parses_correctly():
     stories = _parse_stories_text(_load_template("feature-story-template.md"))
@@ -38,7 +45,11 @@ def test_current_shipped_story_template_parses_correctly():
         assert s.id == "STORY-001"
         assert s.satisfies, "Linked FRs: field must be extracted"
         assert s.acceptance_criteria, "Acceptance Criteria: bullets must be extracted"
-        assert "As" in s.description and "I want" in s.description and "So that" in s.description
+        assert (
+            "As" in s.description
+            and "I want" in s.description
+            and "So that" in s.description
+        )
 
 
 def test_current_shipped_tasks_template_parses_correctly():
@@ -68,6 +79,7 @@ def test_perf_task_inline_files_field_captured_as_description():
 
 
 # ── current template field styles, isolated ────────────────────────────────
+
 
 def test_story_colon_heading_and_unbolded_as_field():
     text = (
@@ -152,6 +164,7 @@ def test_moscow_bucket_header_with_trailing_word_normalizes_correctly():
 # ── older generated-doc style (em-dash heading, bold fields, H2 tasks,
 #    Description: paragraph, Estimate: not Estimated lines:) still parses ──
 
+
 def test_older_em_dash_heading_and_bold_satisfies_still_parses():
     text = (
         "## Must Have\n\n"
@@ -197,6 +210,7 @@ def test_older_h2_heading_bold_fields_and_description_paragraph_still_parses():
 
 # ── pre-existing coverage: derived_uc / parse_use_cases ────────────────────
 
+
 def test_story_with_derived_from_field_sets_derived_uc():
     text = (
         "## Must Have\n\n"
@@ -211,11 +225,7 @@ def test_story_with_derived_from_field_sets_derived_uc():
 
 
 def test_story_without_derived_from_field_leaves_it_none():
-    text = (
-        "## Must Have\n\n"
-        "### STORY-001 — Submit payment\n"
-        "**Satisfies:** FR-001\n"
-    )
+    text = "## Must Have\n\n### STORY-001 — Submit payment\n**Satisfies:** FR-001\n"
     stories = _parse_stories_text(text)
     assert stories[0].derived_uc is None
 

@@ -50,7 +50,9 @@ class TestUploadAttachment:
 
     def test_sends_filename_content_and_media_type_as_multipart_file(self):
         client, session, _ = self._client()
-        client.upload_attachment("12345", "diagram-1.svg", b"<svg>data</svg>", "image/svg+xml")
+        client.upload_attachment(
+            "12345", "diagram-1.svg", b"<svg>data</svg>", "image/svg+xml"
+        )
         _, kwargs = session.post.call_args
         assert kwargs["files"] == {
             "file": ("diagram-1.svg", b"<svg>data</svg>", "image/svg+xml")
@@ -60,7 +62,9 @@ class TestUploadAttachment:
         client, session, response = self._client()
         response.raise_for_status.side_effect = RuntimeError("500 Server Error")
         try:
-            client.upload_attachment("12345", "diagram-1.svg", b"<svg/>", "image/svg+xml")
+            client.upload_attachment(
+                "12345", "diagram-1.svg", b"<svg/>", "image/svg+xml"
+            )
             assert False, "expected an exception"
         except RuntimeError:
             pass

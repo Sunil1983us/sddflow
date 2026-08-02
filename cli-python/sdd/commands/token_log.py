@@ -7,6 +7,7 @@ why) -- exits with a distinct, documented code for every reason a
 prompt calling this needs to branch on: opt-in gate not enabled, no
 transcript found (fall back to the estimate), or nothing new to log.
 None of these are errors in the usual sense; only exit 1 is."""
+
 from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
@@ -75,8 +76,13 @@ def _parse_table_row(line: str) -> dict | None:
         _, command, model, inp, out, cost, ts = cells
         source = "Estimated"  # legacy rows pre-date this column
     return {
-        "command": command, "model": model, "input": inp,
-        "output": out, "cost": cost, "source": source, "timestamp": ts,
+        "command": command,
+        "model": model,
+        "input": inp,
+        "output": out,
+        "cost": cost,
+        "source": source,
+        "timestamp": ts,
     }
 
 
@@ -120,7 +126,9 @@ def _parse_int(cell: str) -> int:
 
 def _init_from_template(feature_name: str) -> str:
     if TOKEN_USAGE_TEMPLATE_PATH.exists():
-        return TOKEN_USAGE_TEMPLATE_PATH.read_text().replace("{Feature Name}", feature_name)
+        return TOKEN_USAGE_TEMPLATE_PATH.read_text().replace(
+            "{Feature Name}", feature_name
+        )
     # Extremely defensive fallback -- the template ships in every pack,
     # this only triggers if someone deleted it from their own copy.
     return (
@@ -134,6 +142,7 @@ def _init_from_template(feature_name: str) -> str:
 
 def _rewrite_running_totals(text: str, all_rows: list[dict]) -> str:
     import re
+
     total_input = sum(_parse_int(r["input"]) for r in all_rows)
     total_output = sum(_parse_int(r["output"]) for r in all_rows)
     amounts = [_parse_amount(r["cost"]) for r in all_rows]
@@ -148,10 +157,13 @@ def _rewrite_running_totals(text: str, all_rows: list[dict]) -> str:
     for label, value in [
         ("Total Input Tokens", str(total_input)),
         ("Total Output Tokens", str(total_output)),
-        ("Total Est. Input Tokens", str(total_input)),   # legacy label, if still present
-        ("Total Est. Output Tokens", str(total_output)), # legacy label, if still present
+        ("Total Est. Input Tokens", str(total_input)),  # legacy label, if still present
+        (
+            "Total Est. Output Tokens",
+            str(total_output),
+        ),  # legacy label, if still present
         ("Total Cost (USD)", total_cost),
-        ("Total Est. Cost (USD)", total_cost),            # legacy label, if still present
+        ("Total Est. Cost (USD)", total_cost),  # legacy label, if still present
         ("Commands logged", str(len(all_rows))),
         ("Last updated", last_updated),
     ]:
@@ -161,10 +173,18 @@ def _rewrite_running_totals(text: str, all_rows: list[dict]) -> str:
 
 
 @click.command()
-@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
-@click.option("--command", "command_name", required=True,
-              help="Label for this command, e.g. specify-brd")
-@click.option("--dry-run", is_flag=True, help="Print what would be logged without writing")
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
+@click.option(
+    "--command",
+    "command_name",
+    required=True,
+    help="Label for this command, e.g. specify-brd",
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Print what would be logged without writing"
+)
 def token_log_command(feature, command_name, dry_run):
     """Log REAL token usage for one command, read from Claude Code's own
     local session transcript. Exits non-zero for every reason a caller
@@ -174,7 +194,9 @@ def token_log_command(feature, command_name, dry_run):
     proj = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
     if not feature_name:
-        console.print("[red]✗  No feature name -- pass --feature or set manifest.yml → project.feature[/red]")
+        console.print(
+            "[red]✗  No feature name -- pass --feature or set manifest.yml → project.feature[/red]"
+        )
         raise SystemExit(1)
 
     pricing = _load_pricing()
@@ -205,11 +227,14 @@ def token_log_command(feature, command_name, dry_run):
     # command work. Nothing meaningful to log for a bucket that's zero
     # across every field.
     usage_by_model = {
-        model: usage for model, usage in usage_by_model.items()
+        model: usage
+        for model, usage in usage_by_model.items()
         if usage.billed_input_tokens or usage.output_tokens
     }
     if not usage_by_model:
-        console.print("[dim]·  No new Claude Code usage since the last logged row -- nothing to log.[/dim]")
+        console.print(
+            "[dim]·  No new Claude Code usage since the last logged row -- nothing to log.[/dim]"
+        )
         raise SystemExit(0)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -217,15 +242,17 @@ def token_log_command(feature, command_name, dry_run):
     for model, usage in sorted(usage_by_model.items()):
         input_tokens = usage.billed_input_tokens
         output_tokens = usage.output_tokens
-        new_rows.append({
-            "command": command_name,
-            "model": model,
-            "input": str(input_tokens),
-            "output": str(output_tokens),
-            "cost": _cost_for(pricing, model, input_tokens, output_tokens),
-            "source": "Real (Claude Code)",
-            "timestamp": now,
-        })
+        new_rows.append(
+            {
+                "command": command_name,
+                "model": model,
+                "input": str(input_tokens),
+                "output": str(output_tokens),
+                "cost": _cost_for(pricing, model, input_tokens, output_tokens),
+                "source": "Real (Claude Code)",
+                "timestamp": now,
+            }
+        )
 
     if dry_run:
         for r in new_rows:
@@ -245,13 +272,18 @@ def token_log_command(feature, command_name, dry_run):
         # (|---|---|), not Per-Command Log -- must anchor the search on
         # the heading first, or a bare "any separator row" search would
         # silently find and insert into the wrong table.
-        heading_idx = next(i for i, l in enumerate(lines) if l.strip() == "## Per-Command Log")
+        heading_idx = next(
+            i for i, l in enumerate(lines) if l.strip() == "## Per-Command Log"
+        )
         sep_idx = next(
-            i for i in range(heading_idx, len(lines))
+            i
+            for i in range(heading_idx, len(lines))
             if _TABLE_SEP_RE.match(lines[i].strip())
         )
     except StopIteration:
-        console.print(f"[red]✗  {token_usage_path} doesn't match the expected template shape -- not touching it[/red]")
+        console.print(
+            f"[red]✗  {token_usage_path} doesn't match the expected template shape -- not touching it[/red]"
+        )
         raise SystemExit(1)
 
     # Find the end of the existing table rows -- new rows are appended

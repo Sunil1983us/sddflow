@@ -27,9 +27,10 @@ def test_living_doc_title_is_identical_across_features():
 
 def test_living_doc_title_unaffected_when_template_has_no_feature_placeholder():
     page_map = {"security-design": "{project} — Security Design"}
-    assert _resolve_page_title(
-        "security-design", "MyProj", "instant-payment", page_map
-    ) == "MyProj — Security Design"
+    assert (
+        _resolve_page_title("security-design", "MyProj", "instant-payment", page_map)
+        == "MyProj — Security Design"
+    )
 
 
 def test_per_feature_doc_title_differs_when_template_opts_in():
@@ -51,9 +52,10 @@ def test_per_feature_doc_title_backward_compatible_without_feature_placeholder()
     opt-in via the template, not a silent default-behavior change that
     would orphan an already-pushed Confluence page."""
     page_map = {"brd": "{project} — Business Requirements"}
-    assert _resolve_page_title(
-        "brd", "MyProj", "instant-payment", page_map
-    ) == "MyProj — Business Requirements"
+    assert (
+        _resolve_page_title("brd", "MyProj", "instant-payment", page_map)
+        == "MyProj — Business Requirements"
+    )
 
 
 def test_context_page_title_always_includes_feature():
@@ -83,7 +85,9 @@ def test_constitution_page_title_is_project_wide_regardless_of_feature():
     treatment as living/service-level docs."""
     page_map = {"constitution": "Constitution"}
     title_a = _resolve_page_title("constitution", "MyProj", "instant-payment", page_map)
-    title_b = _resolve_page_title("constitution", "MyProj", "payment-dashboard", page_map)
+    title_b = _resolve_page_title(
+        "constitution", "MyProj", "payment-dashboard", page_map
+    )
     assert title_a == title_b == "MyProj — Constitution"
 
 

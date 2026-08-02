@@ -7,8 +7,10 @@ import yaml
 INTEGRATIONS_PATH = ".specify/integrations.yml"
 
 _PAGE_ID_URL_PATTERNS = [
-    re.compile(r"/pages/(\d+)(?:/|$)"),   # Cloud: .../wiki/spaces/ENG/pages/123456789/Title
-    re.compile(r"[?&]pageId=(\d+)"),      # Server/DC: viewpage.action?pageId=123456
+    re.compile(
+        r"/pages/(\d+)(?:/|$)"
+    ),  # Cloud: .../wiki/spaces/ENG/pages/123456789/Title
+    re.compile(r"[?&]pageId=(\d+)"),  # Server/DC: viewpage.action?pageId=123456
 ]
 
 
@@ -32,23 +34,24 @@ def parse_confluence_page_id(raw: str | None) -> str | None:
             return m.group(1)
     return raw
 
+
 _DEFAULT_PAGE_MAP = {
-    "brd":       "{project} — Business Requirements",
+    "brd": "{project} — Business Requirements",
     "use-cases": "{project} — Use Cases",
-    "srd":       "{project} — System Requirements",
-    "design":    "{project} — Design",
-    "arch":      "{project} — Architecture Overview",
-    "hld":       "{project} — High-Level Design",
-    "adr":       "{project} — Architecture Decisions",
-    "lld":       "{project} — Low-Level Design",
-    "runbook":   "{project} — Runbook",
+    "srd": "{project} — System Requirements",
+    "design": "{project} — Design",
+    "arch": "{project} — Architecture Overview",
+    "hld": "{project} — High-Level Design",
+    "adr": "{project} — Architecture Decisions",
+    "lld": "{project} — Low-Level Design",
+    "runbook": "{project} — Runbook",
 }
 
 _DEFAULT_PRIORITY_MAP = {
-    "must-have":   "High",
+    "must-have": "High",
     "should-have": "Medium",
-    "could-have":  "Low",
-    "wont-have":   "Lowest",
+    "could-have": "Low",
+    "wont-have": "Lowest",
 }
 
 
@@ -72,11 +75,13 @@ class JiraConfig:
     # linking issues across projects, so overriding this can produce
     # issues that exist but aren't actually linked to their parent.
     project_keys: dict = field(default_factory=dict)
-    issue_hierarchy: dict = field(default_factory=lambda: {
-        "feature": "Feature",
-        "story":   "Story",
-        "task":    "Task",
-    })
+    issue_hierarchy: dict = field(
+        default_factory=lambda: {
+            "feature": "Feature",
+            "story": "Story",
+            "task": "Task",
+        }
+    )
     parent_field: str = "parent"
     # Optional per-level overrides for parent_field -- e.g.
     # {"feature": "customfield_10014"} when the Epic's project (see
@@ -142,6 +147,7 @@ class DiagramsConfig:
     "none" -- md_to_cf.py's dispatch only special-cases the four
     recognized values, so a typo never crashes, it just silently
     doesn't render diagrams."""
+
     mode: str = "none"
     # ac:name of the installed Mermaid-rendering app's macro. Only used
     # when mode == "mermaid-app"; a ```mermaid fence with no macro_name
@@ -177,11 +183,11 @@ class ConfluenceConfig:
 
 @dataclass
 class DocumentReview:
-    reviewer_jira_user: str   # Jira accountId (Cloud) or username (Server/DC)
-    reviewer_role: str        # Human-readable label e.g. "Product Owner"
-    phase: str                # specify | planning | tasks | release
-    sequence: int             # 1-based order within the phase
-    confluence_page: str      # page title template, supports {project}
+    reviewer_jira_user: str  # Jira accountId (Cloud) or username (Server/DC)
+    reviewer_role: str  # Human-readable label e.g. "Product Owner"
+    phase: str  # specify | planning | tasks | release
+    sequence: int  # 1-based order within the phase
+    confluence_page: str  # page title template, supports {project}
 
 
 @dataclass
@@ -194,7 +200,7 @@ class PrAutomation:
 @dataclass
 class CodeReviewConfig:
     enabled: bool = True
-    pre_review: bool = True   # false = skip pre-review, go straight to human review
+    pre_review: bool = True  # false = skip pre-review, go straight to human review
 
 
 @dataclass
@@ -203,11 +209,15 @@ class IntegrationsConfig:
     jira: JiraConfig | None
     confluence: ConfluenceConfig | None
     document_reviews: dict[str, DocumentReview] = field(default_factory=dict)
-    approved_statuses: list[str] = field(
-        default_factory=lambda: ["Done", "Approved"]
-    )
+    approved_statuses: list[str] = field(default_factory=lambda: ["Done", "Approved"])
     approved_keywords: list[str] = field(
-        default_factory=lambda: ["approved", "lgtm", "looks good", "go ahead", "confirmed"]
+        default_factory=lambda: [
+            "approved",
+            "lgtm",
+            "looks good",
+            "go ahead",
+            "confirmed",
+        ]
     )
     pr_automation: PrAutomation = field(default_factory=PrAutomation)
     code_review: CodeReviewConfig = field(default_factory=CodeReviewConfig)
@@ -247,8 +257,8 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             project_keys=jira_raw.get("project_keys", {}),
             issue_hierarchy={
                 "feature": hierarchy.get("feature", "Feature"),
-                "story":   hierarchy.get("story",   "Story"),
-                "task":    hierarchy.get("task",     "Task"),
+                "story": hierarchy.get("story", "Story"),
+                "task": hierarchy.get("task", "Task"),
             },
             parent_field=jira_raw.get("parent_field", "parent"),
             parent_field_by_level=jira_raw.get("parent_field_by_level", {}),
@@ -271,8 +281,12 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             page_map=cf_raw.get("page_map", dict(_DEFAULT_PAGE_MAP)),
             diagrams=DiagramsConfig(
                 mode=diagrams_raw.get("mode", "none"),
-                mermaid_app_macro=(diagrams_raw.get("mermaid_app") or {}).get("macro_name"),
-                plantuml_macro=(diagrams_raw.get("plantuml_macro") or {}).get("macro_name"),
+                mermaid_app_macro=(diagrams_raw.get("mermaid_app") or {}).get(
+                    "macro_name"
+                ),
+                plantuml_macro=(diagrams_raw.get("plantuml_macro") or {}).get(
+                    "macro_name"
+                ),
                 local_svg_width=(diagrams_raw.get("local_svg") or {}).get("width", 900),
             ),
         )
@@ -286,7 +300,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             sequence=int(dr_raw.get("sequence", 1)),
             confluence_page=dr_raw.get(
                 "confluence_page",
-                _DEFAULT_PAGE_MAP.get(doc_key, f"{{project}} — {doc_key.upper()}")
+                _DEFAULT_PAGE_MAP.get(doc_key, f"{{project}} — {doc_key.upper()}"),
             ),
         )
 
@@ -311,7 +325,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
         approved_statuses=raw.get("approved_statuses", ["Done", "Approved"]),
         approved_keywords=raw.get(
             "approved_keywords",
-            ["approved", "lgtm", "looks good", "go ahead", "confirmed"]
+            ["approved", "lgtm", "looks good", "go ahead", "confirmed"],
         ),
         pr_automation=pr_automation,
         code_review=code_review,

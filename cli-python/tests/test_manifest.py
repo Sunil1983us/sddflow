@@ -8,7 +8,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-from sdd.utils.manifest import ManifestError, read_manifest, write_manifest, patch_manifest
+from sdd.utils.manifest import (
+    ManifestError,
+    read_manifest,
+    write_manifest,
+    patch_manifest,
+)
 
 
 def test_read_manifest_returns_none_when_missing(tmp_path):
@@ -37,7 +42,9 @@ def test_read_manifest_error_message_mentions_recovery_options(tmp_path):
     with pytest.raises(ManifestError) as excinfo:
         read_manifest(str(p))
     msg = str(excinfo.value).lower()
-    assert "sdd init" in msg or "git" in msg  # points at a way out, not just "it's broken"
+    assert (
+        "sdd init" in msg or "git" in msg
+    )  # points at a way out, not just "it's broken"
 
 
 def test_write_manifest_creates_parent_directories(tmp_path):
@@ -102,7 +109,9 @@ def test_write_manifest_cleans_up_temp_file_on_failure(tmp_path, monkeypatch):
         write_manifest({"project": {"name": "Demo"}}, str(p))
 
     leftovers = list(tmp_path.iterdir())
-    assert leftovers == [], f"temp file(s) left behind after a failed write: {leftovers}"
+    assert leftovers == [], (
+        f"temp file(s) left behind after a failed write: {leftovers}"
+    )
 
 
 def test_patch_manifest_still_raises_filenotfound_when_missing(tmp_path):

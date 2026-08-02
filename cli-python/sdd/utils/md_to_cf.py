@@ -4,6 +4,7 @@ Handles the subset of Markdown used in SDD documents:
   headings, **bold**, *italic*, `inline code`, fenced code blocks,
   unordered lists (- item), ordered lists (1. item), paragraphs, ---
 """
+
 from __future__ import annotations
 import re
 import html
@@ -16,7 +17,9 @@ from sdd.utils.integrations import DiagramsConfig
 Attachment = tuple[str, bytes, str]
 
 
-def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str, list[Attachment], list[str]]:
+def md_to_storage(
+    md: str, diagrams: DiagramsConfig | None = None
+) -> tuple[str, list[Attachment], list[str]]:
     """Convert Markdown to Confluence storage-format XHTML.
 
     Returns (html, attachments, warnings). attachments is always [] except
@@ -42,7 +45,7 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
     lines = md.splitlines()
     out: list[str] = []
     i = 0
-    in_list: str | None = None    # "ul" | "ol" | None
+    in_list: str | None = None  # "ul" | "ol" | None
     para_buf: list[str] = []
 
     def flush_para() -> None:
@@ -63,7 +66,7 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
         line = lines[i]
 
         # Fenced code block
-        fence = re.match(r'^```(\w*)', line)
+        fence = re.match(r"^```(\w*)", line)
         if fence:
             flush_para()
             flush_list()
@@ -73,12 +76,16 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
             while i < len(lines) and not lines[i].startswith("```"):
                 code_lines.append(lines[i])
                 i += 1
-            out.append(_render_fence(lang, "\n".join(code_lines), diagrams, attachments, warnings))
+            out.append(
+                _render_fence(
+                    lang, "\n".join(code_lines), diagrams, attachments, warnings
+                )
+            )
             i += 1
             continue
 
         # Headings
-        m = re.match(r'^(#{1,6})\s+(.*)', line)
+        m = re.match(r"^(#{1,6})\s+(.*)", line)
         if m:
             flush_para()
             flush_list()
@@ -88,7 +95,7 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
             continue
 
         # Horizontal rule
-        if re.match(r'^-{3,}\s*$', line):
+        if re.match(r"^-{3,}\s*$", line):
             flush_para()
             flush_list()
             out.append("<hr/>")
@@ -96,7 +103,7 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
             continue
 
         # Unordered list
-        m = re.match(r'^[-*]\s+(.*)', line)
+        m = re.match(r"^[-*]\s+(.*)", line)
         if m:
             flush_para()
             if in_list != "ul":
@@ -108,7 +115,7 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
             continue
 
         # Ordered list
-        m = re.match(r'^\d+\.\s+(.*)', line)
+        m = re.match(r"^\d+\.\s+(.*)", line)
         if m:
             flush_para()
             if in_list != "ol":
@@ -121,7 +128,11 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
 
         # GFM pipe table: a "| cell | cell |" row followed by a
         # "|---|---|" separator row
-        if line.strip().startswith("|") and i + 1 < len(lines) and _is_table_separator(lines[i + 1]):
+        if (
+            line.strip().startswith("|")
+            and i + 1 < len(lines)
+            and _is_table_separator(lines[i + 1])
+        ):
             flush_para()
             flush_list()
             header = _split_table_row(line)
@@ -151,8 +162,13 @@ def md_to_storage(md: str, diagrams: DiagramsConfig | None = None) -> tuple[str,
     return "\n".join(out), attachments, warnings
 
 
-def _render_fence(lang: str, code: str, diagrams: DiagramsConfig,
-                   attachments: list[Attachment], warnings: list[str]) -> str:
+def _render_fence(
+    lang: str,
+    code: str,
+    diagrams: DiagramsConfig,
+    attachments: list[Attachment],
+    warnings: list[str],
+) -> str:
     """Render one fenced code block. A ```mermaid or ```plantuml fence
     routes through the matching installed Confluence app's macro when
     diagrams.mode selects it and a macro name is configured, or through
@@ -183,20 +199,23 @@ def _render_fence(lang: str, code: str, diagrams: DiagramsConfig,
             "instead of a diagram"
         )
     if lang == "mermaid" and diagrams.mode == "local-svg":
-        rendered = _render_local_svg(code, diagrams.local_svg_width, attachments, warnings)
+        rendered = _render_local_svg(
+            code, diagrams.local_svg_width, attachments, warnings
+        )
         if rendered is not None:
             return rendered
     escaped = html.escape(code)
     return (
         f'<ac:structured-macro ac:name="code">'
         f'<ac:parameter ac:name="language">{lang or "none"}</ac:parameter>'
-        f'<ac:plain-text-body><![CDATA[{escaped}]]></ac:plain-text-body>'
-        f'</ac:structured-macro>'
+        f"<ac:plain-text-body><![CDATA[{escaped}]]></ac:plain-text-body>"
+        f"</ac:structured-macro>"
     )
 
 
-def _render_local_svg(code: str, width: int, attachments: list[Attachment],
-                       warnings: list[str]) -> str | None:
+def _render_local_svg(
+    code: str, width: int, attachments: list[Attachment], warnings: list[str]
+) -> str | None:
     """Render Mermaid source to SVG locally and queue it as a page
     attachment. Returns None (never raises) on any failure -- a missing
     optional dependency, invalid diagram source, or renderer bug must
@@ -210,10 +229,13 @@ def _render_local_svg(code: str, width: int, attachments: list[Attachment],
     Mermaid's renderer typically sets to a few hundred pixels, forcing the
     reader to open and zoom to read the diagram."""
     from sdd.utils.mermaid_render import render_mermaid_svg
+
     try:
         svg = render_mermaid_svg(code)
     except Exception as e:
-        warnings.append(f"Diagram failed to render ({e}) -- shown as plain code instead")
+        warnings.append(
+            f"Diagram failed to render ({e}) -- shown as plain code instead"
+        )
         return None
     # mmdr has occasionally been observed to return a well-formed-looking
     # but empty or truncated result for certain diagram shapes (long
@@ -235,7 +257,7 @@ def _render_local_svg(code: str, width: int, attachments: list[Attachment],
     return (
         f'<ac:image ac:width="{width}">'
         f'<ri:attachment ri:filename="{filename}" />'
-        f'</ac:image>'
+        f"</ac:image>"
     )
 
 
@@ -248,8 +270,8 @@ def _diagram_macro(macro_name: str, source: str) -> str:
     escaped = html.escape(source)
     return (
         f'<ac:structured-macro ac:name="{macro_name}">'
-        f'<ac:plain-text-body><![CDATA[{escaped}]]></ac:plain-text-body>'
-        f'</ac:structured-macro>'
+        f"<ac:plain-text-body><![CDATA[{escaped}]]></ac:plain-text-body>"
+        f"</ac:structured-macro>"
     )
 
 
@@ -263,21 +285,21 @@ def _split_table_row(line: str) -> list[str]:
         line = line[1:]
     if line.endswith("|") and not line.endswith(r"\|"):
         line = line[:-1]
-    cells = re.split(r'(?<!\\)\|', line)
-    return [c.strip().replace(r'\|', '|') for c in cells]
+    cells = re.split(r"(?<!\\)\|", line)
+    return [c.strip().replace(r"\|", "|") for c in cells]
 
 
 def _is_table_separator(line: str) -> bool:
     """True for a GFM table's header/body divider row, e.g. '|---|---|'
     or '|:---|:---:|---:|' (alignment markers)."""
     cells = _split_table_row(line)
-    return bool(cells) and all(re.match(r'^:?-{1,}:?$', c) for c in cells)
+    return bool(cells) and all(re.match(r"^:?-{1,}:?$", c) for c in cells)
 
 
 _ALIGN_STYLE = {
-    "left":   "text-align:left",
+    "left": "text-align:left",
     "center": "text-align:center",
-    "right":  "text-align:right",
+    "right": "text-align:right",
 }
 
 
@@ -300,6 +322,7 @@ def _render_table(header: list[str], rows: list[list[str]], align: list[str]) ->
     """Render a parsed GFM table as Confluence storage format's plain
     XHTML <table> markup -- Confluence renders this natively, no
     ac:structured-macro needed (unlike code blocks)."""
+
     def cell(tag: str, text: str, a: str) -> str:
         style = f' style="{_ALIGN_STYLE[a]}"' if a in _ALIGN_STYLE else ""
         return f"<{tag}{style}>{_inline(text)}</{tag}>"
@@ -309,15 +332,21 @@ def _render_table(header: list[str], rows: list[list[str]], align: list[str]) ->
         # markdown tables in hand-written docs aren't always perfectly
         # rectangular.
         row = row + [""] * max(0, len(header) - len(row))
-        return row[:len(header)] if header else row
+        return row[: len(header)] if header else row
 
     parts = ["<table><tbody><tr>"]
-    parts += [cell("th", h, align[idx] if idx < len(align) else "") for idx, h in enumerate(header)]
+    parts += [
+        cell("th", h, align[idx] if idx < len(align) else "")
+        for idx, h in enumerate(header)
+    ]
     parts.append("</tr>")
     for row in rows:
         row = pad(row)
         parts.append("<tr>")
-        parts += [cell("td", c, align[idx] if idx < len(align) else "") for idx, c in enumerate(row)]
+        parts += [
+            cell("td", c, align[idx] if idx < len(align) else "")
+            for idx, c in enumerate(row)
+        ]
         parts.append("</tr>")
     parts.append("</tbody></table>")
     return "".join(parts)
@@ -333,15 +362,15 @@ def _inline(text: str) -> str:
 
     def _process_non_link(segment: str) -> str:
         s = html.escape(segment, quote=False)
-        s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)
-        s = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<em>\1</em>', s)
-        s = re.sub(r'`([^`]+)`', r'<code>\1</code>', s)
+        s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
+        s = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<em>\1</em>", s)
+        s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         return s
 
-    for m in re.finditer(r'\[([^\]]+)\]\(([^)]+)\)', text):
-        parts.append(_process_non_link(text[last:m.start()]))
+    for m in re.finditer(r"\[([^\]]+)\]\(([^)]+)\)", text):
+        parts.append(_process_non_link(text[last : m.start()]))
         label = html.escape(m.group(1), quote=True)
-        url   = html.escape(m.group(2), quote=True)
+        url = html.escape(m.group(2), quote=True)
         parts.append(f'<a href="{url}">{label}</a>')
         last = m.end()
 

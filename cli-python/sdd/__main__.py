@@ -18,16 +18,16 @@ def cli():
     """SDD Framework CLI — Spec-Driven Development"""
 
 
-cli.add_command(init_command,        name="init")
-cli.add_command(upgrade_command,     name="upgrade")
-cli.add_command(config_command,      name="config")
-cli.add_command(jira_command,        name="jira")
-cli.add_command(confluence_command,  name="confluence")
-cli.add_command(review_command,      name="review")
-cli.add_command(cr_command,          name="cr")
-cli.add_command(pr_command,          name="pr")
-cli.add_command(dashboard_command,   name="dashboard")
-cli.add_command(token_log_command,   name="token-log")
+cli.add_command(init_command, name="init")
+cli.add_command(upgrade_command, name="upgrade")
+cli.add_command(config_command, name="config")
+cli.add_command(jira_command, name="jira")
+cli.add_command(confluence_command, name="confluence")
+cli.add_command(review_command, name="review")
+cli.add_command(cr_command, name="cr")
+cli.add_command(pr_command, name="pr")
+cli.add_command(dashboard_command, name="dashboard")
+cli.add_command(token_log_command, name="token-log")
 
 
 if __name__ == "__main__":

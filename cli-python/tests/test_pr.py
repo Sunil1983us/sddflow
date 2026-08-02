@@ -9,7 +9,12 @@ from click.testing import CliRunner
 from unittest.mock import MagicMock, patch
 
 from sdd.commands.pr import pr_command
-from sdd.utils.git_host import PrCreateError, ReviewActionError, RemoteInfo, ReviewComment
+from sdd.utils.git_host import (
+    PrCreateError,
+    ReviewActionError,
+    RemoteInfo,
+    ReviewComment,
+)
 
 TASKS_MD = """
 ## TASK-001 — Add login endpoint
@@ -53,7 +58,9 @@ def runner():
 
 
 class TestPrCreate:
-    def test_creates_branch_and_pr_for_matched_task(self, runner, tmp_path, monkeypatch):
+    def test_creates_branch_and_pr_for_matched_task(
+        self, runner, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         _scaffold(tmp_path)
 
@@ -61,9 +68,14 @@ class TestPrCreate:
         provider.name = "github"
         provider.create_pr.return_value = "https://github.com/acme/shop/pull/7"
 
-        with patch("sdd.commands.pr._run", return_value=(0, "", "")) as run_mock, \
-             patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("github", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
+        with (
+            patch("sdd.commands.pr._run", return_value=(0, "", "")) as run_mock,
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("github", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
             result = runner.invoke(pr_command, ["create", "--task", "TASK-001"])
 
         assert result.exit_code == 0, result.output
@@ -90,7 +102,9 @@ class TestPrCreate:
         assert result.exit_code != 0
         assert "not found in tasks.md" in result.output
 
-    def test_missing_integrations_yml_exits_nonzero(self, runner, tmp_path, monkeypatch):
+    def test_missing_integrations_yml_exits_nonzero(
+        self, runner, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         (tmp_path / ".specify").mkdir()
 
@@ -108,7 +122,9 @@ class TestPrCreate:
         assert result.exit_code != 0
         assert "Could not create branch" in result.output
 
-    def test_pr_create_error_prints_manual_fallback_but_exits_zero(self, runner, tmp_path, monkeypatch):
+    def test_pr_create_error_prints_manual_fallback_but_exits_zero(
+        self, runner, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         _scaffold(tmp_path)
 
@@ -116,9 +132,14 @@ class TestPrCreate:
         provider.name = "gitlab"
         provider.create_pr.side_effect = PrCreateError("no token configured")
 
-        with patch("sdd.commands.pr._run", return_value=(0, "", "")), \
-             patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("gitlab", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
+        with (
+            patch("sdd.commands.pr._run", return_value=(0, "", "")),
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("gitlab", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
             result = runner.invoke(pr_command, ["create", "--task", "TASK-001"])
 
         assert result.exit_code == 0
@@ -134,12 +155,24 @@ class TestPrCreate:
         provider.name = "github"
         provider.create_pr.return_value = "https://github.com/acme/shop/pull/1"
 
-        with patch("sdd.commands.pr._run", return_value=(0, "", "")), \
-             patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("github", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
-            result = runner.invoke(pr_command, [
-                "create", "--task", "TASK-001", "--feature", "billing",
-            ])
+        with (
+            patch("sdd.commands.pr._run", return_value=(0, "", "")),
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("github", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
+            result = runner.invoke(
+                pr_command,
+                [
+                    "create",
+                    "--task",
+                    "TASK-001",
+                    "--feature",
+                    "billing",
+                ],
+            )
 
         assert result.exit_code == 0, result.output
 
@@ -151,13 +184,24 @@ class TestPrComments:
         provider.name = "github"
         provider.get_pr_number.return_value = "7"
         provider.list_unresolved_comments.return_value = [
-            ReviewComment(comment_id="1", thread_id="1", path="src/a.py", line=10,
-                          author="reviewer1", body="please rename this"),
+            ReviewComment(
+                comment_id="1",
+                thread_id="1",
+                path="src/a.py",
+                line=10,
+                author="reviewer1",
+                body="please rename this",
+            ),
         ]
 
-        with patch("sdd.commands.pr._run", return_value=(0, "main", "")), \
-             patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("github", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
+        with (
+            patch("sdd.commands.pr._run", return_value=(0, "main", "")),
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("github", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
             result = runner.invoke(pr_command, ["comments"])
 
         assert result.exit_code == 0, result.output
@@ -171,22 +215,34 @@ class TestPrComments:
         provider.get_pr_number.return_value = "7"
         provider.list_unresolved_comments.return_value = []
 
-        with patch("sdd.commands.pr._run", return_value=(0, "main", "")), \
-             patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("github", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
+        with (
+            patch("sdd.commands.pr._run", return_value=(0, "main", "")),
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("github", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
             result = runner.invoke(pr_command, ["comments"])
 
         assert result.exit_code == 0
         assert "Ready to approve" in result.output
 
-    def test_pr_id_resolution_failure_exits_nonzero(self, runner, tmp_path, monkeypatch):
+    def test_pr_id_resolution_failure_exits_nonzero(
+        self, runner, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         provider = MagicMock()
         provider.name = "github"
 
-        with patch("sdd.commands.pr._run", return_value=(1, "", "not a git repo")), \
-             patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("github", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
+        with (
+            patch("sdd.commands.pr._run", return_value=(1, "", "not a git repo")),
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("github", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
             result = runner.invoke(pr_command, ["comments"])
 
         assert result.exit_code != 0
@@ -195,17 +251,37 @@ class TestPrComments:
 class TestPrReply:
     def test_replies_to_matched_comment(self, runner, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        comment = ReviewComment(comment_id="1", thread_id="1", path="src/a.py", line=10,
-                                 author="reviewer1", body="please rename this")
+        comment = ReviewComment(
+            comment_id="1",
+            thread_id="1",
+            path="src/a.py",
+            line=10,
+            author="reviewer1",
+            body="please rename this",
+        )
         provider = MagicMock()
         provider.name = "github"
         provider.list_unresolved_comments.return_value = [comment]
 
-        with patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("github", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
-            result = runner.invoke(pr_command, [
-                "reply", "--comment-id", "1", "--body", "done", "--pr-id", "7",
-            ])
+        with (
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("github", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
+            result = runner.invoke(
+                pr_command,
+                [
+                    "reply",
+                    "--comment-id",
+                    "1",
+                    "--body",
+                    "done",
+                    "--pr-id",
+                    "7",
+                ],
+            )
 
         assert result.exit_code == 0, result.output
         provider.reply_to_comment.assert_called_once_with("7", comment, "done")
@@ -216,31 +292,67 @@ class TestPrReply:
         provider.name = "github"
         provider.list_unresolved_comments.return_value = []
 
-        with patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("github", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
-            result = runner.invoke(pr_command, [
-                "reply", "--comment-id", "99", "--body", "done", "--pr-id", "7",
-            ])
+        with (
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("github", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
+            result = runner.invoke(
+                pr_command,
+                [
+                    "reply",
+                    "--comment-id",
+                    "99",
+                    "--body",
+                    "done",
+                    "--pr-id",
+                    "7",
+                ],
+            )
 
         assert result.exit_code != 0
         assert "not found among unresolved comments" in result.output
 
 
 class TestPrResolve:
-    def test_resolve_action_error_degrades_gracefully(self, runner, tmp_path, monkeypatch):
+    def test_resolve_action_error_degrades_gracefully(
+        self, runner, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
-        comment = ReviewComment(comment_id="1", thread_id="1", path="src/a.py", line=10,
-                                 author="reviewer1", body="please rename this")
+        comment = ReviewComment(
+            comment_id="1",
+            thread_id="1",
+            path="src/a.py",
+            line=10,
+            author="reviewer1",
+            body="please rename this",
+        )
         provider = MagicMock()
         provider.name = "bitbucket"
         provider.list_unresolved_comments.return_value = [comment]
-        provider.resolve_thread.side_effect = ReviewActionError("no thread-resolution API")
+        provider.resolve_thread.side_effect = ReviewActionError(
+            "no thread-resolution API"
+        )
 
-        with patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("bitbucket", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
-            result = runner.invoke(pr_command, [
-                "resolve", "--comment-id", "1", "--pr-id", "7",
-            ])
+        with (
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("bitbucket", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
+            result = runner.invoke(
+                pr_command,
+                [
+                    "resolve",
+                    "--comment-id",
+                    "1",
+                    "--pr-id",
+                    "7",
+                ],
+            )
 
         # Not a hard failure -- reply was already posted, resolution is best-effort.
         assert result.exit_code == 0
@@ -253,26 +365,54 @@ class TestPrRequestReview:
         provider = MagicMock()
         provider.name = "github"
 
-        with patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("github", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
-            result = runner.invoke(pr_command, [
-                "request-review", "--reviewer", "octocat", "--pr-id", "7",
-            ])
+        with (
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("github", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
+            result = runner.invoke(
+                pr_command,
+                [
+                    "request-review",
+                    "--reviewer",
+                    "octocat",
+                    "--pr-id",
+                    "7",
+                ],
+            )
 
         assert result.exit_code == 0, result.output
         provider.request_review.assert_called_once_with("7", "octocat")
 
-    def test_request_review_error_degrades_gracefully(self, runner, tmp_path, monkeypatch):
+    def test_request_review_error_degrades_gracefully(
+        self, runner, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         provider = MagicMock()
         provider.name = "azure"
-        provider.request_review.side_effect = ReviewActionError("az cli not authenticated")
+        provider.request_review.side_effect = ReviewActionError(
+            "az cli not authenticated"
+        )
 
-        with patch("sdd.commands.pr.detect_host", return_value=RemoteInfo("azure", "acme", "shop")), \
-             patch("sdd.commands.pr.get_provider", return_value=provider):
-            result = runner.invoke(pr_command, [
-                "request-review", "--reviewer", "octocat", "--pr-id", "7",
-            ])
+        with (
+            patch(
+                "sdd.commands.pr.detect_host",
+                return_value=RemoteInfo("azure", "acme", "shop"),
+            ),
+            patch("sdd.commands.pr.get_provider", return_value=provider),
+        ):
+            result = runner.invoke(
+                pr_command,
+                [
+                    "request-review",
+                    "--reviewer",
+                    "octocat",
+                    "--pr-id",
+                    "7",
+                ],
+            )
 
         assert result.exit_code == 0
         assert "Ask @octocat to re-review manually" in result.output

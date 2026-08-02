@@ -11,15 +11,20 @@ from sdd.utils.jira_client import JiraClient
 from sdd.utils.sdd_parser import parse_tasks
 from sdd.utils.manifest import read_manifest
 from sdd.utils.validate import safe_feature_path
-from sdd.utils.git_host import detect_host, get_provider, PrCreateError, ReviewActionError
+from sdd.utils.git_host import (
+    detect_host,
+    get_provider,
+    PrCreateError,
+    ReviewActionError,
+)
 
 console = Console()
 
 
 def _slug(title: str) -> str:
-    s = re.sub(r'[^a-z0-9\s-]', '', title.lower())
-    s = re.sub(r'\s+', '-', s.strip())
-    return s[:50].rstrip('-')
+    s = re.sub(r"[^a-z0-9\s-]", "", title.lower())
+    s = re.sub(r"\s+", "-", s.strip())
+    return s[:50].rstrip("-")
 
 
 def _run(cmd: list[str]) -> tuple[int, str, str]:
@@ -33,9 +38,10 @@ def pr_command():
 
 
 @pr_command.command("create")
-@click.option("--task",    required=True, help="Task ID, e.g. TASK-001")
-@click.option("--base",    default="main", show_default=True,
-              help="Base branch for the PR")
+@click.option("--task", required=True, help="Task ID, e.g. TASK-001")
+@click.option(
+    "--base", default="main", show_default=True, help="Base branch for the PR"
+)
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def pr_create(task, base, profile, feature):
@@ -52,8 +58,8 @@ def pr_create(task, base, profile, feature):
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
 
     # ── Find task in tasks.md ─────────────────────────────────────────────────
@@ -62,8 +68,8 @@ def pr_create(task, base, profile, feature):
     except ValueError as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
-    tasks        = parse_tasks(features_dir)
-    matched      = [t for t in tasks if t.id.upper() == task.upper()]
+    tasks = parse_tasks(features_dir)
+    matched = [t for t in tasks if t.id.upper() == task.upper()]
     if not matched:
         console.print(f"  [red]✗  {task.upper()} not found in tasks.md[/red]")
         raise SystemExit(1)
@@ -77,7 +83,7 @@ def pr_create(task, base, profile, feature):
         try:
             prof, session = load_jira_session(cfg, profile)
             jira_client = JiraClient(session, prof.base_url)
-            issue      = jira_client.find_by_label(
+            issue = jira_client.find_by_label(
                 cfg.jira.key_for("task"), f"sdd:{task.upper()}"
             )
             if issue:
@@ -89,7 +95,8 @@ def pr_create(task, base, profile, feature):
     # ── Create git branch ─────────────────────────────────────────────────────
     branch_pattern = (
         cfg.pr_automation.branch_pattern
-        if cfg.pr_automation else "feature/{task_id}-{slug}"
+        if cfg.pr_automation
+        else "feature/{task_id}-{slug}"
     )
     branch_name = branch_pattern.format(
         task_id=task.lower(),
@@ -111,7 +118,8 @@ def pr_create(task, base, profile, feature):
     # ── Build PR content ──────────────────────────────────────────────────────
     title_pattern = (
         cfg.pr_automation.pr_title_pattern
-        if cfg.pr_automation else "feat({task_id}): {title}"
+        if cfg.pr_automation
+        else "feat({task_id}): {title}"
     )
     pr_title = title_pattern.format(
         task_id=task.upper(),
@@ -134,7 +142,9 @@ def pr_create(task, base, profile, feature):
     if cfg.code_review.enabled and cfg.code_review.pre_review:
         summary_path = features_dir / f".pre-review-{task.lower()}.md"
         if summary_path.exists():
-            pre_review_section = f"\n## Pre-Review\n\n{summary_path.read_text().strip()}\n\n"
+            pre_review_section = (
+                f"\n## Pre-Review\n\n{summary_path.read_text().strip()}\n\n"
+            )
             console.print(f"  [green]✓[/green]  Pre-review summary included")
         else:
             console.print(
@@ -162,16 +172,20 @@ def pr_create(task, base, profile, feature):
     # implemented; branch/push, PR title/body, and the Jira comment-back are
     # identical regardless of where the repo is hosted.
     remote_info = detect_host()
-    provider    = get_provider(remote_info)
+    provider = get_provider(remote_info)
 
     try:
         pr_url = provider.create_pr(pr_title, pr_body, base, branch_name)
     except PrCreateError as e:
         console.print()
-        console.print(f"  [yellow]{provider.name}: {e} — create the PR manually with:[/yellow]")
+        console.print(
+            f"  [yellow]{provider.name}: {e} — create the PR manually with:[/yellow]"
+        )
         console.print(f"\n  [bold]Title:[/bold] {pr_title}")
         console.print(f"\n  [bold]Body:[/bold]\n{pr_body}")
-        console.print(f"\n  Branch [cyan]{branch_name}[/cyan] is already pushed to origin.")
+        console.print(
+            f"\n  Branch [cyan]{branch_name}[/cyan] is already pushed to origin."
+        )
         console.print()
         return
 
@@ -201,22 +215,29 @@ def pr_create(task, base, profile, feature):
 # (Bitbucket has no API-level thread resolution; Azure's re-review request
 # uses `az repos pr reviewer add`).
 
+
 def _resolve_pr_id(provider, pr_id: str | None) -> str:
     if pr_id:
         return pr_id
     code, branch, _ = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
     if code != 0:
-        raise ReviewActionError("Could not determine current branch — pass --pr-id explicitly")
+        raise ReviewActionError(
+            "Could not determine current branch — pass --pr-id explicitly"
+        )
     return provider.get_pr_number(branch)
 
 
 @pr_command.command("comments")
-@click.option("--pr-id", default=None, help="PR/MR number — inferred from current branch if omitted")
+@click.option(
+    "--pr-id",
+    default=None,
+    help="PR/MR number — inferred from current branch if omitted",
+)
 def pr_comments(pr_id):
     """List unresolved review comments on a PR — the checklist /address-review presents."""
     console.print()
     remote_info = detect_host()
-    provider    = get_provider(remote_info)
+    provider = get_provider(remote_info)
     try:
         resolved_pr_id = _resolve_pr_id(provider, pr_id)
         comments = provider.list_unresolved_comments(resolved_pr_id)
@@ -225,16 +246,22 @@ def pr_comments(pr_id):
         raise SystemExit(1)
 
     if not comments:
-        console.print(f"  [green]No open review comments on PR #{resolved_pr_id}. Ready to approve.[/green]")
+        console.print(
+            f"  [green]No open review comments on PR #{resolved_pr_id}. Ready to approve.[/green]"
+        )
         console.print()
         return
 
-    console.print(f"  [bold]Review Comments — PR #{resolved_pr_id}[/bold] ({provider.name})")
+    console.print(
+        f"  [bold]Review Comments — PR #{resolved_pr_id}[/bold] ({provider.name})"
+    )
     console.print()
     for i, c in enumerate(comments, 1):
         loc = f"{c.path}:{c.line}" if c.path else "General comment"
-        console.print(f"  [{i}] {loc}  —  @{c.author}  [dim](comment_id={c.comment_id})[/dim]")
-        console.print(f"      \"{c.body}\"")
+        console.print(
+            f"  [{i}] {loc}  —  @{c.author}  [dim](comment_id={c.comment_id})[/dim]"
+        )
+        console.print(f'      "{c.body}"')
         console.print()
     console.print(f"  {len(comments)} comment(s)")
     console.print()
@@ -242,19 +269,21 @@ def pr_comments(pr_id):
 
 @pr_command.command("reply")
 @click.option("--comment-id", required=True, help="comment_id from `sdd pr comments`")
-@click.option("--body",       required=True, help="Reply text")
-@click.option("--pr-id",      default=None)
+@click.option("--body", required=True, help="Reply text")
+@click.option("--pr-id", default=None)
 def pr_reply(comment_id, body, pr_id):
     """Reply to a specific review comment thread."""
     console.print()
     remote_info = detect_host()
-    provider    = get_provider(remote_info)
+    provider = get_provider(remote_info)
     try:
         resolved_pr_id = _resolve_pr_id(provider, pr_id)
         comments = provider.list_unresolved_comments(resolved_pr_id)
         match = next((c for c in comments if c.comment_id == str(comment_id)), None)
         if not match:
-            console.print(f"  [red]✗  comment_id {comment_id} not found among unresolved comments[/red]")
+            console.print(
+                f"  [red]✗  comment_id {comment_id} not found among unresolved comments[/red]"
+            )
             raise SystemExit(1)
         provider.reply_to_comment(resolved_pr_id, match, body)
     except ReviewActionError as e:
@@ -266,36 +295,42 @@ def pr_reply(comment_id, body, pr_id):
 
 @pr_command.command("resolve")
 @click.option("--comment-id", required=True, help="comment_id from `sdd pr comments`")
-@click.option("--pr-id",      default=None)
+@click.option("--pr-id", default=None)
 def pr_resolve(comment_id, pr_id):
     """Resolve the thread a comment belongs to, if the host supports it."""
     console.print()
     remote_info = detect_host()
-    provider    = get_provider(remote_info)
+    provider = get_provider(remote_info)
     try:
         resolved_pr_id = _resolve_pr_id(provider, pr_id)
         comments = provider.list_unresolved_comments(resolved_pr_id)
         match = next((c for c in comments if c.comment_id == str(comment_id)), None)
         if not match:
-            console.print(f"  [red]✗  comment_id {comment_id} not found among unresolved comments[/red]")
+            console.print(
+                f"  [red]✗  comment_id {comment_id} not found among unresolved comments[/red]"
+            )
             raise SystemExit(1)
         provider.resolve_thread(resolved_pr_id, match)
     except ReviewActionError as e:
         console.print(f"  [yellow]!  {provider.name}: {e}[/yellow]")
-        console.print("     The reply was still posted — resolve manually in the host's UI if needed.")
+        console.print(
+            "     The reply was still posted — resolve manually in the host's UI if needed."
+        )
         return
     console.print(f"  [green]✓[/green]  Resolved thread for comment {comment_id}")
     console.print()
 
 
 @pr_command.command("request-review")
-@click.option("--reviewer", required=True, help="Reviewer username/login on the git host")
-@click.option("--pr-id",    default=None)
+@click.option(
+    "--reviewer", required=True, help="Reviewer username/login on the git host"
+)
+@click.option("--pr-id", default=None)
 def pr_request_review(reviewer, pr_id):
     """Request re-review from a reviewer after pushing fixes."""
     console.print()
     remote_info = detect_host()
-    provider    = get_provider(remote_info)
+    provider = get_provider(remote_info)
     try:
         resolved_pr_id = _resolve_pr_id(provider, pr_id)
         provider.request_review(resolved_pr_id, reviewer)

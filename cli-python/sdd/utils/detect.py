@@ -8,8 +8,16 @@ import json
 from pathlib import Path
 
 PROJECT_TYPES = [
-    "backend-service", "frontend-spa", "mobile", "fullstack",
-    "cli", "data-ml", "serverless", "library", "iac", "desktop",
+    "backend-service",
+    "frontend-spa",
+    "mobile",
+    "fullstack",
+    "cli",
+    "data-ml",
+    "serverless",
+    "library",
+    "iac",
+    "desktop",
 ]
 
 
@@ -38,8 +46,9 @@ def detect_project_type(root: str = ".") -> str | None:
     # Node.js-based detection
     if has("package.json"):
         pkg = read_json("package.json")
-        deps = list(pkg.get("dependencies", {}).keys()) + \
-               list(pkg.get("devDependencies", {}).keys())
+        deps = list(pkg.get("dependencies", {}).keys()) + list(
+            pkg.get("devDependencies", {}).keys()
+        )
 
         # Mobile (React Native / Expo) — before fullstack
         if "react-native" in deps or "expo" in deps:
@@ -63,7 +72,9 @@ def detect_project_type(root: str = ".") -> str | None:
     # Serverless
     if has("serverless.yml"):
         return "serverless"
-    if has("template.yaml") and "awstemplateformatversion" in read_text("template.yaml"):
+    if has("template.yaml") and "awstemplateformatversion" in read_text(
+        "template.yaml"
+    ):
         return "serverless"
 
     # IaC
@@ -82,12 +93,24 @@ def detect_project_type(root: str = ".") -> str | None:
     # Python
     if has("pyproject.toml") or has("requirements.txt"):
         py_deps = read_text("requirements.txt") + read_text("pyproject.toml")
-        ml_libs = {"pandas", "torch", "tensorflow", "sklearn", "keras",
-                   "jax", "xgboost", "lightgbm"}
+        ml_libs = {
+            "pandas",
+            "torch",
+            "tensorflow",
+            "sklearn",
+            "keras",
+            "jax",
+            "xgboost",
+            "lightgbm",
+        }
         if any(lib in py_deps for lib in ml_libs):
             return "data-ml"
-        is_lib = ("install_requires" in py_deps or "build-backend" in py_deps) \
-                 and not has("main.py") and not has("app") and not has("src", "app")
+        is_lib = (
+            ("install_requires" in py_deps or "build-backend" in py_deps)
+            and not has("main.py")
+            and not has("app")
+            and not has("src", "app")
+        )
         return "library" if is_lib else "backend-service"
 
     # Java/Kotlin

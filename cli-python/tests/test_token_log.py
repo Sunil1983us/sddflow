@@ -27,8 +27,10 @@ def project(tmp_path, monkeypatch):
     (tmp_path / ".specify" / "manifest.yml").write_text(
         yaml.dump({"project": {"name": "Demo", "feature": "auth"}})
     )
-    template_src = Path(__file__).resolve().parents[2] / \
-        "packs/_shared/full/.specify/templates/token-usage-template.md"
+    template_src = (
+        Path(__file__).resolve().parents[2]
+        / "packs/_shared/full/.specify/templates/token-usage-template.md"
+    )
     (tmp_path / ".specify" / "templates" / "token-usage-template.md").write_text(
         template_src.read_text()
     )
@@ -37,11 +39,20 @@ def project(tmp_path, monkeypatch):
 
 def _write_pricing(project, **overrides):
     models = {
-        "claude-sonnet-5": {"input_per_million": 3.0, "output_per_million": 15.0, "last_verified": "2026-07-01"},
+        "claude-sonnet-5": {
+            "input_per_million": 3.0,
+            "output_per_million": 15.0,
+            "last_verified": "2026-07-01",
+        },
     }
     models.update(overrides)
     (project / ".specify" / "memory" / "token-pricing.yml").write_text(
-        yaml.dump({"models": models, "unknown_model_fallback": "n/a — add/fill in this model's rates"})
+        yaml.dump(
+            {
+                "models": models,
+                "unknown_model_fallback": "n/a — add/fill in this model's rates",
+            }
+        )
     )
 
 
@@ -52,7 +63,9 @@ class TestGatesAndFallbackExitCodes:
 
     def test_exits_3_when_no_transcript_found(self, project, runner):
         _write_pricing(project)
-        with patch("sdd.commands.token_log.find_session_transcripts", return_value=(None, [])):
+        with patch(
+            "sdd.commands.token_log.find_session_transcripts", return_value=(None, [])
+        ):
             result = runner.invoke(token_log_command, ["--command", "specify-brd"])
         assert result.exit_code == 3
 
@@ -68,12 +81,18 @@ class TestGatesAndFallbackExitCodes:
         _write_pricing(project)
         fake_transcript = project / "fake.jsonl"
         fake_transcript.write_text("")
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value={}):
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch("sdd.commands.token_log.sum_usage_since", return_value={}),
+        ):
             result = runner.invoke(token_log_command, ["--command", "specify-brd"])
         assert result.exit_code == 0
-        assert not (project / ".specify" / "features" / "auth" / "token-usage.md").exists()
+        assert not (
+            project / ".specify" / "features" / "auth" / "token-usage.md"
+        ).exists()
 
 
 class TestSuccessPath:
@@ -81,14 +100,22 @@ class TestSuccessPath:
         _write_pricing(project)
         fake_transcript = project / "fake.jsonl"
         fake_transcript.write_text("")
-        usage = {"claude-sonnet-5": ModelUsage(input_tokens=1000, output_tokens=200, turns=3)}
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage):
+        usage = {
+            "claude-sonnet-5": ModelUsage(input_tokens=1000, output_tokens=200, turns=3)
+        }
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch("sdd.commands.token_log.sum_usage_since", return_value=usage),
+        ):
             result = runner.invoke(token_log_command, ["--command", "specify-brd"])
 
         assert result.exit_code == 0, result.output
-        text = (project / ".specify" / "features" / "auth" / "token-usage.md").read_text()
+        text = (
+            project / ".specify" / "features" / "auth" / "token-usage.md"
+        ).read_text()
         assert "Feature: auth" in text
         assert "| 1 | specify-brd | claude-sonnet-5 | 1000 | 200 |" in text
         assert "Real (Claude Code)" in text
@@ -98,12 +125,22 @@ class TestSuccessPath:
         _write_pricing(project)
         fake_transcript = project / "fake.jsonl"
         fake_transcript.write_text("")
-        usage = {"claude-sonnet-5": ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000)}
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage):
+        usage = {
+            "claude-sonnet-5": ModelUsage(
+                input_tokens=1_000_000, output_tokens=1_000_000
+            )
+        }
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch("sdd.commands.token_log.sum_usage_since", return_value=usage),
+        ):
             runner.invoke(token_log_command, ["--command", "specify-brd"])
-        text = (project / ".specify" / "features" / "auth" / "token-usage.md").read_text()
+        text = (
+            project / ".specify" / "features" / "auth" / "token-usage.md"
+        ).read_text()
         # 1M input @ $3/M + 1M output @ $15/M = $18.0000
         assert "$18.0000" in text
 
@@ -112,26 +149,42 @@ class TestSuccessPath:
         fake_transcript = project / "fake.jsonl"
         fake_transcript.write_text("")
         usage = {"claude-opus-4-8": ModelUsage(input_tokens=100, output_tokens=50)}
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage):
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch("sdd.commands.token_log.sum_usage_since", return_value=usage),
+        ):
             runner.invoke(token_log_command, ["--command", "specify-brd"])
-        text = (project / ".specify" / "features" / "auth" / "token-usage.md").read_text()
+        text = (
+            project / ".specify" / "features" / "auth" / "token-usage.md"
+        ).read_text()
         assert "n/a — add/fill in this model's rates" in text
 
     def test_billed_input_includes_cache_tokens(self, project, runner):
         _write_pricing(project)
         fake_transcript = project / "fake.jsonl"
         fake_transcript.write_text("")
-        usage = {"claude-sonnet-5": ModelUsage(
-            input_tokens=100, output_tokens=50,
-            cache_creation_input_tokens=900, cache_read_input_tokens=0,
-        )}
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage):
+        usage = {
+            "claude-sonnet-5": ModelUsage(
+                input_tokens=100,
+                output_tokens=50,
+                cache_creation_input_tokens=900,
+                cache_read_input_tokens=0,
+            )
+        }
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch("sdd.commands.token_log.sum_usage_since", return_value=usage),
+        ):
             runner.invoke(token_log_command, ["--command", "specify-brd"])
-        text = (project / ".specify" / "features" / "auth" / "token-usage.md").read_text()
+        text = (
+            project / ".specify" / "features" / "auth" / "token-usage.md"
+        ).read_text()
         assert "| 1 | specify-brd | claude-sonnet-5 | 1000 | 50 |" in text
 
     def test_zero_usage_synthetic_model_bucket_is_skipped(self, project, runner):
@@ -146,12 +199,18 @@ class TestSuccessPath:
             "<synthetic>": ModelUsage(input_tokens=0, output_tokens=0),
             "claude-sonnet-5": ModelUsage(input_tokens=100, output_tokens=50),
         }
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage):
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch("sdd.commands.token_log.sum_usage_since", return_value=usage),
+        ):
             result = runner.invoke(token_log_command, ["--command", "specify-brd"])
         assert result.exit_code == 0, result.output
-        text = (project / ".specify" / "features" / "auth" / "token-usage.md").read_text()
+        text = (
+            project / ".specify" / "features" / "auth" / "token-usage.md"
+        ).read_text()
         assert "<synthetic>" not in text
         assert "claude-sonnet-5" in text
 
@@ -160,29 +219,51 @@ class TestSuccessPath:
         fake_transcript = project / "fake.jsonl"
         fake_transcript.write_text("")
         usage = {"claude-sonnet-5": ModelUsage(input_tokens=100, output_tokens=50)}
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage):
-            result = runner.invoke(token_log_command, ["--command", "specify-brd", "--dry-run"])
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch("sdd.commands.token_log.sum_usage_since", return_value=usage),
+        ):
+            result = runner.invoke(
+                token_log_command, ["--command", "specify-brd", "--dry-run"]
+            )
         assert result.exit_code == 0
-        assert not (project / ".specify" / "features" / "auth" / "token-usage.md").exists()
+        assert not (
+            project / ".specify" / "features" / "auth" / "token-usage.md"
+        ).exists()
 
 
 class TestSecondCommandAppends:
-    def test_second_call_uses_last_timestamp_as_since_and_appends(self, project, runner):
+    def test_second_call_uses_last_timestamp_as_since_and_appends(
+        self, project, runner
+    ):
         _write_pricing(project)
         fake_transcript = project / "fake.jsonl"
         fake_transcript.write_text("")
         usage1 = {"claude-sonnet-5": ModelUsage(input_tokens=100, output_tokens=50)}
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage1) as mock_sum:
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch(
+                "sdd.commands.token_log.sum_usage_since", return_value=usage1
+            ) as mock_sum,
+        ):
             runner.invoke(token_log_command, ["--command", "specify-brd"])
 
         usage2 = {"claude-sonnet-5": ModelUsage(input_tokens=200, output_tokens=60)}
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage2) as mock_sum2:
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch(
+                "sdd.commands.token_log.sum_usage_since", return_value=usage2
+            ) as mock_sum2,
+        ):
             result = runner.invoke(token_log_command, ["--command", "specify-uc"])
 
         assert result.exit_code == 0, result.output
@@ -190,7 +271,9 @@ class TestSecondCommandAppends:
         # of the first row -- not re-summed from session start.
         assert mock_sum2.call_args.args[1] is not None
 
-        text = (project / ".specify" / "features" / "auth" / "token-usage.md").read_text()
+        text = (
+            project / ".specify" / "features" / "auth" / "token-usage.md"
+        ).read_text()
         assert "| 1 | specify-brd |" in text
         assert "| 2 | specify-uc |" in text
         assert "Commands logged | 2" in text
@@ -222,21 +305,30 @@ class TestSecondCommandAppends:
         fake_transcript = project / "fake.jsonl"
         fake_transcript.write_text("")
         usage = {"claude-sonnet-5": ModelUsage(input_tokens=1000, output_tokens=200)}
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage):
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch("sdd.commands.token_log.sum_usage_since", return_value=usage),
+        ):
             result = runner.invoke(token_log_command, ["--command", "specify-uc"])
 
         assert result.exit_code == 0, result.output
         new_text = path.read_text()
         # Original legacy row must still be present, byte-for-byte.
-        assert "| 1 | specify-brd | claude-sonnet-5 | 500 | 100 | n/a | 2026-07-10 |" in new_text
+        assert (
+            "| 1 | specify-brd | claude-sonnet-5 | 500 | 100 | n/a | 2026-07-10 |"
+            in new_text
+        )
         # New row appended after it, numbered 2, in the new 8-col shape.
         assert "| 2 | specify-uc | claude-sonnet-5 | 1000 | 200 |" in new_text
         # Totals now include both legacy and new rows.
         assert "Commands logged | 2" in new_text
 
-    def test_inserts_into_per_command_log_not_running_totals_table(self, project, runner):
+    def test_inserts_into_per_command_log_not_running_totals_table(
+        self, project, runner
+    ):
         """Running Totals' own |---|---| separator appears earlier in the
         file than Per-Command Log's -- a naive "find any separator row"
         search would insert the new row into the wrong table."""
@@ -244,13 +336,19 @@ class TestSecondCommandAppends:
         fake_transcript = project / "fake.jsonl"
         fake_transcript.write_text("")
         usage = {"claude-sonnet-5": ModelUsage(input_tokens=100, output_tokens=50)}
-        with patch("sdd.commands.token_log.find_session_transcripts",
-                   return_value=(fake_transcript, [])), \
-             patch("sdd.commands.token_log.sum_usage_since", return_value=usage):
+        with (
+            patch(
+                "sdd.commands.token_log.find_session_transcripts",
+                return_value=(fake_transcript, []),
+            ),
+            patch("sdd.commands.token_log.sum_usage_since", return_value=usage),
+        ):
             result = runner.invoke(token_log_command, ["--command", "specify-brd"])
 
         assert result.exit_code == 0, result.output
-        text = (project / ".specify" / "features" / "auth" / "token-usage.md").read_text()
+        text = (
+            project / ".specify" / "features" / "auth" / "token-usage.md"
+        ).read_text()
         totals_idx = text.index("## Running Totals")
         log_heading_idx = text.index("## Per-Command Log")
         row_idx = text.index("| 1 | specify-brd |")

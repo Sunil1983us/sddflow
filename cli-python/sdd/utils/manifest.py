@@ -61,7 +61,9 @@ def write_manifest(manifest: dict, path: str = MANIFEST_PATH) -> None:
     # upgrade` interrupted) could leave manifest.yml truncated -- every
     # command reads this file, so a truncated manifest breaks the whole
     # project, not just the interrupted command.
-    fd, tmp_path = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")
+    fd, tmp_path = tempfile.mkstemp(
+        dir=target.parent, prefix=f".{target.name}.", suffix=".tmp"
+    )
     try:
         with os.fdopen(fd, "w") as f:
             f.write(content)

@@ -8,7 +8,9 @@
 import pytest
 
 from sdd.commands.confluence import (
-    _ensure_container_page, resolve_feature_parent_id, resolve_doc_parent_id,
+    _ensure_container_page,
+    resolve_feature_parent_id,
+    resolve_doc_parent_id,
     upload_diagram_attachments,
 )
 from sdd.utils.integrations import ConfluenceConfig
@@ -17,6 +19,7 @@ from sdd.utils.integrations import ConfluenceConfig
 class FakeConfluenceClient:
     """In-memory double -- records ancestry via parent_id so tests can
     assert the actual tree shape, not just that some ID was returned."""
+
     def __init__(self):
         self.pages_by_title: dict[str, dict] = {}
         self.create_calls: list[tuple[str, str, str | None]] = []
@@ -41,6 +44,7 @@ class FakeConfluenceClient:
 class RaisingAttachmentClient(FakeConfluenceClient):
     """upload_attachment always fails -- used to confirm a failed upload
     warns rather than raising and aborting the rest of the push."""
+
     def upload_attachment(self, page_id, filename, content, media_type="image/svg+xml"):
         raise RuntimeError("HTTP 413 — attachment too large")
 
@@ -66,7 +70,9 @@ class TestResolveFeatureParentId:
 
     def test_creates_project_then_feature_page(self):
         client = FakeConfluenceClient()
-        feature_page_id = resolve_feature_parent_id(client, self._cf_cfg(), "MyProject", "auth")
+        feature_page_id = resolve_feature_parent_id(
+            client, self._cf_cfg(), "MyProject", "auth"
+        )
 
         project_page = client.pages_by_title["MyProject"]
         feature_page = client.pages_by_title["auth"]
@@ -82,12 +88,20 @@ class TestResolveFeatureParentId:
         resolve_feature_parent_id(client, self._cf_cfg(), "MyProject", "billing")
         # One Project page shared by both features, two distinct Feature pages
         assert len(client.create_calls) == 3
-        assert client.pages_by_title["auth"]["parent_id"] == client.pages_by_title["MyProject"]["id"]
-        assert client.pages_by_title["billing"]["parent_id"] == client.pages_by_title["MyProject"]["id"]
+        assert (
+            client.pages_by_title["auth"]["parent_id"]
+            == client.pages_by_title["MyProject"]["id"]
+        )
+        assert (
+            client.pages_by_title["billing"]["parent_id"]
+            == client.pages_by_title["MyProject"]["id"]
+        )
 
     def test_works_with_no_configured_root(self):
         client = FakeConfluenceClient()
-        resolve_feature_parent_id(client, self._cf_cfg(parent_page_id=None), "MyProject", "auth")
+        resolve_feature_parent_id(
+            client, self._cf_cfg(parent_page_id=None), "MyProject", "auth"
+        )
         project_page = client.pages_by_title["MyProject"]
         assert project_page["parent_id"] is None
 
@@ -98,25 +112,37 @@ class TestResolveDocParentId:
 
     def test_per_feature_doc_nests_under_feature_page(self):
         client = FakeConfluenceClient()
-        parent_id = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "auth", "brd")
+        parent_id = resolve_doc_parent_id(
+            client, self._cf_cfg(), "MyProject", "auth", "brd"
+        )
         assert parent_id == client.pages_by_title["auth"]["id"]
 
     def test_living_service_doc_nests_directly_under_project_page(self):
         client = FakeConfluenceClient()
-        parent_id = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "auth", "data-model")
+        parent_id = resolve_doc_parent_id(
+            client, self._cf_cfg(), "MyProject", "auth", "data-model"
+        )
         assert parent_id == client.pages_by_title["MyProject"]["id"]
         # No Feature-level container page created for a living doc
         assert "auth" not in client.pages_by_title
 
     def test_living_service_doc_is_shared_across_features(self):
         client = FakeConfluenceClient()
-        p1 = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "auth", "security-design")
-        p2 = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "billing", "security-design")
-        assert p1 == p2  # same Project-level parent regardless of which feature pushed it
+        p1 = resolve_doc_parent_id(
+            client, self._cf_cfg(), "MyProject", "auth", "security-design"
+        )
+        p2 = resolve_doc_parent_id(
+            client, self._cf_cfg(), "MyProject", "billing", "security-design"
+        )
+        assert (
+            p1 == p2
+        )  # same Project-level parent regardless of which feature pushed it
 
     def test_constitution_nests_directly_under_project_page(self):
         client = FakeConfluenceClient()
-        parent_id = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "auth", "constitution")
+        parent_id = resolve_doc_parent_id(
+            client, self._cf_cfg(), "MyProject", "auth", "constitution"
+        )
         assert parent_id == client.pages_by_title["MyProject"]["id"]
         assert "auth" not in client.pages_by_title
 
@@ -127,14 +153,20 @@ class TestResolveDocParentId:
         under the Project page like every other living/service-level
         doc — it's shared across every feature, not per-feature."""
         client = FakeConfluenceClient()
-        parent_id = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "auth", "runbook")
+        parent_id = resolve_doc_parent_id(
+            client, self._cf_cfg(), "MyProject", "auth", "runbook"
+        )
         assert parent_id == client.pages_by_title["MyProject"]["id"]
         assert "auth" not in client.pages_by_title
 
     def test_runbook_is_shared_across_features(self):
         client = FakeConfluenceClient()
-        p1 = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "auth", "runbook")
-        p2 = resolve_doc_parent_id(client, self._cf_cfg(), "MyProject", "billing", "runbook")
+        p1 = resolve_doc_parent_id(
+            client, self._cf_cfg(), "MyProject", "auth", "runbook"
+        )
+        p2 = resolve_doc_parent_id(
+            client, self._cf_cfg(), "MyProject", "billing", "runbook"
+        )
         assert p1 == p2
 
 
@@ -181,12 +213,17 @@ class TestUploadDiagramAttachments:
         import requests
 
         class HTTPErrorClient(FakeConfluenceClient):
-            def upload_attachment(self, page_id, filename, content, media_type="image/svg+xml"):
+            def upload_attachment(
+                self, page_id, filename, content, media_type="image/svg+xml"
+            ):
                 response = requests.Response()
                 response.status_code = 400
-                response._content = b'{"message": "Cannot add attachment: file too large"}'
+                response._content = (
+                    b'{"message": "Cannot add attachment: file too large"}'
+                )
                 error = requests.exceptions.HTTPError(
-                    "400 Client Error: Bad Request for url: https://x/y", response=response
+                    "400 Client Error: Bad Request for url: https://x/y",
+                    response=response,
                 )
                 raise error
 
@@ -200,14 +237,20 @@ class TestUploadDiagramAttachments:
 
     def test_one_failure_does_not_block_the_remaining_uploads(self):
         class PartiallyFailingClient(FakeConfluenceClient):
-            def upload_attachment(self, page_id, filename, content, media_type="image/svg+xml"):
+            def upload_attachment(
+                self, page_id, filename, content, media_type="image/svg+xml"
+            ):
                 if filename == "diagram-1.svg":
                     raise RuntimeError("boom")
                 return super().upload_attachment(page_id, filename, content, media_type)
 
         client = PartiallyFailingClient()
-        upload_diagram_attachments(client, "999", [
-            ("diagram-1.svg", b"<svg>a</svg>", "image/svg+xml"),
-            ("diagram-2.svg", b"<svg>b</svg>", "image/svg+xml"),
-        ])
+        upload_diagram_attachments(
+            client,
+            "999",
+            [
+                ("diagram-1.svg", b"<svg>a</svg>", "image/svg+xml"),
+                ("diagram-2.svg", b"<svg>b</svg>", "image/svg+xml"),
+            ],
+        )
         assert [a[1] for a in client.uploaded_attachments] == ["diagram-2.svg"]

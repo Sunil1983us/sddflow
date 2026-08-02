@@ -1,4 +1,5 @@
 """Parse SDD-generated stories.md and tasks.md into Python objects."""
+
 from __future__ import annotations
 import re
 from dataclasses import dataclass, field
@@ -7,31 +8,31 @@ from pathlib import Path
 
 @dataclass
 class Story:
-    id: str                        # STORY-001
+    id: str  # STORY-001
     title: str
-    moscow: str                    # must-have | should-have | could-have | wont-have
-    description: str               # As .../I want .../So that ... (or "As a ..." older style)
+    moscow: str  # must-have | should-have | could-have | wont-have
+    description: str  # As .../I want .../So that ... (or "As a ..." older style)
     acceptance_criteria: list[str]
     story_points: int | None
-    satisfies: list[str]           # [FR-001, FR-002]
+    satisfies: list[str]  # [FR-001, FR-002]
     derived_uc: str | None = None  # UC-001 -- set only when this story traces
-                                    # 1:1 back to a single use case that already
-                                    # got a draft Jira Story at /specify-uc time;
-                                    # lets sdd jira push finalize that same
-                                    # issue in place instead of creating a new one
+    # 1:1 back to a single use case that already
+    # got a draft Jira Story at /specify-uc time;
+    # lets sdd jira push finalize that same
+    # issue in place instead of creating a new one
 
 
 @dataclass
 class UseCase:
-    id: str                        # UC-001
+    id: str  # UC-001
     title: str
 
 
 @dataclass
 class Task:
-    id: str                        # TASK-001 (or PERF-001, Phase G perf tasks)
+    id: str  # TASK-001 (or PERF-001, Phase G perf tasks)
     title: str
-    story_id: str | None           # STORY-001
+    story_id: str | None  # STORY-001
     satisfies: list[str]
     estimate: str | None
     description: str
@@ -61,7 +62,7 @@ def _field(text: str, name: str) -> str | None:
     fields in tasks.md; older generated docs mix styles too, so bold
     markers are always optional and the field name is matched
     case-insensitively."""
-    m = re.search(rf'(?im)^\s*\*{{0,2}}{re.escape(name)}:\*{{0,2}}\s*(.+)$', text)
+    m = re.search(rf"(?im)^\s*\*{{0,2}}{re.escape(name)}:\*{{0,2}}\s*(.+)$", text)
     return m.group(1).strip() if m else None
 
 
@@ -70,6 +71,7 @@ def _split_list_field(value: str | None) -> list[str]:
 
 
 # ── stories.md ────────────────────────────────────────────────────────────────
+
 
 def parse_stories(path: str | Path = ".specify/features") -> list[Story]:
     """Read stories.md from path (file) or search recursively (directory)."""
@@ -83,7 +85,7 @@ def parse_stories(path: str | Path = ".specify/features") -> list[Story]:
 # STORY-{NNN} heading: current template uses a colon ("### STORY-001: Title"),
 # older generated docs use an em-dash ("### STORY-001 — Title") -- accept any
 # colon/dash separator so both are parsed correctly.
-_STORY_HEADING_RE = re.compile(r'^###\s+(STORY-\d+)\s*[:—–-]+\s*(.+)')
+_STORY_HEADING_RE = re.compile(r"^###\s+(STORY-\d+)\s*[:—–-]+\s*(.+)")
 
 
 def _parse_stories_text(text: str) -> list[Story]:
@@ -96,8 +98,8 @@ def _parse_stories_text(text: str) -> list[Story]:
         line = lines[i]
 
         # MoSCoW bucket headers: ## Must Have / ## Should Have / etc.
-        if re.match(r'^##\s+', line) and not line.startswith('###'):
-            m = re.match(r'^##\s+(.+)', line)
+        if re.match(r"^##\s+", line) and not line.startswith("###"):
+            m = re.match(r"^##\s+(.+)", line)
             if m:
                 header = m.group(1)
                 if any(k in header.lower() for k in ["must", "should", "could", "won"]):
@@ -113,21 +115,25 @@ def _parse_stories_text(text: str) -> list[Story]:
             while i < len(lines):
                 if _STORY_HEADING_RE.match(lines[i]):
                     break
-                if re.match(r'^##\s+', lines[i]) and not lines[i].startswith('###'):
+                if re.match(r"^##\s+", lines[i]) and not lines[i].startswith("###"):
                     break
                 body_lines.append(lines[i])
                 i += 1
             body = "\n".join(body_lines)
-            stories.append(Story(
-                id=story_id,
-                title=title,
-                moscow=current_moscow,
-                description=_extract_user_story(body),
-                acceptance_criteria=_extract_ac_block(body, "Acceptance Criteria"),
-                story_points=_extract_story_points(body),
-                satisfies=_split_list_field(_field(body, "Linked FRs") or _field(body, "Satisfies")),
-                derived_uc=_extract_derived_uc(body),
-            ))
+            stories.append(
+                Story(
+                    id=story_id,
+                    title=title,
+                    moscow=current_moscow,
+                    description=_extract_user_story(body),
+                    acceptance_criteria=_extract_ac_block(body, "Acceptance Criteria"),
+                    story_points=_extract_story_points(body),
+                    satisfies=_split_list_field(
+                        _field(body, "Linked FRs") or _field(body, "Satisfies")
+                    ),
+                    derived_uc=_extract_derived_uc(body),
+                )
+            )
             continue
 
         i += 1
@@ -137,7 +143,7 @@ def _parse_stories_text(text: str) -> list[Story]:
 # "As {actor}" / "As a {actor}" (older style) / "I want" / "I want to"
 # (older style) / "So that" -- bold markers optional, "a"/"to" optional.
 _USER_STORY_LINE_RE = re.compile(
-    r'^\*{0,2}(As a|As|I want to|I want|So that)\*{0,2}\b', re.IGNORECASE
+    r"^\*{0,2}(As a|As|I want to|I want|So that)\*{0,2}\b", re.IGNORECASE
 )
 
 
@@ -155,16 +161,16 @@ def _extract_ac_block(text: str, header_name: str) -> list[str]:
     `{header_name}:` header line, until the next field/heading line."""
     ac: list[str] = []
     in_ac = False
-    header_re = re.compile(rf'(?i)^\s*\*{{0,2}}{re.escape(header_name)}:\*{{0,2}}\s*$')
-    field_re = re.compile(r'^\s*\*{0,2}[A-Za-z][A-Za-z ]*:\*{0,2}\s')
+    header_re = re.compile(rf"(?i)^\s*\*{{0,2}}{re.escape(header_name)}:\*{{0,2}}\s*$")
+    field_re = re.compile(r"^\s*\*{0,2}[A-Za-z][A-Za-z ]*:\*{0,2}\s")
     for line in text.splitlines():
         if header_re.match(line):
             in_ac = True
             continue
         if in_ac:
-            m = re.match(r'^\s*[-*]\s+(.+)', line)
+            m = re.match(r"^\s*[-*]\s+(.+)", line)
             if m:
-                criterion = re.sub(r'^\[[xX ]\]\s*', '', m.group(1).strip())
+                criterion = re.sub(r"^\[[xX ]\]\s*", "", m.group(1).strip())
                 ac.append(criterion)
                 continue
             if not line.strip():
@@ -175,7 +181,7 @@ def _extract_ac_block(text: str, header_name: str) -> list[str]:
 
 
 def _extract_story_points(text: str) -> int | None:
-    m = re.search(r'\*{0,2}Story Points:\*{0,2}\s*(\d+)', text, re.IGNORECASE)
+    m = re.search(r"\*{0,2}Story Points:\*{0,2}\s*(\d+)", text, re.IGNORECASE)
     return int(m.group(1)) if m else None
 
 
@@ -184,11 +190,12 @@ def _extract_derived_uc(text: str) -> str | None:
     story traces 1:1 back to a single use case (see task.prompt.md);
     stories with no single-UC origin simply omit the field."""
     value = _field(text, "Derived from")
-    m = re.match(r'(UC-\d+)', value) if value else None
+    m = re.match(r"(UC-\d+)", value) if value else None
     return m.group(1) if m else None
 
 
 # ── use-cases.md ─────────────────────────────────────────────────────────────
+
 
 def parse_use_cases(path: str | Path = ".specify/features") -> list[UseCase]:
     """Read use-cases.md from path (file) or search recursively (directory).
@@ -203,12 +210,13 @@ def parse_use_cases(path: str | Path = ".specify/features") -> list[UseCase]:
 
 def _parse_use_cases_text(text: str) -> list[UseCase]:
     use_cases: list[UseCase] = []
-    for m in re.finditer(r'^###\s+(UC-\d+)\s*[:—–-]+\s*(.+)$', text, re.MULTILINE):
+    for m in re.finditer(r"^###\s+(UC-\d+)\s*[:—–-]+\s*(.+)$", text, re.MULTILINE):
         use_cases.append(UseCase(id=m.group(1), title=m.group(2).strip()))
     return use_cases
 
 
 # ── tasks.md ──────────────────────────────────────────────────────────────────
+
 
 def parse_tasks(path: str | Path = ".specify/features") -> list[Task]:
     """Read tasks.md from path (file) or search recursively (directory)."""
@@ -222,16 +230,23 @@ def parse_tasks(path: str | Path = ".specify/features") -> list[Task]:
 # TASK-{NNN}/PERF-{NNN} heading: the shipped tasks-template.md uses "###"
 # (H3) with an em-dash ("### TASK-001 — Title"); accept "##" too (older
 # style) and any colon/dash separator.
-_TASK_HEADING_RE = re.compile(r'^#{2,3}\s+(TASK-\d+|PERF-\d+|CHG-\d+)\s*[:—–-]+\s*(.+)')
+_TASK_HEADING_RE = re.compile(r"^#{2,3}\s+(TASK-\d+|PERF-\d+|CHG-\d+)\s*[:—–-]+\s*(.+)")
 
 # Field labels used as plain (unbolded) lines in tasks.md -- stops a
 # multi-line block (e.g. Files:) from swallowing the next field.
 _TASK_FIELD_NAMES = (
-    "Story", "Satisfies", "Verifies", "Risk", "Dependencies",
-    "Estimated lines", "PR", "Files", "Acceptance criteria",
+    "Story",
+    "Satisfies",
+    "Verifies",
+    "Risk",
+    "Dependencies",
+    "Estimated lines",
+    "PR",
+    "Files",
+    "Acceptance criteria",
 )
 _TASK_FIELD_STOP_RE = re.compile(
-    r'^\s*(' + "|".join(re.escape(n) for n in _TASK_FIELD_NAMES) + r'):', re.IGNORECASE
+    r"^\s*(" + "|".join(re.escape(n) for n in _TASK_FIELD_NAMES) + r"):", re.IGNORECASE
 )
 
 
@@ -251,15 +266,18 @@ def _parse_tasks_text(text: str) -> list[Task]:
                 body_lines.append(lines[i])
                 i += 1
             body = "\n".join(body_lines)
-            tasks.append(Task(
-                id=task_id,
-                title=title,
-                story_id=_extract_task_story(body),
-                satisfies=_split_list_field(_field(body, "Satisfies")),
-                estimate=_field(body, "Estimated lines") or _field(body, "Estimate"),
-                description=_extract_task_description(body),
-                acceptance_criteria=_extract_ac_block(body, "Acceptance criteria"),
-            ))
+            tasks.append(
+                Task(
+                    id=task_id,
+                    title=title,
+                    story_id=_extract_task_story(body),
+                    satisfies=_split_list_field(_field(body, "Satisfies")),
+                    estimate=_field(body, "Estimated lines")
+                    or _field(body, "Estimate"),
+                    description=_extract_task_description(body),
+                    acceptance_criteria=_extract_ac_block(body, "Acceptance criteria"),
+                )
+            )
             continue
         i += 1
     return tasks
@@ -267,7 +285,7 @@ def _parse_tasks_text(text: str) -> list[Task]:
 
 def _extract_task_story(text: str) -> str | None:
     value = _field(text, "Story")
-    m = re.match(r'(STORY-\d+)', value) if value else None
+    m = re.match(r"(STORY-\d+)", value) if value else None
     return m.group(1) if m else None
 
 
@@ -285,7 +303,9 @@ def _extract_field_paragraph(text: str, header_name: str) -> str:
     (`Field: value`) or start on the next line and span a short
     paragraph, ending at a blank line or the next field/bullet line."""
     lines = text.splitlines()
-    header_re = re.compile(rf'(?i)^\s*\*{{0,2}}{re.escape(header_name)}:\*{{0,2}}\s*(.*)$')
+    header_re = re.compile(
+        rf"(?i)^\s*\*{{0,2}}{re.escape(header_name)}:\*{{0,2}}\s*(.*)$"
+    )
     for idx, line in enumerate(lines):
         m = header_re.match(line)
         if not m:
@@ -302,7 +322,7 @@ def _extract_field_paragraph(text: str, header_name: str) -> str:
                     break
                 j += 1
                 continue
-            if _TASK_FIELD_STOP_RE.match(nxt) or re.match(r'^\s*[-*]\s', nxt):
+            if _TASK_FIELD_STOP_RE.match(nxt) or re.match(r"^\s*[-*]\s", nxt):
                 break
             out.append(nxt.strip())
             j += 1
@@ -320,7 +340,7 @@ def _extract_task_files(text: str) -> str:
     collecting = False
     out: list[str] = []
     for line in lines:
-        m = re.match(r'(?i)^\s*Files:\s*(.*)$', line)
+        m = re.match(r"(?i)^\s*Files:\s*(.*)$", line)
         if m:
             inline = m.group(1).strip()
             if inline:

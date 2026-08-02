@@ -73,7 +73,9 @@ class TestFindByLabel:
         assert 'labels = "sdd-feature:auth"' in body["jql"]
 
     def test_returns_first_match_or_none(self):
-        client, session = _client_with_mock_session({"issues": [{"key": "PROJ-1"}, {"key": "PROJ-2"}]})
+        client, session = _client_with_mock_session(
+            {"issues": [{"key": "PROJ-1"}, {"key": "PROJ-2"}]}
+        )
         assert client.find_by_label("MYPROJ", "sdd-feature:auth") == {"key": "PROJ-1"}
 
         client2, _ = _client_with_mock_session({"issues": []})
@@ -108,7 +110,9 @@ class TestLinkIssues:
 
     def test_raises_on_http_error(self):
         client, session = _client_with_mock_session({})
-        session.post.return_value.raise_for_status.side_effect = Exception("400 Bad Request")
+        session.post.return_value.raise_for_status.side_effect = Exception(
+            "400 Bad Request"
+        )
         try:
             client.link_issues("TEMPT-2", "TEMP-1")
             assert False, "expected an exception"
