@@ -3469,6 +3469,38 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.13',
+    to:   '2.8.14',
+    description: "Dashboard: require the session token for /api/review-links even in read-only --share mode",
+    notes: [
+      "Closes a gap found during a second external review pass: read-only " +
+      "share mode (--share without --write) already blocked POST /api/" +
+      "approve and /api/comment without a token, but GET /api/review-links " +
+      "was never gated at all -- it makes a live call to Jira/Confluence " +
+      "using the credentials stored on the machine running `sdd " +
+      "dashboard`, for whatever --feature the caller names, regardless of " +
+      "read-only status. 'Read-only' only ever meant 'no local file " +
+      "writes'; it never meant 'no outbound calls under this machine's " +
+      "credentials'",
+      "Fix: token generation now happens for any non-local bind " +
+      "(previously only when --write was also passed), and a new " +
+      "_check_review_links_access() helper (reusing the existing Origin+" +
+      "token check) gates the /api/review-links handler, skipped only " +
+      "when the bind is local. Approve/comment endpoints are unchanged",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. The " +
+      "Node CLI has no dashboard command, so there's no corresponding " +
+      "code change on that side",
+      "Verified: cli-python pytest 817/817 (812 pre-existing + 5 new " +
+      "access-control tests for /api/review-links), ruff check/format, " +
+      "mypy, and bandit all clean",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.14';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

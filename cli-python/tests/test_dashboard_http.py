@@ -197,6 +197,15 @@ def test_post_unknown_path_returns_404(server):
 # --- Non-loopback access control (session token, Origin check, read-only) --
 
 
+def _get_with_headers(port, path, headers=None):
+    conn = HTTPConnection("127.0.0.1", port, timeout=5)
+    conn.request("GET", path, headers=headers or {})
+    resp = conn.getresponse()
+    body = resp.read()
+    conn.close()
+    return resp.status, body
+
+
 def _post_with_headers(port, path, payload, headers=None):
     conn = HTTPConnection("127.0.0.1", port, timeout=5)
     body = json.dumps(payload).encode("utf-8")
@@ -394,3 +403,110 @@ def test_concurrent_comments_all_persist(server):
         f"expected all {n} concurrent comments to persist, got {len(saved['payments/brd'])} "
         "-- a lost update means the write lock isn't working"
     )
+
+
+# --- /api/review-links access control -------------------------------------
+# Unlike /api/approve and /api/comment, this endpoint makes a live call
+# under the host machine's own Jira/Confluence credentials -- it must be
+# gated by the token even in read-only share mode (writes_enabled=False),
+# which is the specific gap these tests exist to close.
+
+
+def test_review_links_allowed_when_local_no_token_needed(server):
+    httpd, tmp_path = server
+    _scaffold_feature(tmp_path)
+    status, body = _get_with_headers(
+        httpd.server_address[1], "/api/review-links?feature=payments"
+    )
+    # The access gate passed (200) -- whether review-links data itself is
+    # present depends on .specify/integrations.yml, which this scaffold
+    # doesn't set up and which isn't what this test is about.
+    assert status == 200
+    json.loads(body)
+
+
+def test_review_links_rejected_without_token_when_read_only_non_local(
+    server, access_override
+):
+    httpd, tmp_path = server
+    _scaffold_feature(tmp_path)
+    port = httpd.server_address[1]
+    access_override.update(
+        is_local=False,
+        writes_enabled=False,
+        token="secret-token-value",
+        allowed_origins={f"http://127.0.0.1:{port}"},
+    )
+    status, body = _get_with_headers(port, "/api/review-links?feature=payments")
+    assert status == 403
+    assert "token" in json.loads(body)["error"].lower()
+
+
+def test_review_links_allowed_with_correct_token_when_read_only_non_local(
+    server, access_override
+):
+    """The specific behavior this gate exists for: read-only mode blocks
+    /api/approve and /api/comment, but must NOT let a live Jira/Confluence
+    lookup through unauthenticated just because writes are off."""
+    httpd, tmp_path = server
+    _scaffold_feature(tmp_path)
+    port = httpd.server_address[1]
+    access_override.update(
+        is_local=False,
+        writes_enabled=False,
+        token="secret-token-value",
+        allowed_origins={f"http://127.0.0.1:{port}"},
+    )
+    status, body = _get_with_headers(
+        port,
+        "/api/review-links?feature=payments",
+        headers={"X-SDD-Token": "secret-token-value"},
+    )
+    # The access gate passed (200) with a correct token -- the review-links
+    # data itself depends on .specify/integrations.yml, not set up by this
+    # scaffold and not what this test is verifying.
+    assert status == 200
+    json.loads(body)
+
+
+def test_review_links_rejected_on_origin_mismatch_even_with_correct_token(
+    server, access_override
+):
+    httpd, tmp_path = server
+    _scaffold_feature(tmp_path)
+    port = httpd.server_address[1]
+    access_override.update(
+        is_local=False,
+        writes_enabled=False,
+        token="secret-token-value",
+        allowed_origins={f"http://127.0.0.1:{port}"},
+    )
+    status, body = _get_with_headers(
+        port,
+        "/api/review-links?feature=payments",
+        headers={
+            "X-SDD-Token": "secret-token-value",
+            "Origin": "http://evil.example.com",
+        },
+    )
+    assert status == 403
+    assert "origin" in json.loads(body)["error"].lower()
+
+
+def test_review_links_rejected_without_token_even_when_writes_enabled(
+    server, access_override
+):
+    """Writes being on doesn't imply this endpoint is open -- it has its
+    own gate, independent of writes_enabled."""
+    httpd, tmp_path = server
+    _scaffold_feature(tmp_path)
+    port = httpd.server_address[1]
+    access_override.update(
+        is_local=False,
+        writes_enabled=True,
+        token="secret-token-value",
+        allowed_origins={f"http://127.0.0.1:{port}"},
+    )
+    status, body = _get_with_headers(port, "/api/review-links?feature=payments")
+    assert status == 403
+    assert "token" in json.loads(body)["error"].lower()

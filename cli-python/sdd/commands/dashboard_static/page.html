@@ -43,6 +43,9 @@ __SDD_DASHBOARD_CSS__
       Running with <code>--share</code>? Approve/comment are read-only over the network unless the host machine also
       passed <code>--write</code>, in which case every write request must carry the one-time token baked into the
       link you were given — treat that link like a credential.
+      <strong>"Check Jira/Confluence status" is not affected by read-only mode</strong> — it always makes a live
+      call to Jira/Confluence under the credentials configured on the machine running <code>sdd dashboard</code>,
+      for whatever feature the caller names, so it always requires that same token too.
     </div>
   </details>
   <div id="root"></div>

@@ -708,7 +708,9 @@ document.getElementById('root').addEventListener('click', async (e) => {
     state.reviewLinks[feature] = 'loading';
     render();
     try {
-      const res = await fetch(`/api/review-links?feature=${encodeURIComponent(feature)}`);
+      const res = await fetch(`/api/review-links?feature=${encodeURIComponent(feature)}`, {
+        headers: writeHeaders(),
+      });
       state.reviewLinks[feature] = await res.json();
     } catch (err) {
       state.reviewLinks[feature] = { error: String(err) };
@@ -788,7 +790,9 @@ async function autoRefreshReviewLinks() {
   let changed = false;
   for (const feature of features) {
     try {
-      const res = await fetch(`/api/review-links?feature=${encodeURIComponent(feature)}`);
+      const res = await fetch(`/api/review-links?feature=${encodeURIComponent(feature)}`, {
+        headers: writeHeaders(),
+      });
       state.reviewLinks[feature] = await res.json();
       changed = true;
     } catch (err) {

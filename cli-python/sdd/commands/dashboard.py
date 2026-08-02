@@ -466,6 +466,10 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json(result)
 
         elif parsed.path == "/api/review-links":
+            access_error = self._check_review_links_access()
+            if access_error is not None:
+                self._send_json({"error": access_error}, status=403)
+                return
             feature = (qs.get("feature") or [""])[0]
             if not _SAFE_TOKEN.match(feature):
                 self._send_json({"error": "invalid feature"}, status=400)
@@ -501,30 +505,48 @@ class _Handler(BaseHTTPRequestHandler):
         except (json.JSONDecodeError, UnicodeDecodeError):
             return None
 
+    def _check_origin_and_token(self) -> str | None:
+        """Origin/Host check plus token check, non-loopback only -- the two
+        gates shared by every non-local request regardless of whether it's
+        a write or a read that triggers a live third-party call.
+
+        1. Origin/Host check (defense in depth): if the browser sent an
+           Origin header, it must match this server's own host:port. A
+           cross-origin page (malicious or just a stray open tab) can't
+           forge this the way it could once ambient cookies -- this runs
+           before the token check so a mismatched Origin is rejected even
+           if a token somehow leaked.
+        2. Token check: the Origin check alone doesn't stop another device
+           on the same network from calling the API directly (curl, not a
+           browser) -- the token is what actually authenticates the
+           request. Sent as a custom header (X-SDD-Token), never a cookie,
+           precisely so it's never included automatically by the browser
+           on a request this page didn't initiate itself -- that property
+           is what makes it double as CSRF protection, not just as auth.
+
+        Callers are responsible for the is_local short-circuit -- this
+        function assumes it's already been established that the request
+        needs checking at all.
+        """
+        origin = self.headers.get("Origin")
+        if origin and origin not in _ACCESS["allowed_origins"]:
+            return f"Origin not allowed: {origin}"
+        token = self.headers.get("X-SDD-Token")
+        if not token or not secrets.compare_digest(token, _ACCESS["token"] or ""):
+            return "Missing or invalid X-SDD-Token header."
+        return None
+
     def _check_write_access(self) -> str | None:
         """Returns an error message if this write request should be
-        rejected, or None if it's allowed. Three gates, in order:
+        rejected, or None if it's allowed.
 
-        1. Read-only mode: non-loopback binds without --write reject every
+        1. Loopback binds (the default `sdd dashboard`, no flags) skip
+           straight to None -- today's zero-friction local UX is
+           completely unaffected.
+        2. Read-only mode: non-loopback binds without --write reject every
            POST outright, regardless of token -- writes are simply off.
-        2. Origin/Host check (defense in depth, non-loopback only): if the
-           browser sent an Origin header, it must match this server's own
-           host:port. A cross-origin page (malicious or just a stray open
-           tab) can't forge this the way it could once ambient cookies --
-           this runs before the token check so a mismatched Origin is
-           rejected even if a token somehow leaked.
-        3. Token check (non-loopback only): the Origin check alone doesn't
-           stop another device on the same network from calling the API
-           directly (curl, not a browser) -- the token is what actually
-           authenticates the request. Sent as a custom header
-           (X-SDD-Token), never a cookie, precisely so it's never included
-           automatically by the browser on a request this page didn't
-           initiate itself -- that property is what makes it double as
-           CSRF protection, not just as auth.
-
-        Loopback binds (the default `sdd dashboard`, no flags) skip all
-        three checks -- this function returns None immediately for them,
-        so today's zero-friction local UX is completely unaffected.
+        3. Otherwise, the shared Origin+token check from
+           _check_origin_and_token() above.
         """
         if _ACCESS["is_local"]:
             return None
@@ -533,13 +555,23 @@ class _Handler(BaseHTTPRequestHandler):
                 "Dashboard is read-only over the network. Restart with "
                 "--share --write to enable writes (requires the printed token)."
             )
-        origin = self.headers.get("Origin")
-        if origin and origin not in _ACCESS["allowed_origins"]:
-            return f"Origin not allowed: {origin}"
-        token = self.headers.get("X-SDD-Token")
-        if not token or not secrets.compare_digest(token, _ACCESS["token"] or ""):
-            return "Missing or invalid X-SDD-Token header."
-        return None
+        return self._check_origin_and_token()
+
+    def _check_review_links_access(self) -> str | None:
+        """Returns an error message if this /api/review-links request
+        should be rejected, or None if it's allowed.
+
+        Unlike _check_write_access(), this applies even in read-only share
+        mode: this endpoint makes a *live* call to Jira/Confluence using
+        the credentials stored on the machine running `sdd dashboard`, for
+        whatever --feature the caller names -- "read-only" describes local
+        writes, not third-party API calls made under the host's own
+        credentials, so this needs the same Origin+token gate as a write
+        the moment the dashboard is reachable off loopback at all.
+        """
+        if _ACCESS["is_local"]:
+            return None
+        return self._check_origin_and_token()
 
     def do_POST(self):
         parsed = urlparse(self.path)
@@ -653,7 +685,12 @@ def dashboard_command(port, host, share, write, no_open):
     effective_host = "0.0.0.0" if share else host  # nosec B104
     is_local = effective_host in ("127.0.0.1", "localhost")
     writes_enabled = is_local or write
-    token = secrets.token_urlsafe(24) if (not is_local and writes_enabled) else None
+    # Generated for *any* non-local bind, not just --write ones: the token
+    # also gates /api/review-links (a live Jira/Confluence call made under
+    # this machine's own credentials), which needs authenticating even
+    # when writes are off -- "read-only" describes local writes, not
+    # third-party API calls made on the caller's behalf.
+    token = secrets.token_urlsafe(24) if not is_local else None
 
     lan_ip = None if is_local else _lan_ip()
     allowed_origins = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
@@ -690,8 +727,14 @@ def dashboard_command(port, host, share, write, no_open):
             console.print(
                 "  [dim]Read-only — viewers on your network can see this project's "
                 ".specify/ status but cannot approve documents or post comments. "
-                "Add --write to enable that (generates a token).[/dim]"
+                "Add --write to enable that.[/dim]"
             )
+        console.print(
+            '  [dim]"Check Jira/Confluence status" makes a live call under this '
+            "machine's own credentials for any --feature the caller names — the "
+            "link above (which includes the token) is required for that too, "
+            "even read-only. Treat it like a credential.[/dim]"
+        )
 
     console.print("  [dim]Ctrl+C to stop[/dim]")
     console.print()

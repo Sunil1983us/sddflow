@@ -4,6 +4,37 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.14] — 2026-08-02 (Dashboard: gate /api/review-links behind the token in read-only share mode)
+
+A second external review round found a real gap in the dashboard
+hardening shipped earlier: read-only `--share` mode (no `--write`) already
+blocked the write endpoints without a token, but `GET /api/review-links`
+was never gated at all. That endpoint makes a *live* call to Jira/
+Confluence using the credentials stored on the machine running
+`sdd dashboard`, for whatever `--feature` the caller names — "read-only"
+only ever meant "no local file writes," it never meant "no outbound calls
+made under this machine's credentials."
+
+### Fixed
+
+- **`/api/review-links` now requires the session token even in read-only
+  `--share` mode.** Token generation happens for any non-local bind
+  (previously only when `--write` was also passed); a new
+  `_check_review_links_access()` helper reuses the existing Origin+token
+  check and gates the endpoint, skipped only when the bind is local.
+  Approve/comment endpoints are unchanged.
+- Console output and the in-page info banner reworded to state plainly
+  that "Check Jira/Confluence status" is not affected by read-only mode
+  and always requires the token.
+
+### Verified
+
+- `cli-python` pytest: 817/817 (812 pre-existing + 5 new access-control
+  tests for `/api/review-links`)
+- ruff check/format, mypy, and bandit all clean
+
+---
+
 ## [2.8.13] — 2026-08-02 (Add lean/standard/regulated as friendly scope aliases)
 
 An external review flagged that `examples/todo-api` (a real `pilot`-scope
