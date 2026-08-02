@@ -1,18 +1,24 @@
 # Unit tests for the sdd upgrade migration chain.
 from unittest.mock import patch
 
-from click.testing import CliRunner
 import pytest
 import yaml
+from click.testing import CliRunner
 
 import sdd.commands.upgrade as upgrade_mod
-from sdd.commands.upgrade import upgrade_command, MIGRATIONS, _pending_migrations, _resolve_pack
+from sdd.commands.upgrade import (
+    MIGRATIONS,
+    _pending_migrations,
+    _resolve_pack,
+    upgrade_command,
+)
 from sdd.utils.manifest import SDD_VERSION
 
 
 class _Answer:
     """Stand-in for questionary's Question object -- .ask() returns a
     canned value instead of driving a real prompt_toolkit UI."""
+
     def __init__(self, value):
         self._value = value
 
@@ -35,9 +41,9 @@ def _write_manifest(project, version):
 
 
 def _manifest_version(project):
-    return yaml.safe_load(
-        (project / ".specify" / "manifest.yml").read_text()
-    ).get("sdd_version")
+    return yaml.safe_load((project / ".specify" / "manifest.yml").read_text()).get(
+        "sdd_version"
+    )
 
 
 def test_migration_table_is_a_connected_chain_ending_at_current():
@@ -61,7 +67,9 @@ def test_pending_migrations_walks_the_whole_chain_not_just_one_hop():
     would silently only ever see the next hop. This must return every
     migration needed to reach SDD_VERSION, in order."""
     chain = _pending_migrations("2.0.0")
-    assert len(chain) == len(MIGRATIONS) - 1  # every entry except the pre-versioning one
+    assert (
+        len(chain) == len(MIGRATIONS) - 1
+    )  # every entry except the pre-versioning one
     assert chain[0]["from"] == "2.0.0"
     assert chain[-1]["to"] == SDD_VERSION
     # strictly connected, no gaps or repeats
@@ -91,7 +99,9 @@ class TestUpgradeConverges:
         assert result.exit_code == 0
         assert _manifest_version(project) == SDD_VERSION
 
-    def test_single_pending_migration_applies_without_pending_count_message(self, project):
+    def test_single_pending_migration_applies_without_pending_count_message(
+        self, project
+    ):
         """One hop behind current: the 'N migrations pending' message is
         noise when there's only one, and there's nothing to choose
         between jump-vs-step -- must apply directly, same as before this
@@ -140,16 +150,20 @@ class TestUpgradeInteractivePrompt:
 
     def test_choosing_jump_applies_everything(self, project):
         _write_manifest(project, "2.0.0")
-        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
-             patch("questionary.select", return_value=_Answer(True)):
+        with (
+            patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True),
+            patch("questionary.select", return_value=_Answer(True)),
+        ):
             result = CliRunner().invoke(upgrade_command)
         assert result.exit_code == 0
         assert _manifest_version(project) == SDD_VERSION
 
     def test_choosing_step_applies_only_one_hop(self, project):
         _write_manifest(project, "2.0.0")
-        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
-             patch("questionary.select", return_value=_Answer(False)):
+        with (
+            patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True),
+            patch("questionary.select", return_value=_Answer(False)),
+        ):
             result = CliRunner().invoke(upgrade_command)
         assert result.exit_code == 0
         assert _manifest_version(project) != SDD_VERSION
@@ -159,8 +173,10 @@ class TestUpgradeInteractivePrompt:
         """--to-latest must skip asking entirely -- questionary.select
         must never be called."""
         _write_manifest(project, "2.0.0")
-        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
-             patch("questionary.select") as select_mock:
+        with (
+            patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True),
+            patch("questionary.select") as select_mock,
+        ):
             result = CliRunner().invoke(upgrade_command, ["--to-latest"])
         assert result.exit_code == 0
         assert _manifest_version(project) == SDD_VERSION
@@ -168,8 +184,10 @@ class TestUpgradeInteractivePrompt:
 
     def test_yes_flag_bypasses_the_prompt_even_when_tty(self, project):
         _write_manifest(project, "2.0.0")
-        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
-             patch("questionary.select") as select_mock:
+        with (
+            patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True),
+            patch("questionary.select") as select_mock,
+        ):
             result = CliRunner().invoke(upgrade_command, ["-y"])
         assert result.exit_code == 0
         assert _manifest_version(project) == SDD_VERSION
@@ -177,8 +195,10 @@ class TestUpgradeInteractivePrompt:
 
     def test_step_flag_bypasses_the_prompt_even_when_tty(self, project):
         _write_manifest(project, "2.0.0")
-        with patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True), \
-             patch("questionary.select") as select_mock:
+        with (
+            patch.object(upgrade_mod, "_stdin_is_interactive", return_value=True),
+            patch("questionary.select") as select_mock,
+        ):
             result = CliRunner().invoke(upgrade_command, ["--step"])
         assert result.exit_code == 0
         assert _manifest_version(project) != SDD_VERSION
@@ -201,6 +221,7 @@ def test_missing_manifest_exits_nonzero(project):
 # ── --sync-prompts (re-copying prompt/command files sdd upgrade alone
 # never touches) ─────────────────────────────────────────────────────────
 
+
 def test_resolve_pack_prefers_explicit_override():
     pack, source = _resolve_pack({"project_type": "mobile"}, "sdd-universal")
     assert pack == "sdd-universal"
@@ -213,7 +234,9 @@ def test_resolve_pack_rejects_unknown_override():
 
 
 def test_resolve_pack_prefers_stored_manifest_field():
-    pack, source = _resolve_pack({"pack": "sdd-fullstack", "project_type": "mobile"}, None)
+    pack, source = _resolve_pack(
+        {"pack": "sdd-fullstack", "project_type": "mobile"}, None
+    )
     assert pack == "sdd-fullstack"
     assert "manifest.yml" in source
 
@@ -225,20 +248,28 @@ def test_resolve_pack_infers_micro_from_manifest_shape():
 
 
 def test_resolve_pack_infers_from_project_type():
-    pack, source = _resolve_pack({"project_type": "mobile", "project": {"scope": "pilot"}}, None)
+    pack, source = _resolve_pack(
+        {"project_type": "mobile", "project": {"scope": "pilot"}}, None
+    )
     assert pack == "sdd-mobile"
     assert "inferred" in source
 
 
 def test_resolve_pack_defaults_to_universal_when_type_unrecognized():
-    pack, source = _resolve_pack({"project_type": "cli", "project": {"scope": "pilot"}}, None)
+    pack, source = _resolve_pack(
+        {"project_type": "cli", "project": {"scope": "pilot"}}, None
+    )
     assert pack == "sdd-universal"
     assert "defaulting" in source
 
 
 def _fake_sync_result(updated=None, added=None, unchanged=None, backup_dir=None):
-    return {"updated": updated or [], "added": added or [], "unchanged": unchanged or [],
-            "backup_dir": backup_dir}
+    return {
+        "updated": updated or [],
+        "added": added or [],
+        "unchanged": unchanged or [],
+        "backup_dir": backup_dir,
+    }
 
 
 def test_sync_prompts_shows_preview_and_applies_on_confirm(project, monkeypatch):
@@ -248,14 +279,23 @@ def test_sync_prompts_shows_preview_and_applies_on_confirm(project, monkeypatch)
     def fake_sync(pack_name, dry_run=False, **_):
         calls.append((pack_name, dry_run))
         if dry_run:
-            return _fake_sync_result(updated=["a.md"], added=["b.md"], unchanged=["c.md"])
-        return _fake_sync_result(updated=["a.md"], added=["b.md"], unchanged=["c.md"],
-                                  backup_dir=".specify/.prompt-sync-backups/20260101T000000Z")
+            return _fake_sync_result(
+                updated=["a.md"], added=["b.md"], unchanged=["c.md"]
+            )
+        return _fake_sync_result(
+            updated=["a.md"],
+            added=["b.md"],
+            unchanged=["c.md"],
+            backup_dir=".specify/.prompt-sync-backups/20260101T000000Z",
+        )
 
     monkeypatch.setattr(upgrade_mod, "sync_pack_prompts", fake_sync)
 
-    result = CliRunner().invoke(upgrade_command, ["--sync-prompts", "--pack", "sdd-backend-service"],
-                                 input="y\n")
+    result = CliRunner().invoke(
+        upgrade_command,
+        ["--sync-prompts", "--pack", "sdd-backend-service"],
+        input="y\n",
+    )
     assert result.exit_code == 0
     assert calls == [
         ("sdd-backend-service", True),
@@ -275,8 +315,11 @@ def test_sync_prompts_cancelled_does_not_apply(project, monkeypatch):
 
     monkeypatch.setattr(upgrade_mod, "sync_pack_prompts", fake_sync)
 
-    result = CliRunner().invoke(upgrade_command, ["--sync-prompts", "--pack", "sdd-backend-service"],
-                                 input="n\n")
+    result = CliRunner().invoke(
+        upgrade_command,
+        ["--sync-prompts", "--pack", "sdd-backend-service"],
+        input="n\n",
+    )
     assert result.exit_code == 0
     assert calls == [True]  # only the dry-run preview, never the real apply
     assert "Cancelled" in result.output
@@ -284,11 +327,15 @@ def test_sync_prompts_cancelled_does_not_apply(project, monkeypatch):
 
 def test_sync_prompts_yes_flag_skips_confirmation(project, monkeypatch):
     _write_manifest(project, SDD_VERSION)
-    monkeypatch.setattr(upgrade_mod, "sync_pack_prompts",
-                         lambda pack_name, dry_run=False, **_: _fake_sync_result(added=["b.md"]))
+    monkeypatch.setattr(
+        upgrade_mod,
+        "sync_pack_prompts",
+        lambda pack_name, dry_run=False, **_: _fake_sync_result(added=["b.md"]),
+    )
 
-    result = CliRunner().invoke(upgrade_command,
-                                 ["--sync-prompts", "--pack", "sdd-backend-service", "--yes"])
+    result = CliRunner().invoke(
+        upgrade_command, ["--sync-prompts", "--pack", "sdd-backend-service", "--yes"]
+    )
     assert result.exit_code == 0
     assert "Proceed?" not in result.output
     assert "0 updated, 1 added" in result.output
@@ -296,10 +343,15 @@ def test_sync_prompts_yes_flag_skips_confirmation(project, monkeypatch):
 
 def test_sync_prompts_already_up_to_date_skips_confirmation(project, monkeypatch):
     _write_manifest(project, SDD_VERSION)
-    monkeypatch.setattr(upgrade_mod, "sync_pack_prompts",
-                         lambda pack_name, dry_run=False, **_: _fake_sync_result(unchanged=["a.md"]))
+    monkeypatch.setattr(
+        upgrade_mod,
+        "sync_pack_prompts",
+        lambda pack_name, dry_run=False, **_: _fake_sync_result(unchanged=["a.md"]),
+    )
 
-    result = CliRunner().invoke(upgrade_command, ["--sync-prompts", "--pack", "sdd-backend-service"])
+    result = CliRunner().invoke(
+        upgrade_command, ["--sync-prompts", "--pack", "sdd-backend-service"]
+    )
     assert result.exit_code == 0
     assert "already up to date" in result.output
     assert "Proceed?" not in result.output
@@ -309,11 +361,15 @@ def test_sync_prompts_runs_even_when_manifest_already_current(project, monkeypat
     """--sync-prompts must not be swallowed by the early-return 'nothing to
     do' path that plain `sdd upgrade` takes when already at SDD_VERSION."""
     _write_manifest(project, SDD_VERSION)
-    monkeypatch.setattr(upgrade_mod, "sync_pack_prompts",
-                         lambda pack_name, dry_run=False, **_: _fake_sync_result(added=["b.md"]))
+    monkeypatch.setattr(
+        upgrade_mod,
+        "sync_pack_prompts",
+        lambda pack_name, dry_run=False, **_: _fake_sync_result(added=["b.md"]),
+    )
 
-    result = CliRunner().invoke(upgrade_command,
-                                 ["--sync-prompts", "--pack", "sdd-backend-service", "--yes"])
+    result = CliRunner().invoke(
+        upgrade_command, ["--sync-prompts", "--pack", "sdd-backend-service", "--yes"]
+    )
     assert result.exit_code == 0
     assert "Already at" in result.output
     assert "0 updated, 1 added" in result.output
@@ -321,14 +377,19 @@ def test_sync_prompts_runs_even_when_manifest_already_current(project, monkeypat
 
 def test_sync_prompts_unknown_pack_reports_error_without_crashing(project, monkeypatch):
     _write_manifest(project, SDD_VERSION)
-    result = CliRunner().invoke(upgrade_command, ["--sync-prompts", "--pack", "not-a-real-pack"])
+    result = CliRunner().invoke(
+        upgrade_command, ["--sync-prompts", "--pack", "not-a-real-pack"]
+    )
     assert result.exit_code == 0
     assert "Unknown pack" in result.output
 
 
 def test_sync_prompts_without_pack_flag_infers_from_manifest(project, monkeypatch):
-    m = {"project": {"name": "Demo", "feature": "auth", "scope": "pilot"},
-         "project_type": "frontend-spa", "sdd_version": SDD_VERSION}
+    m = {
+        "project": {"name": "Demo", "feature": "auth", "scope": "pilot"},
+        "project_type": "frontend-spa",
+        "sdd_version": SDD_VERSION,
+    }
     (project / ".specify" / "manifest.yml").write_text(yaml.dump(m))
     seen = {}
 

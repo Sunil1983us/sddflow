@@ -16,11 +16,13 @@ could change in a future Claude Code release with no notice. Callers
 must treat "nothing found" as a normal, expected outcome and fall back
 to the char-count estimate, not an error.
 """
+
 from __future__ import annotations
-from dataclasses import dataclass, field
+
+import json
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-import json
 
 
 def _parse_timestamp(raw: str) -> datetime:
@@ -44,7 +46,11 @@ class ModelUsage:
         is the best approximation this schema supports. Good enough for
         relative comparison, which is this file's own stated purpose;
         not exact billing, same caveat the estimate path already carries."""
-        return self.input_tokens + self.cache_creation_input_tokens + self.cache_read_input_tokens
+        return (
+            self.input_tokens
+            + self.cache_creation_input_tokens
+            + self.cache_read_input_tokens
+        )
 
 
 def claude_projects_dir() -> Path:
@@ -84,7 +90,9 @@ def find_session_transcripts(cwd: Path | None = None) -> tuple[Path | None, list
         return None, []
     main = candidates[0]
     subagents_dir = project_dir / main.stem / "subagents"
-    subagent_files = sorted(subagents_dir.glob("*.jsonl")) if subagents_dir.is_dir() else []
+    subagent_files = (
+        sorted(subagents_dir.glob("*.jsonl")) if subagents_dir.is_dir() else []
+    )
     return main, subagent_files
 
 
@@ -130,7 +138,11 @@ def sum_usage_since(
             bucket = usage_by_model.setdefault(model, ModelUsage())
             bucket.input_tokens += usage.get("input_tokens", 0) or 0
             bucket.output_tokens += usage.get("output_tokens", 0) or 0
-            bucket.cache_creation_input_tokens += usage.get("cache_creation_input_tokens", 0) or 0
-            bucket.cache_read_input_tokens += usage.get("cache_read_input_tokens", 0) or 0
+            bucket.cache_creation_input_tokens += (
+                usage.get("cache_creation_input_tokens", 0) or 0
+            )
+            bucket.cache_read_input_tokens += (
+                usage.get("cache_read_input_tokens", 0) or 0
+            )
             bucket.turns += 1
     return usage_by_model

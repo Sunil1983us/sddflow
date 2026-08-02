@@ -5,7 +5,9 @@ and jira review modes alike, since "Status:" headers inside .md files are
 the authoritative gate in every mode (see CLAUDE.md "Document Review
 Gates"). This is what `sdd dashboard` and `sdd status` render.
 """
+
 from __future__ import annotations
+
 import json
 import re
 from datetime import date, datetime, timezone
@@ -88,7 +90,11 @@ def _table_rows_after_heading(lines: list[str], contains: str) -> list[list[str]
     found -- never raises; every caller treats this as best-effort, the
     doc may not exist yet or may predate a template change."""
     try:
-        heading_idx = next(i for i, l in enumerate(lines) if l.strip().startswith("##") and contains in l)
+        heading_idx = next(
+            i
+            for i, l in enumerate(lines)
+            if l.strip().startswith("##") and contains in l
+        )
     except StopIteration:
         return []
     sep_idx = None
@@ -102,7 +108,7 @@ def _table_rows_after_heading(lines: list[str], contains: str) -> list[list[str]
     if sep_idx is None:
         return []
     rows = []
-    for line in lines[sep_idx + 1:]:
+    for line in lines[sep_idx + 1 :]:
         stripped = line.strip()
         if not stripped or stripped.startswith("## "):
             break
@@ -110,12 +116,16 @@ def _table_rows_after_heading(lines: list[str], contains: str) -> list[list[str]
             continue
         rows.append([c.strip() for c in stripped.strip("|").split("|")])
     return rows
+
+
 # "Est. " is optional in the label -- token-usage-template.md dropped the
 # prefix when the Source column (Real | Estimated) was added, since a row
 # can now be either; older files created before that change still say
 # "Total Est. Input Tokens" etc. and must keep parsing correctly.
-_RUNNING_TOTAL_ROW_RE = re.compile(r"\|\s*(Total (?:Est\. )?Input Tokens|Total (?:Est\. )?Output Tokens|"
-                                    r"Total (?:Est\. )?Cost \(USD\)|Commands logged|Last updated)\s*\|\s*(.+?)\s*\|")
+_RUNNING_TOTAL_ROW_RE = re.compile(
+    r"\|\s*(Total (?:Est\. )?Input Tokens|Total (?:Est\. )?Output Tokens|"
+    r"Total (?:Est\. )?Cost \(USD\)|Commands logged|Last updated)\s*\|\s*(.+?)\s*\|"
+)
 
 
 def _doc_status(path: Path) -> str | None:
@@ -150,7 +160,9 @@ def _parse_approvals_table(path: Path) -> list[dict]:
         return []
     lines = text.splitlines()
     try:
-        heading_idx = next(i for i, l in enumerate(lines) if l.strip() == "## Approvals")
+        heading_idx = next(
+            i for i, l in enumerate(lines) if l.strip() == "## Approvals"
+        )
     except StopIteration:
         return []
     sep_idx = None
@@ -164,7 +176,7 @@ def _parse_approvals_table(path: Path) -> list[dict]:
     if sep_idx is None:
         return []
     rows = []
-    for line in lines[sep_idx + 1:]:
+    for line in lines[sep_idx + 1 :]:
         stripped = line.strip()
         if not stripped or stripped.startswith("## "):
             break
@@ -180,12 +192,14 @@ def _parse_approvals_table(path: Path) -> list[dict]:
             continue
         if not role or role.startswith("{"):
             continue  # unfilled template placeholder -- doc was never regenerated
-        rows.append({
-            "role": role,
-            "approver": approver or None,
-            "status": appr_status or None,
-            "date": date or None,
-        })
+        rows.append(
+            {
+                "role": role,
+                "approver": approver or None,
+                "status": appr_status or None,
+                "date": date or None,
+            }
+        )
     return rows
 
 
@@ -237,8 +251,14 @@ def _parse_version_history_table(path: Path) -> list[dict]:
             continue
         if not version or version.startswith("{"):
             continue  # unfilled template placeholder -- doc never regenerated
-        rows.append({"version": version, "date": when or None,
-                      "changed_by": changed_by or None, "summary": summary or None})
+        rows.append(
+            {
+                "version": version,
+                "date": when or None,
+                "changed_by": changed_by or None,
+                "summary": summary or None,
+            }
+        )
     return rows
 
 
@@ -267,7 +287,7 @@ def _doc_timing(path: Path, status: str | None, approvals: list[dict]) -> dict:
     """
     history = _parse_version_history_table(path)
     created = _parse_iso_date(history[0]["date"]) if history else None
-    is_approved = bool(status) and "approved" in status.lower()
+    is_approved = status is not None and "approved" in status.lower()
 
     approved = None
     if is_approved:
@@ -275,24 +295,28 @@ def _doc_timing(path: Path, status: str | None, approvals: list[dict]) -> dict:
             approved = _parse_iso_date(history[-1]["date"])
         else:
             approved_dates = [
-                d for d in (
-                    _parse_iso_date(row.get("date")) for row in approvals
+                d
+                for d in (
+                    _parse_iso_date(row.get("date"))
+                    for row in approvals
                     if (row.get("status") or "").lower() == "approved"
-                ) if d is not None
+                )
+                if d is not None
             ]
             approved = max(approved_dates) if approved_dates else None
 
     revision_rounds = None
     if history:
         revision_rounds = sum(
-            1 for i in range(1, len(history))
+            1
+            for i in range(1, len(history))
             if history[i]["version"] != history[i - 1]["version"]
         )
 
     return {
-        "created_date":   created.isoformat() if created else None,
-        "approved_date":  approved.isoformat() if approved else None,
-        "duration_days":  (approved - created).days if (created and approved) else None,
+        "created_date": created.isoformat() if created else None,
+        "approved_date": approved.isoformat() if approved else None,
+        "duration_days": (approved - created).days if (created and approved) else None,
         "revision_rounds": revision_rounds,
     }
 
@@ -368,7 +392,9 @@ def _annotate_approvals(rows: list[dict], roles_map: dict) -> list[dict]:
     for row in rows:
         entry = dict(row)
         entry["expected_approver"] = (
-            None if entry.get("approver") else _resolve_expected_approver(entry["role"], roles_map)
+            None
+            if entry.get("approver")
+            else _resolve_expected_approver(entry["role"], roles_map)
         )
         annotated.append(entry)
     return annotated
@@ -378,8 +404,11 @@ def _feature_docs(root: Path, feature: str) -> list[dict]:
     feature_dir = root / ".specify" / "features" / feature
     docs: list[dict] = []
     md_files = sorted(
-        (p for p in feature_dir.glob("*.md")
-         if not p.name.endswith(".summary.md") and p.stem not in _NON_PIPELINE_DOCS),
+        (
+            p
+            for p in feature_dir.glob("*.md")
+            if not p.name.endswith(".summary.md") and p.stem not in _NON_PIPELINE_DOCS
+        ),
         key=lambda p: _PIPELINE_ORDER.get(p.stem, 999),
     )
     approvals = _local_approvals(root)
@@ -388,17 +417,19 @@ def _feature_docs(root: Path, feature: str) -> list[dict]:
         key = path.stem
         status = _doc_status(path)
         approvals_table = _annotate_approvals(_parse_approvals_table(path), roles_map)
-        docs.append({
-            "key": key,
-            "label": _PIPELINE_LABELS.get(key, key.replace("-", " ").title()),
-            "exists": True,
-            "status": status,
-            "path": str(path),
-            "local_approval": approvals.get(key),
-            "comments": _dashboard_comments(root, feature, key),
-            "approvals": approvals_table,
-            "timing": _doc_timing(path, status, approvals_table),
-        })
+        docs.append(
+            {
+                "key": key,
+                "label": _PIPELINE_LABELS.get(key, key.replace("-", " ").title()),
+                "exists": True,
+                "status": status,
+                "path": str(path),
+                "local_approval": approvals.get(key),
+                "comments": _dashboard_comments(root, feature, key),
+                "approvals": approvals_table,
+                "timing": _doc_timing(path, status, approvals_table),
+            }
+        )
     return docs
 
 
@@ -411,7 +442,11 @@ def _feature_timeline(docs: list[dict]) -> dict:
     None until there's enough data to compute them; duration_days only once
     both resolve. ISO date strings sort correctly with plain min(), no need
     to re-parse for that part."""
-    created = [d["timing"]["created_date"] for d in docs if d.get("timing", {}).get("created_date")]
+    created = [
+        d["timing"]["created_date"]
+        for d in docs
+        if d.get("timing", {}).get("created_date")
+    ]
     start = min(created) if created else None
 
     release_doc = next((d for d in docs if d["key"] == "release"), None)
@@ -426,8 +461,9 @@ def _feature_timeline(docs: list[dict]) -> dict:
     return {"start_date": start, "end_date": end, "duration_days": duration_days}
 
 
-def _current_stage(docs: list[dict], feature: str = "this feature",
-                    scope: str | None = "pilot") -> dict:
+def _current_stage(
+    docs: list[dict], feature: str = "this feature", scope: str | None = "pilot"
+) -> dict:
     """Last pipeline-ordered doc that exists, plus a best-effort 'next' guess
     and (when the next doc has one) its Virtual Team persona hint. No hint
     for the "(awaiting approval)" case -- the ask templates are all
@@ -437,7 +473,8 @@ def _current_stage(docs: list[dict], feature: str = "this feature",
     if not known:
         first_key = PIPELINE_DOCS[0][0] if PIPELINE_DOCS else None
         return {
-            "doc": None, "status": None,
+            "doc": None,
+            "status": None,
             "next": PIPELINE_DOCS[0][1] if PIPELINE_DOCS else None,
             "persona": _persona_hint(first_key, feature, scope) if first_key else None,
         }
@@ -452,8 +489,11 @@ def _current_stage(docs: list[dict], feature: str = "this feature",
         "doc": last["label"],
         "status": last["status"],
         "next": ("(awaiting approval)" if awaiting_approval else next_label),
-        "persona": (None if awaiting_approval or not next_key
-                    else _persona_hint(next_key, feature, scope)),
+        "persona": (
+            None
+            if awaiting_approval or not next_key
+            else _persona_hint(next_key, feature, scope)
+        ),
     }
 
 
@@ -499,9 +539,9 @@ _EXTENDED_TEMPLATE_MAP = {
 # through to no type-specific docs shown rather than a guessed answer.
 _UNIVERSAL_TYPE_EXTENDED_DOCS: dict[str, set[str]] = {
     "frontend-spa": {"component-spec", "ux-flow"},
-    "desktop":      {"component-spec", "ux-flow"},
-    "mobile":       {"screen-spec", "ux-flow"},
-    "fullstack":    {"component-spec", "ux-flow"},
+    "desktop": {"component-spec", "ux-flow"},
+    "mobile": {"screen-spec", "ux-flow"},
+    "fullstack": {"component-spec", "ux-flow"},
 }
 
 
@@ -513,8 +553,11 @@ def _applicable_extended_docs(root: Path, project_type: str | None) -> set[str]:
     if project_type:
         return set(_UNIVERSAL_TYPE_EXTENDED_DOCS.get(project_type, set()))
     templates_dir = root / ".specify" / "templates"
-    return {key for key, fname in _EXTENDED_TEMPLATE_MAP.items()
-            if (templates_dir / fname).is_file()}
+    return {
+        key
+        for key, fname in _EXTENDED_TEMPLATE_MAP.items()
+        if (templates_dir / fname).is_file()
+    }
 
 
 _SCOPE_ORDER = {"pilot": 0, "mvp": 1, "full": 2}
@@ -530,11 +573,11 @@ def _scope_at_least(scope: str | None, minimum: str) -> bool:
 # id "task", not "tasks", and are never looked up here since callers pass
 # scope=None for micro).
 _PERSONA_ROLE = {
-    "Maya":  "Business Analyst",
-    "Rex":   "Requirements Engineer",
-    "Ava":   "Software Architect",
-    "Leo":   "Lead Developer",
-    "Kai":   "Engineering Manager",
+    "Maya": "Business Analyst",
+    "Rex": "Requirements Engineer",
+    "Ava": "Software Architect",
+    "Leo": "Lead Developer",
+    "Kai": "Engineering Manager",
     "Quinn": "QA Lead",
     "Riley": "Release Manager",
 }
@@ -547,31 +590,31 @@ _PERSONA_ROLE = {
 # byproduct of /implement, not something you ask for directly) are
 # intentionally absent from this map.
 _STEP_PERSONA = {
-    "brd":            ("Maya",  "create the BRD for {feature}"),
-    "use-cases":      ("Maya",  "write the use cases for {feature}"),
-    "srd":            ("Rex",   "write the SRD for {feature}"),
+    "brd": ("Maya", "create the BRD for {feature}"),
+    "use-cases": ("Maya", "write the use cases for {feature}"),
+    "srd": ("Rex", "write the SRD for {feature}"),
     "security-design": ("Ava", "write the security design for {feature}"),
-    "data-model":      ("Ava", "write the data model for {feature}"),
-    "component-spec":  ("Ava", "write the component spec for {feature}"),
-    "ux-flow":         ("Ava", "write the UX flow for {feature}"),
-    "screen-spec":     ("Ava", "write the screen spec for {feature}"),
-    "resilience":      ("Ava", "write the resilience design for {feature}"),
-    "investigation":   ("Ava", "write the investigation doc for {feature}"),
-    "checklist":      ("Quinn", "run the spec quality checklist for {feature}"),
-    "validate":       ("Maya",  "validate {feature}"),
-    "analyze":        ("Ava",   "run the cross-doc analysis on {feature}"),
-    "clarify":        ("Rex",   "clarify the open questions on {feature}"),
-    "design":         ("Ava",   "design {feature}"),
-    "arch":           ("Ava",   "design the architecture for {feature}"),
-    "hld":            ("Ava",   "write the high-level design for {feature}"),
-    "adr":            ("Ava",   "record the architecture decisions for {feature}"),
-    "lld":            ("Leo",   "write the low-level design for {feature}"),
-    "stories":        ("Kai",   "break {feature} into stories"),
-    "tasks":          ("Kai",   "break {feature} into tasks"),
-    "smoke-tests":    ("Kai",   "write smoke tests for {feature}"),
-    "qa-testcases":   ("Kai",   "write QA test cases for {feature}"),
-    "implement":      ("Leo",   "implement the next task for {feature}"),
-    "release":        ("Riley", "plan the release for {feature}"),
+    "data-model": ("Ava", "write the data model for {feature}"),
+    "component-spec": ("Ava", "write the component spec for {feature}"),
+    "ux-flow": ("Ava", "write the UX flow for {feature}"),
+    "screen-spec": ("Ava", "write the screen spec for {feature}"),
+    "resilience": ("Ava", "write the resilience design for {feature}"),
+    "investigation": ("Ava", "write the investigation doc for {feature}"),
+    "checklist": ("Quinn", "run the spec quality checklist for {feature}"),
+    "validate": ("Maya", "validate {feature}"),
+    "analyze": ("Ava", "run the cross-doc analysis on {feature}"),
+    "clarify": ("Rex", "clarify the open questions on {feature}"),
+    "design": ("Ava", "design {feature}"),
+    "arch": ("Ava", "design the architecture for {feature}"),
+    "hld": ("Ava", "write the high-level design for {feature}"),
+    "adr": ("Ava", "record the architecture decisions for {feature}"),
+    "lld": ("Leo", "write the low-level design for {feature}"),
+    "stories": ("Kai", "break {feature} into stories"),
+    "tasks": ("Kai", "break {feature} into tasks"),
+    "smoke-tests": ("Kai", "write smoke tests for {feature}"),
+    "qa-testcases": ("Kai", "write QA test cases for {feature}"),
+    "implement": ("Leo", "implement the next task for {feature}"),
+    "release": ("Riley", "plan the release for {feature}"),
 }
 
 
@@ -586,11 +629,16 @@ def _persona_hint(step_id: str, feature: str, scope: str | None) -> dict | None:
     if not entry:
         return None
     name, template = entry
-    return {"name": name, "role": _PERSONA_ROLE[name], "ask": template.format(feature=feature)}
+    return {
+        "name": name,
+        "role": _PERSONA_ROLE[name],
+        "ask": template.format(feature=feature),
+    }
 
 
-def _standard_pipeline_steps(scope: str | None, plan_mode: str,
-                              applicable_extended: frozenset[str] = frozenset()) -> list[dict]:
+def _standard_pipeline_steps(
+    scope: str | None, plan_mode: str, applicable_extended: frozenset[str] = frozenset()
+) -> list[dict]:
     """The full command sequence for every pack except sdd-micro (backend,
     frontend-spa, mobile, fullstack, universal all share this exact
     top-level flow — see each pack's own CLAUDE.md header). Every step is
@@ -619,12 +667,26 @@ def _standard_pipeline_steps(scope: str | None, plan_mode: str,
     pilot = (scope or "pilot") == "pilot"
 
     def doc(id_, command, label, doc_key, skip=None, optional=False):
-        return {"id": id_, "command": command, "label": label, "kind": "doc",
-                "doc_key": doc_key, "skip": skip, "optional": optional}
+        return {
+            "id": id_,
+            "command": command,
+            "label": label,
+            "kind": "doc",
+            "doc_key": doc_key,
+            "skip": skip,
+            "optional": optional,
+        }
 
     def service_doc(id_, command, label, doc_key, skip=None):
-        return {"id": id_, "command": command, "label": label, "kind": "service_doc",
-                "doc_key": doc_key, "skip": skip, "optional": False}
+        return {
+            "id": id_,
+            "command": command,
+            "label": label,
+            "kind": "service_doc",
+            "doc_key": doc_key,
+            "skip": skip,
+            "optional": False,
+        }
 
     extended_steps = [
         # Ordered to match the practical /specify-doc sequence recommended
@@ -632,50 +694,164 @@ def _standard_pipeline_steps(scope: str | None, plan_mode: str,
         # applicable) -- neither doc depends on the other, but next_action
         # picks the first non-done step in list order, so the order here
         # is what the dashboard tells someone to run first.
-        service_doc("data-model", "/specify-doc data-model", "Data Model", "data-model",
-                    skip=None if mvp_plus else "pilot scope"),
-        service_doc("security-design", "/specify-doc security", "Security Design", "security-design"),
+        service_doc(
+            "data-model",
+            "/specify-doc data-model",
+            "Data Model",
+            "data-model",
+            skip=None if mvp_plus else "pilot scope",
+        ),
+        service_doc(
+            "security-design",
+            "/specify-doc security",
+            "Security Design",
+            "security-design",
+        ),
     ]
     if "component-spec" in applicable_extended:
-        extended_steps.append(doc("component-spec", "/specify-doc component-spec", "Component Spec",
-                                   "component-spec", skip=None if mvp_plus else "pilot scope"))
+        extended_steps.append(
+            doc(
+                "component-spec",
+                "/specify-doc component-spec",
+                "Component Spec",
+                "component-spec",
+                skip=None if mvp_plus else "pilot scope",
+            )
+        )
     if "ux-flow" in applicable_extended:
-        extended_steps.append(doc("ux-flow", "/specify-doc ux-flow", "UX Flow",
-                                   "ux-flow", skip=None if mvp_plus else "pilot scope"))
+        extended_steps.append(
+            doc(
+                "ux-flow",
+                "/specify-doc ux-flow",
+                "UX Flow",
+                "ux-flow",
+                skip=None if mvp_plus else "pilot scope",
+            )
+        )
     if "screen-spec" in applicable_extended:
-        extended_steps.append(doc("screen-spec", "/specify-doc screen-spec", "Screen Spec",
-                                   "screen-spec", skip=None if mvp_plus else "pilot scope"))
-    extended_steps.append(doc("resilience", "/specify-doc resilience", "Resilience",
-                               "resilience", skip=None if full else "full scope"))
-    extended_steps.append(doc("investigation", "/specify-doc investigation", "Investigation",
-                               "investigation", skip=None if full else "full scope"))
+        extended_steps.append(
+            doc(
+                "screen-spec",
+                "/specify-doc screen-spec",
+                "Screen Spec",
+                "screen-spec",
+                skip=None if mvp_plus else "pilot scope",
+            )
+        )
+    extended_steps.append(
+        doc(
+            "resilience",
+            "/specify-doc resilience",
+            "Resilience",
+            "resilience",
+            skip=None if full else "full scope",
+        )
+    )
+    extended_steps.append(
+        doc(
+            "investigation",
+            "/specify-doc investigation",
+            "Investigation",
+            "investigation",
+            skip=None if full else "full scope",
+        )
+    )
 
     return [
-        {"id": "specify", "command": "/specify", "label": "Constitution (Part 2)", "kind": "constitution"},
-        {"id": "gate1", "command": None, "label": "GATE-1 — Constitution Finalized", "kind": "manual_gate"},
+        {
+            "id": "specify",
+            "command": "/specify",
+            "label": "Constitution (Part 2)",
+            "kind": "constitution",
+        },
+        {
+            "id": "gate1",
+            "command": None,
+            "label": "GATE-1 — Constitution Finalized",
+            "kind": "manual_gate",
+        },
         doc("brd", "/specify-brd", "Business Requirements Document", "brd"),
         doc("use-cases", "/specify-uc", "Use Case Specification", "use-cases"),
         doc("srd", "/specify-srd", "Software Requirements Document", "srd"),
         *extended_steps,
-        doc("checklist", "/checklist", "Spec Quality Checklist", "checklist", optional=pilot),
+        doc(
+            "checklist",
+            "/checklist",
+            "Spec Quality Checklist",
+            "checklist",
+            optional=pilot,
+        ),
         doc("validate", "/validate", "Validate", "validate"),
         doc("analyze", "/analyze", "Cross-Doc Analysis", "analyze"),
         doc("clarify", "/clarify", "Clarify Ambiguities", "clarify"),
-        doc("design", "/plan-design", "Design (Architecture + HLD + API)", "design",
-            skip=None if not separate else "separate plan mode"),
-        doc("arch", "/plan-arch", "Architecture", "arch",
-            skip=None if separate else "unified plan mode"),
-        doc("hld", "/plan-hld", "High-Level Design", "hld",
-            skip=None if separate else "unified plan mode"),
-        doc("adr", "/plan-adr", "Architecture Decision Records", "adr",
-            skip=("unified plan mode" if not separate else (None if mvp_plus else "pilot scope"))),
-        doc("lld", "/plan-lld", "Low-Level Design", "lld", skip=None if mvp_plus else "pilot scope"),
+        doc(
+            "design",
+            "/plan-design",
+            "Design (Architecture + HLD + API)",
+            "design",
+            skip=None if not separate else "separate plan mode",
+        ),
+        doc(
+            "arch",
+            "/plan-arch",
+            "Architecture",
+            "arch",
+            skip=None if separate else "unified plan mode",
+        ),
+        doc(
+            "hld",
+            "/plan-hld",
+            "High-Level Design",
+            "hld",
+            skip=None if separate else "unified plan mode",
+        ),
+        doc(
+            "adr",
+            "/plan-adr",
+            "Architecture Decision Records",
+            "adr",
+            skip=(
+                "unified plan mode"
+                if not separate
+                else (None if mvp_plus else "pilot scope")
+            ),
+        ),
+        doc(
+            "lld",
+            "/plan-lld",
+            "Low-Level Design",
+            "lld",
+            skip=None if mvp_plus else "pilot scope",
+        ),
         doc("stories", "/task", "User Stories", "stories"),
         doc("tasks", "/task", "Task Breakdown", "tasks"),
-        doc("smoke-tests", "/task", "Smoke Tests (≤10 cases)", "smoke-tests", skip=None if pilot else "mvp+ scope"),
-        doc("qa-testcases", "/task", "QA Test Cases", "qa-testcases", skip="pilot scope" if pilot else None),
-        {"id": "implement", "command": "/implement", "label": "Implementation (per task)", "kind": "tasks_progress"},
-        doc("runbook", "(generated by /implement)", "Runbook", "runbook", skip=None if mvp_plus else "pilot scope"),
+        doc(
+            "smoke-tests",
+            "/task",
+            "Smoke Tests (≤10 cases)",
+            "smoke-tests",
+            skip=None if pilot else "mvp+ scope",
+        ),
+        doc(
+            "qa-testcases",
+            "/task",
+            "QA Test Cases",
+            "qa-testcases",
+            skip="pilot scope" if pilot else None,
+        ),
+        {
+            "id": "implement",
+            "command": "/implement",
+            "label": "Implementation (per task)",
+            "kind": "tasks_progress",
+        },
+        doc(
+            "runbook",
+            "(generated by /implement)",
+            "Runbook",
+            "runbook",
+            skip=None if mvp_plus else "pilot scope",
+        ),
         doc("release", "/release", "Release Plan & Go/No-Go", "release"),
     ]
 
@@ -685,14 +861,38 @@ def _micro_pipeline_steps() -> list[dict]:
     no review-gated spec docs; identified by scope being absent on the
     manifest (sdd-micro's manifest.yml has no project.scope field)."""
     return [
-        {"id": "specify", "command": "/specify", "label": "Constitution (Confirmed)", "kind": "constitution"},
-        {"id": "gate1", "command": None, "label": "GATE-1 — Constitution Confirmed", "kind": "manual_gate"},
-        {"id": "task", "command": "/task", "label": "Task Breakdown", "kind": "doc", "doc_key": "tasks", "skip": None},
-        {"id": "implement", "command": "/implement", "label": "Implementation", "kind": "tasks_progress"},
+        {
+            "id": "specify",
+            "command": "/specify",
+            "label": "Constitution (Confirmed)",
+            "kind": "constitution",
+        },
+        {
+            "id": "gate1",
+            "command": None,
+            "label": "GATE-1 — Constitution Confirmed",
+            "kind": "manual_gate",
+        },
+        {
+            "id": "task",
+            "command": "/task",
+            "label": "Task Breakdown",
+            "kind": "doc",
+            "doc_key": "tasks",
+            "skip": None,
+        },
+        {
+            "id": "implement",
+            "command": "/implement",
+            "label": "Implementation",
+            "kind": "tasks_progress",
+        },
     ]
 
 
-def _step_state(step: dict, docs_by_key: dict, tasks: dict, constitution: dict, service_docs: dict) -> str:
+def _step_state(
+    step: dict, docs_by_key: dict, tasks: dict, constitution: dict, service_docs: dict
+) -> str:
     """done | current | upcoming — 'current' means either awaiting review
     (a doc exists but its Status: header isn't Approved yet) or actively
     in progress (tasks partially done); 'upcoming' means not started."""
@@ -725,16 +925,20 @@ def _next_action_sentence(step: dict, state: str, tasks: dict) -> str:
     if kind == "constitution":
         return "Run `/specify` to generate the project constitution."
     if kind == "manual_gate":
-        return ('Review and finalize constitution Part 2 (Tech Stack, Core '
-                'Principles, Domain Rules, Never Do), then tell your agent: '
-                '"Constitution Part 2 finalized."')
+        return (
+            "Review and finalize constitution Part 2 (Tech Stack, Core "
+            "Principles, Domain Rules, Never Do), then tell your agent: "
+            '"Constitution Part 2 finalized."'
+        )
     if kind == "tasks_progress":
         if state == "upcoming":
             return "Run `/task` to break this feature into tasks, then `/implement` to start building."
         return f"Run `/implement` to continue — {tasks['done']}/{tasks['total']} tasks done."
     if state == "current":
-        return (f'"{step["label"]}" is generated and waiting on review — check with '
-                f'`sdd review check --doc {step["doc_key"]}`, or approve it above.')
+        return (
+            f'"{step["label"]}" is generated and waiting on review — check with '
+            f"`sdd review check --doc {step['doc_key']}`, or approve it above."
+        )
     return f"Run `{step['command']}` to generate the {step['label']}."
 
 
@@ -751,10 +955,16 @@ def _later_doc_step_exists(remaining_steps: list[dict], docs_by_key: dict) -> bo
     return False
 
 
-def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_docs: dict,
-                    plan_mode: str = "unified", scope: str | None = "pilot",
-                    feature: str = "this feature",
-                    applicable_extended: frozenset[str] = frozenset()) -> dict:
+def build_pipeline(
+    docs: list[dict],
+    tasks: dict,
+    constitution: dict,
+    service_docs: dict,
+    plan_mode: str = "unified",
+    scope: str | None = "pilot",
+    feature: str = "this feature",
+    applicable_extended: frozenset[str] = frozenset(),
+) -> dict:
     """The full command sequence for this feature (every step this scope/
     plan_mode can ever produce, including skipped ones with a reason),
     each resolved to done/current/upcoming from what's actually on disk —
@@ -767,8 +977,11 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
     extended docs (component-spec/ux-flow/screen-spec) this project's type
     actually uses — see _applicable_extended_docs().
     """
-    steps = (_micro_pipeline_steps() if scope is None
-             else _standard_pipeline_steps(scope, plan_mode, applicable_extended))
+    steps = (
+        _micro_pipeline_steps()
+        if scope is None
+        else _standard_pipeline_steps(scope, plan_mode, applicable_extended)
+    )
     docs_by_key = {d["key"]: d for d in docs}
 
     resolved: list[dict] = []
@@ -790,8 +1003,11 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
             # tell the dashboard to say "run /checklist" while the pipeline
             # diagram itself already shows a later step as current --
             # exactly the contradiction a user reported seeing.
-            if (step.get("optional") and state == "upcoming"
-                    and _later_doc_step_exists(steps[i + 1:], docs_by_key)):
+            if (
+                step.get("optional")
+                and state == "upcoming"
+                and _later_doc_step_exists(steps[i + 1 :], docs_by_key)
+            ):
                 continue
             next_action = _next_action_sentence(step, state, tasks)
             next_step_id = step["id"]
@@ -812,7 +1028,14 @@ def build_pipeline(docs: list[dict], tasks: dict, constitution: dict, service_do
 
 def _parse_tasks(tasks_path: Path) -> dict:
     if not tasks_path.exists():
-        return {"format": "none", "total": 0, "done": 0, "in_progress": 0, "not_started": 0, "items": []}
+        return {
+            "format": "none",
+            "total": 0,
+            "done": 0,
+            "in_progress": 0,
+            "not_started": 0,
+            "items": [],
+        }
 
     text = tasks_path.read_text(errors="replace")
     lines = text.splitlines()
@@ -853,7 +1076,9 @@ def _parse_tasks(tasks_path: Path) -> dict:
         satisfies_match = _SATISFIES_RE.search(block)
         fr_ids = _extract_ids(satisfies_match.group(1), "FR") if satisfies_match else []
 
-        items.append({"id": task_id, "title": title, "status": status, "fr_ids": fr_ids})
+        items.append(
+            {"id": task_id, "title": title, "status": status, "fr_ids": fr_ids}
+        )
 
     counts = {"done": 0, "in_progress": 0, "not_started": 0, "unknown": 0}
     for it in items:
@@ -910,8 +1135,12 @@ def _parse_brd_bo(brd_path: Path) -> dict:
 
 
 _UC_SECTION_RE = re.compile(r"^###\s+(UC-\d+)\b")
-_UC_BR_LINE_RE = re.compile(r"\*\*(?:BR Traces|Trace|Business Rules Applied)\s*:?\*\*\s*(.+)", re.IGNORECASE)
-_UC_FR_LINE_RE = re.compile(r"\*\*(?:FR Traces[^*]*|Linked FR-NNN)\s*:?\*\*\s*(.+)", re.IGNORECASE)
+_UC_BR_LINE_RE = re.compile(
+    r"\*\*(?:BR Traces|Trace|Business Rules Applied)\s*:?\*\*\s*(.+)", re.IGNORECASE
+)
+_UC_FR_LINE_RE = re.compile(
+    r"\*\*(?:FR Traces[^*]*|Linked FR-NNN)\s*:?\*\*\s*(.+)", re.IGNORECASE
+)
 
 
 def _parse_uc_traces(uc_path: Path) -> dict:
@@ -953,15 +1182,23 @@ def _parse_uc_traces(uc_path: Path) -> dict:
         for line in section_lines:
             m = _UC_BR_LINE_RE.search(line)
             if m:
-                br_ids.extend(i for i in _extract_ids(m.group(1), "BR") if i not in br_ids)
+                br_ids.extend(
+                    i for i in _extract_ids(m.group(1), "BR") if i not in br_ids
+                )
             m = _UC_FR_LINE_RE.search(line)
             if m:
-                fr_ids.extend(i for i in _extract_ids(m.group(1), "FR") if i not in fr_ids)
+                fr_ids.extend(
+                    i for i in _extract_ids(m.group(1), "FR") if i not in fr_ids
+                )
         if current not in result:
             result[current] = {"br_ids": br_ids, "fr_ids": fr_ids}
         else:
-            result[current]["br_ids"].extend(i for i in br_ids if i not in result[current]["br_ids"])
-            result[current]["fr_ids"].extend(i for i in fr_ids if i not in result[current]["fr_ids"])
+            result[current]["br_ids"].extend(
+                i for i in br_ids if i not in result[current]["br_ids"]
+            )
+            result[current]["fr_ids"].extend(
+                i for i in fr_ids if i not in result[current]["fr_ids"]
+            )
 
     for line in lines:
         m = _UC_SECTION_RE.match(line.strip())
@@ -1017,7 +1254,7 @@ def _parse_srd_fr(srd_path: Path) -> dict:
     return result
 
 
-_BO_CLOSURE_CHECKBOX_RE = re.compile(r'\[([ xX])\]\s*(Yes|No|Pending)')
+_BO_CLOSURE_CHECKBOX_RE = re.compile(r"\[([ xX])\]\s*(Yes|No|Pending)")
 
 
 def _parse_release_bo_closure(release_path: Path) -> dict:
@@ -1040,7 +1277,11 @@ def _parse_release_bo_closure(release_path: Path) -> dict:
         if not bo_id.startswith("BO-") or "{" in bo_id:
             continue
         outcome = None
-        checked = [label for box, label in _BO_CLOSURE_CHECKBOX_RE.findall(met) if box.lower() == "x"]
+        checked = [
+            label
+            for box, label in _BO_CLOSURE_CHECKBOX_RE.findall(met)
+            if box.lower() == "x"
+        ]
         if "Yes" in checked:
             outcome = "met"
         elif "No" in checked:
@@ -1158,18 +1399,20 @@ def build_bo_rollup(root: Path, feature: str) -> list[dict]:
             status_label = "Not Started"
 
         closure = bo_closure.get(bo_id, {})
-        rollup.append({
-            "bo_id": bo_id,
-            "objective": meta["objective"],
-            "metric": meta["metric"],
-            "uc_ids": uc_ids,
-            "task_count": total,
-            "tasks_done": done,
-            "percent_done": round(100 * done / total) if total else 0,
-            "status": status_label,
-            "outcome": closure.get("outcome"),
-            "measured_result": closure.get("measured_result"),
-        })
+        rollup.append(
+            {
+                "bo_id": bo_id,
+                "objective": meta["objective"],
+                "metric": meta["metric"],
+                "uc_ids": uc_ids,
+                "task_count": total,
+                "tasks_done": done,
+                "percent_done": round(100 * done / total) if total else 0,
+                "status": status_label,
+                "outcome": closure.get("outcome"),
+                "measured_result": closure.get("measured_result"),
+            }
+        )
     return rollup
 
 
@@ -1205,21 +1448,30 @@ def _parse_token_usage(path: Path) -> dict | None:
         values[m.group(1)] = m.group(2).strip()
     sources = _parse_command_log_sources(text)
     if not values:
-        return {"exists": True, "total_input": None, "total_output": None,
-                "total_cost": None, "commands_logged": None, "last_updated": None,
-                **sources}
+        return {
+            "exists": True,
+            "total_input": None,
+            "total_output": None,
+            "total_cost": None,
+            "commands_logged": None,
+            "last_updated": None,
+            **sources,
+        }
     return {
         "exists": True,
-        "total_input":     values.get("Total Input Tokens") or values.get("Total Est. Input Tokens"),
-        "total_output":    values.get("Total Output Tokens") or values.get("Total Est. Output Tokens"),
-        "total_cost":      values.get("Total Cost (USD)") or values.get("Total Est. Cost (USD)"),
+        "total_input": values.get("Total Input Tokens")
+        or values.get("Total Est. Input Tokens"),
+        "total_output": values.get("Total Output Tokens")
+        or values.get("Total Est. Output Tokens"),
+        "total_cost": values.get("Total Cost (USD)")
+        or values.get("Total Est. Cost (USD)"),
         "commands_logged": values.get("Commands logged"),
-        "last_updated":    values.get("Last updated"),
+        "last_updated": values.get("Last updated"),
         **sources,
     }
 
 
-_TEMPLATE_PLACEHOLDER_RE = re.compile(r'\{[a-z][a-zA-Z0-9 _/]*\}')
+_TEMPLATE_PLACEHOLDER_RE = re.compile(r"\{[a-z][a-zA-Z0-9 _/]*\}")
 
 
 def _constitution_status(root: Path) -> dict:
@@ -1247,8 +1499,10 @@ def _constitution_status(root: Path) -> dict:
         for feature_dir in features_dir.iterdir():
             if not feature_dir.is_dir():
                 continue
-            if any(p.name != "tasks.md" and not p.name.endswith(".summary.md")
-                   for p in feature_dir.glob("*.md")):
+            if any(
+                p.name != "tasks.md" and not p.name.endswith(".summary.md")
+                for p in feature_dir.glob("*.md")
+            ):
                 any_downstream = True
                 break
             if (feature_dir / "tasks.md").exists():
@@ -1268,6 +1522,7 @@ def _local_base_url() -> str | None:
     try:
         from sdd.utils.atlassian_auth import load_profile
         from sdd.utils.integrations import load_integrations
+
         profile_name = None
         try:
             profile_name = load_integrations().profile
@@ -1307,7 +1562,10 @@ def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
         return result
 
     def _link(jira_key: str) -> dict:
-        return {"key": jira_key, "url": f"{base_url}/browse/{jira_key}" if base_url else None}
+        return {
+            "key": jira_key,
+            "url": f"{base_url}/browse/{jira_key}" if base_url else None,
+        }
 
     def _collect(raw) -> list[dict]:
         items = raw.values() if isinstance(raw, dict) else (raw or [])
@@ -1340,7 +1598,9 @@ def _local_confluence_links(root: Path, base_url: str | None) -> dict:
             continue
         links[doc_key] = {
             "title": entry.get("title"),
-            "url": f"{base_url}/wiki/pages/viewpage.action?pageId={page_id}" if base_url else None,
+            "url": f"{base_url}/wiki/pages/viewpage.action?pageId={page_id}"
+            if base_url
+            else None,
         }
     return links
 
@@ -1371,9 +1631,14 @@ def _local_review_links(root: Path, base_url: str | None) -> dict:
     return links
 
 
-def build_feature_status(root: Path, feature: str, constitution: dict | None = None,
-                          plan_mode: str = "unified", scope: str | None = "pilot",
-                          project_type: str | None = None) -> dict:
+def build_feature_status(
+    root: Path,
+    feature: str,
+    constitution: dict | None = None,
+    plan_mode: str = "unified",
+    scope: str | None = "pilot",
+    project_type: str | None = None,
+) -> dict:
     feature_dir = root / ".specify" / "features" / feature
     docs = _feature_docs(root, feature)
     base_url = _local_base_url()
@@ -1396,9 +1661,16 @@ def build_feature_status(root: Path, feature: str, constitution: dict | None = N
             "jira_review": _local_review_links(root, base_url),
         },
         "pipeline": build_pipeline(
-            docs, tasks, constitution or _constitution_status(root),
-            service_docs, plan_mode, scope, feature=feature,
-            applicable_extended=frozenset(_applicable_extended_docs(root, project_type)),
+            docs,
+            tasks,
+            constitution or _constitution_status(root),
+            service_docs,
+            plan_mode,
+            scope,
+            feature=feature,
+            applicable_extended=frozenset(
+                _applicable_extended_docs(root, project_type)
+            ),
         ),
     }
 
@@ -1415,8 +1687,14 @@ def build_project_status(root: str | Path = ".") -> dict:
     constitution = _constitution_status(root)
 
     features = [
-        build_feature_status(root, f, constitution=constitution, plan_mode=plan_mode,
-                              scope=scope, project_type=project_type)
+        build_feature_status(
+            root,
+            f,
+            constitution=constitution,
+            plan_mode=plan_mode,
+            scope=scope,
+            project_type=project_type,
+        )
         for f in _list_feature_names(root)
     ]
 
@@ -1434,13 +1712,13 @@ def build_project_status(root: str | Path = ".") -> dict:
 
     return {
         "project": {
-            "name":            proj.get("name") or None,
+            "name": proj.get("name") or None,
             "current_feature": proj.get("feature") or None,
-            "scope":           scope,
-            "plan_mode":       plan_mode,
-            "project_type":    manifest.get("project_type"),
-            "workflow_mode":   manifest.get("workflow_mode"),
-            "sdd_version":     manifest.get("sdd_version"),
+            "scope": scope,
+            "plan_mode": plan_mode,
+            "project_type": manifest.get("project_type"),
+            "workflow_mode": manifest.get("workflow_mode"),
+            "sdd_version": manifest.get("sdd_version"),
         },
         "constitution": constitution,
         "features": features,

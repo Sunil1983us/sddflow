@@ -1,16 +1,22 @@
 from __future__ import annotations
+
 import json
 from pathlib import Path
+
 import click
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import load_confluence_session
-from sdd.utils.integrations import load_integrations
-from sdd.utils.confluence_client import ConfluenceClient
-from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.cf_to_md import cf_to_md
+from sdd.utils.confluence_client import ConfluenceClient
+from sdd.utils.integrations import load_integrations
 from sdd.utils.manifest import read_manifest
-from sdd.utils.validate import resolve_doc_path, LIVING_SERVICE_DOCS, PROJECT_SCOPED_DOCS
+from sdd.utils.md_to_cf import md_to_storage
+from sdd.utils.validate import (
+    LIVING_SERVICE_DOCS,
+    PROJECT_SCOPED_DOCS,
+    resolve_doc_path,
+)
 
 console = Console()
 
@@ -36,8 +42,9 @@ def _resolve_doc_path(doc: str, feature: str) -> Path:
     return resolve_doc_path(doc, feature)
 
 
-def _ensure_container_page(client: ConfluenceClient, space_key: str, title: str,
-                            parent_id: str | None) -> str:
+def _ensure_container_page(
+    client: ConfluenceClient, space_key: str, title: str, parent_id: str | None
+) -> str:
     """Idempotent: find-by-title-in-space, else create an empty container
     page. Used for the Project and Feature pages every doc page nests
     under -- same idempotent-upsert contract as jira.py's Epic bootstrap,
@@ -49,31 +56,40 @@ def _ensure_container_page(client: ConfluenceClient, space_key: str, title: str,
     return page["id"]
 
 
-def resolve_feature_parent_id(client: ConfluenceClient, cf_cfg, project_name: str,
-                               feature_name: str) -> str:
+def resolve_feature_parent_id(
+    client: ConfluenceClient, cf_cfg, project_name: str, feature_name: str
+) -> str:
     """The Confluence page ID a per-feature doc page should nest under:
     {parent_page_id} -> Project page -> Feature page. Purely a navigation
     convenience -- Confluence enforces page-title uniqueness per SPACE,
     not per parent, so this does NOT relax the need for {feature} in the
     page title itself; two features' same-titled pages would still
     collide even nested under different Feature pages."""
-    project_page_id = _ensure_container_page(client, cf_cfg.space_key, project_name, cf_cfg.parent_page_id)
-    return _ensure_container_page(client, cf_cfg.space_key, feature_name, project_page_id)
+    project_page_id = _ensure_container_page(
+        client, cf_cfg.space_key, project_name, cf_cfg.parent_page_id
+    )
+    return _ensure_container_page(
+        client, cf_cfg.space_key, feature_name, project_page_id
+    )
 
 
-def resolve_doc_parent_id(client: ConfluenceClient, cf_cfg, project_name: str,
-                           feature_name: str, doc: str) -> str:
+def resolve_doc_parent_id(
+    client: ConfluenceClient, cf_cfg, project_name: str, feature_name: str, doc: str
+) -> str:
     """Like resolve_feature_parent_id(), except living/service-level docs,
     "constitution", and "runbook" (PROJECT_SCOPED_DOCS) nest directly
     under the Project page instead of a Feature page, since they're
     shared across every feature, not per-feature."""
     if doc in PROJECT_SCOPED_DOCS:
-        return _ensure_container_page(client, cf_cfg.space_key, project_name, cf_cfg.parent_page_id)
+        return _ensure_container_page(
+            client, cf_cfg.space_key, project_name, cf_cfg.parent_page_id
+        )
     return resolve_feature_parent_id(client, cf_cfg, project_name, feature_name)
 
 
-def upload_diagram_attachments(client: ConfluenceClient, page_id: str,
-                                attachments: list[tuple[str, bytes, str]]) -> None:
+def upload_diagram_attachments(
+    client: ConfluenceClient, page_id: str, attachments: list[tuple[str, bytes, str]]
+) -> None:
     """Upload each locally-rendered diagram (diagrams.mode: local-svg) as
     a page attachment, after the page itself has already been created/
     updated with a body that references these filenames via
@@ -109,7 +125,11 @@ def _response_detail(e: Exception) -> str:
         return f" -- {text[:300]}" if text else ""
     message = body.get("message")
     if not message:
-        errors = body.get("data", {}).get("errors") if isinstance(body.get("data"), dict) else None
+        errors = (
+            body.get("data", {}).get("errors")
+            if isinstance(body.get("data"), dict)
+            else None
+        )
         if errors:
             message = "; ".join(
                 err.get("message", str(err)) if isinstance(err, dict) else str(err)
@@ -118,8 +138,9 @@ def _response_detail(e: Exception) -> str:
     return f" -- {message}" if message else ""
 
 
-def _resolve_page_title(doc: str, project_name: str, feature: str,
-                         page_map: dict) -> str:
+def _resolve_page_title(
+    doc: str, project_name: str, feature: str, page_map: dict
+) -> str:
     """Build the Confluence page title for a doc key.
 
     Living/service-level docs and "runbook" (PROJECT_SCOPED_DOCS, minus
@@ -139,7 +160,9 @@ def _resolve_page_title(doc: str, project_name: str, feature: str,
     each other's content.
     """
     if doc == "context":
-        return _CONTEXT_PAGE_TITLE.replace("{project}", project_name).replace("{feature}", feature)
+        return _CONTEXT_PAGE_TITLE.replace("{project}", project_name).replace(
+            "{feature}", feature
+        )
     if doc == "constitution":
         return _CONSTITUTION_PAGE_TITLE.replace("{project}", project_name)
     template = page_map.get(doc, f"{{project}} — {doc.upper()}")
@@ -157,13 +180,22 @@ def confluence_command():
 
 @confluence_command.command("push")
 @click.option("--profile", default=None)
-@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
-@click.option("--doc",     default=None,
-              help="Push a single doc only (e.g. hld, brd, arch, runbook)")
-@click.option("--summary", is_flag=True, default=False,
-              help="Push each doc's .summary.md to its own page (title suffixed "
-                   "' — Summary') instead of the full .md")
-@click.option("--dry-run", is_flag=True, help="Print page titles without calling the API")
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
+@click.option(
+    "--doc", default=None, help="Push a single doc only (e.g. hld, brd, arch, runbook)"
+)
+@click.option(
+    "--summary",
+    is_flag=True,
+    default=False,
+    help="Push each doc's .summary.md to its own page (title suffixed "
+    "' — Summary') instead of the full .md",
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Print page titles without calling the API"
+)
 def confluence_push(profile, feature, doc, summary, dry_run):
     """Publish SDD documents to Confluence pages (create or update)."""
     console.print()
@@ -187,14 +219,14 @@ def confluence_push(profile, feature, doc, summary, dry_run):
         )
         raise SystemExit(1)
 
-    cf_cfg       = cfg.confluence
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    cf_cfg = cfg.confluence
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     project_name = proj.get("name", "Project")
     feature_name = feature or proj.get("feature", "")
 
     # Resolve which docs to push
-    page_map    = cf_cfg.page_map
+    page_map = cf_cfg.page_map
     keys_to_try = [doc] if doc else list(page_map.keys())
 
     available: list[tuple[str, Path, str]] = []
@@ -239,12 +271,14 @@ def confluence_push(profile, feature, doc, summary, dry_run):
     client = ConfluenceClient(session, prof.base_url)
 
     for key, md_path, title in available:
-        body, attachments, diagram_warnings = md_to_storage(md_path.read_text(), cf_cfg.diagrams)
+        body, attachments, diagram_warnings = md_to_storage(
+            md_path.read_text(), cf_cfg.diagrams
+        )
         try:
-            parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, key)
-            page, created = client.upsert_page(
-                cf_cfg.space_key, title, body, parent_id
+            parent_id = resolve_doc_parent_id(
+                client, cf_cfg, project_name, feature_name, key
             )
+            page, created = client.upsert_page(cf_cfg.space_key, title, body, parent_id)
             upload_diagram_attachments(client, page["id"], attachments)
             action = "[green]created[/green]" if created else "[dim]updated[/dim]"
             console.print(f"  {action}  [cyan]{title}[/cyan]")
@@ -265,11 +299,18 @@ def confluence_push(profile, feature, doc, summary, dry_run):
 
 
 @confluence_command.command("draft")
-@click.option("--doc", required=True,
-              help="Document type: context, brd, uc, srd, design, lld, security, ...")
+@click.option(
+    "--doc",
+    required=True,
+    help="Document type: context, brd, uc, srd, design, lld, security, ...",
+)
 @click.option("--profile", default=None)
-@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
-@click.option("--dry-run", is_flag=True, help="Print title and path without calling the API")
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Print title and path without calling the API"
+)
 def confluence_draft(doc, profile, feature, dry_run):
     """Push a draft SDD document to Confluence and print the edit URL.
 
@@ -293,7 +334,9 @@ def confluence_draft(doc, profile, feature, dry_run):
         raise SystemExit(1)
 
     if not cfg.confluence:
-        console.print("  [red]✗  No confluence: section in .specify/integrations.yml[/red]")
+        console.print(
+            "  [red]✗  No confluence: section in .specify/integrations.yml[/red]"
+        )
         raise SystemExit(1)
 
     cf_cfg = cfg.confluence
@@ -309,7 +352,9 @@ def confluence_draft(doc, profile, feature, dry_run):
         raise SystemExit(1)
     if not doc_path.exists():
         console.print(f"  [red]✗  File not found: {doc_path}[/red]")
-        console.print("  [dim]Generate the document first, then run this command.[/dim]")
+        console.print(
+            "  [dim]Generate the document first, then run this command.[/dim]"
+        )
         raise SystemExit(1)
 
     title = _resolve_page_title(doc, project_name, feature_name, cf_cfg.page_map)
@@ -331,13 +376,15 @@ def confluence_draft(doc, profile, feature, dry_run):
         raise SystemExit(1)
 
     client = ConfluenceClient(session, prof.base_url)
-    body, attachments, diagram_warnings = md_to_storage(doc_path.read_text(), cf_cfg.diagrams)
+    body, attachments, diagram_warnings = md_to_storage(
+        doc_path.read_text(), cf_cfg.diagrams
+    )
 
     try:
-        parent_id = resolve_doc_parent_id(client, cf_cfg, project_name, feature_name, doc)
-        page, created = client.upsert_page(
-            cf_cfg.space_key, title, body, parent_id
+        parent_id = resolve_doc_parent_id(
+            client, cf_cfg, project_name, feature_name, doc
         )
+        page, created = client.upsert_page(cf_cfg.space_key, title, body, parent_id)
         upload_diagram_attachments(client, page["id"], attachments)
     except Exception as e:
         console.print(f"  [red]✗  Confluence error: {e}[/red]")
@@ -360,7 +407,9 @@ def confluence_draft(doc, profile, feature, dry_run):
         console.print(f"  [yellow]!  {w}[/yellow]")
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print("  [bold green]Draft pushed![/bold green]  Open the URL above, fill in any")
+    console.print(
+        "  [bold green]Draft pushed![/bold green]  Open the URL above, fill in any"
+    )
     console.print("  [MISSING] sections or answer the questions, then run:")
     console.print()
     console.print(f"      [bold]sdd confluence pull --doc {doc}[/bold]")
@@ -371,11 +420,18 @@ def confluence_draft(doc, profile, feature, dry_run):
 
 
 @confluence_command.command("pull")
-@click.option("--doc", required=True,
-              help="Document type: context, brd, uc, srd, design, lld, security, ...")
+@click.option(
+    "--doc",
+    required=True,
+    help="Document type: context, brd, uc, srd, design, lld, security, ...",
+)
 @click.option("--profile", default=None)
-@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
-@click.option("--page-id", default=None, help="Confluence page ID (overrides saved value)")
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
+@click.option(
+    "--page-id", default=None, help="Confluence page ID (overrides saved value)"
+)
 def confluence_pull(doc, profile, feature, page_id):
     """Pull the latest Confluence page content back to the local SDD file.
 
@@ -395,7 +451,9 @@ def confluence_pull(doc, profile, feature, page_id):
         raise SystemExit(1)
 
     if not cfg.confluence:
-        console.print("  [red]✗  No confluence: section in .specify/integrations.yml[/red]")
+        console.print(
+            "  [red]✗  No confluence: section in .specify/integrations.yml[/red]"
+        )
         raise SystemExit(1)
 
     manifest = read_manifest() or {}
@@ -432,9 +490,7 @@ def confluence_pull(doc, profile, feature, page_id):
         console.print(f"  [red]✗  Confluence error: {e}[/red]")
         raise SystemExit(1)
 
-    storage_body = (
-        page.get("body", {}).get("storage", {}).get("value", "")
-    )
+    storage_body = page.get("body", {}).get("storage", {}).get("value", "")
     if not storage_body:
         console.print("  [red]✗  Page body is empty.[/red]")
         raise SystemExit(1)
@@ -444,9 +500,9 @@ def confluence_pull(doc, profile, feature, page_id):
     # Fetch comments (footer + inline) and append as a section the AI can read
     console.print("  Fetching comments...")
     try:
-        footer_comments  = client.get_page_comments(resolved_page_id)
-        inline_comments  = client.get_inline_comments(resolved_page_id)
-        all_comments     = footer_comments + inline_comments
+        footer_comments = client.get_page_comments(resolved_page_id)
+        inline_comments = client.get_inline_comments(resolved_page_id)
+        all_comments = footer_comments + inline_comments
     except Exception:
         all_comments = []
 
@@ -463,7 +519,9 @@ def confluence_pull(doc, profile, feature, page_id):
         ]
         for i, c in enumerate(all_comments, 1):
             kind = "inline" if c["type"] == "inline" else "comment"
-            lines.append(f"### {kind.capitalize()} {i} — {c['author']} ({c['created']})")
+            lines.append(
+                f"### {kind.capitalize()} {i} — {c['author']} ({c['created']})"
+            )
             lines.append("")
             lines.append(c["text"])
             lines.append("")
@@ -475,26 +533,32 @@ def confluence_pull(doc, profile, feature, page_id):
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
     doc_path.parent.mkdir(parents=True, exist_ok=True)
-
-    old_text = doc_path.read_text() if doc_path.exists() else ""
     doc_path.write_text(markdown + "\n")
 
-    body_lines   = len(cf_to_md(storage_body).splitlines())
+    body_lines = len(cf_to_md(storage_body).splitlines())
     comment_count = len(all_comments)
     console.print(f"  [green]✓[/green]  Saved to [bold]{doc_path}[/bold]")
     console.print(f"  Body     : {body_lines} lines")
     if comment_count:
-        console.print(f"  Comments : [yellow]{comment_count}[/yellow] (included for AI review)")
+        console.print(
+            f"  Comments : [yellow]{comment_count}[/yellow] (included for AI review)"
+        )
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print("  [bold green]Pull complete![/bold green]  The local file is now up to date.")
+    console.print(
+        "  [bold green]Pull complete![/bold green]  The local file is now up to date."
+    )
     if comment_count:
-        console.print(f"  [yellow]{comment_count} Confluence comment(s)[/yellow] included —")
+        console.print(
+            f"  [yellow]{comment_count} Confluence comment(s)[/yellow] included —"
+        )
         console.print("  tell the AI 'done' and it will incorporate them.")
     if doc == "context":
-        console.print("  Say [bold]'done'[/bold] in chat — the AI will read the updates")
+        console.print(
+            "  Say [bold]'done'[/bold] in chat — the AI will read the updates"
+        )
         console.print("  and comments, then continue.")
     else:
-        console.print(f"  Say [bold]'done'[/bold] in chat to resume the SDD workflow.")
+        console.print("  Say [bold]'done'[/bold] in chat to resume the SDD workflow.")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()

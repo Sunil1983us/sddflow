@@ -3,20 +3,16 @@
 # falling through to the generic paragraph handler and being flattened
 # onto one line, losing all row/column structure once pushed to Confluence.
 from __future__ import annotations
+
 from unittest.mock import patch
 
-from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.integrations import DiagramsConfig
+from sdd.utils.md_to_cf import md_to_storage
 
 
 class TestTables:
     def test_simple_table_renders_as_html_table(self):
-        md = (
-            "| Method | Path |\n"
-            "|---|---|\n"
-            "| POST | /tasks |\n"
-            "| GET | /tasks/{id} |\n"
-        )
+        md = "| Method | Path |\n|---|---|\n| POST | /tasks |\n| GET | /tasks/{id} |\n"
         html, _, _ = md_to_storage(md)
         assert "<table><tbody>" in html
         assert "<th>Method</th>" in html
@@ -29,20 +25,12 @@ class TestTables:
     def test_table_not_split_across_paragraphs(self):
         """Regression: previously every row was joined into one <p> with
         spaces, losing all table structure entirely."""
-        md = (
-            "| A | B |\n"
-            "|---|---|\n"
-            "| 1 | 2 |\n"
-        )
+        md = "| A | B |\n|---|---|\n| 1 | 2 |\n"
         html, _, _ = md_to_storage(md)
         assert "<p>" not in html
 
     def test_alignment_markers_produce_text_align_style(self):
-        md = (
-            "| Left | Center | Right |\n"
-            "|:---|:---:|---:|\n"
-            "| a | b | c |\n"
-        )
+        md = "| Left | Center | Right |\n|:---|:---:|---:|\n| a | b | c |\n"
         html, _, _ = md_to_storage(md)
         assert 'style="text-align:left"' in html
         assert 'style="text-align:center"' in html
@@ -54,11 +42,7 @@ class TestTables:
         assert "style=" not in html
 
     def test_cell_inline_formatting_applied(self):
-        md = (
-            "| Field | Value |\n"
-            "|---|---|\n"
-            "| **Status** | `202` |\n"
-        )
+        md = "| Field | Value |\n|---|---|\n| **Status** | `202` |\n"
         html, _, _ = md_to_storage(md)
         assert "<strong>Status</strong>" in html
         assert "<code>202</code>" in html
@@ -66,23 +50,13 @@ class TestTables:
     def test_ragged_row_padded_to_header_width(self):
         """A body row with fewer cells than the header doesn't crash or
         misalign the remaining columns."""
-        md = (
-            "| A | B | C |\n"
-            "|---|---|---|\n"
-            "| 1 | 2 |\n"
-        )
+        md = "| A | B | C |\n|---|---|---|\n| 1 | 2 |\n"
         html, _, _ = md_to_storage(md)
         assert html.count("<td>") == 3
         assert "<td></td>" in html
 
     def test_table_followed_by_paragraph_resumes_normal_parsing(self):
-        md = (
-            "| A | B |\n"
-            "|---|---|\n"
-            "| 1 | 2 |\n"
-            "\n"
-            "Normal paragraph after the table.\n"
-        )
+        md = "| A | B |\n|---|---|\n| 1 | 2 |\n\nNormal paragraph after the table.\n"
         html, _, _ = md_to_storage(md)
         assert "</table>" in html
         assert "<p>Normal paragraph after the table.</p>" in html
@@ -213,12 +187,19 @@ class TestLocalSvgMode:
     def test_success_emits_image_reference_and_queues_attachment(self):
         md = "```mermaid\ngraph TD;\nA-->B;\n```"
         diagrams = DiagramsConfig(mode="local-svg")
-        with patch("sdd.utils.mermaid_render.render_mermaid_svg",
-                   return_value="<svg>rendered</svg>"):
+        with patch(
+            "sdd.utils.mermaid_render.render_mermaid_svg",
+            return_value="<svg>rendered</svg>",
+        ):
             html, attachments, warnings = md_to_storage(md, diagrams)
-        assert '<ac:image ac:width="900"><ri:attachment ri:filename="diagram-1.svg" /></ac:image>' in html
+        assert (
+            '<ac:image ac:width="900"><ri:attachment ri:filename="diagram-1.svg" /></ac:image>'
+            in html
+        )
         assert '<ac:structured-macro ac:name="code">' not in html
-        assert attachments == [("diagram-1.svg", b"<svg>rendered</svg>", "image/svg+xml")]
+        assert attachments == [
+            ("diagram-1.svg", b"<svg>rendered</svg>", "image/svg+xml")
+        ]
         assert warnings == []
 
     def test_custom_local_svg_width_is_applied(self):
@@ -228,8 +209,10 @@ class TestLocalSvgMode:
         900px for their own theme/page-width preference."""
         md = "```mermaid\ngraph TD;\nA-->B;\n```"
         diagrams = DiagramsConfig(mode="local-svg", local_svg_width=600)
-        with patch("sdd.utils.mermaid_render.render_mermaid_svg",
-                   return_value="<svg>rendered</svg>"):
+        with patch(
+            "sdd.utils.mermaid_render.render_mermaid_svg",
+            return_value="<svg>rendered</svg>",
+        ):
             html, _, _ = md_to_storage(md, diagrams)
         assert 'ac:width="600"' in html
 
@@ -245,8 +228,10 @@ class TestLocalSvgMode:
         code with zero indication anything was wrong."""
         md = "```mermaid\nnot valid\n```"
         diagrams = DiagramsConfig(mode="local-svg")
-        with patch("sdd.utils.mermaid_render.render_mermaid_svg",
-                   side_effect=ValueError("bad diagram")):
+        with patch(
+            "sdd.utils.mermaid_render.render_mermaid_svg",
+            side_effect=ValueError("bad diagram"),
+        ):
             html, attachments, warnings = md_to_storage(md, diagrams)
         assert '<ac:structured-macro ac:name="code">' in html
         assert attachments == []
@@ -262,8 +247,7 @@ class TestLocalSvgMode:
         scope, produces a diagnosable warning instead."""
         md = "```mermaid\nsequenceDiagram\nA->>B: hi\n```"
         diagrams = DiagramsConfig(mode="local-svg")
-        with patch("sdd.utils.mermaid_render.render_mermaid_svg",
-                   return_value=""):
+        with patch("sdd.utils.mermaid_render.render_mermaid_svg", return_value=""):
             html, attachments, warnings = md_to_storage(md, diagrams)
         assert '<ac:structured-macro ac:name="code">' in html
         assert attachments == []
@@ -275,10 +259,13 @@ class TestLocalSvgMode:
         to local-svg but `pip install "sddflow[diagrams]"` was never
         run. The warning must name the fix, not just say "failed"."""
         from sdd.utils.mermaid_render import MermaidRendererNotInstalled
+
         md = "```mermaid\ngraph TD;\n```"
         diagrams = DiagramsConfig(mode="local-svg")
-        with patch("sdd.utils.mermaid_render.render_mermaid_svg",
-                   side_effect=MermaidRendererNotInstalled()):
+        with patch(
+            "sdd.utils.mermaid_render.render_mermaid_svg",
+            side_effect=MermaidRendererNotInstalled(),
+        ):
             _, _, warnings = md_to_storage(md, diagrams)
         assert len(warnings) == 1
         assert "pip install" in warnings[0]
@@ -290,8 +277,9 @@ class TestLocalSvgMode:
             "```mermaid\nsequenceDiagram\nA->>B: hi\n```\n"
         )
         diagrams = DiagramsConfig(mode="local-svg")
-        with patch("sdd.utils.mermaid_render.render_mermaid_svg",
-                   return_value="<svg>x</svg>"):
+        with patch(
+            "sdd.utils.mermaid_render.render_mermaid_svg", return_value="<svg>x</svg>"
+        ):
             html, attachments, warnings = md_to_storage(md, diagrams)
         assert '"diagram-1.svg"' in html
         assert '"diagram-2.svg"' in html

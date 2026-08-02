@@ -14,7 +14,9 @@ because the comments file itself is an append-only log with no per-entry
 "handled" flag -- the ack file just records, per feature/doc, the
 timestamp of the last comment the agent has already acted on.
 """
+
 from __future__ import annotations
+
 import json
 from datetime import datetime, timezone
 from pathlib import Path

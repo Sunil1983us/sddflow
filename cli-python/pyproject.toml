@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sddflow"
-version = "2.8.8"
+version = "2.8.13"
 description = "Spec-Driven Development CLI for AI coding agents — SDLC workflows with Jira/Confluence sync, multi-host PR automation, and live progress dashboards"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -18,7 +18,7 @@ keywords = [
     "pull-request", "code-review", "requirements",
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -62,8 +62,12 @@ Changelog = "https://github.com/sunil1983us/universalguide/blob/main/CHANGELOG.m
 
 [tool.hatch.build.targets.wheel]
 packages = ["sdd"]
-# include the bundled pack files so `sdd init` works after pip install
-artifacts = ["sdd/packs/**"]
+# include the bundled pack files so `sdd init` works after pip install, and
+# the dashboard's static CSS/JS/HTML so `sdd dashboard` works after pip
+# install -- "packages" mode only ships .py files by default, so any
+# non-.py file (tracked by git or not) needs an explicit artifacts entry
+# or it's silently missing from the wheel.
+artifacts = ["sdd/packs/**", "sdd/commands/dashboard_static/**"]
 
 [tool.hatch.build.targets.sdist]
 # artifacts here (not just on the wheel target) is required: `uv build` (and
@@ -76,10 +80,72 @@ artifacts = ["sdd/packs/**"]
 # doesn't hit this because it builds the wheel directly from source, bypassing
 # the sdist step entirely — which is why that command alone can't catch this
 # class of bug; verify with `uv build` (or `python -m build`, sdist+wheel).
-artifacts = ["sdd/packs/**"]
+artifacts = ["sdd/packs/**", "sdd/commands/dashboard_static/**"]
 include = [
     "sdd/",
     "README.md",
     "pyproject.toml",
 ]
+
+[tool.ruff]
+target-version = "py39"
+
+[tool.ruff.lint]
+# Uses ruff's own default rule selection rather than a hand-picked list --
+# a full pass fixed or noqa'd (with reasons) everything it flagged except
+# the two ignores below. Re-run `ruff check .` after a ruff upgrade in
+# case its defaults change.
+ignore = [
+    # This codebase deliberately writes long prose as adjacent string
+    # literals inside list/tuple literals (e.g. migration `notes` lists,
+    # test docstrings) -- a deliberate style choice, not a bug. 674 hits,
+    # all of this same shape, verified during the review pass that added
+    # this config.
+    "ISC004",
+    # `except Exception:` appears broadly across the CLI/API-client layers.
+    # Some instances are clearly intentional and already documented inline
+    # (search for "noqa: S110" nearby for the best-effort-fallback cases);
+    # most of the 67 hits haven't been triaged one at a time. Flagged for a
+    # dedicated manual review pass rather than blanket-suppressed here or
+    # blanket-narrowed to specific exception types without understanding
+    # what each call site actually needs to catch.
+    "BLE001",
+]
+
+[tool.bandit]
+# A full run turned up nothing actionable beyond what's skipped here (one
+# genuine Medium finding -- the --share flag's deliberate 0.0.0.0 bind --
+# was addressed with an inline # nosec at its call site instead, since
+# that one needed its own explanation, not a blanket skip). Everything
+# below is either a false positive or an accepted, already-documented
+# pattern; re-run `bandit -r sdd/` without `skips` after any bandit
+# upgrade in case its detection changes.
+skips = [
+    "B101",  # assert used for internal invariants (see mypy-driven asserts
+             # in dashboard.py/jira.py), not for validating untrusted input
+             # -- being stripped under `python -O` degrades to a different
+             # crash, not a security hole
+    "B105",  # false positive: dashboard.py's _ACCESS["token"] default is
+             # `None` (absence of a token), not a hardcoded secret value
+    "B110",  # try/except/pass -- the 4 hits are the same best-effort
+             # fallbacks already individually annotated with
+             # `# noqa: S110 -- <reason>` for ruff, right at each site
+    "B404",  # subprocess import -- this CLI's whole job is shelling out
+             # to git/gh/glab/az
+    "B603",  # subprocess call -- always list-args with shell=False (the
+             # safe form), never a shell string built from untrusted input
+]
+
+[tool.coverage.run]
+source = ["sdd"]
+
+[tool.coverage.report]
+# 77% -- set with headroom below the real baseline (79% when this was
+# added) rather than pinned to it, so a small incidental dip doesn't fail
+# CI for reasons unrelated to the change being reviewed. Not the review's
+# suggested 85% either -- that would fail immediately against the actual
+# baseline. Ratchet this upward over time as coverage improves, especially
+# once detect.py (9%), confluence_client.py (29%), and cf_to_md.py (18%)
+# get real unit tests -- see task tracker for the review this came from.
+fail_under = 77
 

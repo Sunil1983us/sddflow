@@ -1,11 +1,62 @@
 from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from pathlib import Path
-import yaml
+
+import keyring
 import requests
 import requests.auth
-import keyring
+import yaml
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# Every Jira/Confluence API call in this codebase goes through a Session
+# built by build_session() below, so configuring resilience once here --
+# rather than passing timeout=/wrapping try/except at each of the ~25
+# individual call sites across jira_client.py and confluence_client.py --
+# covers all of them. Before this, a flaky network blip or an Atlassian
+# rate limit turned into a raw, unhandled stack trace mid-workflow.
+_DEFAULT_TIMEOUT = 20  # seconds -- generous for a REST call, short enough
+# that a hung connection doesn't block an
+# interactive CLI command indefinitely
+
+
+class _TimeoutHTTPAdapter(HTTPAdapter):
+    """Applies a default request timeout whenever a call doesn't specify
+    its own -- requests.Session has no built-in way to set a session-wide
+    default timeout (a well-known library gotcha), so overriding the
+    adapter's send() is the standard workaround."""
+
+    def __init__(self, *args, timeout: float = _DEFAULT_TIMEOUT, **kwargs):
+        self._timeout = timeout
+        super().__init__(*args, **kwargs)
+
+    def send(self, request, **kwargs):
+        if kwargs.get("timeout") is None:
+            kwargs["timeout"] = self._timeout
+        return super().send(request, **kwargs)
+
+
+def _retrying_adapter() -> _TimeoutHTTPAdapter:
+    """3 retries with exponential backoff (0s/1s/2s/4s between attempts) on
+    connection errors and on 429/500/502/503/504 responses, honoring a
+    429's Retry-After header when Atlassian sends one. Retries every HTTP
+    method, including POST/PUT -- this codebase's writes already lean on
+    label-based find-before-create idempotency where duplication would
+    matter (see JiraClient.find_by_label), and the alternative (a
+    connection blip silently aborting a document approval or a Jira push
+    partway through) is worse than the small remaining risk of an
+    occasional duplicate retry on a genuinely dropped response."""
+    retry = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=None,
+        respect_retry_after_header=True,
+    )
+    return _TimeoutHTTPAdapter(max_retries=retry)
+
 
 CONFIG_PATH = Path.home() / ".sdd" / "config.yml"
 
@@ -18,16 +69,16 @@ KEYRING_SERVICE = "sdd-framework"
 
 @dataclass
 class Profile:
-    auth_mode: str        # basic | pat | oauth2
+    auth_mode: str  # basic | pat | oauth2
     base_url: str
     email: str | None = None
-    credential_store: str = "env"   # env | keyring
+    credential_store: str = "env"  # env | keyring
     api_token_env: str | None = None
     pat_env: str | None = None
     client_id_env: str | None = None
     client_secret_env: str | None = None
     access_token_env: str | None = None
-    profile_name: str | None = None   # set by load_profile; the keyring lookup key
+    profile_name: str | None = None  # set by load_profile; the keyring lookup key
 
 
 def load_profile(name: str | None = None) -> Profile:
@@ -102,7 +153,7 @@ def _get_keyring_secret(profile_name: str) -> str:
             f"in ~/.sdd/config.yml as a fallback."
         ) from e
     if not token:
-        raise EnvironmentError(
+        raise OSError(
             f"No credential found in the system keychain for profile "
             f"'{profile_name}'. Run 'sdd config set-secret --profile "
             f"{profile_name}' to store it."
@@ -122,7 +173,7 @@ def _resolve_secret(profile: Profile, env_var_name: str | None, field_name: str)
         raise ValueError(f"credential_store=env requires {field_name} in config")
     token = os.environ.get(env_var_name, "")
     if not token:
-        raise EnvironmentError(
+        raise OSError(
             f"Environment variable {env_var_name} is not set. Export it "
             f"before running sdd commands, or switch this profile to "
             f"credential_store: keyring (run 'sdd config init') so it "
@@ -133,6 +184,8 @@ def _resolve_secret(profile: Profile, env_var_name: str | None, field_name: str)
 
 def build_session(profile: Profile) -> requests.Session:
     session = requests.Session()
+    session.mount("https://", _retrying_adapter())
+    session.mount("http://", _retrying_adapter())
     session.headers["Accept"] = "application/json"
     session.headers["Content-Type"] = "application/json"
 
@@ -157,7 +210,9 @@ def build_session(profile: Profile) -> requests.Session:
     return session
 
 
-def load_jira_session(cfg, profile_override: str | None = None) -> tuple[Profile, requests.Session]:
+def load_jira_session(
+    cfg, profile_override: str | None = None
+) -> tuple[Profile, requests.Session]:
     """Resolve the Profile + authenticated Session to use for Jira calls.
 
     Honors integrations.yml's jira.profile override (see
@@ -172,7 +227,9 @@ def load_jira_session(cfg, profile_override: str | None = None) -> tuple[Profile
     return prof, build_session(prof)
 
 
-def load_confluence_session(cfg, profile_override: str | None = None) -> tuple[Profile, requests.Session]:
+def load_confluence_session(
+    cfg, profile_override: str | None = None
+) -> tuple[Profile, requests.Session]:
     """Resolve the Profile + authenticated Session to use for Confluence
     calls -- see load_jira_session(), which this mirrors for the
     confluence.profile override."""

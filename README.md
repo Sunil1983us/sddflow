@@ -74,12 +74,16 @@ Agent commands (Claude Code / Copilot):
 
 → Full reference: [`cli-python/README.md`](cli-python/README.md)
 
-### Node.js CLI (maintenance mode, from source only)
+### Node.js CLI (Deprecated — from source only)
 
-> ⚠️ **Do NOT `npm install -g sdd-init`** — that name on npm belongs to an
-> unrelated third-party package, not this project. This Node CLI is not
-> published; it is scaffolding-only and in maintenance mode. Prefer the
-> Python CLI. To use it anyway, install from source:
+> ⚠️ **Deprecated.** This Node CLI only receives fixes, not new features, and
+> covers scaffolding only (`init`/`upgrade` — no Jira, Confluence, review
+> gates, or PR automation, and none planned). **Use the Python CLI
+> (`pip install sddflow`) instead** unless you specifically need a
+> Node-only environment with no Python available. Do NOT
+> `npm install -g sdd-init` — that name on npm belongs to an unrelated
+> third-party package, not this project. This Node CLI is not published at
+> all; install from source:
 
 ```bash
 git clone https://github.com/Sunil1983us/Universalguide

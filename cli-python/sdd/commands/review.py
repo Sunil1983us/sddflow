@@ -1,21 +1,23 @@
 from __future__ import annotations
-from datetime import date
-from pathlib import Path
+
 import json
 import re
-import yaml
+from datetime import date
+from pathlib import Path
+
 import click
+import yaml
 from rich.console import Console
 
-from sdd.utils.atlassian_auth import load_jira_session, load_confluence_session
-from sdd.utils.integrations import load_integrations, IntegrationsConfig
-from sdd.utils.jira_client import JiraClient
+from sdd.utils.atlassian_auth import load_confluence_session, load_jira_session
 from sdd.utils.confluence_client import ConfluenceClient
-from sdd.utils.md_to_cf import md_to_storage
+from sdd.utils.dashboard_comments import acknowledge, unacknowledged
+from sdd.utils.integrations import IntegrationsConfig, load_integrations
+from sdd.utils.jira_client import JiraClient
 from sdd.utils.manifest import read_manifest
+from sdd.utils.md_to_cf import md_to_storage
 from sdd.utils.status import persona_for
-from sdd.utils.validate import resolve_doc_path, PROJECT_SCOPED_DOCS
-from sdd.utils.dashboard_comments import unacknowledged, acknowledge
+from sdd.utils.validate import PROJECT_SCOPED_DOCS, resolve_doc_path
 
 console = Console()
 
@@ -23,6 +25,7 @@ _LOCAL_APPROVALS_FILE = Path(".specify") / ".local-approvals.yml"
 
 
 # ── Local approval record (fallback when Jira not configured) ─────────────────
+
 
 def _load_local_approvals() -> dict:
     if _LOCAL_APPROVALS_FILE.exists():
@@ -34,8 +37,8 @@ def _save_local_approval(doc: str, approved_by: str, note: str = "") -> None:
     approvals = _load_local_approvals()
     approvals[doc] = {
         "approved_by": approved_by,
-        "approved_at": str(date.today()),
-        "note":        note,
+        "approved_at": str(date.today()),  # noqa: DTZ011 -- local calendar date by design, not a UTC instant
+        "note": note,
     }
     _LOCAL_APPROVALS_FILE.parent.mkdir(parents=True, exist_ok=True)
     _LOCAL_APPROVALS_FILE.write_text(
@@ -57,8 +60,8 @@ def _doc_md_path(doc: str, feature: str | None) -> Path | None:
     feature. Everything else resolves to .specify/features/{feature}/{doc}.md."""
     if doc in PROJECT_SCOPED_DOCS:
         return resolve_doc_path(doc, "")
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
     if not feature_name:
         return None
@@ -106,9 +109,14 @@ def _mark_md_approved(md_path: Path) -> bool:
     whose header was flipped before this function updated the Approvals
     table too."""
     text = md_path.read_text()
-    new  = re.sub(r"Status:\s*(Draft|Proposed)\b", "Status: Approved",
-                  text, count=1, flags=re.IGNORECASE)
-    new  = _mark_approvals_table(new, str(date.today()))
+    new = re.sub(
+        r"Status:\s*(Draft|Proposed)\b",
+        "Status: Approved",
+        text,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    new = _mark_approvals_table(new, str(date.today()))  # noqa: DTZ011 -- local calendar date by design
     if new == text:
         return False
     md_path.write_text(new)
@@ -119,24 +127,28 @@ def _jira_status_banner(issue_key: str, issue_url: str, status: str, role: str) 
     """Confluence storage-format panel summarizing the Jira review ticket's
     link and current status, prepended to the page body on every push so a
     reviewer can see review state without leaving Confluence."""
-    macro_type = {"APPROVED": "success", "NEEDS_REVISION": "warning"}.get(status, "info")
+    macro_type = {"APPROVED": "success", "NEEDS_REVISION": "warning"}.get(
+        status, "info"
+    )
     label = {
-        "APPROVED":       "Approved",
+        "APPROVED": "Approved",
         "NEEDS_REVISION": "Needs Revision",
-        "PENDING":        "Pending review",
+        "PENDING": "Pending review",
     }.get(status, status)
     return (
         f'<ac:structured-macro ac:name="{macro_type}">'
-        f'<ac:rich-text-body><p>'
-        f'<strong>Jira review:</strong> '
+        f"<ac:rich-text-body><p>"
+        f"<strong>Jira review:</strong> "
         f'<a href="{issue_url}">{issue_key}</a> — <strong>{label}</strong>'
-        f' (assigned: {role})'
-        f'</p></ac:rich-text-body>'
-        f'</ac:structured-macro>'
+        f" (assigned: {role})"
+        f"</p></ac:rich-text-body>"
+        f"</ac:structured-macro>"
     )
 
 
-def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> tuple[str, str] | None:
+def _push_doc_page(
+    doc: str, md_path: Path, feature_name: str
+) -> tuple[str, str] | None:
     """Upsert the document's Confluence page so it reflects the current .md.
 
     Returns (page_title, page_url) on success, or None when Confluence is
@@ -156,8 +168,8 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> tuple[str, str
     if not cfg.confluence:
         return None
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     project_name = proj.get("name", "Project")
 
     if doc == "constitution":
@@ -187,21 +199,39 @@ def _push_doc_page(doc: str, md_path: Path, feature_name: str) -> tuple[str, str
             jira_prof, jira_session = load_jira_session(cfg)
             jira_client = JiraClient(jira_session, jira_prof.base_url)
             status, _, issue = _get_review_status(
-                doc, jira_client, cfg.jira.key_for("review"), cfg, feature_name,
+                doc,
+                jira_client,
+                cfg.jira.key_for("review"),
+                cfg,
+                feature_name,
             )
             if issue:
                 issue_url = f"{jira_prof.base_url}/browse/{issue['key']}"
                 banner = _jira_status_banner(
-                    issue["key"], issue_url, status, cfg.document_reviews[doc].reviewer_role,
+                    issue["key"],
+                    issue_url,
+                    status,
+                    cfg.document_reviews[doc].reviewer_role,
                 )
-        except Exception:
+        except Exception:  # noqa: S110 -- see comment above
             pass  # banner is a best-effort addition -- never blocks the page push itself
 
-    body_html, attachments, diagram_warnings = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
-    from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
-    parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
+    body_html, attachments, diagram_warnings = md_to_storage(
+        md_path.read_text(), cfg.confluence.diagrams
+    )
+    from sdd.commands.confluence import (
+        resolve_doc_parent_id,
+        upload_diagram_attachments,
+    )
+
+    parent_id = resolve_doc_parent_id(
+        cf_client, cfg.confluence, project_name, feature_name, doc
+    )
     page, _created = cf_client.upsert_page(
-        cfg.confluence.space_key, title, banner + body_html, parent_id,
+        cfg.confluence.space_key,
+        title,
+        banner + body_html,
+        parent_id,
     )
     upload_diagram_attachments(cf_client, page["id"], attachments)
     for w in diagram_warnings:
@@ -254,6 +284,7 @@ def _extract_text(body) -> str:
 
 # ── Review status helpers ──────────────────────────────────────────────────────
 
+
 def _print_local_comments_if_any(doc: str, feature_name: str) -> bool:
     """Pure-local-mode fallback for `sdd review check` when no jira: section
     exists to poll: dashboard comments have no external ticket to check, so
@@ -264,12 +295,16 @@ def _print_local_comments_if_any(doc: str, feature_name: str) -> bool:
     comments = unacknowledged(feature_name, doc)
     if not comments:
         return False
-    console.print(f"  [yellow]✗  {doc.upper()} — NEEDS REVISION[/yellow]  [dim](local dashboard comments)[/dim]")
+    console.print(
+        f"  [yellow]✗  {doc.upper()} — NEEDS REVISION[/yellow]  [dim](local dashboard comments)[/dim]"
+    )
     console.print()
     console.print("  [bold]Review comments:[/bold]")
     console.print()
     for c in comments:
-        console.print(f"  [cyan]{c.get('by', 'Unknown')}[/cyan]  [dim]{c.get('at', '')[:10]}[/dim]")
+        console.print(
+            f"  [cyan]{c.get('by', 'Unknown')}[/cyan]  [dim]{c.get('at', '')[:10]}[/dim]"
+        )
         for line in c.get("text", "").splitlines():
             console.print(f"  {line}")
         console.print()
@@ -297,7 +332,7 @@ def _get_review_status(
         return "NOT_SUBMITTED", [], None
 
     jira_status = issue.get("fields", {}).get("status", {}).get("name", "")
-    comments    = client.get_comments(issue["key"])
+    comments = client.get_comments(issue["key"])
 
     if jira_status in cfg.approved_statuses:
         return "APPROVED", comments, issue
@@ -323,13 +358,16 @@ def _check_predecessor(
         return True, None
     this = cfg.document_reviews[doc_key]
     preds = [
-        k for k, v in cfg.document_reviews.items()
+        k
+        for k, v in cfg.document_reviews.items()
         if v.phase == this.phase and v.sequence == this.sequence - 1
     ]
     if not preds:
         return True, None
     pred_key = preds[0]
-    status, _, _ = _get_review_status(pred_key, client, cfg.jira.key_for("review"), cfg, feature_name)
+    status, _, _ = _get_review_status(
+        pred_key, client, cfg.jira.key_for("review"), cfg, feature_name
+    )
     return (status == "APPROVED"), (None if status == "APPROVED" else pred_key)
 
 
@@ -341,6 +379,7 @@ def _record_confluence_draft_link(doc: str, page: dict, page_title: str) -> None
     `sdd confluence pull --doc {doc}` still works afterward if the user
     wants to pull in edits/comments left on this page."""
     from sdd.commands.confluence import _load_drafts, _save_drafts
+
     drafts = _load_drafts()
     drafts[doc] = {"page_id": page.get("id", ""), "title": page_title}
     _save_drafts(drafts)
@@ -382,11 +421,11 @@ def _record_review_link(doc: str, issue_key: str) -> None:
 # patches the answered markers directly into brd.md/use-cases.md/srd.md.
 
 _OPEN_QUESTION_ROW_RE = re.compile(
-    r'^\|\s*([a-zA-Z0-9_.-]+:NC-\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$',
+    r"^\|\s*([a-zA-Z0-9_.-]+:NC-\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$",
     re.MULTILINE,
 )
 _ANSWER_LINE_RE = re.compile(
-    r'^\s*([a-zA-Z0-9_.-]+):NC-(\d+)\s*:\s*(.+?)\s*$',
+    r"^\s*([a-zA-Z0-9_.-]+):NC-(\d+)\s*:\s*(.+?)\s*$",
     re.MULTILINE | re.IGNORECASE,
 )
 
@@ -415,7 +454,11 @@ def _parse_open_questions(doc_text: str) -> list[dict]:
     than one document."""
     items: list[dict] = []
     for m in _OPEN_QUESTION_ROW_RE.finditer(doc_text):
-        primary_id, locations_raw, question = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
+        primary_id, locations_raw, question = (
+            m.group(1).strip(),
+            m.group(2).strip(),
+            m.group(3).strip(),
+        )
         locations = [loc.strip() for loc in locations_raw.split(",") if loc.strip()]
         if primary_id not in locations:
             locations.append(primary_id)
@@ -444,22 +487,28 @@ def _bump_version_and_log(text: str, note: str) -> str:
     `## Version History` table isn't found, the text is returned unchanged
     rather than raising -- the marker replacement itself is what matters;
     this bookkeeping is a bonus that shouldn't block on template drift."""
-    version_match = re.search(r'Version:\s*(\d+)\.(\d+)', text)
+    version_match = re.search(r"Version:\s*(\d+)\.(\d+)", text)
     if not version_match:
         return text
     major, minor = version_match.group(1), int(version_match.group(2)) + 1
     new_version = f"{major}.{minor}"
-    text = text[:version_match.start()] + f"Version: {new_version}" + text[version_match.end():]
+    text = (
+        text[: version_match.start()]
+        + f"Version: {new_version}"
+        + text[version_match.end() :]
+    )
 
-    heading = re.search(r'^## Version History\s*$', text, flags=re.IGNORECASE | re.MULTILINE)
+    heading = re.search(
+        r"^## Version History\s*$", text, flags=re.IGNORECASE | re.MULTILINE
+    )
     if not heading:
         return text
-    after = text[heading.end():]
-    sep_match = re.search(r'\n\|[-| ]+\|\s*\n', after)
+    after = text[heading.end() :]
+    sep_match = re.search(r"\n\|[-| ]+\|\s*\n", after)
     if not sep_match:
         return text
     insert_at = heading.end() + sep_match.end()
-    row = f"| {new_version} | {date.today()} | Jira/Confluence | {note} | — |\n"
+    row = f"| {new_version} | {date.today()} | Jira/Confluence | {note} | — |\n"  # noqa: DTZ011 -- local calendar date by design
     return text[:insert_at] + row + text[insert_at:]
 
 
@@ -471,11 +520,13 @@ def _patch_marker(md_path: Path, nnn: str, answer: str) -> bool:
     if not md_path.exists():
         return False
     text = md_path.read_text()
-    pattern = re.compile(r'\[NEEDS CLARIFICATION-' + re.escape(nnn) + r':\s*[^\]]*\]')
+    pattern = re.compile(r"\[NEEDS CLARIFICATION-" + re.escape(nnn) + r":\s*[^\]]*\]")
     if not pattern.search(text):
         return False
     new_text = pattern.sub(lambda _m: answer, text, count=1)
-    new_text = _bump_version_and_log(new_text, f"NC-{nnn} resolved via Jira/Confluence comment")
+    new_text = _bump_version_and_log(
+        new_text, f"NC-{nnn} resolved via Jira/Confluence comment"
+    )
     md_path.write_text(new_text)
     return True
 
@@ -490,16 +541,18 @@ def _patch_marker(md_path: Path, nnn: str, answer: str) -> bool:
 # Jira for answers the way validate.md already could -- this second, parallel
 # parse/patch pair gives it the same workflow.
 
-_CLARIFY_ITEM_CODE = r'(?:AMB|GAP|CON|ASM|OQ|CF|R)-\d+'
+_CLARIFY_ITEM_CODE = r"(?:AMB|GAP|CON|ASM|OQ|CF|R)-\d+"
 _CLARIFY_STATUS_ROW_RE = re.compile(
-    r'^\|\s*(' + _CLARIFY_ITEM_CODE + r')\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*OPEN\s*\|\s*$',
+    r"^\|\s*("
+    + _CLARIFY_ITEM_CODE
+    + r")\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*OPEN\s*\|\s*$",
     re.MULTILINE | re.IGNORECASE,
 )
 _CLARIFY_ANSWER_LINE_RE = re.compile(
-    r'^\s*clarify:(' + _CLARIFY_ITEM_CODE + r')\s*:\s*(.+?)\s*$',
+    r"^\s*clarify:(" + _CLARIFY_ITEM_CODE + r")\s*:\s*(.+?)\s*$",
     re.MULTILINE | re.IGNORECASE,
 )
-_CLARIFY_FILL_RE = re.compile(r'\{FILL[^}]*\}')
+_CLARIFY_FILL_RE = re.compile(r"\{FILL[^}]*\}")
 
 # Terminal STATUS TABLE value per item-type prefix, matching the mapping
 # clarify.prompt.md's own Step 2 uses ("match the item type"). ASM is not
@@ -510,8 +563,8 @@ _CLARIFY_TERMINAL_STATUS = {
     "AMB": "RESOLVED",
     "GAP": "RESOLVED",
     "CON": "CORRECTED",
-    "OQ":  "DECIDED",
-    "R":   "RESOLVED",
+    "OQ": "DECIDED",
+    "R": "RESOLVED",
 }
 
 
@@ -524,12 +577,12 @@ def _clarify_item_block_text(doc_text: str, code: str) -> str | None:
     one field) since the 5 item types each label their key line
     differently and the reviewer needs full context regardless. None if no
     such heading exists in doc_text."""
-    heading = re.search(r'^### ' + re.escape(code) + r':.*$', doc_text, re.MULTILINE)
+    heading = re.search(r"^### " + re.escape(code) + r":.*$", doc_text, re.MULTILINE)
     if not heading:
         return None
-    rest = doc_text[heading.end():]
-    end_match = re.search(r'\n---\s*\n|\n### ', rest)
-    body = rest[:end_match.start()] if end_match else rest
+    rest = doc_text[heading.end() :]
+    end_match = re.search(r"\n---\s*\n|\n### ", rest)
+    body = rest[: end_match.start()] if end_match else rest
     return (heading.group(0) + "\n" + body).strip()
 
 
@@ -546,7 +599,10 @@ def _parse_clarify_open_items(doc_text: str) -> list[dict]:
     for m in _CLARIFY_STATUS_ROW_RE.finditer(doc_text):
         code = m.group(1).strip().upper()
         full_id = f"clarify:{code}"
-        question = _clarify_item_block_text(doc_text, code) or f"{m.group(2).strip()}: {m.group(3).strip()}"
+        question = (
+            _clarify_item_block_text(doc_text, code)
+            or f"{m.group(2).strip()}: {m.group(3).strip()}"
+        )
         items.append({"id": full_id, "locations": [full_id], "question": question})
     return items
 
@@ -572,11 +628,11 @@ def _patch_clarify_item(md_path: Path, code: str, answer: str) -> bool:
         return False
     text = md_path.read_text()
 
-    heading = re.search(r'^### ' + re.escape(code) + r':.*$', text, re.MULTILINE)
+    heading = re.search(r"^### " + re.escape(code) + r":.*$", text, re.MULTILINE)
     if not heading:
         return False
-    rest = text[heading.end():]
-    end_match = re.search(r'\n---\s*\n|\n### ', rest)
+    rest = text[heading.end() :]
+    end_match = re.search(r"\n---\s*\n|\n### ", rest)
     block_end = heading.end() + (end_match.start() if end_match else len(rest))
     fill_match = _CLARIFY_FILL_RE.search(text, heading.end(), block_end)
     if not fill_match:
@@ -584,26 +640,30 @@ def _patch_clarify_item(md_path: Path, code: str, answer: str) -> bool:
 
     prefix = code.split("-")[0]
     if prefix == "ASM":
-        status = "CONFIRMED" if answer.strip().lower().startswith("yes") else "CORRECTED"
+        status = (
+            "CONFIRMED" if answer.strip().lower().startswith("yes") else "CORRECTED"
+        )
     else:
         status = _CLARIFY_TERMINAL_STATUS.get(prefix, "RESOLVED")
 
-    new_text = text[:fill_match.start()] + answer + text[fill_match.end():]
+    new_text = text[: fill_match.start()] + answer + text[fill_match.end() :]
 
     status_row_re = re.compile(
-        r'(^\|\s*' + re.escape(code) + r'\s*\|[^|]*\|[^|]*\|)\s*OPEN\s*(\|\s*$)',
+        r"(^\|\s*" + re.escape(code) + r"\s*\|[^|]*\|[^|]*\|)\s*OPEN\s*(\|\s*$)",
         re.MULTILINE | re.IGNORECASE,
     )
-    new_text, n = status_row_re.subn(r'\1 ' + status + r' \2', new_text, count=1)
+    new_text, n = status_row_re.subn(r"\1 " + status + r" \2", new_text, count=1)
     if n == 0:
         return False  # STATUS TABLE row missing/already flipped -- don't half-patch
 
-    new_text = _bump_version_and_log(new_text, f"{code} resolved via Jira/Confluence comment")
+    new_text = _bump_version_and_log(
+        new_text, f"{code} resolved via Jira/Confluence comment"
+    )
     md_path.write_text(new_text)
     return True
 
 
-_LEGACY_MARKER_RE = re.compile(r'\[NEEDS CLARIFICATION:\s*')
+_LEGACY_MARKER_RE = re.compile(r"\[NEEDS CLARIFICATION:\s*")
 
 
 def _number_legacy_markers(md_path: Path) -> int:
@@ -634,7 +694,7 @@ def _number_legacy_markers(md_path: Path) -> int:
         return 0
     text = md_path.read_text()
 
-    existing_nums = [int(n) for n in re.findall(r'\[NEEDS CLARIFICATION-(\d+):', text)]
+    existing_nums = [int(n) for n in re.findall(r"\[NEEDS CLARIFICATION-(\d+):", text)]
     state = {"next_num": max(existing_nums, default=0) + 1, "count": 0}
 
     def renumber(_m: re.Match) -> str:
@@ -649,8 +709,12 @@ def _number_legacy_markers(md_path: Path) -> int:
     return state["count"]
 
 
-def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str,
-                  confluence_base_url: str | None = None) -> str | None:
+def _ensure_epic(
+    jira_client: JiraClient,
+    jira_cfg,
+    feature_name: str,
+    confluence_base_url: str | None = None,
+) -> str | None:
     """Create the Feature/Epic container if it doesn't already exist yet,
     using the same content and idempotency label `sdd jira push` uses — so a
     review ticket submitted before any dev Story/Task exists still lands
@@ -668,11 +732,18 @@ def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str,
 
     try:
         features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
-        extra = feature_extra_fields(features_dir, jira_cfg, feature_name, confluence_base_url)
+        extra = feature_extra_fields(
+            features_dir, jira_cfg, feature_name, confluence_base_url
+        )
         h = jira_cfg.issue_hierarchy
         key, _ = _upsert_issue(
-            jira_client, jira_cfg.key_for("feature"), h["feature"], feature_name,
-            extra, f"sdd-feature:{feature_name}", jira_cfg.labels,
+            jira_client,
+            jira_cfg.key_for("feature"),
+            h["feature"],
+            feature_name,
+            extra,
+            f"sdd-feature:{feature_name}",
+            jira_cfg.labels,
         )
         return key
     except Exception as e:
@@ -683,8 +754,9 @@ def _ensure_epic(jira_client: JiraClient, jira_cfg, feature_name: str,
         return None
 
 
-def _link_review_story_to_epic(jira_client: JiraClient, story_key: str,
-                                epic_key: str, jira_cfg) -> None:
+def _link_review_story_to_epic(
+    jira_client: JiraClient, story_key: str, epic_key: str, jira_cfg
+) -> None:
     """Best-effort: parent the review ticket under the Feature/Epic. Never
     blocks the review submission — the ticket itself was already created
     successfully. Reuses jira.py's _warn_parent_link_failed rather than a
@@ -692,13 +764,17 @@ def _link_review_story_to_epic(jira_client: JiraClient, story_key: str,
     needing the Epic Link custom field instead of "parent") is diagnosable
     instead of vanishing with no trace."""
     from sdd.commands.jira import _warn_parent_link_failed
+
     try:
         jira_client.set_parent(story_key, epic_key, jira_cfg.parent_field_for("review"))
     except Exception as e:
-        _warn_parent_link_failed(jira_client, story_key, epic_key, jira_cfg.key_for("review"), e)
+        _warn_parent_link_failed(
+            jira_client, story_key, epic_key, jira_cfg.key_for("review"), e
+        )
 
 
 # ── Command group ──────────────────────────────────────────────────────────────
+
 
 @click.group()
 def review_command():
@@ -707,9 +783,13 @@ def review_command():
 
 # ── sdd review submit ──────────────────────────────────────────────────────────
 
+
 @review_command.command("submit")
-@click.option("--doc",     required=True,
-              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), validate, analyze, clarify, lld, tasks, runbook, release")
+@click.option(
+    "--doc",
+    required=True,
+    help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), validate, analyze, clarify, lld, tasks, runbook, release",
+)
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_submit(doc, profile, feature):
@@ -741,25 +821,29 @@ def review_submit(doc, profile, feature):
 
     try:
         jira_prof, jira_session = load_jira_session(cfg, profile)
-        cf_prof, cf_session     = load_confluence_session(cfg, profile)
+        cf_prof, cf_session = load_confluence_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     project_name = proj.get("name", "Project")
     feature_name = feature or proj.get("feature", "")
 
     jira_client = JiraClient(jira_session, jira_prof.base_url)
-    cf_client   = ConfluenceClient(cf_session, cf_prof.base_url)
-    doc_cfg     = cfg.document_reviews[doc]
+    cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
+    doc_cfg = cfg.document_reviews[doc]
 
     # ── Sequence gate ─────────────────────────────────────────────────────────
     ok, blocking = _check_predecessor(doc, cfg, jira_client, feature_name)
     if not ok:
-        console.print(f"  [red]✗  Cannot submit {doc.upper()} — {blocking.upper()} is not yet approved.[/red]")
-        console.print(f"     Run [cyan]sdd review check --doc {blocking}[/cyan] to see its status.")
+        console.print(
+            f"  [red]✗  Cannot submit {doc.upper()} — {blocking.upper()} is not yet approved.[/red]"
+        )
+        console.print(
+            f"     Run [cyan]sdd review check --doc {blocking}[/cyan] to see its status."
+        )
         raise SystemExit(1)
 
     # ── Push to Confluence ────────────────────────────────────────────────────
@@ -769,19 +853,34 @@ def review_submit(doc, profile, feature):
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
     if not md_path.exists():
-        console.print(f"  [red]✗  {md_path} not found — run the SDD command that generates it first[/red]")
+        console.print(
+            f"  [red]✗  {md_path} not found — run the SDD command that generates it first[/red]"
+        )
         raise SystemExit(1)
 
-    page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace("{feature}", feature_name)
-    body_html, attachments, diagram_warnings = md_to_storage(md_path.read_text(), cfg.confluence.diagrams)
-    from sdd.commands.confluence import resolve_doc_parent_id, upload_diagram_attachments
-    parent_id = resolve_doc_parent_id(cf_client, cfg.confluence, project_name, feature_name, doc)
+    page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace(
+        "{feature}", feature_name
+    )
+    body_html, attachments, diagram_warnings = md_to_storage(
+        md_path.read_text(), cfg.confluence.diagrams
+    )
+    from sdd.commands.confluence import (
+        resolve_doc_parent_id,
+        upload_diagram_attachments,
+    )
+
+    parent_id = resolve_doc_parent_id(
+        cf_client, cfg.confluence, project_name, feature_name, doc
+    )
     page, created = cf_client.upsert_page(
-        cfg.confluence.space_key, page_title, body_html, parent_id,
+        cfg.confluence.space_key,
+        page_title,
+        body_html,
+        parent_id,
     )
     upload_diagram_attachments(cf_client, page["id"], attachments)
     page_url = f"{cf_prof.base_url}/wiki{page.get('_links', {}).get('webui', '')}"
-    action   = "[green]created[/green]" if created else "[dim]updated[/dim]"
+    action = "[green]created[/green]" if created else "[dim]updated[/dim]"
     console.print(f"  {action}  Confluence: [cyan]{page_title}[/cyan]")
     console.print(f"          {page_url}")
     for w in diagram_warnings:
@@ -810,8 +909,8 @@ def review_submit(doc, profile, feature):
     # the first feature's review ticket.
     idempotency_label = f"sdd-doc:{feature_name}:{doc}"
     review_project_key = cfg.jira.key_for("review")
-    existing          = jira_client.find_by_label(review_project_key, idempotency_label)
-    story_summary     = f"Review: {project_name} — {doc.upper()}"
+    existing = jira_client.find_by_label(review_project_key, idempotency_label)
+    story_summary = f"Review: {project_name} — {doc.upper()}"
     desc_text = (
         f"Please review the {doc.upper()} document.\n\n"
         f"Confluence: {page_url}\n\n"
@@ -819,19 +918,20 @@ def review_submit(doc, profile, feature):
         f"To REQUEST CHANGES: add review comments and leave it open."
     )
     fields: dict = {
-        "project":     {"key": review_project_key},
-        "issuetype":   {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
-        "summary":     story_summary,
+        "project": {"key": review_project_key},
+        "issuetype": {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
+        "summary": story_summary,
         # cfg.jira.labels (base_fields.labels, e.g. "sdd-generated") is
         # applied here the same way _upsert_issue() applies it to every
         # Epic/Story/Task/CHG issue -- review tickets aren't a separate
         # shape, they just don't route through _upsert_issue().
-        "labels":      cfg.jira.labels + ["sdd-review", idempotency_label],
+        "labels": cfg.jira.labels + ["sdd-review", idempotency_label],
         "description": {
-            "type": "doc", "version": 1,
-            "content": [{"type": "paragraph", "content": [
-                {"type": "text", "text": desc_text}
-            ]}],
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": desc_text}]}
+            ],
         },
     }
     if doc_cfg.reviewer_jira_user:
@@ -841,6 +941,7 @@ def review_submit(doc, profile, feature):
     # -- no other custom_fields entries apply here (story_points/
     # acceptance_criteria/etc. have no meaning on a review ticket).
     from sdd.commands.jira import _apply_team_field
+
     _apply_team_field(fields, cfg.jira, "review")
 
     if existing:
@@ -852,10 +953,14 @@ def review_submit(doc, profile, feature):
         # why the ticket suddenly changed shape, rather than reusing it
         # silently -- the "same ticket evolves in place" behavior a user
         # asked for, without ever creating a second ticket for one doc.
-        was_open_questions = "sdd-open-questions" in (existing.get("fields", {}).get("labels") or [])
+        was_open_questions = "sdd-open-questions" in (
+            existing.get("fields", {}).get("labels") or []
+        )
         jira_client.update_issue(existing["key"], fields)
         story_key = existing["key"]
-        console.print(f"  [dim]·[/dim]   Jira review story updated: [cyan]{story_key}[/cyan]")
+        console.print(
+            f"  [dim]·[/dim]   Jira review story updated: [cyan]{story_key}[/cyan]"
+        )
         if was_open_questions:
             try:
                 jira_client.add_comment(
@@ -863,12 +968,14 @@ def review_submit(doc, profile, feature):
                     f"All open questions resolved — {doc.upper()} has been updated "
                     f"and is now ready for full review.",
                 )
-            except Exception:
+            except Exception:  # noqa: S110 -- see comment above
                 pass  # best-effort notification only; the ticket update above already succeeded
     else:
-        result    = jira_client.create_issue(fields)
+        result = jira_client.create_issue(fields)
         story_key = result["key"]
-        console.print(f"  [green]✓[/green]  Jira review story created: [cyan]{story_key}[/cyan]")
+        console.print(
+            f"  [green]✓[/green]  Jira review story created: [cyan]{story_key}[/cyan]"
+        )
 
     _record_review_link(doc, story_key)
 
@@ -880,7 +987,9 @@ def review_submit(doc, profile, feature):
     try:
         _push_doc_page(doc, md_path, feature_name)
     except Exception as e:
-        console.print(f"  [yellow]!  Could not stamp Jira status onto Confluence: {e}[/yellow]")
+        console.print(
+            f"  [yellow]!  Could not stamp Jira status onto Confluence: {e}[/yellow]"
+        )
 
     if epic_key:
         _link_review_story_to_epic(jira_client, story_key, epic_key, cfg.jira)
@@ -891,17 +1000,23 @@ def review_submit(doc, profile, feature):
     )
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print(f"  [bold green]{doc.upper()} submitted![/bold green]  "
-                  f"Run [cyan]sdd review check --doc {doc}[/cyan] to poll the outcome.")
+    console.print(
+        f"  [bold green]{doc.upper()} submitted![/bold green]  "
+        f"Run [cyan]sdd review check --doc {doc}[/cyan] to poll the outcome."
+    )
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
 
 
 # ── sdd review push-questions ───────────────────────────────────────────────────
 
+
 @review_command.command("push-questions")
-@click.option("--doc",     required=True,
-              help="Document key whose blocking gate produced open questions, e.g. validate")
+@click.option(
+    "--doc",
+    required=True,
+    help="Document key whose blocking gate produced open questions, e.g. validate",
+)
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_push_questions(doc, profile, feature):
@@ -933,8 +1048,8 @@ def review_push_questions(doc, profile, feature):
         console.print("  [red]✗  jira: section required in integrations.yml[/red]")
         raise SystemExit(1)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     project_name = proj.get("name", "Project")
     feature_name = feature or proj.get("feature", "")
 
@@ -949,7 +1064,9 @@ def review_push_questions(doc, profile, feature):
 
     if doc == "clarify":
         items = _parse_clarify_open_items(md_path.read_text())
-        not_found_msg = "No OPEN items found in clarify.md's STATUS TABLE — nothing to push."
+        not_found_msg = (
+            "No OPEN items found in clarify.md's STATUS TABLE — nothing to push."
+        )
     else:
         items = _parse_open_questions(md_path.read_text())
         not_found_msg = f"No open [NEEDS CLARIFICATION-NNN] items found in {md_path.name} — nothing to push."
@@ -964,7 +1081,7 @@ def review_push_questions(doc, profile, feature):
         raise SystemExit(1)
 
     jira_client = JiraClient(session, jira_prof.base_url)
-    doc_cfg     = cfg.document_reviews[doc]
+    doc_cfg = cfg.document_reviews[doc]
 
     # ── Also push the (blocked) doc to Confluence, so reviewers can comment there too ──
     page_title = None
@@ -982,17 +1099,19 @@ def review_push_questions(doc, profile, feature):
     # function), so resolve the base_url the same best-effort way sdd
     # jira push does -- never blocks this command if it fails.
     from sdd.commands.jira import _resolve_confluence_base_url
-    epic_key = _ensure_epic(jira_client, cfg.jira, feature_name,
-                             _resolve_confluence_base_url(cfg))
+
+    epic_key = _ensure_epic(
+        jira_client, cfg.jira, feature_name, _resolve_confluence_base_url(cfg)
+    )
 
     # ── Create / update the SAME ticket review_submit will later find ─────────
     # Same idempotency_label as review_submit uses for --doc {doc} -- this
     # is what makes the ticket "evolve in place" later, with zero extra
     # bookkeeping: review_submit's own find-by-label lookup will discover
     # this ticket and update its fields, rather than creating a second one.
-    idempotency_label  = f"sdd-doc:{feature_name}:{doc}"
+    idempotency_label = f"sdd-doc:{feature_name}:{doc}"
     review_project_key = cfg.jira.key_for("review")
-    existing            = jira_client.find_by_label(review_project_key, idempotency_label)
+    existing = jira_client.find_by_label(review_project_key, idempotency_label)
 
     table_lines = "\n".join(f"{it['id']}: {it['question']}" for it in items)
     desc_text = (
@@ -1000,25 +1119,28 @@ def review_push_questions(doc, profile, feature):
         f"go to full review.\n\n"
         f"Answer each item as a comment on THIS ticket, one line per item, "
         f"starting with its ID:\n\n{table_lines}\n\n"
-        f"Example: \"{items[0]['id']}: <your answer>\"\n\n"
+        f'Example: "{items[0]["id"]}: <your answer>"\n\n'
         f"Once every item is answered, re-run /{doc} — it pulls the answers "
         f"automatically, updates the spec, and re-checks."
     )
     fields: dict = {
-        "project":     {"key": review_project_key},
-        "issuetype":   {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
-        "summary":     f"Open Questions: {project_name} — {doc.upper()}",
-        "labels":      cfg.jira.labels + ["sdd-review", "sdd-open-questions", idempotency_label],
+        "project": {"key": review_project_key},
+        "issuetype": {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
+        "summary": f"Open Questions: {project_name} — {doc.upper()}",
+        "labels": cfg.jira.labels
+        + ["sdd-review", "sdd-open-questions", idempotency_label],
         "description": {
-            "type": "doc", "version": 1,
-            "content": [{"type": "paragraph", "content": [
-                {"type": "text", "text": desc_text}
-            ]}],
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": desc_text}]}
+            ],
         },
     }
     if doc_cfg.reviewer_jira_user:
         fields["assignee"] = {"accountId": doc_cfg.reviewer_jira_user}
     from sdd.commands.jira import _apply_team_field
+
     _apply_team_field(fields, cfg.jira, "review")
 
     if existing:
@@ -1026,9 +1148,11 @@ def review_push_questions(doc, profile, feature):
         issue_key = existing["key"]
         console.print(f"  [dim]·[/dim]   Jira ticket updated: [cyan]{issue_key}[/cyan]")
     else:
-        result    = jira_client.create_issue(fields)
+        result = jira_client.create_issue(fields)
         issue_key = result["key"]
-        console.print(f"  [green]✓[/green]  Jira ticket created: [cyan]{issue_key}[/cyan]")
+        console.print(
+            f"  [green]✓[/green]  Jira ticket created: [cyan]{issue_key}[/cyan]"
+        )
 
     _record_review_link(doc, issue_key)
     if epic_key:
@@ -1043,16 +1167,21 @@ def review_push_questions(doc, profile, feature):
         f"  [dim]({doc_cfg.reviewer_jira_user})[/dim]"
     )
     console.print()
-    console.print(f"  [bold]{len(items)} open question(s)[/bold] pushed. Reviewer replies as a comment")
-    console.print(f"  starting with the item's ID, e.g. \"{items[0]['id']}: <answer>\".")
-    console.print(f"  Run [cyan]sdd review pull-answers --doc {doc}[/cyan] (or just re-run /{doc}) once answered.")
+    console.print(
+        f"  [bold]{len(items)} open question(s)[/bold] pushed. Reviewer replies as a comment"
+    )
+    console.print(f'  starting with the item\'s ID, e.g. "{items[0]["id"]}: <answer>".')
+    console.print(
+        f"  Run [cyan]sdd review pull-answers --doc {doc}[/cyan] (or just re-run /{doc}) once answered."
+    )
     console.print()
 
 
 # ── sdd review pull-answers ──────────────────────────────────────────────────────
 
+
 @review_command.command("pull-answers")
-@click.option("--doc",     required=True)
+@click.option("--doc", required=True)
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_pull_answers(doc, profile, feature):
@@ -1072,8 +1201,8 @@ def review_pull_answers(doc, profile, feature):
     if doc not in cfg.document_reviews or not cfg.jira:
         raise SystemExit(0)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
 
     try:
@@ -1083,7 +1212,7 @@ def review_pull_answers(doc, profile, feature):
     if not md_path.exists():
         raise SystemExit(0)
 
-    is_clarify = (doc == "clarify")
+    is_clarify = doc == "clarify"
     if is_clarify:
         items = _parse_clarify_open_items(md_path.read_text())
     else:
@@ -1102,7 +1231,8 @@ def review_pull_answers(doc, profile, feature):
         # they're tracked by a STATUS TABLE row, not a bracketed marker.
         referenced_docs = {
             _normalize_doc_key(loc_id.split(":NC-")[0])
-            for item in items for loc_id in item["locations"]
+            for item in items
+            for loc_id in item["locations"]
         }
         for doc_key in referenced_docs:
             try:
@@ -1116,7 +1246,7 @@ def review_pull_answers(doc, profile, feature):
                     f"{loc_path.name} to match validate.md's IDs[/dim]"
                 )
 
-    links     = _load_review_links()
+    links = _load_review_links()
     issue_key = (links.get(doc) or {}).get("key")
     if not issue_key:
         console.print(
@@ -1134,10 +1264,14 @@ def review_pull_answers(doc, profile, feature):
     try:
         comments = jira_client.get_comments(issue_key)
     except Exception as e:
-        console.print(f"  [yellow]!  Could not fetch comments from {issue_key}: {e}[/yellow]")
+        console.print(
+            f"  [yellow]!  Could not fetch comments from {issue_key}: {e}[/yellow]"
+        )
         raise SystemExit(0)
 
-    answers = _parse_clarify_answers(comments) if is_clarify else _parse_answers(comments)
+    answers = (
+        _parse_clarify_answers(comments) if is_clarify else _parse_answers(comments)
+    )
     if not answers:
         raise SystemExit(0)
 
@@ -1157,7 +1291,9 @@ def review_pull_answers(doc, profile, feature):
             if _patch_clarify_item(md_path, code, answer_text):
                 patched_docs["clarify"] = patched_docs.get("clarify", 0) + 1
                 patched_paths["clarify"] = md_path
-                console.print(f"  [green]✓[/green]  {item['id']} resolved in {md_path.name}")
+                console.print(
+                    f"  [green]✓[/green]  {item['id']} resolved in {md_path.name}"
+                )
             continue
         for loc_id in item["locations"]:
             doc_key, nnn = loc_id.split(":NC-")
@@ -1169,7 +1305,9 @@ def review_pull_answers(doc, profile, feature):
             if _patch_marker(loc_path, nnn, answer_text):
                 patched_docs[doc_key] = patched_docs.get(doc_key, 0) + 1
                 patched_paths[doc_key] = loc_path
-                console.print(f"  [green]✓[/green]  {loc_id} resolved in {loc_path.name}")
+                console.print(
+                    f"  [green]✓[/green]  {loc_id} resolved in {loc_path.name}"
+                )
 
     if patched_docs:
         total = sum(patched_docs.values())
@@ -1193,18 +1331,25 @@ def review_pull_answers(doc, profile, feature):
                     pushed = _push_doc_page(doc_key, loc_path, feature_name)
                     if pushed:
                         title, _page_url = pushed
-                        console.print(f"  [green]✓[/green]  Confluence page refreshed: [cyan]{title}[/cyan]")
+                        console.print(
+                            f"  [green]✓[/green]  Confluence page refreshed: [cyan]{title}[/cyan]"
+                        )
                 except Exception as e:
-                    console.print(f"  [yellow]!  Could not refresh Confluence page for {doc_key}: {e}[/yellow]")
+                    console.print(
+                        f"  [yellow]!  Could not refresh Confluence page for {doc_key}: {e}[/yellow]"
+                    )
             console.print()
 
 
 # ── sdd review check ───────────────────────────────────────────────────────────
 
+
 @review_command.command("check")
-@click.option("--doc",     required=True)
+@click.option("--doc", required=True)
 @click.option("--profile", default=None)
-@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
 def review_check(doc, profile, feature):
     """Check review status. Exit codes: 0=approved 1=needs-revision 2=pending 3=not-submitted."""
     console.print()
@@ -1219,15 +1364,15 @@ def review_check(doc, profile, feature):
         console.print()
         raise SystemExit(0)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
 
     # ── Jira check ────────────────────────────────────────────────────────────
     try:
-        cfg     = load_integrations()
+        cfg = load_integrations()
         jira_prof, session = load_jira_session(cfg, profile)
-    except Exception as e:
+    except Exception:
         if _print_local_comments_if_any(doc, feature_name):
             raise SystemExit(1)
         console.print(
@@ -1246,10 +1391,12 @@ def review_check(doc, profile, feature):
         )
         raise SystemExit(3)
 
-    client  = JiraClient(session, jira_prof.base_url)
-    status, comments, _ = _get_review_status(doc, client, cfg.jira.key_for("review"), cfg, feature_name)
+    client = JiraClient(session, jira_prof.base_url)
+    status, comments, _ = _get_review_status(
+        doc, client, cfg.jira.key_for("review"), cfg, feature_name
+    )
     doc_cfg = cfg.document_reviews.get(doc)
-    role    = doc_cfg.reviewer_role if doc_cfg else "reviewer"
+    role = doc_cfg.reviewer_role if doc_cfg else "reviewer"
 
     # ── Refresh the Confluence status banner to match what we just polled ─────
     # Best-effort: a reviewer who only looks at Confluence (never Jira
@@ -1260,7 +1407,7 @@ def review_check(doc, profile, feature):
             md_path = resolve_doc_path(doc, feature_name)
             if md_path.exists():
                 _push_doc_page(doc, md_path, feature_name)
-        except Exception:
+        except Exception:  # noqa: S110 -- best-effort banner refresh, see comment above
             pass
 
     if status == "APPROVED":
@@ -1276,7 +1423,7 @@ def review_check(doc, profile, feature):
         for c in comments:
             author = (c.get("author") or {}).get("displayName", "Unknown")
             created = c.get("created", "")[:10]
-            text   = _extract_text(c.get("body", ""))
+            text = _extract_text(c.get("body", ""))
             console.print(f"  [cyan]{author}[/cyan]  [dim]{created}[/dim]")
             for line in text.splitlines():
                 console.print(f"  {line}")
@@ -1298,11 +1445,18 @@ def review_check(doc, profile, feature):
 
 # ── sdd review comments ─────────────────────────────────────────────────────────
 
+
 @review_command.command("comments")
-@click.option("--doc",     required=True)
-@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
-@click.option("--ack",     is_flag=True, default=False,
-              help="Mark every comment currently on this doc as addressed")
+@click.option("--doc", required=True)
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
+@click.option(
+    "--ack",
+    is_flag=True,
+    default=False,
+    help="Mark every comment currently on this doc as addressed",
+)
 def review_comments(doc, feature, ack):
     """Read (or acknowledge) dashboard-left review comments directly --
     the pure-local-mode path for feedback that has no Jira ticket to poll.
@@ -1312,8 +1466,8 @@ def review_comments(doc, feature, ack):
     Exit codes: 0=no unacknowledged comments (or --ack succeeded), 1=some found.
     """
     console.print()
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
 
     if ack:
@@ -1328,33 +1482,52 @@ def review_comments(doc, feature, ack):
         console.print()
         raise SystemExit(0)
 
-    console.print(f"  [yellow]{len(comments)} unacknowledged comment(s) on {doc.upper()}[/yellow]")
+    console.print(
+        f"  [yellow]{len(comments)} unacknowledged comment(s) on {doc.upper()}[/yellow]"
+    )
     console.print()
     for c in comments:
-        console.print(f"  [cyan]{c.get('by', 'Unknown')}[/cyan]  [dim]{c.get('at', '')[:10]}[/dim]")
+        console.print(
+            f"  [cyan]{c.get('by', 'Unknown')}[/cyan]  [dim]{c.get('at', '')[:10]}[/dim]"
+        )
         for line in c.get("text", "").splitlines():
             console.print(f"  {line}")
         console.print()
-    console.print(f"  [dim]After addressing them: sdd review comments --doc {doc} --ack[/dim]")
+    console.print(
+        f"  [dim]After addressing them: sdd review comments --doc {doc} --ack[/dim]"
+    )
     console.print()
     raise SystemExit(1)
 
 
 # ── sdd review approve ─────────────────────────────────────────────────────────
 
+
 @review_command.command("approve")
-@click.option("--doc",      required=True,
-              help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), validate, analyze, clarify, lld, ...")
-@click.option("--local",    is_flag=True, required=True,
-              help="Write a local approval record (fallback when Jira is not configured)")
-@click.option("--by",       default="chat",
-              help="Who approved — defaults to 'chat'")
-@click.option("--note",     default="",
-              help="Optional note (e.g. 'approved in chat session')")
-@click.option("--feature",  default=None,
-              help="Feature name (default: from manifest.yml)")
-@click.option("--no-confluence", is_flag=True, default=False,
-              help="Skip the Confluence page update even if confluence: is configured")
+@click.option(
+    "--doc",
+    required=True,
+    help="Document key: brd, use-cases, srd, design (unified) / arch, hld, adr (separate), validate, analyze, clarify, lld, ...",
+)
+@click.option(
+    "--local",
+    is_flag=True,
+    required=True,
+    help="Write a local approval record (fallback when Jira is not configured)",
+)
+@click.option("--by", default="chat", help="Who approved — defaults to 'chat'")
+@click.option(
+    "--note", default="", help="Optional note (e.g. 'approved in chat session')"
+)
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
+@click.option(
+    "--no-confluence",
+    is_flag=True,
+    default=False,
+    help="Skip the Confluence page update even if confluence: is configured",
+)
 def review_approve(doc, local, by, note, feature, no_confluence):
     """Record a local approval for a document (used when Jira is not configured).
 
@@ -1370,7 +1543,9 @@ def review_approve(doc, local, by, note, feature, no_confluence):
         sdd review approve --doc brd --local --by "Product Owner" --note "approved in chat"
     """
     if not local:
-        console.print("  [red]✗  Only --local approvals are supported by this command.[/red]")
+        console.print(
+            "  [red]✗  Only --local approvals are supported by this command.[/red]"
+        )
         raise SystemExit(1)
 
     _save_local_approval(doc, by, note or "approved in chat session")
@@ -1385,20 +1560,28 @@ def review_approve(doc, local, by, note, feature, no_confluence):
     md_path = _doc_md_path(doc, feature)
     if md_path and md_path.exists():
         if _mark_md_approved(md_path):
-            console.print(f"  [green]✓[/green]  {md_path} — header set to Status: Approved")
+            console.print(
+                f"  [green]✓[/green]  {md_path} — header set to Status: Approved"
+            )
         # ── Mirror the approved doc to its Confluence page ────────────────────
         if no_confluence:
             console.print("  [dim]·  Confluence update skipped (--no-confluence)[/dim]")
         else:
             try:
-                manifest     = read_manifest() or {}
-                feature_name = feature or (manifest.get("project") or {}).get("feature", "")
+                manifest = read_manifest() or {}
+                feature_name = feature or (manifest.get("project") or {}).get(
+                    "feature", ""
+                )
                 pushed = _push_doc_page(doc, md_path, feature_name)
                 if pushed:
                     title, _page_url = pushed
-                    console.print(f"  [green]✓[/green]  Confluence page updated: [cyan]{title}[/cyan]")
+                    console.print(
+                        f"  [green]✓[/green]  Confluence page updated: [cyan]{title}[/cyan]"
+                    )
                 else:
-                    console.print("  [dim]·  Confluence not configured — page not updated[/dim]")
+                    console.print(
+                        "  [dim]·  Confluence not configured — page not updated[/dim]"
+                    )
             except Exception as e:
                 console.print(
                     f"  [yellow]!  Approval recorded, but the Confluence update failed: {e}[/yellow]\n"
@@ -1411,15 +1594,18 @@ def review_approve(doc, local, by, note, feature, no_confluence):
         )
 
     console.print()
-    console.print("  [dim]sdd review check will now return exit 0 for this document.[/dim]")
+    console.print(
+        "  [dim]sdd review check will now return exit 0 for this document.[/dim]"
+    )
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
 
 
 # ── sdd review apply ───────────────────────────────────────────────────────────
 
+
 @review_command.command("apply")
-@click.option("--doc",     required=True)
+@click.option("--doc", required=True)
 @click.option("--profile", default=None)
 @click.option("--feature", default=None)
 def review_apply(doc, profile, feature):
@@ -1427,14 +1613,14 @@ def review_apply(doc, profile, feature):
     reviewer in Jira -- or, in pure local mode (neither configured),
     acknowledge dashboard comments as addressed."""
     console.print()
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
 
     try:
-        cfg     = load_integrations()
+        cfg = load_integrations()
         jira_prof, session = load_jira_session(cfg, profile)
-    except Exception as e:
+    except Exception:
         # No integrations.yml at all -- still acknowledge any local
         # dashboard comments so `sdd review check` stops repeating them.
         acknowledge(feature_name, doc)
@@ -1471,24 +1657,34 @@ def review_apply(doc, profile, feature):
             pushed = _push_doc_page(doc, md_path, feature_name)
             if pushed:
                 page_title, page_url = pushed
-                console.print(f"  [green]✓[/green]  Confluence updated: [cyan]{page_title}[/cyan]")
+                console.print(
+                    f"  [green]✓[/green]  Confluence updated: [cyan]{page_title}[/cyan]"
+                )
         else:
-            console.print(f"  [dim]·[/dim]  {md_path} not found — skipping Confluence update")
+            console.print(
+                f"  [dim]·[/dim]  {md_path} not found — skipping Confluence update"
+            )
 
     # Notify reviewer on Jira (only if a review ticket exists for this doc --
     # docs pushed via the page_map fallback alone have no ticket to notify)
     if cfg.jira:
         jira_client = JiraClient(session, jira_prof.base_url)
-        issue = jira_client.find_by_label(cfg.jira.key_for("review"), f"sdd-doc:{feature_name}:{doc}")
+        issue = jira_client.find_by_label(
+            cfg.jira.key_for("review"), f"sdd-doc:{feature_name}:{doc}"
+        )
         if issue:
             msg = "Document updated per review comments. Please re-review:"
             if page_url:
                 msg += f" {page_url}"
             jira_client.add_comment(issue["key"], msg)
-            console.print(f"  [green]✓[/green]  Reviewer notified on [cyan]{issue['key']}[/cyan]")
+            console.print(
+                f"  [green]✓[/green]  Reviewer notified on [cyan]{issue['key']}[/cyan]"
+            )
             _record_review_link(doc, issue["key"])
         else:
-            console.print(f"  [yellow]·[/yellow]  No Jira review story found for {doc.upper()}")
+            console.print(
+                f"  [yellow]·[/yellow]  No Jira review story found for {doc.upper()}"
+            )
 
     console.print()
     console.print(
@@ -1500,14 +1696,17 @@ def review_apply(doc, profile, feature):
 
 # ── sdd review status ──────────────────────────────────────────────────────────
 
+
 @review_command.command("status")
 @click.option("--profile", default=None)
-@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
 def review_status(profile, feature):
     """Show review state of all documents for the current project."""
     console.print()
     try:
-        cfg     = load_integrations()
+        cfg = load_integrations()
         jira_prof, session = load_jira_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  {e}[/red]")
@@ -1517,10 +1716,10 @@ def review_status(profile, feature):
         console.print("  [red]✗  No jira: section in integrations.yml[/red]")
         raise SystemExit(1)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
-    scope        = proj.get("scope")
+    scope = proj.get("scope")
 
     client = JiraClient(session, jira_prof.base_url)
 
@@ -1529,8 +1728,8 @@ def review_status(profile, feature):
     phases: dict[str, list] = {}
     for key, dc in cfg.document_reviews.items():
         phases.setdefault(dc.phase, []).append((key, dc))
-    for ph in phases:
-        phases[ph].sort(key=lambda x: x[1].sequence)
+    for entries in phases.values():
+        entries.sort(key=lambda x: x[1].sequence)
 
     all_statuses: dict[str, str] = {}
     ordered_phases = sorted(
@@ -1546,7 +1745,8 @@ def review_status(profile, feature):
         console.print(f"\n  [bold]{phase.upper()} phase[/bold]")
         for key, dc in phases[phase]:
             preds = [
-                k for k, v in cfg.document_reviews.items()
+                k
+                for k, v in cfg.document_reviews.items()
                 if v.phase == phase and v.sequence == dc.sequence - 1
             ]
             pred_approved = all(all_statuses.get(p) == "APPROVED" for p in preds)
@@ -1555,16 +1755,18 @@ def review_status(profile, feature):
                 icon, label, style = "🔒", "Blocked", "dim"
                 all_statuses[key] = "BLOCKED"
             else:
-                st, _, _ = _get_review_status(key, client, cfg.jira.key_for("review"), cfg, feature_name)
+                st, _, _ = _get_review_status(
+                    key, client, cfg.jira.key_for("review"), cfg, feature_name
+                )
                 all_statuses[key] = st
                 if st == "APPROVED":
-                    icon, label, style = "✓ ", "Approved",       "green"
+                    icon, label, style = "✓ ", "Approved", "green"
                 elif st == "NEEDS_REVISION":
-                    icon, label, style = "✗ ", "Needs Revision",  "yellow"
+                    icon, label, style = "✗ ", "Needs Revision", "yellow"
                 elif st == "PENDING":
-                    icon, label, style = "⏳", "Pending",         "dim"
+                    icon, label, style = "⏳", "Pending", "dim"
                 else:
-                    icon, label, style = "· ", "Not Submitted",   "dim"
+                    icon, label, style = "· ", "Not Submitted", "dim"
 
             # A doc already Approved needs no owner hint, and one that's
             # Blocked isn't ready to be worked on yet (its predecessor

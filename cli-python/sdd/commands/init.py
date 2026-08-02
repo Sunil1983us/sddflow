@@ -1,15 +1,21 @@
+from __future__ import annotations
+
 from pathlib import Path
+
 import click
 import questionary
 from rich.console import Console
 
-from sdd.utils.detect import detect_project_type, PROJECT_TYPES
-from sdd.utils.validate import validate_name, assert_valid_name
-from sdd.utils.manifest import patch_manifest, read_manifest, MANIFEST_PATH, SDD_VERSION
+from sdd.utils.detect import PROJECT_TYPES, detect_project_type
+from sdd.utils.manifest import MANIFEST_PATH, SDD_VERSION, patch_manifest, read_manifest
 from sdd.utils.scaffold import (
-    recommended_pack, scaffold_pack,
-    PACK_DESCRIPTIONS, ALL_PACKS, TYPE_TO_PACK,
+    ALL_PACKS,
+    PACK_DESCRIPTIONS,
+    TYPE_TO_PACK,
+    recommended_pack,
+    scaffold_pack,
 )
+from sdd.utils.validate import assert_valid_name, validate_name
 
 # Reverse of TYPE_TO_PACK — packs dedicated to one project type don't need
 # to ask (or auto-detect) project_type at all, since choosing the pack
@@ -18,19 +24,46 @@ from sdd.utils.scaffold import (
 PACK_TO_TYPE: dict[str, str] = {v: k for k, v in TYPE_TO_PACK.items()}
 
 AI_TOOLS = [
-    questionary.Choice("Claude Code    — type /specify",                                value="claude-code"),
-    questionary.Choice("GitHub Copilot — type /specify",                                value="copilot"),
-    questionary.Choice("Cursor         — chat: Read and follow the prompt file",        value="cursor"),
-    questionary.Choice("Windsurf       — chat: Run specify",                            value="windsurf"),
-    questionary.Choice("Other / not sure",                                              value="other"),
+    questionary.Choice("Claude Code    — type /specify", value="claude-code"),
+    questionary.Choice("GitHub Copilot — type /specify", value="copilot"),
+    questionary.Choice(
+        "Cursor         — chat: Read and follow the prompt file", value="cursor"
+    ),
+    questionary.Choice("Windsurf       — chat: Run specify", value="windsurf"),
+    questionary.Choice("Other / not sure", value="other"),
 ]
+
+# Friendly aliases for --scope -- manifest.yml's own schema only ever
+# stores pilot/mvp/full (every gate/command in every pack checks for those
+# three exact values), so aliases are resolved here, before anything is
+# written, rather than teaching every downstream check about them. Mirrors
+# the same alias handling in setup.sh/setup.ps1.
+_SCOPE_ALIASES: dict[str, str] = {
+    "lean": "pilot",
+    "standard": "mvp",
+    "regulated": "full",
+}
+_VALID_SCOPES = {"pilot", "mvp", "full"}
+
+
+def _resolve_scope(scope: str | None) -> str | None:
+    if not scope:
+        return scope
+    resolved = _SCOPE_ALIASES.get(scope, scope)
+    if resolved not in _VALID_SCOPES:
+        raise click.BadParameter(
+            f"'{scope}' — must be one of: pilot (lean), mvp (standard), full (regulated)",
+            param_hint="'-s' / '--scope'",
+        )
+    return resolved
+
 
 _AI_TOOL_NEXT_STEP: dict[str, str] = {
     "claude-code": "Open this folder in Claude Code and type:  [bold]/specify[/bold]",
-    "copilot":     "Open in VS Code with Copilot Chat and type:  [bold]/specify[/bold]",
-    "cursor":      "In Cursor chat, type:\n     [bold]Read and follow .github/prompts/specify.prompt.md exactly[/bold]",
-    "windsurf":    "In Windsurf chat, type:  [bold]Run specify[/bold]",
-    "other":       "Copy [cyan].github/prompts/specify.prompt.md[/cyan] and paste into your AI tool",
+    "copilot": "Open in VS Code with Copilot Chat and type:  [bold]/specify[/bold]",
+    "cursor": "In Cursor chat, type:\n     [bold]Read and follow .github/prompts/specify.prompt.md exactly[/bold]",
+    "windsurf": "In Windsurf chat, type:  [bold]Run specify[/bold]",
+    "other": "Copy [cyan].github/prompts/specify.prompt.md[/cyan] and paste into your AI tool",
 }
 
 console = Console()
@@ -43,18 +76,31 @@ _BANNER = f"""
 
 @click.command()
 @click.option("-p", "--project", "project_name", default=None, help="Project name")
-@click.option("-f", "--feature", "feature_name", default=None, help="First feature name")
-@click.option("-s", "--scope",   default=None,   help="pilot | mvp | full")
-@click.option("-t", "--type",    "project_type", default=None,
-              help="Project type (auto-detected if omitted)")
-@click.option("--pack",          default=None,
-              help=f"Pack to scaffold: {', '.join(ALL_PACKS)}")
-@click.option("--plan-mode",     default=None,   help="unified | separate")
-@click.option("--reading-mode",  default=None,   help="auto | summary | full")
-def init_command(project_name, feature_name, scope, project_type, pack,
-                  plan_mode, reading_mode):
+@click.option(
+    "-f", "--feature", "feature_name", default=None, help="First feature name"
+)
+@click.option(
+    "-s",
+    "--scope",
+    default=None,
+    help="pilot (lean) | mvp (standard) | full (regulated)",
+)
+@click.option(
+    "-t",
+    "--type",
+    "project_type",
+    default=None,
+    help="Project type (auto-detected if omitted)",
+)
+@click.option("--pack", default=None, help=f"Pack to scaffold: {', '.join(ALL_PACKS)}")
+@click.option("--plan-mode", default=None, help="unified | separate")
+@click.option("--reading-mode", default=None, help="auto | summary | full")
+def init_command(
+    project_name, feature_name, scope, project_type, pack, plan_mode, reading_mode
+):
     """Initialize an SDD pack in the current project directory."""
     console.print(_BANNER)
+    scope = _resolve_scope(scope)
 
     # ── Scaffold mode: no pack present yet ───────────────────────────────────
     chosen_pack = None
@@ -72,7 +118,9 @@ def init_command(project_name, feature_name, scope, project_type, pack,
     if chosen_pack == "sdd-micro":
         is_micro = True
     elif chosen_pack is None:
-        is_micro = "project_type" not in existing and "scope" not in existing.get("project", {})
+        is_micro = "project_type" not in existing and "scope" not in existing.get(
+            "project", {}
+        )
     else:
         is_micro = False
 
@@ -87,7 +135,9 @@ def init_command(project_name, feature_name, scope, project_type, pack,
     # ── Project type (needed for manifest even in fill mode) ─────────────────
     if not is_micro and not project_type and pinned_type:
         project_type = pinned_type
-        console.print(f"[dim]  Project type:[/dim] [green]{project_type}[/green] [dim](from {pack_name})[/dim]")
+        console.print(
+            f"[dim]  Project type:[/dim] [green]{project_type}[/green] [dim](from {pack_name})[/dim]"
+        )
     elif not is_micro and not project_type:
         console.print("[dim]  Detecting project type...[/dim] ", end="")
         detected = detect_project_type(".")
@@ -121,9 +171,17 @@ def init_command(project_name, feature_name, scope, project_type, pack,
         scope = questionary.select(
             "Scope:",
             choices=[
-                questionary.Choice("pilot  — quick prototype, minimal docs", value="pilot"),
-                questionary.Choice("mvp    — production-ready (+ api-spec, data-model, LLD, ADR)", value="mvp"),
-                questionary.Choice("full   — enterprise (+ resilience, investigation, security-design)", value="full"),
+                questionary.Choice(
+                    "pilot  — quick prototype, minimal docs", value="pilot"
+                ),
+                questionary.Choice(
+                    "mvp    — production-ready (+ api-spec, data-model, LLD, ADR)",
+                    value="mvp",
+                ),
+                questionary.Choice(
+                    "full   — enterprise (+ resilience, investigation, security-design)",
+                    value="full",
+                ),
             ],
         ).ask()
 
@@ -138,12 +196,14 @@ def init_command(project_name, feature_name, scope, project_type, pack,
                     "unified  — one combined design.md (architecture + diagrams + "
                     "API design + decisions). Good for small teams, fast delivery, "
                     "single review gate.",
-                    value="unified"),
+                    value="unified",
+                ),
                 questionary.Choice(
                     "separate — three focused documents reviewed one by one "
                     "(arch.md → hld.md → adr.md, mvp+ only). Good for larger "
                     "teams, separate approvals, detailed audit trail.",
-                    value="separate"),
+                    value="separate",
+                ),
             ],
         ).ask()
 
@@ -155,17 +215,20 @@ def init_command(project_name, feature_name, scope, project_type, pack,
                     "auto    — use each doc's .summary.md when present, fall back "
                     "to the full doc (and generate a summary) when missing. Good "
                     "for almost everyone — self-heals, never stuck.",
-                    value="auto"),
+                    value="auto",
+                ),
                 questionary.Choice(
                     "summary — always use .summary.md; warns instead of reading "
                     "the full doc if one is missing. Good for strict token "
                     "budgets.",
-                    value="summary"),
+                    value="summary",
+                ),
                 questionary.Choice(
                     "full    — always read the full document, every command. "
                     "Good for deep debugging, or migrating a project with no "
                     "summaries.",
-                    value="full"),
+                    value="full",
+                ),
             ],
         ).ask()
 
@@ -193,20 +256,20 @@ def init_command(project_name, feature_name, scope, project_type, pack,
 
     # ── Update manifest.yml via PyYAML (no string injection possible) ─────────
     project_patch = {
-        "name":         project_name,
-        "feature":      feature_name,
+        "name": project_name,
+        "feature": feature_name,
         "context_file": f"{feature_name}.md",
     }
     manifest_patch = {
-        "project":      project_patch,
-        "sdd_version":  SDD_VERSION,
-        "ai_tool":      ai_tool,
+        "project": project_patch,
+        "sdd_version": SDD_VERSION,
+        "ai_tool": ai_tool,
     }
     if not is_micro:
         project_patch["scope"] = scope
-        manifest_patch["project_type"]  = project_type
-        manifest_patch["plan_mode"]     = plan_mode
-        manifest_patch["reading_mode"]  = reading_mode
+        manifest_patch["project_type"] = project_type
+        manifest_patch["plan_mode"] = plan_mode
+        manifest_patch["reading_mode"] = reading_mode
     # Records which pack this project was scaffolded from — nothing else
     # persists this (project_type is ambiguous: sdd-universal can produce
     # any project_type too), and `sdd upgrade --sync-prompts` needs it to
@@ -237,7 +300,7 @@ def init_command(project_name, feature_name, scope, project_type, pack,
     next_step = _AI_TOOL_NEXT_STEP.get(ai_tool, _AI_TOOL_NEXT_STEP["other"])
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print(f"  [bold green]Setup complete![/bold green]  Next steps:")
+    console.print("  [bold green]Setup complete![/bold green]  Next steps:")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
     console.print(f"  1. Edit [cyan]{context_path}[/cyan]")
@@ -322,20 +385,26 @@ def _build_pack_choices(project_type: str | None, rec: str) -> list:
     choices = []
 
     if rec != "sdd-universal":
-        choices.append(questionary.Choice(
-            f"{rec}  ({PACK_DESCRIPTIONS[rec]})  ← recommended for {project_type}",
-            value=rec,
-        ))
-        choices.append(questionary.Choice(
-            f"sdd-universal  ({PACK_DESCRIPTIONS['sdd-universal']})",
-            value="sdd-universal",
-        ))
+        choices.append(
+            questionary.Choice(
+                f"{rec}  ({PACK_DESCRIPTIONS[rec]})  ← recommended for {project_type}",
+                value=rec,
+            )
+        )
+        choices.append(
+            questionary.Choice(
+                f"sdd-universal  ({PACK_DESCRIPTIONS['sdd-universal']})",
+                value="sdd-universal",
+            )
+        )
     else:
         label = f"for {project_type}" if project_type else "when type is unclear"
-        choices.append(questionary.Choice(
-            f"sdd-universal  ({PACK_DESCRIPTIONS['sdd-universal']})  ← recommended {label}",
-            value="sdd-universal",
-        ))
+        choices.append(
+            questionary.Choice(
+                f"sdd-universal  ({PACK_DESCRIPTIONS['sdd-universal']})  ← recommended {label}",
+                value="sdd-universal",
+            )
+        )
 
     choices.append(questionary.Choice("Choose from all packs…", value="__all__"))
     return choices

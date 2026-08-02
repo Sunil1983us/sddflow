@@ -12,6 +12,18 @@ End-user usage (running `/specify`, `/validate`, etc.) happens inside a copy of 
 
 ---
 
+## Product Scope
+
+A standing filter for what belongs in this project, so feature requests get evaluated consistently rather than case by case:
+
+- **Core** — the SDD packs (document templates + AI prompts + workflow), the Python CLI (`sddflow`), the review-gate system (chat/local/jira modes), and the dashboard. This is what the project fundamentally is, and it must work completely on its own with none of the items below configured.
+- **Optional adapters, not core** — Jira, Confluence, PR automation (GitHub/GitLab/Bitbucket/Azure DevOps), and diagram rendering. These integrate with core when configured; core never depends on any of them being present (e.g. chat-mode review gates need no Jira, a local `sdd dashboard` needs no network sharing).
+- **Node CLI** — frozen at scaffolding-only (`init`/`upgrade`), maintenance-mode, no new features. See the deprecation notice in `README.md` and `cli/README.md`.
+
+Before building something new, place it in one of the three buckets above (or decide it doesn't belong in the project at all) rather than defaulting to "add it."
+
+---
+
 ## Repository Layout
 
 ```
@@ -159,13 +171,13 @@ When adding a new project type:
 
 ## Scope Levels
 
-Three scopes control which documents and commands run:
+Three scopes control which documents and commands run — `lean`/`standard`/`regulated` are accepted as friendlier aliases wherever scope is set (`setup.sh`/`setup.ps1`'s `--scope`, `sdd init`'s `-s`/`--scope`), resolved to the canonical name before anything is written. `manifest.yml`'s own `scope:` field only ever stores `pilot`/`mvp`/`full` — no pack template, gate, or command needs to know the aliases exist.
 
-| Scope | Commands skipped | Extra docs |
-|---|---|---|
-| `pilot` | `/plan-lld`, `/plan-adr` | BRD, SRD, Security-Design §1, Arch, HLD, Tasks, Stories, Release |
-| `mvp` | none | + API Spec, Data Model, Security-Design §1-2, LLD, ADR, QA Cases, Runbook |
-| `full` | none | + Resilience, Investigation, Security-Design §1-4, OpenAPI |
+| Scope | Alias | Commands skipped | Extra docs |
+|---|---|---|---|
+| `pilot` | `lean` | `/plan-lld`, `/plan-adr` | BRD, SRD, Security-Design §1, Arch, HLD, Tasks, Stories, Release |
+| `mvp` | `standard` | none | + API Spec, Data Model, Security-Design §1-2, LLD, ADR, QA Cases, Runbook |
+| `full` | `regulated` | none | + Resilience, Investigation, Security-Design §1-4, OpenAPI |
 
 Document inventory is defined in `specify.prompt.md` Action 2 — this is the single source of truth for what each scope produces.
 
@@ -214,3 +226,9 @@ sense — only that the pointer resolves to something real. `*.summary.md §N`
 references are deliberately skipped (AI-2 summaries aren't guaranteed to
 preserve source section numbers); a `.md` reference to a doc key with no
 matching `*-template.md` is reported as a note, not a failure.
+
+---
+
+## Versioning Policy
+
+`sdd_version` only bumps for changes `sdd upgrade` actually carries to a user's project — CLI code, pack templates/commands/prompts, `_shared/` content, `setup.sh`/`setup.ps1`. Prose-only documentation (root `README.md`, `CHANGELOG.md`, this file, `SPEC-KIT-COMPARISON.md`, `PACK-SPEC.md`, a pack's own `README.md`/`WHY-SDD.md`) is committed directly with no version bump, no migration entry — its history is tracked by commit SHA/date instead. Full rule and rationale: `.claude/skills/version-bump/SKILL.md` → "When to bump (and when not to)". Use the `version-bump` skill for any actual bump — its carry/rollover arithmetic isn't standard semver and hand-editing gets it wrong.

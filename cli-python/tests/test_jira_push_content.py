@@ -1,24 +1,32 @@
 # Unit tests for jira.py's content-parity fixes: Feature/Epic gets a real
 # description from brd.md, Story/Task always carry Acceptance Criteria.
 from __future__ import annotations
+
 import json
-from pathlib import Path
 
 import pytest
 
 from sdd.commands.jira import (
-    adf_doc, adf_sections, feature_extra_fields,
-    parse_brd_problem_statement, parse_brd_business_hypothesis,
-    parse_brd_executive_summary, parse_brd_out_of_scope, parse_srd_nfr_rows,
-    parse_brd_business_objectives, parse_brd_success_criteria,
-    brd_confluence_link, _resolve_confluence_base_url,
-    _upsert_issue, _push,
+    _push,
+    _resolve_confluence_base_url,
+    _upsert_issue,
+    adf_doc,
+    adf_sections,
+    brd_confluence_link,
+    feature_extra_fields,
+    parse_brd_business_hypothesis,
+    parse_brd_business_objectives,
+    parse_brd_executive_summary,
+    parse_brd_out_of_scope,
+    parse_brd_problem_statement,
+    parse_brd_success_criteria,
+    parse_srd_nfr_rows,
 )
 from sdd.utils.integrations import JiraConfig
 from sdd.utils.sdd_parser import Story, Task
 
-
 # ── adf_doc ──────────────────────────────────────────────────────────────────
+
 
 class TestAdfDoc:
     def test_filters_blank_and_falsy_paragraphs(self):
@@ -37,15 +45,17 @@ class TestAdfDoc:
 
     def test_falls_back_to_blank_paragraph_when_nothing_given(self):
         doc = adf_doc()
-        assert doc["content"] == [{"type": "paragraph",
-                                    "content": [{"type": "text", "text": " "}]}]
+        assert doc["content"] == [
+            {"type": "paragraph", "content": [{"type": "text", "text": " "}]}
+        ]
 
 
 class TestAdfSections:
     def test_string_body_becomes_heading_plus_paragraph(self):
         doc = adf_sections(("Problem Statement", "Users churn."))
         assert doc["content"][0] == {
-            "type": "heading", "attrs": {"level": 3},
+            "type": "heading",
+            "attrs": {"level": 3},
             "content": [{"type": "text", "text": "Problem Statement"}],
         }
         assert doc["content"][1]["type"] == "paragraph"
@@ -57,16 +67,19 @@ class TestAdfSections:
         assert len(doc["content"][1]["content"]) == 2
 
     def test_empty_body_section_omitted_entirely(self):
-        doc = adf_sections(("Problem Statement", "Real content"),
-                            ("NFR", []), ("Out of Scope", ""))
-        headings = [n["content"][0]["text"] for n in doc["content"]
-                    if n["type"] == "heading"]
+        doc = adf_sections(
+            ("Problem Statement", "Real content"), ("NFR", []), ("Out of Scope", "")
+        )
+        headings = [
+            n["content"][0]["text"] for n in doc["content"] if n["type"] == "heading"
+        ]
         assert headings == ["Problem Statement"]
 
     def test_all_empty_falls_back_to_blank_paragraph(self):
         doc = adf_sections(("A", ""), ("B", []))
-        assert doc["content"] == [{"type": "paragraph",
-                                    "content": [{"type": "text", "text": " "}]}]
+        assert doc["content"] == [
+            {"type": "paragraph", "content": [{"type": "text", "text": " "}]}
+        ]
 
 
 # ── brd.md / srd.md section parsers ─────────────────────────────────────────
@@ -112,7 +125,8 @@ class TestBrdSectionParsers:
         assert "fewer abandoned carts" in parse_brd_business_hypothesis(tmp_path)
         assert "nutshell" in parse_brd_executive_summary(tmp_path)
         assert parse_brd_out_of_scope(tmp_path) == [
-            "Guest checkout redesign", "Payment provider migration",
+            "Guest checkout redesign",
+            "Payment provider migration",
         ]
 
     def test_unfilled_template_placeholder_treated_as_empty(self, tmp_path):
@@ -176,7 +190,9 @@ class TestBrdBusinessObjectivesParser:
             "|---|---|---|\n"
             "| BO-001 | Reduce cart abandonment | |\n"
         )
-        assert parse_brd_business_objectives(tmp_path) == ["BO-001: Reduce cart abandonment"]
+        assert parse_brd_business_objectives(tmp_path) == [
+            "BO-001: Reduce cart abandonment"
+        ]
 
     def test_unfilled_template_row_skipped(self, tmp_path):
         (tmp_path / "brd.md").write_text(
@@ -257,15 +273,21 @@ class TestResolveConfluenceBaseUrl:
         a purely cosmetic link, so failures here must never surface as an
         error, let alone block the Jira push."""
         from sdd.utils import atlassian_auth
+
         monkeypatch.setattr(atlassian_auth, "CONFIG_PATH", tmp_path / "nonexistent.yml")
-        cfg = type("Cfg", (), {
-            "confluence": object(),
-            "confluence_profile_name": lambda self: "nonexistent",
-        })()
+        cfg = type(
+            "Cfg",
+            (),
+            {
+                "confluence": object(),
+                "confluence_profile_name": lambda self: "nonexistent",
+            },
+        )()
         assert _resolve_confluence_base_url(cfg) is None
 
 
 # ── feature_extra_fields ─────────────────────────────────────────────────────
+
 
 class TestFeatureExtraFields:
     def test_uses_placeholder_when_nothing_found(self, tmp_path):
@@ -286,13 +308,22 @@ class TestFeatureExtraFields:
         cfg = JiraConfig(project_key="MYPROJ")
         extra = feature_extra_fields(tmp_path, cfg, "instant-credit-transfer")
         text = _flatten_adf_text(extra["description"])
-        for expected in ("Problem Statement", "abandon their cart",
-                          "Business Hypothesis", "fewer abandoned carts",
-                          "Description", "nutshell",
-                          "Business Objectives", "BO-001: Reduce cart abandonment",
-                          "Out of Scope", "Guest checkout redesign",
-                          "Success Criteria", "Median checkout time under 30 seconds",
-                          "NFR", "Performance: < 200ms p99"):
+        for expected in (
+            "Problem Statement",
+            "abandon their cart",
+            "Business Hypothesis",
+            "fewer abandoned carts",
+            "Description",
+            "nutshell",
+            "Business Objectives",
+            "BO-001: Reduce cart abandonment",
+            "Out of Scope",
+            "Guest checkout redesign",
+            "Success Criteria",
+            "Median checkout time under 30 seconds",
+            "NFR",
+            "Performance: < 200ms p99",
+        ):
             assert expected in text, f"missing: {expected}"
 
     def test_confluence_link_appended_when_brd_page_pushed(self, tmp_path, monkeypatch):
@@ -338,7 +369,9 @@ class TestFeatureExtraFields:
         assert extra["priority"] == {"name": "High"}
 
     def test_epic_name_field_set_only_when_configured(self, tmp_path):
-        cfg = JiraConfig(project_key="MYPROJ", custom_fields={"epic_name": "customfield_10011"})
+        cfg = JiraConfig(
+            project_key="MYPROJ", custom_fields={"epic_name": "customfield_10011"}
+        )
         extra = feature_extra_fields(tmp_path, cfg, "instant-credit-transfer")
         assert extra["customfield_10011"] == "instant-credit-transfer"
 
@@ -350,10 +383,12 @@ class TestFeatureExtraFields:
 
 # ── Fake Jira client for _push / _upsert_issue tests ────────────────────────
 
+
 class FakeJiraClient:
     """In-memory double for JiraClient — enough surface for _push/_upsert_issue,
     no real HTTP. Tracks every created/updated issue's fields and every
     parent link set, so tests can assert on them directly."""
+
     def __init__(self):
         self.by_label: dict[str, dict] = {}
         self.created: list[dict] = []
@@ -384,8 +419,15 @@ class FakeJiraClient:
 class TestUpsertIssue:
     def test_creates_when_not_found(self):
         client = FakeJiraClient()
-        key, created = _upsert_issue(client, "MYPROJ", "Task", "My summary",
-                                      {}, "sdd:feat:TASK-001", ["sdd-generated"])
+        key, created = _upsert_issue(
+            client,
+            "MYPROJ",
+            "Task",
+            "My summary",
+            {},
+            "sdd:feat:TASK-001",
+            ["sdd-generated"],
+        )
         assert created is True
         assert key == "PROJ-1"
         assert client.created[0]["summary"] == "My summary"
@@ -394,8 +436,15 @@ class TestUpsertIssue:
     def test_updates_when_found(self):
         client = FakeJiraClient()
         client.by_label["sdd:feat:TASK-001"] = {"key": "PROJ-9"}
-        key, created = _upsert_issue(client, "MYPROJ", "Task", "My summary",
-                                      {}, "sdd:feat:TASK-001", ["sdd-generated"])
+        key, created = _upsert_issue(
+            client,
+            "MYPROJ",
+            "Task",
+            "My summary",
+            {},
+            "sdd:feat:TASK-001",
+            ["sdd-generated"],
+        )
         assert created is False
         assert key == "PROJ-9"
         assert client.updated[0][0] == "PROJ-9"
@@ -418,10 +467,15 @@ class TestPushContentParity:
 
     def test_story_description_always_includes_acceptance_criteria(self, tmp_path):
         client = FakeJiraClient()
-        story = Story(id="STORY-001", title="Login", moscow="must-have",
-                       description="As a user I want to log in",
-                       acceptance_criteria=["Given valid creds, user is logged in"],
-                       story_points=3, satisfies=["FR-001"])
+        story = Story(
+            id="STORY-001",
+            title="Login",
+            moscow="must-have",
+            description="As a user I want to log in",
+            acceptance_criteria=["Given valid creds, user is logged in"],
+            story_points=3,
+            satisfies=["FR-001"],
+        )
         _push(client, "feat", tmp_path, [story], [], self._cfg())
 
         story_issue = client.created[1]  # [0] is the Feature
@@ -433,10 +487,15 @@ class TestPushContentParity:
         """Regression test for the bug found during manual QA: Task AC was
         parsed but never written anywhere in the CLI push path."""
         client = FakeJiraClient()
-        task = Task(id="TASK-001", title="Implement login endpoint", story_id=None,
-                    satisfies=["FR-001"], estimate="~50 lines",
-                    description="Build the /login endpoint",
-                    acceptance_criteria=["Returns 200 on valid credentials"])
+        task = Task(
+            id="TASK-001",
+            title="Implement login endpoint",
+            story_id=None,
+            satisfies=["FR-001"],
+            estimate="~50 lines",
+            description="Build the /login endpoint",
+            acceptance_criteria=["Returns 200 on valid credentials"],
+        )
         _push(client, "feat", tmp_path, [], [task], self._cfg())
 
         task_issue = client.created[1]  # [0] is the Feature
@@ -446,9 +505,15 @@ class TestPushContentParity:
 
     def test_task_with_no_acceptance_criteria_has_no_ac_line(self, tmp_path):
         client = FakeJiraClient()
-        task = Task(id="TASK-001", title="Refactor", story_id=None,
-                    satisfies=[], estimate=None, description="Cleanup",
-                    acceptance_criteria=[])
+        task = Task(
+            id="TASK-001",
+            title="Refactor",
+            story_id=None,
+            satisfies=[],
+            estimate=None,
+            description="Cleanup",
+            acceptance_criteria=[],
+        )
         _push(client, "feat", tmp_path, [], [task], self._cfg())
         task_issue = client.created[1]
         text = _flatten_adf_text(task_issue["description"])
@@ -466,9 +531,15 @@ class TestPushContentParity:
 
     def test_story_parented_to_feature(self, tmp_path):
         client = FakeJiraClient()
-        story = Story(id="STORY-001", title="Login", moscow="must-have",
-                       description="", acceptance_criteria=[],
-                       story_points=None, satisfies=[])
+        story = Story(
+            id="STORY-001",
+            title="Login",
+            moscow="must-have",
+            description="",
+            acceptance_criteria=[],
+            story_points=None,
+            satisfies=[],
+        )
         _push(client, "feat", tmp_path, [story], [], self._cfg())
 
         feature_key = client.by_label["sdd-feature:feat"]["key"]
@@ -480,12 +551,24 @@ class TestPushContentParity:
 
     def test_task_parented_to_story(self, tmp_path):
         client = FakeJiraClient()
-        story = Story(id="STORY-001", title="Login", moscow="must-have",
-                       description="", acceptance_criteria=[],
-                       story_points=None, satisfies=[])
-        task = Task(id="TASK-001", title="Endpoint", story_id="STORY-001",
-                    satisfies=[], estimate=None, description="",
-                    acceptance_criteria=[])
+        story = Story(
+            id="STORY-001",
+            title="Login",
+            moscow="must-have",
+            description="",
+            acceptance_criteria=[],
+            story_points=None,
+            satisfies=[],
+        )
+        task = Task(
+            id="TASK-001",
+            title="Endpoint",
+            story_id="STORY-001",
+            satisfies=[],
+            estimate=None,
+            description="",
+            acceptance_criteria=[],
+        )
         _push(client, "feat", tmp_path, [story], [task], self._cfg())
 
         story_key = client.by_label["sdd:feat:STORY-001"]["key"]

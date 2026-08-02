@@ -50,6 +50,18 @@ if errors:
 PYEOF
 }
 
+_assert_scope() {
+  # Validates manifest.yml's scope: field equals the expected canonical
+  # value -- used for the alias-resolution tests, where the CLI is given
+  # a friendly name (lean/standard/regulated) and must never persist it
+  # as-is (manifest.yml's own schema only ever stores pilot/mvp/full).
+  local manifest="$1" expected="$2"
+  if ! grep -q "scope: \"$expected\"" "$manifest"; then
+    echo "  scope mismatch: expected \"$expected\" not found in $manifest"
+    return 1
+  fi
+}
+
 _assert_context() {
   # Validates that the context file exists and has no unsubstituted PLACEHOLDERs.
   local contexts_dir="$1"
@@ -77,6 +89,26 @@ ok() {
     FAIL=$((FAIL+1)); rm -rf "$tmpdir"; return
   fi
   if ! _assert_context "$tmpdir/.specify/contexts" 2>&1; then
+    FAIL=$((FAIL+1)); rm -rf "$tmpdir"; return
+  fi
+  echo "PASS"; PASS=$((PASS+1))
+  rm -rf "$tmpdir"
+}
+
+# Runs setup, expects SUCCESS, and that --scope resolved to $2 (canonical).
+ok_scope() {
+  local label="$1" expected_scope="$2"; shift 2
+  printf "  %-48s" "$label"
+  local tmpdir exit_code=0
+  tmpdir=$(_run_setup "$@") || exit_code=$?
+
+  if [[ $exit_code -ne 0 ]]; then
+    echo "FAIL (setup exited $exit_code)"; FAIL=$((FAIL+1)); rm -rf "$tmpdir"; return
+  fi
+  if ! _assert_manifest "$tmpdir/.specify/manifest.yml" 2>&1; then
+    FAIL=$((FAIL+1)); rm -rf "$tmpdir"; return
+  fi
+  if ! _assert_scope "$tmpdir/.specify/manifest.yml" "$expected_scope" 2>&1; then
     FAIL=$((FAIL+1)); rm -rf "$tmpdir"; return
   fi
   echo "PASS"; PASS=$((PASS+1))
@@ -121,10 +153,18 @@ ok "serverless type"              --project "lambda-api"          --feature "eve
 ok "iac type"                     --project "infra-prod"          --feature "vpc-setup"             --scope pilot --type iac
 
 echo ""
+echo "Scope aliases — --scope <alias> must resolve to the canonical name:"
+
+ok_scope "lean resolves to pilot"      "pilot" --project "alias-lean"      --feature "checkout" --scope lean      --type backend-service
+ok_scope "standard resolves to mvp"    "mvp"   --project "alias-standard"  --feature "checkout" --scope standard  --type backend-service
+ok_scope "regulated resolves to full"  "full"  --project "alias-regulated" --feature "checkout" --scope regulated --type backend-service
+
+echo ""
 echo "Rejection paths — setup must exit non-zero (invalid YAML input):"
 
 nok "double quote in project"     --project 'my"project'          --feature "feature"              --scope pilot --type backend-service
 nok "double quote in feature"     --project "my-project"          --feature 'auth"oauth'           --scope pilot --type backend-service
+nok "unrecognized scope value"    --project "my-project"          --feature "feature"              --scope not-a-real-scope --type backend-service
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

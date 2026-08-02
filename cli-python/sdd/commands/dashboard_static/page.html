@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDD Dashboard</title>
+<style>
+__SDD_DASHBOARD_CSS__
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>SDD Dashboard</h1>
+      <div class="sub" id="generated-at">loading…</div>
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button type="button" data-theme-choice="light" title="Always use light theme">☀️ Light</button>
+      <button type="button" data-theme-choice="dark" title="Always use dark theme">🌙 Dark</button>
+      <button type="button" data-theme-choice="auto" title="Match your OS/browser setting">🖥️ Auto</button>
+    </div>
+  </div>
+  <details class="info-box">
+    <summary>ℹ️ Where this data comes from</summary>
+    <div class="info-content">
+      Everything below is a snapshot of local files under <code>.specify/</code> and <code>docs/jira/</code> — refreshed
+      every 5s, no network calls. Task status reflects <code>tasks.md</code>, not live PR state.
+      🕐 next to a document's status is its own <code>## Version History</code> table: created date (first row),
+      days since/until approval, and revision-round count (version bumps after the first row). Needs
+      <code>{date}</code> fields written as <code>YYYY-MM-DD</code> — older documents, or hand-edited dates in another
+      format, just don't show it. The feature-level <strong>Timeline</strong> card rolls this up: start = earliest
+      document's created date, end = <code>release.md</code>'s approval date.
+      "Details" → Content reads the raw .md file from disk. Jira/Confluence pills next to a document come from a local cache written
+      the last time you ran <code>sdd jira push</code> / <code>sdd confluence push</code> / <code>sdd review submit</code>/<code>apply</code> —
+      they can go stale if the ticket changed since then. Click <strong>"Check Jira/Confluence status"</strong> to make a
+      live call that refreshes both pills and adds the same APPROVED/NEEDS REVISION/PENDING classification as
+      <code>sdd review check --doc</code>, plus reviewer comments (shown under 💬) — and, in the same call, the live Jira
+      workflow status (e.g. "In Review", "Done") for both the review-gate tickets and the Jira Export card's Epic/Story/Task
+      tickets. That's the only thing on this page that talks to Jira/Confluence — everything else is local-file-only — and
+      once you've clicked it for a feature, it quietly re-checks every 5 minutes so it all stays fresh without you clicking again.
+      <strong>Approve</strong> and comments update the local Status header (same as <code>sdd review approve --local</code>),
+      mirror to Confluence if configured, and post a best-effort Jira comment.
+      Running with <code>--share</code>? Approve/comment are read-only over the network unless the host machine also
+      passed <code>--write</code>, in which case every write request must carry the one-time token baked into the
+      link you were given — treat that link like a credential.
+    </div>
+  </details>
+  <div id="root"></div>
+
+<script>
+__SDD_DASHBOARD_THEME_JS__
+</script>
+<script>
+__SDD_DASHBOARD_APP_JS__
+</script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import requests
 
 
@@ -22,8 +23,9 @@ class JiraClient:
         r.raise_for_status()
         return r.json()
 
-    def search(self, jql: str, fields: list[str] | None = None,
-               max_results: int = 50) -> list[dict]:
+    def search(
+        self, jql: str, fields: list[str] | None = None, max_results: int = 50
+    ) -> list[dict]:
         """Run a JQL search. Uses POST /rest/api/3/search/jql -- Atlassian
         deprecated the old GET /rest/api/3/search endpoint (removed,
         returns 410 Gone) in favor of this one. Only the first page is
@@ -39,7 +41,7 @@ class JiraClient:
 
     def find_by_label(self, project_key: str, label: str) -> dict | None:
         safe_project = project_key.replace('"', '\\"')
-        safe_label   = label.replace('"', '\\"')
+        safe_label = label.replace('"', '\\"')
         issues = self.search(
             f'project = "{safe_project}" AND labels = "{safe_label}"',
             fields=["summary", "status", "issuetype", "labels", "parent"],
@@ -58,14 +60,17 @@ class JiraClient:
         )
         r.raise_for_status()
 
-    def set_parent(self, child_key: str, parent_key: str,
-                   parent_field: str = "parent") -> None:
+    def set_parent(
+        self, child_key: str, parent_key: str, parent_field: str = "parent"
+    ) -> None:
         if parent_field == "parent":
             self.update_issue(child_key, {"parent": {"key": parent_key}})
         else:
             self.update_issue(child_key, {parent_field: parent_key})
 
-    def link_issues(self, from_key: str, to_key: str, link_type: str = "Relates") -> None:
+    def link_issues(
+        self, from_key: str, to_key: str, link_type: str = "Relates"
+    ) -> None:
         """Create a Jira issue link (default type "Relates", present on
         every Jira instance out of the box) between two issues. Unlike
         the parent/Epic-Link relationship set_parent() establishes, issue
@@ -73,11 +78,14 @@ class JiraClient:
         used when a true parent-child link can't be created (most
         commonly: child and parent live in different Jira projects,
         which the parent/Epic-Link field rejects outright)."""
-        r = self._s.post(self._api("/issueLink"), json={
-            "type": {"name": link_type},
-            "inwardIssue": {"key": from_key},
-            "outwardIssue": {"key": to_key},
-        })
+        r = self._s.post(
+            self._api("/issueLink"),
+            json={
+                "type": {"name": link_type},
+                "inwardIssue": {"key": from_key},
+                "outwardIssue": {"key": to_key},
+            },
+        )
         r.raise_for_status()
 
     def get_issue_types(self, project_key: str) -> list[dict]:
@@ -96,10 +104,12 @@ class JiraClient:
             "body": {
                 "type": "doc",
                 "version": 1,
-                "content": [{
-                    "type": "paragraph",
-                    "content": [{"type": "text", "text": text}],
-                }],
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": text}],
+                    }
+                ],
             }
         }
         r = self._s.post(self._api(f"/issue/{issue_key}/comment"), json=payload)

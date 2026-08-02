@@ -5,14 +5,23 @@
 from pathlib import Path
 
 from sdd.commands.dashboard import (
-    _PAGE, _SAFE_TOKEN, _clip_text, _do_approve, _do_comment, _load_comments,
+    _PAGE,
+    _SAFE_TOKEN,
+    _clip_text,
+    _do_approve,
+    _do_comment,
+    _load_comments,
 )
 
 
-def _scaffold_feature(tmp_path: Path, feature: str = "payments", doc: str = "brd") -> Path:
+def _scaffold_feature(
+    tmp_path: Path, feature: str = "payments", doc: str = "brd"
+) -> Path:
     feature_dir = tmp_path / ".specify" / "features" / feature
     feature_dir.mkdir(parents=True)
-    (feature_dir / f"{doc}.md").write_text(f"# {doc.upper()}\n> Status: Draft | Date: 2026-07-09\n")
+    (feature_dir / f"{doc}.md").write_text(
+        f"# {doc.upper()}\n> Status: Draft | Date: 2026-07-09\n"
+    )
     return feature_dir
 
 
@@ -47,7 +56,9 @@ def test_approve_flips_status_header_and_records_local_approval(tmp_path, monkey
     assert "lgtm" in approvals_text
 
 
-def test_approve_without_confluence_or_jira_configured_does_not_crash(tmp_path, monkeypatch):
+def test_approve_without_confluence_or_jira_configured_does_not_crash(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     _scaffold_feature(tmp_path)
     result = _do_approve("payments", "brd", "Jane", "")
@@ -55,7 +66,9 @@ def test_approve_without_confluence_or_jira_configured_does_not_crash(tmp_path, 
     assert result["jira_comment"]["posted"] is False
 
 
-def test_approve_missing_doc_reports_error_but_still_records_local_approval(tmp_path, monkeypatch):
+def test_approve_missing_doc_reports_error_but_still_records_local_approval(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
     result = _do_approve("payments", "brd", "Jane", "")
@@ -125,7 +138,7 @@ def test_page_persists_comment_drafts_across_rerenders():
     # can find the right field after #root is rebuilt
     assert 'class="comment-by"' in _PAGE and "draft.by" in _PAGE
     assert 'class="comment-text"' in _PAGE and "draft.text" in _PAGE
-    assert "data-feature=\"${feature}\"" in _PAGE
+    assert 'data-feature="${feature}"' in _PAGE
 
 
 def test_page_restores_focus_after_periodic_rerender():
@@ -165,11 +178,11 @@ def test_page_renders_review_status_badge_and_jira_comments():
 
 def test_fetch_review_links_surfaces_classification_and_comments(tmp_path, monkeypatch):
     import sdd.commands.dashboard as dashboard_mod
-    import sdd.utils.integrations as integrations_mod
     import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.integrations as integrations_mod
     import sdd.utils.jira_client as jira_client_mod
-    from sdd.utils.integrations import IntegrationsConfig, JiraConfig, DocumentReview
     from sdd.utils.atlassian_auth import Profile
+    from sdd.utils.integrations import DocumentReview, IntegrationsConfig, JiraConfig
 
     monkeypatch.chdir(tmp_path)
 
@@ -188,7 +201,11 @@ def test_fetch_review_links_surfaces_classification_and_comments(tmp_path, monke
         },
     )
     monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
-    monkeypatch.setattr(auth_mod, "load_profile", lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"))
+    monkeypatch.setattr(
+        auth_mod,
+        "load_profile",
+        lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"),
+    )
     monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
 
     class FakeJiraClient:
@@ -199,11 +216,13 @@ def test_fetch_review_links_surfaces_classification_and_comments(tmp_path, monke
             return {"key": "PROJ-9", "fields": {"status": {"name": "In Review"}}}
 
         def get_comments(self, issue_key):
-            return [{
-                "author": {"displayName": "Jane Reviewer"},
-                "created": "2026-07-10T12:00:00.000+0000",
-                "body": "Please fix section 3",
-            }]
+            return [
+                {
+                    "author": {"displayName": "Jane Reviewer"},
+                    "created": "2026-07-10T12:00:00.000+0000",
+                    "body": "Please fix section 3",
+                }
+            ]
 
     monkeypatch.setattr(jira_client_mod, "JiraClient", FakeJiraClient)
 
@@ -212,20 +231,22 @@ def test_fetch_review_links_surfaces_classification_and_comments(tmp_path, monke
     brd = result["docs"]["brd"]
     assert brd["jira"]["key"] == "PROJ-9"
     assert brd["jira"]["review_status"] == "NEEDS_REVISION"
-    assert brd["jira"]["comments"] == [{
-        "author": "Jane Reviewer",
-        "created": "2026-07-10",
-        "text": "Please fix section 3",
-    }]
+    assert brd["jira"]["comments"] == [
+        {
+            "author": "Jane Reviewer",
+            "created": "2026-07-10",
+            "text": "Please fix section 3",
+        }
+    ]
 
 
 def test_fetch_review_links_classifies_approved_status(tmp_path, monkeypatch):
     import sdd.commands.dashboard as dashboard_mod
-    import sdd.utils.integrations as integrations_mod
     import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.integrations as integrations_mod
     import sdd.utils.jira_client as jira_client_mod
-    from sdd.utils.integrations import IntegrationsConfig, JiraConfig, DocumentReview
     from sdd.utils.atlassian_auth import Profile
+    from sdd.utils.integrations import DocumentReview, IntegrationsConfig, JiraConfig
 
     monkeypatch.chdir(tmp_path)
 
@@ -244,7 +265,11 @@ def test_fetch_review_links_classifies_approved_status(tmp_path, monkeypatch):
         },
     )
     monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
-    monkeypatch.setattr(auth_mod, "load_profile", lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"))
+    monkeypatch.setattr(
+        auth_mod,
+        "load_profile",
+        lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"),
+    )
     monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
 
     class FakeJiraClient:
@@ -292,18 +317,33 @@ def test_page_wires_export_status_into_jira_export_card():
     assert "renderJiraExport(local.jira, exportEntry)" in _PAGE
 
 
-def _scaffold_export_keys(tmp_path: Path, feature: str, epic="PROJ-1",
-                           stories=("PROJ-2", "PROJ-3"), tasks=("PROJ-4",)) -> None:
+def _scaffold_export_keys(
+    tmp_path: Path,
+    feature: str,
+    epic="PROJ-1",
+    stories=("PROJ-2", "PROJ-3"),
+    tasks=("PROJ-4",),
+) -> None:
     import yaml
+
     keys_dir = tmp_path / "docs" / "jira" / feature
     keys_dir.mkdir(parents=True)
-    (keys_dir / "keys.yml").write_text(yaml.dump({
-        "epic": epic, "stories": list(stories), "tasks": list(tasks),
-    }))
+    (keys_dir / "keys.yml").write_text(
+        yaml.dump(
+            {
+                "epic": epic,
+                "stories": list(stories),
+                "tasks": list(tasks),
+            }
+        )
+    )
 
 
-def test_fetch_export_ticket_statuses_batches_all_keys_in_one_jql_query(tmp_path, monkeypatch):
+def test_fetch_export_ticket_statuses_batches_all_keys_in_one_jql_query(
+    tmp_path, monkeypatch
+):
     import sdd.commands.dashboard as dashboard_mod
+
     monkeypatch.chdir(tmp_path)
     _scaffold_export_keys(tmp_path, "payments")
 
@@ -324,12 +364,16 @@ def test_fetch_export_ticket_statuses_batches_all_keys_in_one_jql_query(tmp_path
     for key in ("PROJ-1", "PROJ-2", "PROJ-3", "PROJ-4"):
         assert key in calls[0]
     assert result["statuses"] == {
-        "PROJ-1": "In Progress", "PROJ-2": "Done", "PROJ-3": "To Do", "PROJ-4": "In Progress",
+        "PROJ-1": "In Progress",
+        "PROJ-2": "Done",
+        "PROJ-3": "To Do",
+        "PROJ-4": "In Progress",
     }
 
 
 def test_fetch_export_ticket_statuses_no_client_returns_empty(tmp_path, monkeypatch):
     import sdd.commands.dashboard as dashboard_mod
+
     monkeypatch.chdir(tmp_path)
     _scaffold_export_keys(tmp_path, "payments")
     assert dashboard_mod._fetch_export_ticket_statuses("payments", None) == {}
@@ -337,26 +381,37 @@ def test_fetch_export_ticket_statuses_no_client_returns_empty(tmp_path, monkeypa
 
 def test_fetch_export_ticket_statuses_no_keys_yml_returns_empty(tmp_path, monkeypatch):
     import sdd.commands.dashboard as dashboard_mod
+
     monkeypatch.chdir(tmp_path)
 
     class FakeJiraClient:
         def search(self, jql, fields=None, max_results=50):
             raise AssertionError("must not query Jira when there's nothing exported")
 
-    assert dashboard_mod._fetch_export_ticket_statuses("payments", FakeJiraClient()) == {}
+    assert (
+        dashboard_mod._fetch_export_ticket_statuses("payments", FakeJiraClient()) == {}
+    )
 
 
 def test_fetch_export_ticket_statuses_rejects_malformed_keys(tmp_path, monkeypatch):
     # A hand-edited keys.yml with a garbage entry must never reach the JQL
     # string unescaped -- filtered out before the query is built.
-    import sdd.commands.dashboard as dashboard_mod
     import yaml
+
+    import sdd.commands.dashboard as dashboard_mod
+
     monkeypatch.chdir(tmp_path)
     keys_dir = tmp_path / "docs" / "jira" / "payments"
     keys_dir.mkdir(parents=True)
-    (keys_dir / "keys.yml").write_text(yaml.dump({
-        "epic": "PROJ-1", "stories": ['PROJ-2") OR (1=1'], "tasks": [],
-    }))
+    (keys_dir / "keys.yml").write_text(
+        yaml.dump(
+            {
+                "epic": "PROJ-1",
+                "stories": ['PROJ-2") OR (1=1'],
+                "tasks": [],
+            }
+        )
+    )
 
     calls = []
 
@@ -372,19 +427,27 @@ def test_fetch_export_ticket_statuses_rejects_malformed_keys(tmp_path, monkeypat
 
 def test_fetch_review_links_includes_export_status(tmp_path, monkeypatch):
     import sdd.commands.dashboard as dashboard_mod
-    import sdd.utils.integrations as integrations_mod
     import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.integrations as integrations_mod
     import sdd.utils.jira_client as jira_client_mod
-    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
     from sdd.utils.atlassian_auth import Profile
+    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
 
     monkeypatch.chdir(tmp_path)
     _scaffold_export_keys(tmp_path, "payments", epic="PROJ-1", stories=(), tasks=())
 
-    cfg = IntegrationsConfig(profile=None, jira=JiraConfig(project_key="PROJ"),
-                              confluence=None, document_reviews={})
+    cfg = IntegrationsConfig(
+        profile=None,
+        jira=JiraConfig(project_key="PROJ"),
+        confluence=None,
+        document_reviews={},
+    )
     monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
-    monkeypatch.setattr(auth_mod, "load_profile", lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"))
+    monkeypatch.setattr(
+        auth_mod,
+        "load_profile",
+        lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"),
+    )
     monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
 
     class FakeJiraClient:
@@ -401,25 +464,35 @@ def test_fetch_review_links_includes_export_status(tmp_path, monkeypatch):
     assert result["export"]["statuses"] == {"PROJ-1": "In Progress"}
 
 
-def test_fetch_review_links_works_without_document_reviews_configured(tmp_path, monkeypatch):
+def test_fetch_review_links_works_without_document_reviews_configured(
+    tmp_path, monkeypatch
+):
     # Previously this hard-errored on "No document_reviews configured" even
     # when jira: was set up purely for the progressive export, with no
     # review gates at all -- that's a legitimate, common setup and must not
     # block the export-status half of the same live check.
     import sdd.commands.dashboard as dashboard_mod
-    import sdd.utils.integrations as integrations_mod
     import sdd.utils.atlassian_auth as auth_mod
+    import sdd.utils.integrations as integrations_mod
     import sdd.utils.jira_client as jira_client_mod
-    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
     from sdd.utils.atlassian_auth import Profile
+    from sdd.utils.integrations import IntegrationsConfig, JiraConfig
 
     monkeypatch.chdir(tmp_path)
     _scaffold_export_keys(tmp_path, "payments", epic="PROJ-1", stories=(), tasks=())
 
-    cfg = IntegrationsConfig(profile=None, jira=JiraConfig(project_key="PROJ"),
-                              confluence=None, document_reviews=None)
+    cfg = IntegrationsConfig(
+        profile=None,
+        jira=JiraConfig(project_key="PROJ"),
+        confluence=None,
+        document_reviews=None,
+    )
     monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
-    monkeypatch.setattr(auth_mod, "load_profile", lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"))
+    monkeypatch.setattr(
+        auth_mod,
+        "load_profile",
+        lambda name=None: Profile(auth_mode="pat", base_url="https://x.atlassian.net"),
+    )
     monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
 
     class FakeJiraClient:
@@ -442,8 +515,45 @@ def test_fetch_review_links_errors_when_nothing_configured(tmp_path, monkeypatch
     from sdd.utils.integrations import IntegrationsConfig
 
     monkeypatch.chdir(tmp_path)
-    cfg = IntegrationsConfig(profile=None, jira=None, confluence=None, document_reviews=None)
+    cfg = IntegrationsConfig(
+        profile=None, jira=None, confluence=None, document_reviews=None
+    )
     monkeypatch.setattr(integrations_mod, "load_integrations", lambda: cfg)
 
     result = dashboard_mod._fetch_review_links("payments")
     assert "error" in result
+
+
+# _PAGE is assembled from sdd/commands/dashboard_static/*.css/*.js/*.html at
+# import time (see dashboard.py's _load_page()) rather than being a single
+# inline Python string literal -- these guard the specific failure modes
+# that split introduced: an unsubstituted placeholder token leaking into
+# the served HTML, or a static file going missing from the package.
+def test_page_has_no_unsubstituted_placeholder_tokens():
+    assert "__SDD_DASHBOARD_" not in _PAGE
+
+
+def test_page_contains_css_and_both_js_files_inlined():
+    # One from each of the four static files, proving all of them were
+    # actually read and substituted in, not just that the template loaded.
+    assert ":root {" in _PAGE  # style.css
+    assert "const THEME_KEY" in _PAGE  # theme.js
+    assert "function renderPipelineFlow" in _PAGE  # app.js
+    assert "<!doctype html>" in _PAGE  # page.html shell
+
+
+def test_approve_action_requires_confirmation_before_posting():
+    # Guards against an accidental click by an already-authorized user --
+    # window.confirm() must run, and the caller must bail out (return, no
+    # fetch to /api/approve) when it's declined.
+    assert "window.confirm(confirmMsg)" in _PAGE
+    assert "if (!window.confirm(confirmMsg)) return;" in _PAGE
+
+
+def test_dashboard_static_dir_contains_exactly_the_expected_files():
+    import sdd.commands.dashboard as dashboard_mod
+
+    static_dir = Path(dashboard_mod.__file__).parent / "dashboard_static"
+    assert static_dir.is_dir()
+    names = {p.name for p in static_dir.iterdir()}
+    assert names == {"page.html", "style.css", "theme.js", "app.js"}

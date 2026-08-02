@@ -4,6 +4,216 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.13] — 2026-08-02 (Add lean/standard/regulated as friendly scope aliases)
+
+An external review flagged that `examples/todo-api` (a real `pilot`-scope
+run) generates exactly 12 documents, yet "pilot" reads as a small,
+informal effort until a team actually sees that count. A full rename of
+the scope vocabulary would be a breaking change to `manifest.yml`'s schema
+and every pack's scope-gating logic, so this ships a smaller, safe version
+instead.
+
+### Added
+
+- **`lean`/`standard`/`regulated` accepted as friendlier aliases** for
+  `pilot`/`mvp`/`full` wherever scope is set: `setup.sh`/`setup.ps1`'s
+  `--scope`, and `sdd init`'s `-s`/`--scope`. Resolved to the canonical
+  name before anything is written — `manifest.yml`'s own `scope:` field,
+  and every gate/command that reads it, never sees the aliases.
+- **Real input validation that didn't exist before.** An unrecognized
+  `--scope` value (a typo, or anything outside the 6 accepted spellings)
+  is now rejected with a clear error instead of being silently written
+  into `manifest.yml` as-is.
+
+### Verified
+
+- `cli-python` pytest: 797/797 (793 pre-existing + 4 new)
+- ruff check/format, mypy, and bandit all clean; coverage still 79%
+- `setup.sh` smoke suite extended with 3 alias-resolution cases + 1
+  invalid-scope rejection case (19/19 passing)
+- Cross-reference checker and sync-drift check both clean across all 6
+  packs
+- Direct manual run against a synced pack confirming both the happy path
+  (`--scope lean` → `scope: "pilot"`) and the rejection path end to end
+
+---
+
+## [2.8.12] — 2026-08-02 (Dashboard: confirm before approving; HTML/CSS/JS moved to real files)
+
+### Added
+
+- **Dashboard Approve now requires confirmation.** Previously fired
+  straight to the server after two `window.prompt()` calls (name, optional
+  note). Now shows a `window.confirm()` summarizing the document, feature,
+  approver, and note before the request goes out, and does nothing at all
+  if declined — guards against an accidental click by an already-
+  authorized user. (The bigger risk, an *unauthorized* person approving,
+  was already closed by the session-token work shipped a few versions
+  back.)
+
+### Changed
+
+- **Dashboard HTML/CSS/JS extracted from a single Python string into real
+  files** under `cli-python/sdd/commands/dashboard_static/` (`style.css`,
+  `theme.js`, `app.js`, `page.html`) — editor syntax highlighting and
+  linting now work on them, and diffs to the UI are readable instead of
+  one 1050-line string blob. No behavior change: verified byte-identical
+  output against the previous version, and confirmed the new files ship
+  correctly in a real built-and-installed wheel (they needed an explicit
+  entry in `pyproject.toml`'s packaging config, same as the existing pack
+  files).
+
+### Verified
+
+- `cli-python` pytest: 793/793 (789 pre-existing + 4 new)
+- ruff check/format, mypy, and bandit all clean; coverage still 79%
+  (above the 77% CI floor)
+- A real `python -m build --wheel` + clean-venv install, confirming the
+  dashboard's static files are present and the page renders correctly
+
+---
+
+## [2.8.11] — 2026-08-02 (Fix a real Python 3.9 import crash; add ruff to CI)
+
+Found while wiring `ruff` into CI (task #32 in the review-tracker): a real
+installability bug, not a lint nitpick.
+
+### Fixed
+
+- **7 modules would crash on import under Python 3.9.** `init.py`,
+  `upgrade.py`, `detect.py`, `manifest.py`, `scaffold.py`, `validate.py`, and
+  one test file used `str | None` / `dict | None` union syntax directly in
+  function signatures with no `from __future__ import annotations` at the
+  top of the file. PEP 604's `X | Y` union syntax is only evaluable at
+  runtime from Python 3.10 onward — on 3.9 (which `pyproject.toml`'s own
+  `requires-python = ">=3.9"` and classifiers claim to support), importing
+  any of these modules raised `TypeError: unsupported operand type(s) for |`
+  at function-definition time, before any of the CLI's own logic ran. Fixed
+  by adding the missing `from __future__ import annotations` to each file.
+  This would have been caught immediately by the Python 3.9 CI matrix job
+  added the round before this one (v2.8.10's sibling PR) — that job would
+  have failed on `sdd --help` alone.
+
+### Added
+
+- **`ruff` added to CI** (`ruff check .` + `ruff format --check .`),
+  configured in `cli-python/pyproject.toml`'s new `[tool.ruff]` section. A
+  full pass fixed or `noqa`'d (with a reason comment) everything ruff's
+  default ruleset flagged except two deliberately-ignored rules: `ISC004`
+  (674 hits — this codebase's own style of writing long prose as adjacent
+  string literals in lists, not a bug) and `BLE001` (67 hits —
+  `except Exception:`, flagged for a dedicated manual triage pass, tracked
+  separately rather than blanket-suppressed or blanket-narrowed blind).
+- `ruff format` applied across the whole `cli-python` package in its own
+  prior isolated commit (formatting only, verified with identical test
+  results before and after) so this change's diff isn't dominated by
+  reformatting noise.
+
+### Verified
+
+- `cli-python` pytest: 789/789 (unchanged pass count throughout this round)
+- `ruff check .` and `ruff format --check .` both clean
+- The specific Python 3.9 fix confirmed via `ruff check . --select FA102`
+  going from 11 hits to 0
+
+---
+
+## [2.8.10] — 2026-08-02 (manifest.py atomic writes + corrupt-file handling; Jira/Confluence HTTP timeout + retry/backoff)
+
+Next tier from the same ChatGPT-review verification pass — two more real gaps
+found while checking the review's claims against the actual code, not
+hypothetical ones.
+
+### Fixed
+
+- **`manifest.py` writes are now atomic.** `write_manifest()` previously
+  wrote directly to `.specify/manifest.yml` with `write_text()` — a process
+  killed mid-write (e.g. an interrupted `sdd upgrade`) could leave a
+  truncated file, and every command reads this file, so a truncated manifest
+  broke the whole project. Now writes to a temp file in the same directory
+  and `os.replace()`s it into place, atomic on both POSIX and Windows.
+- **`manifest.py` now fails loudly on a corrupt manifest.** `read_manifest()`
+  previously let a corrupt YAML file raise a raw `yaml.YAMLError`. Now raises
+  a new `ManifestError` with an actionable message (fix by hand, restore from
+  git, or delete and re-run `sdd init`). A *missing* manifest still returns
+  `None` as before — a corrupt one means the project clearly exists, so
+  treating it the same as absent risked a caller re-scaffolding over it or
+  silently dropping real config.
+- **Jira/Confluence HTTP calls now have a timeout and retry with backoff.**
+  Previously a flaky network blip or an Atlassian rate limit surfaced as a
+  raw unhandled stack trace mid-workflow. Fixed once, centrally, via a custom
+  `HTTPAdapter` mounted on the shared `requests.Session` in
+  `atlassian_auth.py`'s `build_session()` — covers all ~25 call sites across
+  `jira_client.py` and `confluence_client.py` from one place. 20-second
+  default timeout; 3 retries with exponential backoff on connection errors
+  and on 429/500/502/503/504 responses, honoring a 429's `Retry-After`
+  header. Retries apply to POST/PUT too — this codebase's writes already
+  lean on label-based find-before-create idempotency, and a connection blip
+  silently aborting an approval push partway through is worse than the small
+  remaining risk of an occasional duplicate retry.
+
+### Verified
+
+- `cli-python` pytest: 789/789 (773 pre-existing + 11 new `manifest.py`
+  tests + 5 new `atlassian_auth.py` resilience tests)
+- Atomicity proven via a monkeypatched `os.replace()` asserting the
+  destination still holds old content and the temp source holds new content
+  at replace-time; cleanup-on-failure proven the same way
+- Retry logic proven against a real flaky local HTTP server (fails twice
+  with 503, then succeeds), plus a control-case test showing a plain session
+  without the adapter genuinely fails on the same server
+
+---
+
+## [2.8.9] — 2026-08-02 (Dashboard security hardening: session token, Origin check, read-only sharing, and a real concurrent-write bug fix)
+
+The highest-priority item from a comprehensive verification pass against an
+external (ChatGPT) architecture review. This closes real, live gaps — dashboard
+write endpoints had zero authentication over the network, and there was an
+unguarded concurrent-write race that could silently drop a comment.
+
+### Fixed
+
+- **Dashboard write endpoints now require authentication when shared over a
+  network.** Previously, binding `sdd dashboard --host 0.0.0.0` only printed a
+  console warning — anyone reachable on the network could approve documents
+  and post comments. New `--share` (shortcut for `--host 0.0.0.0`) and
+  `--write` flags: `sdd dashboard` (unchanged, local, writes on, no token),
+  `sdd dashboard --share` (network, **read-only**), `sdd dashboard --share
+  --write` (network, writes gated by a session token).
+- **Session token doubles as CSRF protection.** Delivered via a custom
+  `X-SDD-Token` header rather than a cookie — a cookie is sent automatically
+  by the browser on any cross-origin request (the CSRF attack vector); a
+  custom header only goes out on requests this page's own JS explicitly
+  builds. Generated with `secrets.token_urlsafe(24)`, handed to the browser
+  once via the auto-opened URL's `?token=` param, then stripped from the
+  visible URL.
+- **Origin/Host header check** as defense in depth on top of the token,
+  checked first so a mismatched `Origin` is rejected even if a token leaked.
+- **In-page network-sharing banner** and hidden/disabled write controls in
+  read-only mode, via a new `GET /api/dashboard-info` endpoint — the previous
+  console-only warning was invisible to anyone using the dashboard from a
+  different machine.
+- **Fixed a real concurrent-write data-loss bug**: `.dashboard-comments.json`
+  had no lock around its read-modify-write cycle despite the dashboard
+  running on `ThreadingHTTPServer` (one thread per request) — two
+  near-simultaneous comment submissions could race and silently drop one.
+  Verified with a 12-thread concurrency test that reliably fails without a
+  lock and reliably passes with one.
+
+### Verified
+
+- `cli-python` pytest: 773/773 (765 pre-existing + 8 new)
+- All 49 pre-existing dashboard tests pass unchanged — the default
+  `sdd dashboard` invocation (no flags) is completely unaffected
+- Three live end-to-end smoke tests against a real running server, all three
+  modes, confirming the printed token works and wrong/missing tokens are
+  rejected
+- Concurrency test independently verified to catch the regression: fails
+  5/5 with the lock removed, passes reliably with it restored
+
+---
+
 ## [2.8.8] — 2026-08-01 (Root README "60-Second Overview" — first-time-visitor orientation)
 
 An external (ChatGPT) review flagged that a newcomer to the maintainer

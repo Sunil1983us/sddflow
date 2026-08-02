@@ -3251,6 +3251,224 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.8',
+    to:   '2.8.9',
+    description: "Dashboard security hardening: session token + Origin check for network writes, read-only sharing mode, and a fix for a real concurrent-write data-loss bug",
+    notes: [
+      "Highest-priority item from a comprehensive ChatGPT-review " +
+      "verification pass -- closes real, live gaps, not hypothetical " +
+      "ones. Dashboard write endpoints had zero authentication when " +
+      "bound to a non-loopback address, only a printed console " +
+      "warning. There was also an unguarded concurrent-write race on " +
+      ".dashboard-comments.json -- verified with a 12-thread " +
+      "concurrency test that fails 5/5 without a lock and passes " +
+      "reliably with the fix",
+      "New --share flag (shortcut for --host 0.0.0.0) and --write flag " +
+      "(required to enable writes over a non-local bind). Three modes: " +
+      "`sdd dashboard` (unchanged -- 127.0.0.1, writes enabled, no " +
+      "token), `sdd dashboard --share` (network-reachable, read-only " +
+      "by default), `sdd dashboard --share --write` (network-" +
+      "reachable, writes gated by a session token)",
+      "Session token via a custom X-SDD-Token header, not a cookie -- " +
+      "a cookie would be sent automatically on any cross-origin " +
+      "request (that's what makes CSRF possible); a custom header " +
+      "only goes out on requests this page's own JS explicitly " +
+      "builds, so this one mechanism covers both session-token auth " +
+      "and CSRF protection. Delivered via a one-time ?token= query " +
+      "param on the auto-opened URL, then stripped from the visible " +
+      "URL via history.replaceState",
+      "Origin/Host header check as defense in depth on top of the " +
+      "token, checked first so a mismatched Origin is rejected even " +
+      "if a token somehow leaked",
+      "New GET /api/dashboard-info endpoint (never includes the token " +
+      "itself) drives an in-page network-sharing banner and hides/" +
+      "disables write controls when read-only -- the existing printed " +
+      "console warning was invisible to anyone using the dashboard " +
+      "from a different machine",
+      "The default `sdd dashboard` invocation (no flags) is completely " +
+      "unaffected -- all 49 pre-existing dashboard tests still pass " +
+      "unchanged",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same " +
+      "sdd_version chain. The dashboard itself is Python-only -- no " +
+      "corresponding functional change on the Node CLI side",
+      "Verified: cli-python pytest 773/773 (765 pre-existing + 8 new), " +
+      "plus three live end-to-end smoke tests against a real running " +
+      "server in all three modes",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.9';
+      return manifest;
+    },
+  },
+  {
+    from: '2.8.9',
+    to:   '2.8.10',
+    description: "manifest.py atomic writes + corrupt-file handling, and timeout/retry/backoff for all Jira/Confluence HTTP calls",
+    notes: [
+      "Next tier from the same ChatGPT-review verification pass, closing " +
+      "two more real (not hypothetical) gaps found while verifying the " +
+      "review's claims against the actual code",
+      "manifest.py: write_manifest() previously wrote directly to " +
+      ".specify/manifest.yml with write_text() -- a process killed mid-" +
+      "write (e.g. `sdd upgrade` interrupted) could leave a truncated " +
+      "file, and every command reads this file, so a truncated manifest " +
+      "broke the whole project. Now writes to a temp file in the same " +
+      "directory and os.replace()s it into place, which is atomic on " +
+      "both POSIX and Windows",
+      "manifest.py: read_manifest() previously let a corrupt YAML file " +
+      "raise a raw yaml.YAMLError with no guidance. Now wraps the parse " +
+      "in try/except and raises a new ManifestError with an actionable " +
+      "message (fix by hand, restore from git, or delete and re-run " +
+      "`sdd init`). A *missing* manifest still returns None as before -- " +
+      "a corrupt manifest means the project clearly exists, so silently " +
+      "treating it the same as absent risked a caller re-scaffolding " +
+      "over it or quietly dropping real config",
+      "atlassian_auth.py: every Jira/Confluence API call goes through a " +
+      "requests.Session built by build_session() -- a flaky network " +
+      "blip or an Atlassian rate limit previously surfaced as a raw " +
+      "unhandled stack trace mid-workflow, since requests has no " +
+      "default timeout and no retry logic. Fixed once, centrally, by " +
+      "mounting a custom HTTPAdapter on the shared session instead of " +
+      "touching the ~25 individual call sites across jira_client.py and " +
+      "confluence_client.py: a 20-second default timeout, plus 3 " +
+      "retries with exponential backoff on connection errors and on " +
+      "429/500/502/503/504 responses, honoring a 429's Retry-After " +
+      "header",
+      "Retries apply to every HTTP method including POST/PUT -- this " +
+      "codebase's writes already lean on label-based find-before-create " +
+      "idempotency where duplication would matter, and a connection " +
+      "blip silently aborting a document approval or Jira push partway " +
+      "through is worse than the small remaining risk of an occasional " +
+      "duplicate retry on a genuinely dropped response",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. " +
+      "Both fixes are Python-only (manifest.py and atlassian_auth.py " +
+      "have no Node CLI equivalent) -- no functional change on the " +
+      "Node CLI side",
+      "Verified: cli-python pytest 789/789 (773 pre-existing + 11 " +
+      "manifest.py tests + 5 atlassian_auth.py resilience tests), " +
+      "including atomicity proven via a monkeypatched os.replace() and " +
+      "the retry logic proven against a real flaky local HTTP server " +
+      "plus a control-case test showing a plain session without the " +
+      "adapter genuinely fails on the same server",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.10';
+      return manifest;
+    },
+  },
+  {
+    from: '2.8.10',
+    to:   '2.8.11',
+    description: "Fix a real Python 3.9 import crash (PEP 604 `X | None` used without `from __future__ import annotations`) plus a ruff lint/format pass",
+    notes: [
+      "Real bug, not a lint nitpick: 7 modules used `str | None` / " +
+      "`dict | None` union syntax directly in function signatures with " +
+      "no `from __future__ import annotations` at the top of the file. " +
+      "PEP 604's `X | Y` union syntax is only evaluable at runtime from " +
+      "Python 3.10 onward -- on 3.9 (which pyproject.toml's own " +
+      "requires-python and classifiers claim to support), importing any " +
+      "of these modules raised a TypeError at function-definition time, " +
+      "before a single line of the CLI's own logic ever ran. Caught by " +
+      "ruff's FA102 rule while setting up CI's new ruff job -- and would " +
+      "have been caught immediately by the Python 3.9 CI matrix job " +
+      "added one round earlier, since that job would fail on `sdd " +
+      "--help` alone",
+      "Added ruff to CI (ruff check + ruff format --check), configured " +
+      "in cli-python/pyproject.toml. Ran a full pass first: fixed or " +
+      "noqa'd (with a reason comment) everything ruff's default ruleset " +
+      "flagged except two deliberately-ignored rules -- ISC004 (674 " +
+      "hits, this codebase's own style of writing long prose as adjacent " +
+      "string literals in lists, not a bug) and BLE001 (67 hits, " +
+      "`except Exception:` -- flagged for a dedicated manual triage " +
+      "pass, tracked separately, not blanket-suppressed or blanket-" +
+      "narrowed blind)",
+      "Applied ruff format across the whole package as its own prior " +
+      "isolated commit (no functional change, same test results before/" +
+      "after) so this commit's diff isn't dominated by pure reformatting " +
+      "noise",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. Both " +
+      "fixes are Python-only; no Node CLI equivalent exists for either",
+      "Verified: cli-python pytest 789/789 (unchanged pass count " +
+      "throughout this round), ruff check and ruff format --check both " +
+      "clean, and the specific fix confirmed via `ruff check . --select " +
+      "FA102` going from 11 hits to 0",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.11';
+      return manifest;
+    },
+  },
+  {
+    from: '2.8.11',
+    to:   '2.8.12',
+    description: "Dashboard: confirmation dialog before an approval takes effect; dashboard HTML/CSS/JS moved from one giant Python string to real .css/.js/.html files",
+    notes: [
+      "Real, user-visible dashboard behavior change: clicking Approve used " +
+      "to fire straight to the server after two window.prompt() calls " +
+      "(name, optional note). Now shows a window.confirm() summarizing " +
+      "the document, feature, approver name, and note before the request " +
+      "goes out, and bails out entirely if declined -- guards against an " +
+      "accidental click by an already-authorized user (the bigger risk, " +
+      "an *unauthorized* person approving, was already closed by the " +
+      "session-token work two rounds back)",
+      "Also (no user-visible difference, verified byte-identical): the " +
+      "dashboard's HTML/CSS/JS -- previously one ~1050-line Python " +
+      "triple-quoted string -- now lives in real files under " +
+      "sdd/commands/dashboard_static/, assembled into the same single " +
+      "self-contained HTML response at import time. No new HTTP routes, " +
+      "no extra round-trips",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. The " +
+      "dashboard is Python-only -- no corresponding change on the Node " +
+      "CLI side",
+      "Verified: cli-python pytest 793/793 (789 pre-existing + 4 new), " +
+      "ruff check/format, mypy, and bandit all clean, coverage still 79%, " +
+      "and a real wheel build + clean-venv install confirming the " +
+      "dashboard's static files ship correctly",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.12';
+      return manifest;
+    },
+  },
+  {
+    from: '2.8.12',
+    to:   '2.8.13',
+    description: "Add lean/standard/regulated as friendly aliases for pilot/mvp/full scope",
+    notes: [
+      "Real gap the review flagged: examples/todo-api (a real pilot-scope " +
+      "run) generates exactly 12 documents, and 'pilot' reads as a small, " +
+      "informal effort right up until a team sees the actual document " +
+      "count. A full rename of the scope vocabulary would be a breaking " +
+      "change to manifest.yml's schema and every pack's scope-gating " +
+      "logic, so this ships a much smaller, safe version instead: lean/" +
+      "standard/regulated are accepted as friendlier input names " +
+      "wherever scope is set (setup.sh/setup.ps1's --scope, sdd init's " +
+      "-s/--scope), resolved to the canonical pilot/mvp/full before " +
+      "anything is written. manifest.yml's own scope: field never sees " +
+      "the aliases -- no downstream logic needed to change",
+      "Also added real input validation that didn't exist before: an " +
+      "unrecognized --scope value is now rejected with a clear error " +
+      "instead of being silently written into manifest.yml as-is",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. The " +
+      "Node CLI's own init/upgrade scaffolding doesn't take a --scope " +
+      "flag today, so there's no corresponding code change on that side",
+      "Verified: cli-python pytest 797/797 (793 pre-existing + 4 new), " +
+      "ruff check/format, mypy, and bandit all clean, coverage still " +
+      "79%; setup.sh smoke suite extended with 3 alias-resolution cases " +
+      "+ 1 invalid-scope rejection case, cross-reference checker and " +
+      "sync-drift check both clean across all 6 packs",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.13';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

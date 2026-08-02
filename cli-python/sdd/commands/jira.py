@@ -1,16 +1,25 @@
 from __future__ import annotations
+
 import json
 import re
 from pathlib import Path
+
 import click
 import yaml
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import load_jira_session, load_profile
-from sdd.utils.integrations import load_integrations, JiraConfig
+from sdd.utils.integrations import IntegrationsConfig, JiraConfig, load_integrations
 from sdd.utils.jira_client import JiraClient
-from sdd.utils.sdd_parser import parse_stories, parse_tasks, parse_use_cases, Story, Task, UseCase
 from sdd.utils.manifest import read_manifest
+from sdd.utils.sdd_parser import (
+    Story,
+    Task,
+    UseCase,
+    parse_stories,
+    parse_tasks,
+    parse_use_cases,
+)
 from sdd.utils.validate import safe_feature_path
 
 console = Console()
@@ -19,6 +28,7 @@ _LEVELS = ["epic", "uc-draft", "story", "task", "chg", "all"]
 
 
 # ── ADF (Atlassian Document Format) helpers ────────────────────────────────────
+
 
 def _adf_paragraph(text: str) -> dict:
     return {"type": "paragraph", "content": [{"type": "text", "text": str(text)}]}
@@ -30,17 +40,25 @@ def adf_doc(*paragraphs: str, bullet_list: list[str] | None = None) -> dict:
     conditional lines (e.g. f"Risk: {risk}" if risk else "") directly."""
     content = [_adf_paragraph(p) for p in paragraphs if p and str(p).strip()]
     if bullet_list:
-        content.append({
-            "type": "bulletList",
-            "content": [{"type": "listItem", "content": [_adf_paragraph(item)]}
-                        for item in bullet_list if item],
-        })
+        content.append(
+            {
+                "type": "bulletList",
+                "content": [
+                    {"type": "listItem", "content": [_adf_paragraph(item)]}
+                    for item in bullet_list
+                    if item
+                ],
+            }
+        )
     return {"type": "doc", "version": 1, "content": content or [_adf_paragraph(" ")]}
 
 
 def _adf_heading(text: str, level: int = 3) -> dict:
-    return {"type": "heading", "attrs": {"level": level},
-            "content": [{"type": "text", "text": str(text)}]}
+    return {
+        "type": "heading",
+        "attrs": {"level": level},
+        "content": [{"type": "text", "text": str(text)}],
+    }
 
 
 def adf_sections(*sections: tuple[str, str | list[str]]) -> dict:
@@ -58,11 +76,16 @@ def adf_sections(*sections: tuple[str, str | list[str]]) -> dict:
             continue
         content.append(_adf_heading(heading))
         if isinstance(body, list):
-            content.append({
-                "type": "bulletList",
-                "content": [{"type": "listItem", "content": [_adf_paragraph(item)]}
-                            for item in body if item],
-            })
+            content.append(
+                {
+                    "type": "bulletList",
+                    "content": [
+                        {"type": "listItem", "content": [_adf_paragraph(item)]}
+                        for item in body
+                        if item
+                    ],
+                }
+            )
         else:
             content.append(_adf_paragraph(body))
     return {"type": "doc", "version": 1, "content": content or [_adf_paragraph(" ")]}
@@ -94,7 +117,7 @@ def _extract_labeled_bullets(text: str, label: str) -> list[str]:
     e.g. brd.md's 'Out of Scope:' under its '### Scope' heading. Stops at
     the first non-bullet, non-blank line."""
     lines = text.splitlines()
-    label_re = re.compile(rf'(?i)^\s*{re.escape(label)}:\s*$')
+    label_re = re.compile(rf"(?i)^\s*{re.escape(label)}:\s*$")
     for idx, line in enumerate(lines):
         if not label_re.match(line):
             continue
@@ -105,7 +128,7 @@ def _extract_labeled_bullets(text: str, label: str) -> list[str]:
             if not stripped:
                 j += 1
                 continue
-            m = re.match(r'^[-*]\s+(.*)$', stripped)
+            m = re.match(r"^[-*]\s+(.*)$", stripped)
             if not m:
                 break
             item = m.group(1).strip()
@@ -117,9 +140,9 @@ def _extract_labeled_bullets(text: str, label: str) -> list[str]:
 
 
 _BRD_SECTION_HEADINGS = {
-    "problem_statement":   re.compile(r'(?i)^###\s+Problem Statement\s*$'),
-    "business_hypothesis": re.compile(r'(?i)^###\s+Business Hypothesis\s*$'),
-    "executive_summary":   re.compile(r'(?i)^##\s+\d*\.?\s*Executive Summary\s*$'),
+    "problem_statement": re.compile(r"(?i)^###\s+Problem Statement\s*$"),
+    "business_hypothesis": re.compile(r"(?i)^###\s+Business Hypothesis\s*$"),
+    "executive_summary": re.compile(r"(?i)^##\s+\d*\.?\s*Executive Summary\s*$"),
 }
 
 
@@ -129,7 +152,9 @@ def parse_brd_problem_statement(features_dir: Path) -> str:
     path = features_dir / "brd.md"
     if not path.exists():
         return ""
-    return _extract_heading_section(path.read_text(), _BRD_SECTION_HEADINGS["problem_statement"])
+    return _extract_heading_section(
+        path.read_text(), _BRD_SECTION_HEADINGS["problem_statement"]
+    )
 
 
 def parse_brd_business_hypothesis(features_dir: Path) -> str:
@@ -138,7 +163,9 @@ def parse_brd_business_hypothesis(features_dir: Path) -> str:
     path = features_dir / "brd.md"
     if not path.exists():
         return ""
-    return _extract_heading_section(path.read_text(), _BRD_SECTION_HEADINGS["business_hypothesis"])
+    return _extract_heading_section(
+        path.read_text(), _BRD_SECTION_HEADINGS["business_hypothesis"]
+    )
 
 
 def parse_brd_executive_summary(features_dir: Path) -> str:
@@ -147,7 +174,9 @@ def parse_brd_executive_summary(features_dir: Path) -> str:
     path = features_dir / "brd.md"
     if not path.exists():
         return ""
-    return _extract_heading_section(path.read_text(), _BRD_SECTION_HEADINGS["executive_summary"])
+    return _extract_heading_section(
+        path.read_text(), _BRD_SECTION_HEADINGS["executive_summary"]
+    )
 
 
 def parse_brd_out_of_scope(features_dir: Path) -> list[str]:
@@ -220,7 +249,9 @@ _CHECKLIST_BULLET_RE = re.compile(r"^-\s*\[.\]\s*(.+)$")
 _BRD_SUCCESS_CRITERIA_HEADING = re.compile(r"(?i)^##\s+\d*\.?\s*Success Criteria\s*$")
 
 
-def _extract_heading_bullets(text: str, heading_re: re.Pattern, bullet_re: re.Pattern) -> list[str]:
+def _extract_heading_bullets(
+    text: str, heading_re: re.Pattern, bullet_re: re.Pattern
+) -> list[str]:
     """Bullet items matching bullet_re from directly under a markdown
     heading, ending at the next heading of any level."""
     lines = text.splitlines()
@@ -249,7 +280,9 @@ def parse_brd_success_criteria(features_dir: Path) -> list[str]:
     if not path.exists():
         return []
     return _extract_heading_bullets(
-        path.read_text(), _BRD_SUCCESS_CRITERIA_HEADING, _CHECKLIST_BULLET_RE,
+        path.read_text(),
+        _BRD_SUCCESS_CRITERIA_HEADING,
+        _CHECKLIST_BULLET_RE,
     )
 
 
@@ -298,16 +331,29 @@ def _append_link_section(doc: dict, heading: str, label: str, url: str) -> dict:
     adf_sections()/adf_doc() -- a link needs an ADF `link` mark, which
     adf_sections' plain-string/bullet-list body support can't express."""
     content = list(doc["content"])
-    if content == [_adf_paragraph(" ")]:   # replace the lone placeholder, don't append after it
+    if content == [
+        _adf_paragraph(" ")
+    ]:  # replace the lone placeholder, don't append after it
         content = []
     content.append(_adf_heading(heading))
-    content.append({"type": "paragraph", "content": [
-        {"type": "text", "text": label, "marks": [{"type": "link", "attrs": {"href": url}}]},
-    ]})
+    content.append(
+        {
+            "type": "paragraph",
+            "content": [
+                {
+                    "type": "text",
+                    "text": label,
+                    "marks": [{"type": "link", "attrs": {"href": url}}],
+                },
+            ],
+        }
+    )
     return {"type": "doc", "version": 1, "content": content}
 
 
-def _apply_team_field(extra: dict, cfg: JiraConfig, level: str, fields: dict | None = None) -> None:
+def _apply_team_field(
+    extra: dict, cfg: JiraConfig, level: str, fields: dict | None = None
+) -> None:
     """Stamps cfg.team onto `extra` via whichever custom field "team"
     maps to for this level, if both are configured. No-op otherwise."""
     if not cfg.team:
@@ -317,8 +363,12 @@ def _apply_team_field(extra: dict, cfg: JiraConfig, level: str, fields: dict | N
         extra[team_field] = cfg.team
 
 
-def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str,
-                          confluence_base_url: str | None = None) -> dict:
+def feature_extra_fields(
+    features_dir: Path,
+    cfg: JiraConfig,
+    feature_name: str,
+    confluence_base_url: str | None = None,
+) -> dict:
     """Extra fields for the top-level Feature/Epic issue: a real
     description built from seven sections -- Problem Statement, Business
     Hypothesis, Description (brd.md's Executive Summary), Business
@@ -334,17 +384,18 @@ def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str,
     there. Also sets High priority, the Epic Name custom field for
     classic/company-managed Jira projects (only if custom_fields.epic_name
     is configured), and the team field (if cfg.team is set)."""
-    sections = [
-        ("Problem Statement",   parse_brd_problem_statement(features_dir)),
+    sections: list[tuple[str, str | list[str]]] = [
+        ("Problem Statement", parse_brd_problem_statement(features_dir)),
         ("Business Hypothesis", parse_brd_business_hypothesis(features_dir)),
-        ("Description",         parse_brd_executive_summary(features_dir)),
+        ("Description", parse_brd_executive_summary(features_dir)),
         ("Business Objectives", parse_brd_business_objectives(features_dir)),
-        ("Out of Scope",        parse_brd_out_of_scope(features_dir)),
-        ("Success Criteria",    parse_brd_success_criteria(features_dir)),
-        ("NFR",                 parse_srd_nfr_rows(features_dir)),
+        ("Out of Scope", parse_brd_out_of_scope(features_dir)),
+        ("Success Criteria", parse_brd_success_criteria(features_dir)),
+        ("NFR", parse_srd_nfr_rows(features_dir)),
     ]
     description = (
-        adf_sections(*sections) if any(body for _, body in sections)
+        adf_sections(*sections)
+        if any(body for _, body in sections)
         else adf_doc(
             "Details pending — run /specify-brd (and /specify-srd for NFR) "
             "to populate this description."
@@ -352,7 +403,9 @@ def feature_extra_fields(features_dir: Path, cfg: JiraConfig, feature_name: str,
     )
     link = brd_confluence_link(confluence_base_url)
     if link:
-        description = _append_link_section(description, "Full Document", "View BRD on Confluence", link)
+        description = _append_link_section(
+            description, "Full Document", "View BRD on Confluence", link
+        )
     extra: dict = {
         "description": description,
         "priority": {"name": "High"},
@@ -395,42 +448,31 @@ def parse_changeset(features_dir: Path, cr_id: str) -> list[dict]:
         m = re.search(r"\d+", est_lines_raw)
         if not m:
             continue
-        chg_tasks.append({
-            "sdd_id":      sdd_id,
-            "description": description,
-            "satisfies":   satisfies,
-            "est_lines":   int(m.group(0)),
-            "pr":          cells[4] if len(cells) >= 5 else None,
-            "status":      cells[5] if len(cells) >= 6 else None,
-        })
+        chg_tasks.append(
+            {
+                "sdd_id": sdd_id,
+                "description": description,
+                "satisfies": satisfies,
+                "est_lines": int(m.group(0)),
+                "pr": cells[4] if len(cells) >= 5 else None,
+                "status": cells[5] if len(cells) >= 6 else None,
+            }
+        )
     return chg_tasks
 
 
-@click.group()
-def jira_command():
-    """Push SDD tasks and stories to Jira (Feature → Story → Task)."""
+# ── jira_push helpers ────────────────────────────────────────────────────────
+# jira_push() itself stays a thin sequence of named steps; each of these
+# owns one concern (banner, config/auth setup, feature resolution, summary
+# display) so it's readable and independently testable without needing to
+# invoke the full Click command. The actual push orchestration was already
+# factored out into _push/_push_stories/_push_tasks/_push_chg/
+# _push_uc_draft_stories well before this split -- this only addresses the
+# setup/validation/display portion that used to be inlined directly in the
+# command function.
 
 
-@jira_command.command("push")
-@click.option("--profile", default=None, help="Profile from ~/.sdd/config.yml")
-@click.option("--feature", default=None, help="Feature name (default: from manifest.yml)")
-@click.option("--level", type=click.Choice(_LEVELS), default="all",
-              help="SDD level to push (default: all -- Feature/Epic, Story, and Task). "
-                   "uc-draft is separate from all -- run it explicitly right after /specify-uc.")
-@click.option("--cr", default=None, metavar="CR-NNN",
-              help="Change request ID -- required when --level chg")
-@click.option("--dry-run", is_flag=True, help="Print plan without calling the API")
-def jira_push(profile, feature, level, cr, dry_run):
-    """Create or update Jira issues from stories.md and tasks.md.
-
-    --level lets you push progressively at each SDLC stage, matching
-    /jira-push's staged workflow (epic after BRD, story after Use
-    Cases/SRD, task after /task, chg after /change) instead of always
-    pushing everything at once. Parent links for a level pushed on its
-    own are found live via Jira labels -- no local state file is needed
-    for correctness; run --level epic before --level story before
-    --level task for parent links to attach, or just use --level all.
-    """
+def _print_push_banner(level: str, dry_run: bool) -> None:
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     label = "  [bold cyan]SDD → Jira[/bold cyan]"
@@ -442,10 +484,11 @@ def jira_push(profile, feature, level, cr, dry_run):
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
 
-    if level == "chg" and not cr:
-        console.print("  [red]✗  --cr CR-NNN is required when --level chg[/red]")
-        raise SystemExit(1)
 
+def _load_jira_push_config() -> IntegrationsConfig:
+    """Loads .specify/integrations.yml and confirms a jira: section exists
+    -- printed error + SystemExit(1) on either failure, matching every
+    other validation step in jira_push()."""
     try:
         cfg = load_integrations()
     except FileNotFoundError as e:
@@ -456,8 +499,16 @@ def jira_push(profile, feature, level, cr, dry_run):
         console.print("  [red]✗  No jira: section in .specify/integrations.yml[/red]")
         raise SystemExit(1)
 
-    manifest     = read_manifest() or {}
-    proj         = manifest.get("project") or {}
+    return cfg
+
+
+def _resolve_push_feature(feature: str | None) -> tuple[str, str, Path]:
+    """Resolves (project_name, feature_name, features_dir) from the
+    --feature flag (falling back to manifest.yml) -- SystemExit(1) if the
+    feature directory doesn't exist or the name fails path-traversal
+    validation."""
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
     project_name = proj.get("name", "Unknown Project")
     feature_name = feature or proj.get("feature", "")
 
@@ -470,49 +521,44 @@ def jira_push(profile, feature, level, cr, dry_run):
         console.print(f"  [red]✗  Feature directory not found: {features_dir}[/red]")
         raise SystemExit(1)
 
-    if level == "chg":
-        try:
-            chg_tasks = parse_changeset(features_dir, cr)
-        except FileNotFoundError as e:
-            console.print(f"  [red]✗  {e}[/red]")
-            raise SystemExit(1)
-        if not chg_tasks:
-            console.print(f"  [red]✗  No CHG tasks found in changesets/{cr}.md §4.[/red]")
-            raise SystemExit(1)
+    return project_name, feature_name, features_dir
 
-    if level == "uc-draft":
-        use_cases = parse_use_cases(features_dir)
-        if not use_cases:
-            console.print("  [yellow]  No UC-NNN found in use-cases.md — run /specify-uc first.[/yellow]")
-            console.print()
-            return
 
-    stories = parse_stories(features_dir)
-    tasks   = parse_tasks(features_dir)
-
-    if level in ("story", "task", "all") and not stories and not tasks:
-        console.print("  [yellow]  No stories or tasks found — run /task first.[/yellow]")
-        console.print()
-        return
-
-    jira_cfg = cfg.jira
+def _print_push_summary(
+    project_name: str,
+    feature_name: str,
+    level: str,
+    jira_cfg: JiraConfig,
+    *,
+    use_cases: list[UseCase] | None = None,
+    stories: list[Story] | None = None,
+    tasks: list[Task] | None = None,
+    chg_tasks: list[dict] | None = None,
+    cr: str | None = None,
+) -> None:
     h = jira_cfg.issue_hierarchy
     console.print(f"  Project  : [cyan]{project_name}[/cyan]")
     console.print(f"  Feature  : [cyan]{feature_name}[/cyan]")
     if level == "uc-draft":
+        assert use_cases is not None
         console.print(f"  UCs      : [cyan]{len(use_cases)}[/cyan]")
     if level in ("story", "all"):
+        assert stories is not None
         console.print(f"  Stories  : [cyan]{len(stories)}[/cyan]")
     if level in ("task", "all"):
+        assert tasks is not None
         console.print(f"  Tasks    : [cyan]{len(tasks)}[/cyan]")
     if level == "chg":
+        assert chg_tasks is not None
         console.print(f"  CHG      : [cyan]{len(chg_tasks)}[/cyan]  [dim]({cr})[/dim]")
     console.print(
         f"  Jira     : [cyan]{jira_cfg.project_key}[/cyan]  "
         f"[dim]{h['feature']} → {h['story']} → {h['task']}[/dim]"
     )
     if jira_cfg.project_keys:
-        overrides = ", ".join(f"{lvl}→{key}" for lvl, key in jira_cfg.project_keys.items())
+        overrides = ", ".join(
+            f"{lvl}→{key}" for lvl, key in jira_cfg.project_keys.items()
+        )
         console.print(f"  [yellow]project_keys override: {overrides}[/yellow]")
         console.print(
             "  [yellow]!  Jira's parent/Epic-Link field generally can't link issues "
@@ -522,15 +568,113 @@ def jira_push(profile, feature, level, cr, dry_run):
         )
     console.print()
 
+
+@click.group()
+def jira_command():
+    """Push SDD tasks and stories to Jira (Feature → Story → Task)."""
+
+
+@jira_command.command("push")
+@click.option("--profile", default=None, help="Profile from ~/.sdd/config.yml")
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
+@click.option(
+    "--level",
+    type=click.Choice(_LEVELS),
+    default="all",
+    help="SDD level to push (default: all -- Feature/Epic, Story, and Task). "
+    "uc-draft is separate from all -- run it explicitly right after /specify-uc.",
+)
+@click.option(
+    "--cr",
+    default=None,
+    metavar="CR-NNN",
+    help="Change request ID -- required when --level chg",
+)
+@click.option("--dry-run", is_flag=True, help="Print plan without calling the API")
+def jira_push(profile, feature, level, cr, dry_run):
+    """Create or update Jira issues from stories.md and tasks.md.
+
+    --level lets you push progressively at each SDLC stage, matching
+    /jira-push's staged workflow (epic after BRD, story after Use
+    Cases/SRD, task after /task, chg after /change) instead of always
+    pushing everything at once. Parent links for a level pushed on its
+    own are found live via Jira labels -- no local state file is needed
+    for correctness; run --level epic before --level story before
+    --level task for parent links to attach, or just use --level all.
+    """
+    _print_push_banner(level, dry_run)
+
+    if level == "chg" and not cr:
+        console.print("  [red]✗  --cr CR-NNN is required when --level chg[/red]")
+        raise SystemExit(1)
+
+    cfg = _load_jira_push_config()
+    project_name, feature_name, features_dir = _resolve_push_feature(feature)
+
+    if level == "chg":
+        try:
+            chg_tasks = parse_changeset(features_dir, cr)
+        except FileNotFoundError as e:
+            console.print(f"  [red]✗  {e}[/red]")
+            raise SystemExit(1)
+        if not chg_tasks:
+            console.print(
+                f"  [red]✗  No CHG tasks found in changesets/{cr}.md §4.[/red]"
+            )
+            raise SystemExit(1)
+
+    if level == "uc-draft":
+        use_cases = parse_use_cases(features_dir)
+        if not use_cases:
+            console.print(
+                "  [yellow]  No UC-NNN found in use-cases.md — run /specify-uc first.[/yellow]"
+            )
+            console.print()
+            return
+
+    stories = parse_stories(features_dir)
+    tasks = parse_tasks(features_dir)
+
+    if level in ("story", "task", "all") and not stories and not tasks:
+        console.print(
+            "  [yellow]  No stories or tasks found — run /task first.[/yellow]"
+        )
+        console.print()
+        return
+
+    jira_cfg = cfg.jira
+    h = jira_cfg.issue_hierarchy
+    _print_push_summary(
+        project_name,
+        feature_name,
+        level,
+        jira_cfg,
+        use_cases=use_cases if level == "uc-draft" else None,
+        stories=stories,
+        tasks=tasks,
+        chg_tasks=chg_tasks if level == "chg" else None,
+        cr=cr,
+    )
+
     if dry_run:
         if level == "uc-draft":
             console.print("  [bold]Would create draft Stories (one per UC):[/bold]")
             for uc in use_cases:
-                console.print(f"  ├── [{h['story']}] {uc.id} — {uc.title}  [dim](draft)[/dim]")
+                console.print(
+                    f"  ├── [{h['story']}] {uc.id} — {uc.title}  [dim](draft)[/dim]"
+                )
             console.print()
             return
-        _print_dry_run(feature_name, stories, tasks, jira_cfg, level,
-                        chg_tasks if level == "chg" else None)
+        _print_dry_run(
+            feature_name,
+            stories,
+            tasks,
+            jira_cfg,
+            level,
+            chg_tasks if level == "chg" else None,
+        )
         return
 
     try:
@@ -556,20 +700,37 @@ def jira_push(profile, feature, level, cr, dry_run):
         console.print()
         return
 
-    _push(client, feature_name, features_dir, stories, tasks, jira_cfg, level=level, cr=cr,
-          confluence_base_url=_resolve_confluence_base_url(cfg))
+    _push(
+        client,
+        feature_name,
+        features_dir,
+        stories,
+        tasks,
+        jira_cfg,
+        level=level,
+        cr=cr,
+        confluence_base_url=_resolve_confluence_base_url(cfg),
+    )
 
 
-def _print_dry_run(feature_name: str, stories: list[Story], tasks: list[Task],
-                    cfg: JiraConfig, level: str, chg_tasks: list[dict] | None) -> None:
+def _print_dry_run(
+    feature_name: str,
+    stories: list[Story],
+    tasks: list[Task],
+    cfg: JiraConfig,
+    level: str,
+    chg_tasks: list[dict] | None,
+) -> None:
     h = cfg.issue_hierarchy
     console.print("  [bold]Would create:[/bold]")
 
     if level == "chg":
         console.print(f"  ┌── [{h.get('chg', h['task'])}] CHG tasks")
-        for chg in (chg_tasks or []):
-            console.print(f"  │   └── {chg['sdd_id']} — {chg['description']}  "
-                           f"[dim](Satisfies: {chg['satisfies']})[/dim]")
+        for chg in chg_tasks or []:
+            console.print(
+                f"  │   └── {chg['sdd_id']} — {chg['description']}  "
+                f"[dim](Satisfies: {chg['satisfies']})[/dim]"
+            )
         console.print()
         return
 
@@ -588,11 +749,15 @@ def _print_dry_run(feature_name: str, stories: list[Story], tasks: list[Task],
             )
             if level == "all":
                 for task in [t for t in tasks if t.story_id == story.id]:
-                    console.print(f"  │   │   └── [{h['task']}] {task.id} — {task.title}")
+                    console.print(
+                        f"  │   │   └── [{h['task']}] {task.id} — {task.title}"
+                    )
     if level == "task":
         for task in tasks:
-            console.print(f"  │   └── [{h['task']}] {task.id} — {task.title}  "
-                           f"[dim](Story: {task.story_id or '—'})[/dim]")
+            console.print(
+                f"  │   └── [{h['task']}] {task.id} — {task.title}  "
+                f"[dim](Story: {task.story_id or '—'})[/dim]"
+            )
     if level == "all":
         orphans = [t for t in tasks if not any(s.id == t.story_id for s in stories)]
         if orphans:
@@ -606,8 +771,13 @@ def _print_dry_run(feature_name: str, stories: list[Story], tasks: list[Task],
     console.print()
 
 
-def _warn_parent_link_failed(client: JiraClient, child_key: str, parent_key: str,
-                              project_key: str, error: Exception) -> None:
+def _warn_parent_link_failed(
+    client: JiraClient,
+    child_key: str,
+    parent_key: str,
+    project_key: str,
+    error: Exception,
+) -> None:
     """A true parent-child link (set_parent) failed -- most commonly because
     child_key and parent_key live in different Jira projects, which the
     parent/Epic-Link field rejects outright (a Jira platform limitation,
@@ -620,7 +790,7 @@ def _warn_parent_link_failed(client: JiraClient, child_key: str, parent_key: str
         console.print(
             f"  [yellow]!  {child_key} could not be set as a child of {parent_key} "
             f"— {error}[/yellow]\n"
-            f"     Linked with a \"Relates\" issue link instead (these work "
+            f'     Linked with a "Relates" issue link instead (these work '
             f"across Jira projects; parent/child hierarchy display does not) "
             f"— see {child_key} in Jira."
         )
@@ -629,9 +799,9 @@ def _warn_parent_link_failed(client: JiraClient, child_key: str, parent_key: str
             f"  [yellow]!  {child_key} was not linked under {parent_key} — {error}[/yellow]\n"
             f"     If this is a company-managed (classic) Jira project, parent_field "
             f"in integrations.yml likely needs to be the Epic Link custom field ID, "
-            f"not \"parent\" — run [cyan]sdd config fields --project {project_key}[/cyan] "
-            f"to find it. The \"Relates\" issue-link fallback also failed — check "
-            f"that a link type named \"Relates\" exists on this Jira instance."
+            f'not "parent" — run [cyan]sdd config fields --project {project_key}[/cyan] '
+            f'to find it. The "Relates" issue-link fallback also failed — check '
+            f'that a link type named "Relates" exists on this Jira instance.'
         )
 
 
@@ -648,19 +818,25 @@ def _item_label(feature_name: str, item_id: str) -> str:
     return f"sdd:{feature_name}:{item_id}"
 
 
-def _upsert_issue(client: JiraClient, project_key: str, issue_type: str,
-                   summary: str, extra: dict, id_label: str,
-                   base_labels: list[str]) -> tuple[str, bool]:
+def _upsert_issue(
+    client: JiraClient,
+    project_key: str,
+    issue_type: str,
+    summary: str,
+    extra: dict,
+    id_label: str,
+    base_labels: list[str],
+) -> tuple[str, bool]:
     """Create or update an issue keyed by an idempotency label. Shared by
     the Feature/Epic, Story, Task, and CHG steps below, and by review.py's
     review-ticket Epic bootstrap (same idempotent-upsert contract)."""
     existing = client.find_by_label(project_key, id_label)
     labels = base_labels + [id_label]
     fields = {
-        "project":   {"key": project_key},
+        "project": {"key": project_key},
         "issuetype": {"name": issue_type},
-        "summary":   summary,
-        "labels":    labels,
+        "summary": summary,
+        "labels": labels,
         **extra,
     }
     if existing:
@@ -671,12 +847,16 @@ def _upsert_issue(client: JiraClient, project_key: str, issue_type: str,
     return result["key"], True
 
 
-def _find_feature_key(client: JiraClient, project_key: str, feature_name: str) -> str | None:
+def _find_feature_key(
+    client: JiraClient, project_key: str, feature_name: str
+) -> str | None:
     issue = client.find_by_label(project_key, f"sdd-feature:{feature_name}")
     return issue["key"] if issue else None
 
 
-def _find_story_key(client: JiraClient, project_key: str, feature_name: str, story: Story) -> str | None:
+def _find_story_key(
+    client: JiraClient, project_key: str, feature_name: str, story: Story
+) -> str | None:
     """Looks up a previously-pushed Story's Jira key by idempotency label.
     Checks the UC-derived label first (sdd:{feature}:UC-NNN) when the
     story traces 1:1 to a use case, since that's the label _push_stories()
@@ -686,29 +866,50 @@ def _find_story_key(client: JiraClient, project_key: str, feature_name: str, sto
     invocation from `--level story` would silently fail to find a
     UC-derived story's real key and push its tasks with no parent link."""
     if story.derived_uc:
-        issue = client.find_by_label(project_key, _item_label(feature_name, story.derived_uc))
+        issue = client.find_by_label(
+            project_key, _item_label(feature_name, story.derived_uc)
+        )
         if issue:
             return issue["key"]
     issue = client.find_by_label(project_key, _item_label(feature_name, story.id))
     return issue["key"] if issue else None
 
 
-def _push_epic(client: JiraClient, feature_name: str, features_dir: Path, cfg: JiraConfig,
-                confluence_base_url: str | None = None) -> str:
-    feature_extra = feature_extra_fields(features_dir, cfg, feature_name, confluence_base_url)
+def _push_epic(
+    client: JiraClient,
+    feature_name: str,
+    features_dir: Path,
+    cfg: JiraConfig,
+    confluence_base_url: str | None = None,
+) -> str:
+    feature_extra = feature_extra_fields(
+        features_dir, cfg, feature_name, confluence_base_url
+    )
     key, created = _upsert_issue(
-        client, cfg.key_for("feature"), cfg.issue_hierarchy["feature"], feature_name,
-        feature_extra, f"sdd-feature:{feature_name}", cfg.labels,
+        client,
+        cfg.key_for("feature"),
+        cfg.issue_hierarchy["feature"],
+        feature_name,
+        feature_extra,
+        f"sdd-feature:{feature_name}",
+        cfg.labels,
     )
     _log(cfg.issue_hierarchy["feature"], key, feature_name, created)
     return key
 
 
-def _push_stories(client: JiraClient, feature_name: str, stories: list[Story],
-                   cfg: JiraConfig, epic_key: str | None) -> dict[str, str]:
+def _push_stories(
+    client: JiraClient,
+    feature_name: str,
+    stories: list[Story],
+    cfg: JiraConfig,
+    epic_key: str | None,
+) -> dict[str, str]:
     story_key_map: dict[str, str] = {}
     for story in stories:
-        ac_text = "; ".join(story.acceptance_criteria) if story.acceptance_criteria else ""
+        ac_text = (
+            "; ".join(story.acceptance_criteria) if story.acceptance_criteria else ""
+        )
         description = adf_doc(
             story.description,
             f"Satisfies: {', '.join(story.satisfies)}" if story.satisfies else "",
@@ -736,11 +937,14 @@ def _push_stories(client: JiraClient, feature_name: str, stories: list[Story],
         # (right down to the description/points/etc. now being real),
         # rather than creating a second, separate issue for it.
         id_label = (
-            _item_label(feature_name, story.derived_uc) if story.derived_uc
+            _item_label(feature_name, story.derived_uc)
+            if story.derived_uc
             else _item_label(feature_name, story.id)
         )
         key, created = _upsert_issue(
-            client, cfg.key_for("story"), cfg.issue_hierarchy["story"],
+            client,
+            cfg.key_for("story"),
+            cfg.issue_hierarchy["story"],
             f"{story.id} — {story.title}",
             extra,
             id_label,
@@ -755,13 +959,23 @@ def _push_stories(client: JiraClient, feature_name: str, stories: list[Story],
                 _warn_parent_link_failed(client, key, epic_key, cfg.key_for("story"), e)
 
         pts = f"  {story.story_points}sp" if story.story_points else ""
-        _log(cfg.issue_hierarchy["story"], key, f"{story.id}: {story.title} ({story.moscow}{pts})", created)
+        _log(
+            cfg.issue_hierarchy["story"],
+            key,
+            f"{story.id}: {story.title} ({story.moscow}{pts})",
+            created,
+        )
 
     return story_key_map
 
 
-def _push_uc_draft_stories(client: JiraClient, feature_name: str, use_cases: list[UseCase],
-                            cfg: JiraConfig, epic_key: str | None) -> dict[str, str]:
+def _push_uc_draft_stories(
+    client: JiraClient,
+    feature_name: str,
+    use_cases: list[UseCase],
+    cfg: JiraConfig,
+    epic_key: str | None,
+) -> dict[str, str]:
     """One lightweight placeholder Story per UC, pushed right after
     /specify-uc -- before stories.md exists. Labeled the same way
     _push_stories() labels a "Derived from: UC-NNN" story
@@ -782,7 +996,9 @@ def _push_uc_draft_stories(client: JiraClient, feature_name: str, use_cases: lis
         }
         _apply_team_field(extra, cfg, "story")
         key, created = _upsert_issue(
-            client, cfg.key_for("story"), cfg.issue_hierarchy["story"],
+            client,
+            cfg.key_for("story"),
+            cfg.issue_hierarchy["story"],
             f"{uc.id} — {uc.title} (draft)",
             extra,
             _item_label(feature_name, uc.id),
@@ -801,11 +1017,18 @@ def _push_uc_draft_stories(client: JiraClient, feature_name: str, use_cases: lis
     return uc_key_map
 
 
-def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
-                 cfg: JiraConfig, story_key_map: dict[str, str]) -> dict[str, str]:
+def _push_tasks(
+    client: JiraClient,
+    feature_name: str,
+    tasks: list[Task],
+    cfg: JiraConfig,
+    story_key_map: dict[str, str],
+) -> dict[str, str]:
     task_key_map: dict[str, str] = {}
     for task in tasks:
-        ac_text = "; ".join(task.acceptance_criteria) if task.acceptance_criteria else ""
+        ac_text = (
+            "; ".join(task.acceptance_criteria) if task.acceptance_criteria else ""
+        )
         description = adf_doc(
             task.description,
             f"Satisfies: {', '.join(task.satisfies)}" if task.satisfies else "",
@@ -820,7 +1043,9 @@ def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
         _apply_team_field(extra, cfg, "task", fields)
 
         key, created = _upsert_issue(
-            client, cfg.key_for("task"), cfg.issue_hierarchy["task"],
+            client,
+            cfg.key_for("task"),
+            cfg.issue_hierarchy["task"],
             f"{task.id} — {task.title}",
             extra,
             _item_label(feature_name, task.id),
@@ -833,17 +1058,31 @@ def _push_tasks(client: JiraClient, feature_name: str, tasks: list[Task],
             try:
                 client.set_parent(key, parent_key, cfg.parent_field_for("task"))
             except Exception as e:
-                _warn_parent_link_failed(client, key, parent_key, cfg.key_for("task"), e)
+                _warn_parent_link_failed(
+                    client, key, parent_key, cfg.key_for("task"), e
+                )
 
         story_ref = f"  [dim]→ {parent_key or '?'}[/dim]" if task.story_id else ""
-        _log(cfg.issue_hierarchy["task"], key, f"{task.id}: {task.title}{story_ref}", created)
+        _log(
+            cfg.issue_hierarchy["task"],
+            key,
+            f"{task.id}: {task.title}{story_ref}",
+            created,
+        )
 
     return task_key_map
 
 
-def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str,
-              features_dir: Path, stories: list[Story],
-              story_key_map: dict[str, str], epic_key: str | None) -> dict[str, str]:
+def _push_chg(
+    client: JiraClient,
+    feature_name: str,
+    cfg: JiraConfig,
+    cr_id: str,
+    features_dir: Path,
+    stories: list[Story],
+    story_key_map: dict[str, str],
+    epic_key: str | None,
+) -> dict[str, str]:
     chg_tasks = parse_changeset(features_dir, cr_id)
 
     # FR-NNN -> Story Jira key, from whichever stories we know keys for
@@ -861,7 +1100,11 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
     for chg in chg_tasks:
         satisfies = chg["satisfies"]
         parent_key = next(
-            (fr_to_story[fr] for fr in re.findall(r"FR-\d+", satisfies) if fr in fr_to_story),
+            (
+                fr_to_story[fr]
+                for fr in re.findall(r"FR-\d+", satisfies)
+                if fr in fr_to_story
+            ),
             epic_key,
         )
         description = adf_doc(
@@ -878,8 +1121,13 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
         _apply_team_field(extra, cfg, "chg", chg_fields)
 
         key, created = _upsert_issue(
-            client, cfg.key_for("chg"), chg_issue_type, chg["description"],
-            extra, _item_label(feature_name, chg["sdd_id"]), cfg.labels,
+            client,
+            cfg.key_for("chg"),
+            chg_issue_type,
+            chg["description"],
+            extra,
+            _item_label(feature_name, chg["sdd_id"]),
+            cfg.labels,
         )
         chg_key_map[chg["sdd_id"]] = key
 
@@ -894,15 +1142,22 @@ def _push_chg(client: JiraClient, feature_name: str, cfg: JiraConfig, cr_id: str
     return chg_key_map
 
 
-def _push(client: JiraClient, feature_name: str, features_dir: Path,
-          stories: list[Story], tasks: list[Task], cfg: JiraConfig,
-          level: str = "all", cr: str | None = None,
-          confluence_base_url: str | None = None) -> None:
-    levels   = ["epic", "story", "task"] if level == "all" else [level]
-    do_epic  = "epic" in levels
+def _push(
+    client: JiraClient,
+    feature_name: str,
+    features_dir: Path,
+    stories: list[Story],
+    tasks: list[Task],
+    cfg: JiraConfig,
+    level: str = "all",
+    cr: str | None = None,
+    confluence_base_url: str | None = None,
+) -> None:
+    levels = ["epic", "story", "task"] if level == "all" else [level]
+    do_epic = "epic" in levels
     do_story = "story" in levels
-    do_task  = "task" in levels
-    do_chg   = level == "chg"
+    do_task = "task" in levels
+    do_chg = level == "chg"
 
     epic_key: str | None = None
     story_key_map: dict[str, str] = {}
@@ -911,7 +1166,9 @@ def _push(client: JiraClient, feature_name: str, features_dir: Path,
 
     # ── Feature / Epic ───────────────────────────────────────────────────────
     if do_epic:
-        epic_key = _push_epic(client, feature_name, features_dir, cfg, confluence_base_url)
+        epic_key = _push_epic(
+            client, feature_name, features_dir, cfg, confluence_base_url
+        )
     elif do_story or do_chg:
         epic_key = _find_feature_key(client, cfg.key_for("feature"), feature_name)
         if not epic_key and do_story:
@@ -935,10 +1192,24 @@ def _push(client: JiraClient, feature_name: str, features_dir: Path,
 
     # ── CHG (change-request tasks) ───────────────────────────────────────────
     if do_chg:
-        chg_key_map = _push_chg(client, feature_name, cfg, cr, features_dir,
-                                 stories, story_key_map, epic_key)
+        # jira_push (the CLI command) already rejects level="chg" with no
+        # --cr before calling this function -- see the check right after
+        # the command's banner is printed.
+        assert cr is not None
+        chg_key_map = _push_chg(
+            client,
+            feature_name,
+            cfg,
+            cr,
+            features_dir,
+            stories,
+            story_key_map,
+            epic_key,
+        )
 
-    _save_keys_summary(feature_name, epic_key, story_key_map, task_key_map, cr, chg_key_map)
+    _save_keys_summary(
+        feature_name, epic_key, story_key_map, task_key_map, cr, chg_key_map
+    )
 
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
@@ -951,9 +1222,14 @@ def _keys_path(feature_name: str) -> Path:
     return Path("docs") / "jira" / feature_name / "keys.yml"
 
 
-def _save_keys_summary(feature_name: str, epic_key: str | None,
-                        story_key_map: dict[str, str], task_key_map: dict[str, str],
-                        cr: str | None, chg_key_map: dict[str, str]) -> None:
+def _save_keys_summary(
+    feature_name: str,
+    epic_key: str | None,
+    story_key_map: dict[str, str],
+    task_key_map: dict[str, str],
+    cr: str | None,
+    chg_key_map: dict[str, str],
+) -> None:
     """Best-effort human-readable snapshot of the Jira keys created for this
     feature so far -- for reference only (e.g. skimming without a live
     Jira query, or for tooling that wants a local index). Never read back
@@ -993,10 +1269,12 @@ def _save_keys_summary(feature_name: str, epic_key: str | None,
             "# linking and idempotency are always re-derived live from Jira's\n"
             "# sdd-feature:*/sdd:* labels, so this file can be deleted or go stale\n"
             "# without affecting future pushes.\n"
-            + yaml.dump(existing, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            + yaml.dump(
+                existing, default_flow_style=False, sort_keys=False, allow_unicode=True
+            )
         )
-    except Exception:
-        pass
+    except Exception:  # noqa: S110 -- this local record file is a human-readable
+        pass  # convenience only (see comment above); never block a push over it
 
 
 def _log(issue_type: str, key: str, title: str, created: bool) -> None:
@@ -1005,6 +1283,7 @@ def _log(issue_type: str, key: str, title: str, created: bool) -> None:
 
 
 # ── sdd jira sync ─────────────────────────────────────────────────────────────
+
 
 @jira_command.command("sync")
 @click.option("--profile", default=None)
@@ -1016,13 +1295,13 @@ def jira_sync(profile, feature):
     console.print()
 
     try:
-        cfg     = load_integrations()
+        cfg = load_integrations()
         prof, session = load_jira_session(cfg, profile)
     except Exception as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
-    manifest     = read_manifest() or {}
+    manifest = read_manifest() or {}
     feature_name = feature or (manifest.get("project") or {}).get("feature", "")
 
     if not cfg.jira:
@@ -1035,19 +1314,17 @@ def jira_sync(profile, feature):
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
-    tasks   = parse_tasks(features_dir)
-    client  = JiraClient(session, prof.base_url)
+    tasks = parse_tasks(features_dir)
+    client = JiraClient(session, prof.base_url)
     project_key = cfg.jira.key_for("task")
 
     console.print(f"  {'TASK ID':<12} {'Jira Key':<14} Status")
-    console.print(f"  {'─'*12} {'─'*14} {'─'*20}")
+    console.print(f"  {'─' * 12} {'─' * 14} {'─' * 20}")
 
     for task in tasks:
         issue = client.find_by_label(project_key, _item_label(feature_name, task.id))
         if issue:
-            status = (
-                issue.get("fields", {}).get("status", {}).get("name", "Unknown")
-            )
+            status = issue.get("fields", {}).get("status", {}).get("name", "Unknown")
             console.print(f"  {task.id:<12} {issue['key']:<14} [cyan]{status}[/cyan]")
         else:
             console.print(f"  {task.id:<12} {'—':<14} [dim]not pushed[/dim]")

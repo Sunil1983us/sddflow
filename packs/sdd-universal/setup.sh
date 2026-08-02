@@ -169,12 +169,26 @@ if [[ -z "$SCOPE" ]]; then
   if [[ $INTERACTIVE -eq 1 ]]; then
     echo ""
     echo "Scope:"
-    echo "  pilot  — quick prototype, minimal docs (brd, srd, security-design §1)"
-    echo "  mvp    — production-ready (+ api-spec, data-model, security-design §1-2)"
-    echo "  full   — enterprise (+ resilience, investigation, security-design §1-4)"
+    echo "  pilot  (lean)       — quick prototype, minimal docs (brd, srd, security-design §1)"
+    echo "  mvp    (standard)   — production-ready (+ api-spec, data-model, security-design §1-2)"
+    echo "  full   (regulated)  — enterprise (+ resilience, investigation, security-design §1-4)"
     read -r -p "Scope [pilot]: " SCOPE
   fi
   SCOPE="${SCOPE:-pilot}"
+fi
+
+# Friendly aliases -- manifest.yml's own schema only ever stores
+# pilot/mvp/full (every gate/command in every pack checks for those three
+# exact values), so aliases are normalized here, before anything is
+# written, rather than teaching every downstream check about them.
+case "$SCOPE" in
+  lean)      SCOPE="pilot" ;;
+  standard)  SCOPE="mvp" ;;
+  regulated) SCOPE="full" ;;
+esac
+if [[ "$SCOPE" != "pilot" && "$SCOPE" != "mvp" && "$SCOPE" != "full" ]]; then
+  echo "  ✗  Invalid --scope '$SCOPE' — must be one of: pilot (lean), mvp (standard), full (regulated)" >&2
+  exit 1
 fi
 
 if [[ -z "$PLAN_MODE" ]]; then

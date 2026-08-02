@@ -1,17 +1,23 @@
 from __future__ import annotations
-from pathlib import Path
+
 import re
-import yaml
+from pathlib import Path
+
 import click
 import requests
+import yaml
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import (
-    load_profile, build_session, save_config, store_secret, CONFIG_PATH,
+    CONFIG_PATH,
+    build_session,
+    load_profile,
+    save_config,
+    store_secret,
 )
+from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.integrations import parse_confluence_page_id
 from sdd.utils.jira_client import JiraClient
-from sdd.utils.confluence_client import ConfluenceClient
 
 console = Console()
 
@@ -31,18 +37,19 @@ def _collect_and_save_profile(default_name: str) -> str:
     import questionary
 
     profile_name = questionary.text("Profile name:", default=default_name).ask()
-    base_url     = questionary.text(
+    base_url = questionary.text(
         "Atlassian base URL:", default="https://myco.atlassian.net"
     ).ask()
     auth_mode = questionary.select(
         "Auth mode:",
         choices=[
+            questionary.Choice("basic  — Cloud (email + API token)", value="basic"),
             questionary.Choice(
-                "basic  — Cloud (email + API token)",  value="basic"),
+                "pat    — Server/DC (Personal Access Token)", value="pat"
+            ),
             questionary.Choice(
-                "pat    — Server/DC (Personal Access Token)", value="pat"),
-            questionary.Choice(
-                "oauth2 — Cloud CI/CD (OAuth 2.0 Bearer token)", value="oauth2"),
+                "oauth2 — Cloud CI/CD (OAuth 2.0 Bearer token)", value="oauth2"
+            ),
         ],
     ).ask()
 
@@ -52,10 +59,11 @@ def _collect_and_save_profile(default_name: str) -> str:
             questionary.Choice(
                 "System keychain (recommended — works in any terminal or "
                 "AI tool, no shell setup)",
-                value="keyring"),
+                value="keyring",
+            ),
             questionary.Choice(
-                "Environment variable (manual shell setup required)",
-                value="env"),
+                "Environment variable (manual shell setup required)", value="env"
+            ),
         ],
     ).ask()
 
@@ -85,7 +93,9 @@ def _collect_and_save_profile(default_name: str) -> str:
                 "Name of env var holding your API token:", default="JIRA_API_TOKEN"
             ).ask()
             profile["api_token_env"] = api_token_env
-            console.print(f"\n  [dim]Export [cyan]{api_token_env}[/cyan] before running sdd commands.[/dim]")
+            console.print(
+                f"\n  [dim]Export [cyan]{api_token_env}[/cyan] before running sdd commands.[/dim]"
+            )
 
     elif auth_mode == "pat":
         if credential_store == "keyring":
@@ -105,7 +115,9 @@ def _collect_and_save_profile(default_name: str) -> str:
                 "Name of env var holding your PAT:", default="JIRA_PAT"
             ).ask()
             profile["pat_env"] = pat_env
-            console.print(f"\n  [dim]Export [cyan]{pat_env}[/cyan] before running sdd commands.[/dim]")
+            console.print(
+                f"\n  [dim]Export [cyan]{pat_env}[/cyan] before running sdd commands.[/dim]"
+            )
 
     elif auth_mode == "oauth2":
         if credential_store == "keyring":
@@ -126,7 +138,9 @@ def _collect_and_save_profile(default_name: str) -> str:
                 default="JIRA_ACCESS_TOKEN",
             ).ask()
             profile["access_token_env"] = access_token_env
-            console.print(f"\n  [dim]Export [cyan]{access_token_env}[/cyan] before running sdd commands.[/dim]")
+            console.print(
+                f"\n  [dim]Export [cyan]{access_token_env}[/cyan] before running sdd commands.[/dim]"
+            )
 
     # Merge into existing config
     if CONFIG_PATH.exists():
@@ -138,7 +152,9 @@ def _collect_and_save_profile(default_name: str) -> str:
     existing.setdefault("default_profile", profile_name)
 
     save_config(existing)
-    console.print(f"\n  [green]✓[/green]  Profile [cyan]{profile_name}[/cyan] saved → {CONFIG_PATH}")
+    console.print(
+        f"\n  [green]✓[/green]  Profile [cyan]{profile_name}[/cyan] saved → {CONFIG_PATH}"
+    )
     return profile_name
 
 
@@ -159,11 +175,13 @@ def config_init():
             questionary.Choice(
                 "Yes — same Atlassian site, one set of credentials "
                 "(the common Cloud case)",
-                value=True),
+                value=True,
+            ),
             questionary.Choice(
                 "No — separate servers with separate credentials "
                 "(typical for Server/Data Center)",
-                value=False),
+                value=False,
+            ),
         ],
     ).ask()
 
@@ -227,31 +245,43 @@ def config_init():
     console.print()
 
 
-def _scaffold_integrations(profile_name: str, confluence_profile_name: str | None = None) -> bool:
+def _scaffold_integrations(
+    profile_name: str, confluence_profile_name: str | None = None
+) -> bool:
     """Returns True iff .specify/integrations.yml was actually written --
     False if the user declined to overwrite an existing one, so the
     caller's closing message can tell whether `sdd config test` will
     actually be able to resolve a jira.profile/confluence.profile split
     (it can't without the file)."""
     import questionary
+
     from sdd.utils.manifest import read_manifest
 
     dest = Path(".specify/integrations.yml")
-    if dest.exists():
-        if not questionary.confirm(
+    if (
+        dest.exists()
+        and not questionary.confirm(
             f"  {dest} already exists — overwrite?", default=False
-        ).ask():
-            return False
+        ).ask()
+    ):
+        return False
 
-    project_key    = questionary.text("Jira project key (e.g. MYPROJ):").ask()
-    space_key      = questionary.text("Confluence space key (e.g. ENG):").ask()
-    parent_page_raw = questionary.text(
-        "Confluence parent page — paste its URL or numeric ID (blank = root):",
-        default="",
-    ).ask().strip()
+    project_key = questionary.text("Jira project key (e.g. MYPROJ):").ask()
+    space_key = questionary.text("Confluence space key (e.g. ENG):").ask()
+    parent_page_raw = (
+        questionary.text(
+            "Confluence parent page — paste its URL or numeric ID (blank = root):",
+            default="",
+        )
+        .ask()
+        .strip()
+    )
     parent_page_id = parse_confluence_page_id(parent_page_raw) or ""
-    if (parent_page_raw and parent_page_id == parent_page_raw
-            and not parent_page_raw.isdigit()):
+    if (
+        parent_page_raw
+        and parent_page_id == parent_page_raw
+        and not parent_page_raw.isdigit()
+    ):
         console.print(
             "  [yellow]![/yellow]  Couldn't find a numeric page ID in that — "
             "using it as-is. If it's a Confluence 'tiny link' (…/x/AbCdEf), "
@@ -259,7 +289,7 @@ def _scaffold_integrations(profile_name: str, confluence_profile_name: str | Non
             "[dim]···  Page Information[/dim] instead."
         )
 
-    manifest     = read_manifest() or {}
+    manifest = read_manifest() or {}
     project_name = (manifest.get("project") or {}).get("name", "{project}")
 
     example = Path(".specify/integrations.yml.example")
@@ -273,11 +303,17 @@ def _scaffold_integrations(profile_name: str, confluence_profile_name: str | Non
         # file means every section this pack version supports is always
         # present, commented exactly as the pack author intended.
         content = _integrations_from_example(
-            example.read_text(), profile_name, project_key, space_key,
-            parent_page_id, confluence_profile_name,
+            example.read_text(),
+            profile_name,
+            project_key,
+            space_key,
+            parent_page_id,
+            confluence_profile_name,
         )
         dest.write_text(content)
-        console.print(f"  [green]✓[/green]  {dest} created (from your pack's integrations.yml.example)")
+        console.print(
+            f"  [green]✓[/green]  {dest} created (from your pack's integrations.yml.example)"
+        )
         if confluence_profile_name:
             console.print(
                 f"  [dim]jira: uses profile [cyan]{profile_name}[/cyan] (the top-level "
@@ -300,12 +336,19 @@ def _scaffold_integrations(profile_name: str, confluence_profile_name: str | Non
         # without Jira/Confluence integration, e.g. sdd-micro) -- fall back
         # to the minimal built-in scaffold so config init still works.
         dest.write_text(
-            _integrations_template(profile_name, project_key, space_key,
-                                    parent_page_id, project_name,
-                                    confluence_profile_name)
+            _integrations_template(
+                profile_name,
+                project_key,
+                space_key,
+                parent_page_id,
+                project_name,
+                confluence_profile_name,
+            )
         )
-        console.print(f"  [green]✓[/green]  {dest} created (minimal built-in template — "
-                       "no integrations.yml.example found in this project)")
+        console.print(
+            f"  [green]✓[/green]  {dest} created (minimal built-in template — "
+            "no integrations.yml.example found in this project)"
+        )
 
     console.print(
         "  [dim]Edit [cyan]custom_fields[/cyan] to match your Jira instance.  "
@@ -314,9 +357,14 @@ def _scaffold_integrations(profile_name: str, confluence_profile_name: str | Non
     return True
 
 
-def _integrations_from_example(text: str, profile: str, project_key: str,
-                                 space_key: str, parent_page_id: str,
-                                 confluence_profile: str | None = None) -> str:
+def _integrations_from_example(
+    text: str,
+    profile: str,
+    project_key: str,
+    space_key: str,
+    parent_page_id: str,
+    confluence_profile: str | None = None,
+) -> str:
     """Fills the profile/project_key/space_key/parent_page_id placeholders
     into a pack's shipped integrations.yml.example verbatim, leaving every
     other section (including the {feature}/{project} page_map templates,
@@ -327,25 +375,40 @@ def _integrations_from_example(text: str, profile: str, project_key: str,
     profiles (separate base_url + credentials), the top-level profile:
     above being Jira's. When None (the common case, one shared profile),
     that line is left commented out exactly as shipped."""
-    text = re.sub(r"^profile: default$", f"profile: {profile}",
-                   text, count=1, flags=re.M)
+    text = re.sub(
+        r"^profile: default$", f"profile: {profile}", text, count=1, flags=re.MULTILINE
+    )
     if project_key:
-        text = re.sub(r"^(  project_key: )MYPROJ$", rf"\g<1>{project_key}",
-                       text, count=1, flags=re.M)
+        text = re.sub(
+            r"^(  project_key: )MYPROJ$",
+            rf"\g<1>{project_key}",
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
     if space_key:
-        text = re.sub(r"^(  space_key: )ENG$", rf"\g<1>{space_key}",
-                       text, count=1, flags=re.M)
+        text = re.sub(
+            r"^(  space_key: )ENG$",
+            rf"\g<1>{space_key}",
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
     if parent_page_id:
         text = re.sub(
             r'^  # parent_page_id: "123456"$',
             f'  parent_page_id: "{parent_page_id}"',
-            text, count=1, flags=re.M,
+            text,
+            count=1,
+            flags=re.MULTILINE,
         )
     if confluence_profile:
         text = re.sub(
             r"^  # profile: confluence-dc$",
             f"  profile: {confluence_profile}",
-            text, count=1, flags=re.M,
+            text,
+            count=1,
+            flags=re.MULTILINE,
         )
     return text
 
@@ -360,13 +423,17 @@ def config_set_secret(profile):
     import questionary
 
     if not CONFIG_PATH.exists():
-        console.print("  [red]✗  ~/.sdd/config.yml not found. Run 'sdd config init' first.[/red]")
+        console.print(
+            "  [red]✗  ~/.sdd/config.yml not found. Run 'sdd config init' first.[/red]"
+        )
         raise SystemExit(1)
 
-    data     = yaml.safe_load(CONFIG_PATH.read_text()) or {}
+    data = yaml.safe_load(CONFIG_PATH.read_text()) or {}
     profiles = data.get("profiles", {})
     if profile not in profiles:
-        console.print(f"  [red]✗  Profile '{profile}' not found in ~/.sdd/config.yml[/red]")
+        console.print(
+            f"  [red]✗  Profile '{profile}' not found in ~/.sdd/config.yml[/red]"
+        )
         raise SystemExit(1)
 
     store = profiles[profile].get("credential_store", "env")
@@ -415,31 +482,36 @@ def config_test(profile):
     cfg = None
     if profile is None:
         from sdd.utils.integrations import load_integrations
+
         try:
             cfg = load_integrations()
         except FileNotFoundError:
             pass
 
     jira_name = profile or (cfg.jira_profile_name() if cfg else None)
-    cf_name   = profile or (cfg.confluence_profile_name() if cfg else None)
+    cf_name = profile or (cfg.confluence_profile_name() if cfg else None)
 
     try:
-        jira_prof    = load_profile(jira_name)
+        jira_prof = load_profile(jira_name)
         jira_session = build_session(jira_prof)
     except Exception as e:
-        console.print(f"  [red]✗  Config error (Jira profile "
-                       f"'{jira_name or 'default'}'): {e}[/red]")
+        console.print(
+            f"  [red]✗  Config error (Jira profile "
+            f"'{jira_name or 'default'}'): {e}[/red]"
+        )
         raise SystemExit(1)
 
     if cf_name == jira_name:
         cf_prof, cf_session = jira_prof, jira_session
     else:
         try:
-            cf_prof    = load_profile(cf_name)
+            cf_prof = load_profile(cf_name)
             cf_session = build_session(cf_prof)
         except Exception as e:
-            console.print(f"  [red]✗  Config error (Confluence profile "
-                           f"'{cf_name or 'default'}'): {e}[/red]")
+            console.print(
+                f"  [red]✗  Config error (Confluence profile "
+                f"'{cf_name or 'default'}'): {e}[/red]"
+            )
             raise SystemExit(1)
         console.print(f"  [dim]Jira profile:       {jira_name}[/dim]")
         console.print(f"  [dim]Confluence profile: {cf_name}[/dim]")
@@ -448,18 +520,26 @@ def config_test(profile):
     try:
         me = JiraClient(jira_session, jira_prof.base_url).get_myself()
         name = me.get("displayName") or me.get("emailAddress", "?")
-        console.print(f"  [green]✓[/green]  Jira       — connected as [cyan]{name}[/cyan]")
+        console.print(
+            f"  [green]✓[/green]  Jira       — connected as [cyan]{name}[/cyan]"
+        )
     except requests.HTTPError as e:
-        console.print(f"  [red]✗  Jira       — HTTP {e.response.status_code}: "
-                      f"{e.response.text[:120]}[/red]")
+        console.print(
+            f"  [red]✗  Jira       — HTTP {e.response.status_code}: "
+            f"{e.response.text[:120]}[/red]"
+        )
 
     try:
         me = ConfluenceClient(cf_session, cf_prof.base_url).get_myself()
         name = me.get("displayName") or me.get("username", "?")
-        console.print(f"  [green]✓[/green]  Confluence — connected as [cyan]{name}[/cyan]")
+        console.print(
+            f"  [green]✓[/green]  Confluence — connected as [cyan]{name}[/cyan]"
+        )
     except requests.HTTPError as e:
-        console.print(f"  [red]✗  Confluence — HTTP {e.response.status_code}: "
-                      f"{e.response.text[:120]}[/red]")
+        console.print(
+            f"  [red]✗  Confluence — HTTP {e.response.status_code}: "
+            f"{e.response.text[:120]}[/red]"
+        )
 
     console.print()
 
@@ -476,12 +556,13 @@ def config_fields(profile, project):
     cfg = None
     try:
         from sdd.utils.integrations import load_integrations
+
         cfg = load_integrations()
     except FileNotFoundError:
         pass
 
     try:
-        prof    = load_profile(profile or (cfg.jira_profile_name() if cfg else None))
+        prof = load_profile(profile or (cfg.jira_profile_name() if cfg else None))
         session = build_session(prof)
     except Exception as e:
         console.print(f"  [red]✗  {e}[/red]")
@@ -504,18 +585,23 @@ def config_fields(profile, project):
 
     console.print(f"\n  [bold]Custom fields ({len(custom)} found):[/bold]\n")
     console.print(f"  {'ID':<30} {'Name':<40} Type")
-    console.print(f"  {'─'*30} {'─'*40} {'─'*20}")
+    console.print(f"  {'─' * 30} {'─' * 40} {'─' * 20}")
     for f in custom:
         ftype = (f.get("schema") or {}).get("type", "")
         console.print(
-            f"  [cyan]{f['id']:<30}[/cyan] {f.get('name',''):<40} [dim]{ftype}[/dim]"
+            f"  [cyan]{f['id']:<30}[/cyan] {f.get('name', ''):<40} [dim]{ftype}[/dim]"
         )
     console.print()
 
 
-def _integrations_template(profile: str, project_key: str, space_key: str,
-                             parent_page_id: str, project_name: str,
-                             confluence_profile: str | None = None) -> str:
+def _integrations_template(
+    profile: str,
+    project_key: str,
+    space_key: str,
+    parent_page_id: str,
+    project_name: str,
+    confluence_profile: str | None = None,
+) -> str:
     parent_line = (
         f'  parent_page_id: "{parent_page_id}"'
         if parent_page_id

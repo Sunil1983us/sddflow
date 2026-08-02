@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import filecmp
 import shutil
 from datetime import datetime, timezone
@@ -6,18 +8,18 @@ from pathlib import Path
 # Types that have a dedicated pack. Everything else → sdd-universal.
 TYPE_TO_PACK: dict[str, str] = {
     "backend-service": "sdd-backend-service",
-    "frontend-spa":    "sdd-frontend-spa",
-    "fullstack":       "sdd-fullstack",
-    "mobile":          "sdd-mobile",
+    "frontend-spa": "sdd-frontend-spa",
+    "fullstack": "sdd-fullstack",
+    "mobile": "sdd-mobile",
 }
 
 PACK_DESCRIPTIONS: dict[str, str] = {
     "sdd-backend-service": "REST APIs, microservices, databases, messaging",
-    "sdd-frontend-spa":    "React / Vue / Angular single-page applications",
-    "sdd-fullstack":       "Frontend + backend in the same repository",
-    "sdd-mobile":          "React Native or Flutter mobile apps",
-    "sdd-universal":       "Any project type — auto-detects from your codebase",
-    "sdd-micro":           "Tiny/personal projects — skip the full SDLC, just constitution + tasks + code",
+    "sdd-frontend-spa": "React / Vue / Angular single-page applications",
+    "sdd-fullstack": "Frontend + backend in the same repository",
+    "sdd-mobile": "React Native or Flutter mobile apps",
+    "sdd-universal": "Any project type — auto-detects from your codebase",
+    "sdd-micro": "Tiny/personal projects — skip the full SDLC, just constitution + tasks + code",
 }
 
 ALL_PACKS = list(PACK_DESCRIPTIONS.keys())
@@ -95,9 +97,12 @@ def scaffold_pack(pack_name: str, dest: str = ".") -> int:
 SYNC_DIRS: tuple[str, ...] = (".github/prompts", ".claude/commands")
 
 
-def sync_pack_prompts(pack_name: str, dest: str = ".",
-                       sync_dirs: tuple[str, ...] = SYNC_DIRS,
-                       dry_run: bool = False) -> dict:
+def sync_pack_prompts(
+    pack_name: str,
+    dest: str = ".",
+    sync_dirs: tuple[str, ...] = SYNC_DIRS,
+    dry_run: bool = False,
+) -> dict:
     """
     Re-copy a pack's prompt/command files into an already-scaffolded
     project, overwriting whatever's there. Unlike scaffold_pack() (which
@@ -154,7 +159,9 @@ def sync_pack_prompts(pack_name: str, dest: str = ".",
 
             if not dry_run:
                 if backup_dir is None:
-                    backup_dir = dest_path / ".specify" / ".prompt-sync-backups" / timestamp
+                    backup_dir = (
+                        dest_path / ".specify" / ".prompt-sync-backups" / timestamp
+                    )
                 backup_file = backup_dir / rel
                 backup_file.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(dst_file, backup_file)

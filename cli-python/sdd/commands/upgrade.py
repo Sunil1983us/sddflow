@@ -1,32 +1,55 @@
-from pathlib import Path
+from __future__ import annotations
+
 import sys
+from pathlib import Path
+from typing import Callable, TypedDict
+
 import click
 from rich.console import Console
 
-from sdd.utils.manifest import read_manifest, patch_manifest, MANIFEST_PATH, SDD_VERSION
-from sdd.utils.scaffold import ALL_PACKS, TYPE_TO_PACK, UNIVERSAL_PACK, sync_pack_prompts
+from sdd.utils.manifest import MANIFEST_PATH, SDD_VERSION, patch_manifest, read_manifest
+from sdd.utils.scaffold import (
+    ALL_PACKS,
+    TYPE_TO_PACK,
+    UNIVERSAL_PACK,
+    sync_pack_prompts,
+)
 
 console = Console()
 
+# "from" is a reserved word, so this uses TypedDict's functional (string-key)
+# form rather than class syntax -- the dict literals below use "from" as an
+# ordinary string key, which is fine, just not as a Python identifier.
+Migration = TypedDict(
+    "Migration",
+    {
+        "from": "str | None",  # None only for the very first entry (pre-versioning)
+        "to": str,
+        "description": str,
+        "notes": "list[str]",
+        "migrate": "Callable[[dict], dict]",
+    },
+)
+
 # Version migration table — extend when releasing a new pack version.
 # Each migrate() stamps its own "to" version so chained upgrades stay truthful.
-MIGRATIONS = [
+MIGRATIONS: list[Migration] = [
     {
-        "from":        None,       # None = pre-versioning (no sdd_version field)
-        "to":          "2.0.0",
+        "from": None,  # None = pre-versioning (no sdd_version field)
+        "to": "2.0.0",
         "description": "Initial versioned release",
         "notes": [
             "Added sdd_version field to manifest.yml for upgrade tracking",
             "setup.sh/setup.ps1 rewritten — eliminates injection bugs",
-            "Input validation: project/feature names with \" are rejected early",
+            'Input validation: project/feature names with " are rejected early',
             "Detection order fix: mobile (react-native) now checked before fullstack",
             "Python CLI added alongside Node.js CLI (pip install sddflow)",
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.0.0"},
     },
     {
-        "from":        "2.0.0",
-        "to":          "2.7.0",
+        "from": "2.0.0",
+        "to": "2.7.0",
         "description": "Content release — no manifest schema changes",
         "notes": [
             "/change command: type-aware change requests at any SDLC stage",
@@ -39,8 +62,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.0"},
     },
     {
-        "from":        "2.7.0",
-        "to":          "2.7.1",
+        "from": "2.7.0",
+        "to": "2.7.1",
         "description": "Content release — no manifest schema changes",
         "notes": [
             "/create-context: Endpoints and NFRs now get a proposed "
@@ -53,8 +76,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.1"},
     },
     {
-        "from":        "2.7.1",
-        "to":          "2.7.3",
+        "from": "2.7.1",
+        "to": "2.7.3",
         "description": "Version scheme unified — one number instead of two",
         "notes": [
             "sdd_version no longer tracks a separate content/schema "
@@ -67,8 +90,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.3"},
     },
     {
-        "from":        "2.7.3",
-        "to":          "2.7.4",
+        "from": "2.7.3",
+        "to": "2.7.4",
         "description": "Content release — no manifest schema changes",
         "notes": [
             "/change: when a CR fundamentally broadens or narrows what a "
@@ -86,8 +109,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.4"},
     },
     {
-        "from":        "2.7.4",
-        "to":          "2.7.5",
+        "from": "2.7.4",
+        "to": "2.7.5",
         "description": "Security fix — no manifest schema changes",
         "notes": [
             "sdd confluence / sdd cr / sdd jira now validate the feature "
@@ -111,8 +134,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.5"},
     },
     {
-        "from":        "2.7.5",
-        "to":          "2.7.6",
+        "from": "2.7.5",
+        "to": "2.7.6",
         "description": "Content release — new .specify/service/ directory",
         "notes": [
             "data-model.md, security-design.md, and the API design section "
@@ -138,8 +161,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.6"},
     },
     {
-        "from":        "2.7.6",
-        "to":          "2.7.7",
+        "from": "2.7.6",
+        "to": "2.7.7",
         "description": "Content release — no manifest schema changes",
         "notes": [
             "Constitution Part 2 gains a 'Service NFR Baseline' table — "
@@ -169,8 +192,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.7"},
     },
     {
-        "from":        "2.7.7",
-        "to":          "2.7.8",
+        "from": "2.7.7",
+        "to": "2.7.8",
         "description": "Content release — per-pack consistency fixes, no manifest schema changes",
         "notes": [
             "Fixed: frontend-spa/mobile design.md §3 now names "
@@ -182,11 +205,11 @@ MIGRATIONS = [
             "unconditional row contradicted frontend-spa/mobile's own "
             "consumer-view carve-out",
             "Fixed: release-template.md in frontend-spa/mobile/fullstack "
-            "said plain \"runbook.md\" — corrected to "
+            'said plain "runbook.md" — corrected to '
             "docs/runbook/local-setup.md, matching what /implement "
             "actually generates in every pack",
             "Fixed: frontend-spa/mobile CLAUDE.md and HOW-TO-USE.md "
-            "marked data-model as \"full only\" — corrected to mvp+, "
+            'marked data-model as "full only" — corrected to mvp+, '
             "matching the Scope Reference table and every other pack",
             "Fixed: universal CLAUDE.md/HOW-TO-USE.md referenced a stale "
             "/specify-doc api-spec command — api-spec moved to "
@@ -218,7 +241,7 @@ MIGRATIONS = [
             "New living document for frontend-spa/fullstack: "
             ".specify/service/component-library.md catalogs "
             "shared/reusable components across features — "
-            "component-spec.md's \"Shared Components Used\" section "
+            'component-spec.md\'s "Shared Components Used" section '
             "now points here instead of restating each shared "
             "component's full prop/event spec per feature",
             "release.md's Deployment Plan / Post-Deploy Smoke Test in "
@@ -233,15 +256,15 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.8"},
     },
     {
-        "from":        "2.7.8",
-        "to":          "2.7.9",
+        "from": "2.7.8",
+        "to": "2.7.9",
         "description": "Content release — no manifest schema changes",
         "notes": [
             "/create-context gains a Feature Size Check (Step 1.5): "
             "before drafting context.md, it clusters the raw notes by "
             "actor+goal and flags it if 2+ independently-shippable "
-            "capabilities were pasted in as one feature (e.g. \"submit "
-            "a payment\" + \"view a payments dashboard\")",
+            'capabilities were pasted in as one feature (e.g. "submit '
+            'a payment" + "view a payments dashboard")',
             "If a split is found, the agent asks whether to treat it as "
             "one feature or build one slice at a time — on a split, the "
             "chosen slice's raw text continues through drafting as "
@@ -254,8 +277,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.9"},
     },
     {
-        "from":        "2.7.9",
-        "to":          "2.7.10",
+        "from": "2.7.9",
+        "to": "2.7.10",
         "description": "Bug fix — /change living-document handling, no manifest schema changes",
         "notes": [
             "Fixed: /change's Stage Detection scanned only "
@@ -263,7 +286,7 @@ MIGRATIONS = [
             "context.md (.specify/contexts/) and data-model.md/"
             "security-design.md/api-spec.md/component-library.md "
             "(.specify/service/, living since 2.7.6) never lived there — "
-            "a CR could report all four as \"not yet created\" even when "
+            'a CR could report all four as "not yet created" even when '
             "they existed and were approved, hiding the CR's real impact "
             "entirely",
             "Added: cross-feature impact check for living documents — "
@@ -293,11 +316,11 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.10"},
     },
     {
-        "from":        "2.7.10",
-        "to":          "2.7.11",
+        "from": "2.7.10",
+        "to": "2.7.11",
         "description": "Multi-feature safety fixes for sdd jira push and sdd confluence push, plus /change --feature override, no manifest schema changes",
         "notes": [
-            "Fixed: LIVING_SERVICE_DOCS was missing \"component-library\" "
+            'Fixed: LIVING_SERVICE_DOCS was missing "component-library" '
             "(frontend-spa/fullstack's shared component catalog) — "
             "resolve_doc_path() routed it to .specify/features/{feature}/ "
             "instead of the correct .specify/service/, breaking sdd review "
@@ -325,7 +348,7 @@ MIGRATIONS = [
             "than finding old ones under the old label — nothing is "
             "deleted or overwritten, but pre-upgrade issues should be "
             "manually closed if they're now duplicates",
-            "Added: /change --feature {slug} \"description\" — targets a "
+            'Added: /change --feature {slug} "description" — targets a '
             "feature other than manifest.yml's active one for this CR "
             "only, without editing manifest.yml. Errors clearly (lists "
             "the features it actually found) if the named feature doesn't "
@@ -354,8 +377,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.11"},
     },
     {
-        "from":        "2.7.11",
-        "to":          "2.7.12",
+        "from": "2.7.11",
+        "to": "2.7.12",
         "description": "Multi-feature safety fix for the progressive Jira export path (/jira-push, jira-push.py), no manifest schema changes",
         "notes": [
             "Fixed: the progressive Jira export mechanism (/specify-brd, "
@@ -392,8 +415,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.12"},
     },
     {
-        "from":        "2.7.12",
-        "to":          "2.7.13",
+        "from": "2.7.12",
+        "to": "2.7.13",
         "description": "New sdd-micro pack for tiny/personal projects; no changes for existing packs' manifest schema",
         "notes": [
             "Added a 6th pack, sdd-micro, for scripts and small personal "
@@ -415,8 +438,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.13"},
     },
     {
-        "from":        "2.7.13",
-        "to":          "2.7.14",
+        "from": "2.7.13",
+        "to": "2.7.14",
         "description": "New sdd dashboard command (local status UI); no manifest schema changes",
         "notes": [
             "Added `sdd dashboard`: a local, read-only web UI over "
@@ -437,8 +460,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.14"},
     },
     {
-        "from":        "2.7.14",
-        "to":          "2.7.15",
+        "from": "2.7.14",
+        "to": "2.7.15",
         "description": "sdd dashboard gains Jira/Confluence links, LAN sharing, and an in-page doc viewer; no manifest schema changes",
         "notes": [
             "Local, instant links (no network) now show on each pipeline "
@@ -473,8 +496,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.15"},
     },
     {
-        "from":        "2.7.15",
-        "to":          "2.7.16",
+        "from": "2.7.15",
+        "to": "2.7.16",
         "description": "sdd dashboard gains Approve + review comments (syncs to Confluence/Jira); no manifest schema changes",
         "notes": [
             "New 'Approve' button per document flips that doc's Status: "
@@ -511,8 +534,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.16"},
     },
     {
-        "from":        "2.7.16",
-        "to":          "2.7.17",
+        "from": "2.7.16",
+        "to": "2.7.17",
         "description": "sdd dashboard/CLI Approve now also fills the doc's own '## Approvals' table, not just the Status: header; no manifest schema changes",
         "notes": [
             "Bug fix: `sdd review approve --local` and the dashboard's "
@@ -540,8 +563,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.17"},
     },
     {
-        "from":        "2.7.17",
-        "to":          "2.7.18",
+        "from": "2.7.17",
+        "to": "2.7.18",
         "description": "Every document-generating command prompt now reminds the agent to log token usage, closing a gap where the instruction only lived in CLAUDE.md; no manifest schema changes",
         "notes": [
             "Bug fix: token usage logging (opt-in via .specify/memory/"
@@ -568,8 +591,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.18"},
     },
     {
-        "from":        "2.7.18",
-        "to":          "2.7.19",
+        "from": "2.7.18",
+        "to": "2.7.19",
         "description": "sdd config init/set-secret can store Jira/Confluence credentials in the OS keychain instead of an env var; no manifest schema changes",
         "notes": [
             "New credential_store option in ~/.sdd/config.yml, alongside "
@@ -606,8 +629,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.19"},
     },
     {
-        "from":        "2.7.19",
-        "to":          "2.7.20",
+        "from": "2.7.19",
+        "to": "2.7.20",
         "description": "sdd jira push now matches /jira-push's content (Feature/Epic description, Story/Task Acceptance Criteria) and sdd review submit self-bootstraps that Epic and parents review tickets under it; no manifest schema changes",
         "notes": [
             "sdd jira push previously created the Feature/Epic with a "
@@ -637,8 +660,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.20"},
     },
     {
-        "from":        "2.7.20",
-        "to":          "2.7.21",
+        "from": "2.7.20",
+        "to": "2.7.21",
         "description": "sdd jira push now supports --level (progressive pushes) and --cr (CHG tasks); /jira-push and .specify/scripts/jira-push.py retired in favor of it; no manifest schema changes",
         "notes": [
             "sdd jira push gained --level {epic|story|task|chg|all} (default "
@@ -677,8 +700,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.21"},
     },
     {
-        "from":        "2.7.21",
-        "to":          "2.7.22",
+        "from": "2.7.21",
+        "to": "2.7.22",
         "description": "Fix: Markdown tables were flattened into unreadable one-line paragraphs on every Confluence push -- md_to_cf.py now renders GFM pipe tables as real Confluence tables; no manifest schema changes",
         "notes": [
             "md_to_cf.py (the Markdown -> Confluence Storage Format "
@@ -705,8 +728,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.22"},
     },
     {
-        "from":        "2.7.22",
-        "to":          "2.7.23",
+        "from": "2.7.22",
+        "to": "2.7.23",
         "description": "Fix: JiraClient.search() called the Jira Cloud search endpoint Atlassian removed (410 Gone), breaking every sdd review submit / sdd jira push idempotency lookup; no manifest schema changes",
         "notes": [
             "Atlassian deprecated and removed GET /rest/api/3/search "
@@ -736,8 +759,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.23"},
     },
     {
-        "from":        "2.7.23",
-        "to":          "2.7.24",
+        "from": "2.7.23",
+        "to": "2.7.24",
         "description": "Fix: document review commands never automatically read reviewer comments back and incorporated them -- 9 command prompts across all 5 packs now delegate to the check/apply loop that already existed but was never wired in; no manifest schema changes",
         "notes": [
             "Every document-generating command (specify-brd, specify-uc, "
@@ -772,8 +795,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.24"},
     },
     {
-        "from":        "2.7.24",
-        "to":          "2.7.25",
+        "from": "2.7.24",
+        "to": "2.7.25",
         "description": "Fix: failed Jira parent-link calls (Story/Task/CHG under Epic, review ticket under Epic) were silently swallowed with no trace -- now print a diagnosable warning; no manifest schema changes",
         "notes": [
             "Every set_parent() call site (Story/Task/CHG under Epic in "
@@ -786,7 +809,7 @@ MIGRATIONS = [
             "anywhere to explain why -- root cause turned out to be a "
             "company-managed (classic) Jira project, where Story/Task-to-"
             "Epic linking uses the Epic Link custom field, not the "
-            "\"parent\" field team-managed projects use",
+            '"parent" field team-managed projects use',
             "All five call sites now print a warning naming the child/"
             "parent keys, the underlying error, and a pointer to `sdd "
             "config fields --project {key}` to find the right Epic Link "
@@ -798,8 +821,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.25"},
     },
     {
-        "from":        "2.7.25",
-        "to":          "2.7.26",
+        "from": "2.7.25",
+        "to": "2.7.26",
         "description": "Fix: token usage logging was placed after multi-turn approval-wait STOP points in 9 command prompts, so it almost never actually fired -- moved to right after the document is saved; no manifest schema changes",
         "notes": [
             "2.7.18 wired the token-usage-log-step reminder into every "
@@ -836,8 +859,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.26"},
     },
     {
-        "from":        "2.7.26",
-        "to":          "2.7.27",
+        "from": "2.7.26",
+        "to": "2.7.27",
         "description": "Fix: token usage logging still didn't fire even after the 2.7.26 placement fix, because agents were relying on a stale in-conversation memory of token-pricing.yml being absent instead of re-checking; token-usage-log-step now says to re-read the file fresh every time; no manifest schema changes",
         "notes": [
             "2.7.26 moved the token-usage-log-step block to right after "
@@ -871,8 +894,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.27"},
     },
     {
-        "from":        "2.7.27",
-        "to":          "2.7.28",
+        "from": "2.7.27",
+        "to": "2.7.28",
         "description": "Fix: sdd dashboard's comment box lost typed text on the 5s auto-poll, and the per-feature grid cramped the Pipeline card's links column; no manifest schema changes",
         "notes": [
             "User-reported via live testing: typing a reviewer name/comment "
@@ -920,8 +943,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.28"},
     },
     {
-        "from":        "2.7.28",
-        "to":          "2.7.29",
+        "from": "2.7.28",
+        "to": "2.7.29",
         "description": "Feature: sdd dashboard gains a Full Pipeline section per feature -- the complete command sequence for this scope/plan mode, current step, and a plain-language next-action sentence; no manifest schema changes",
         "notes": [
             "User-requested: the dashboard's old Pipeline card only listed "
@@ -965,8 +988,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.29"},
     },
     {
-        "from":        "2.7.29",
-        "to":          "2.7.30",
+        "from": "2.7.29",
+        "to": "2.7.30",
         "description": "Feature: sdd upgrade --sync-prompts -- re-copies .github/prompts/ and .claude/commands/ from the current pack into an already-scaffolded project, since plain `sdd upgrade` only ever patches manifest.yml's sdd_version and never touches prompt file content; sdd init now also records a new `pack` manifest field",
         "notes": [
             "Root cause of a real user-reported confusion: after several "
@@ -1015,8 +1038,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.30"},
     },
     {
-        "from":        "2.7.30",
-        "to":          "2.7.31",
+        "from": "2.7.30",
+        "to": "2.7.31",
         "description": "Feature: Jira Epic/Story/Task hierarchy overhaul -- Epic now created at /specify (before any spec doc exists), review tickets are Story issues (not Task) parented to the Epic, Confluence + Jira submission happen together immediately (no more 'push a draft, wait for done, then submit' staging step), and specify-uc pushes a draft Story per use case that /task finalizes in place; no manifest schema changes",
         "notes": [
             "User-requested redesign, in four parts, confirmed via explicit "
@@ -1087,8 +1110,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.31"},
     },
     {
-        "from":        "2.7.31",
-        "to":          "2.7.32",
+        "from": "2.7.31",
+        "to": "2.7.32",
         "description": "Feature: per-issue-type Jira project key overrides -- new integrations.yml jira.project_keys: {level: KEY} block lets an org keep its Epic/Feature in one Jira project and Stories/Tasks (or review tickets, CRs, CHGs) in another; every project-key call site now resolves through JiraConfig.key_for(level) instead of the single project_key field; no manifest schema changes",
         "notes": [
             "User-requested: 'cfg.jira.project_key is only KEY, there are "
@@ -1144,8 +1167,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.32"},
     },
     {
-        "from":        "2.7.32",
-        "to":          "2.7.33",
+        "from": "2.7.32",
+        "to": "2.7.33",
         "description": "Feature: per-level custom field ID overrides + fixed team field -- new integrations.yml jira.custom_fields_by_level: {level: {field: id}} block overrides the common custom_fields mapping per level, and base_fields.team + custom_fields.team stamps a fixed team name/ID on every issue created; no manifest schema changes",
         "notes": [
             "User-requested follow-on to 2.7.32's project_keys: 'They "
@@ -1190,8 +1213,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.33"},
     },
     {
-        "from":        "2.7.33",
-        "to":          "2.7.34",
+        "from": "2.7.33",
+        "to": "2.7.34",
         "description": "Fix: sdd review submit / sdd cr submit were silently skipping base_fields.labels and the team stamp that every other issue type gets; add jira.parent_field_by_level per-level override, same pattern as project_keys/custom_fields_by_level; no manifest schema changes",
         "notes": [
             "User-requested field audit ('Can you check all fields while "
@@ -1242,8 +1265,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.34"},
     },
     {
-        "from":        "2.7.34",
-        "to":          "2.7.35",
+        "from": "2.7.34",
+        "to": "2.7.35",
         "description": "Feature: Confluence page hierarchy (Project -> Feature -> doc pages), created automatically and idempotently -- fix: document_reviews.confluence_page titles never had {feature} substituted, only {project}, so two features submitting the same doc type silently overwrote each other's Confluence page; no manifest schema changes",
         "notes": [
             "User-requested: 'can we have created under sub pages .. create "
@@ -1312,8 +1335,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.35"},
     },
     {
-        "from":        "2.7.35",
-        "to":          "2.7.36",
+        "from": "2.7.35",
+        "to": "2.7.36",
         "description": "Feature: Confluence diagram-macro rendering modes (mermaid-app, plantuml-macro) -- new confluence.diagrams: config block routes ```mermaid/```plantuml fences through an installed Confluence app's macro instead of the plain code-block rendering; no manifest schema changes",
         "notes": [
             "User-reported: Mermaid diagrams pushed to Confluence only "
@@ -1358,9 +1381,9 @@ MIGRATIONS = [
             "rendering-tool evaluation spike first (which Python-native "
             "renderer actually covers the diagram types SDD templates "
             "generate), and markdown-macro's Forge-based macro "
-            "reference shape (ac:adf-node type=\"extension\" with a "
+            'reference shape (ac:adf-node type="extension" with a '
             "dynamically-obtained local-id, confirmed via research, not "
-            "the same simple ac:structured-macro ac:name=\"...\" shape "
+            'the same simple ac:structured-macro ac:name="..." shape '
             "the other two modes use) needs verified testing against a "
             "real installed app before shipping, to avoid producing a "
             "broken macro island in Confluence",
@@ -1374,8 +1397,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.36"},
     },
     {
-        "from":        "2.7.36",
-        "to":          "2.7.37",
+        "from": "2.7.36",
+        "to": "2.7.37",
         "description": "Feature: Confluence local-svg diagram mode -- ```mermaid fences can now be rendered to SVG entirely offline (no browser, no Node.js, no network call, no Confluence app) and attached to the page as an image; no manifest schema changes",
         "notes": [
             "Completes the local-svg mode explicitly deferred in "
@@ -1389,7 +1412,7 @@ MIGRATIONS = [
             "templates generate (flowchart, sequenceDiagram, "
             "classDiagram, erDiagram), and rendered each type through "
             "each candidate. mermaidx/mmdc (JS-engine backend) failed "
-            "on flowchart stadium-shape nodes (Actor([\"User\"]), used "
+            'on flowchart stadium-shape nodes (Actor(["User"]), used '
             "in every design/hld/arch template's Actor node) and on "
             "classDiagram entirely. mmdr (Rust-based, ~18MB, zero "
             "further Python dependencies) rendered all four correctly, "
@@ -1397,7 +1420,7 @@ MIGRATIONS = [
             "mmdr is an optional dependency, not a hard one -- new "
             "[project.optional-dependencies].diagrams extra in "
             "pyproject.toml, installed with pip install "
-            "\"sddflow[diagrams]\", imported lazily only when "
+            '"sddflow[diagrams]", imported lazily only when '
             "diagrams.mode == local-svg is actually configured",
             "New sdd/utils/mermaid_render.py wraps mmdr.render(...).svg() "
             "and raises a clear MermaidRendererNotInstalled error naming "
@@ -1433,8 +1456,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.37"},
     },
     {
-        "from":        "2.7.37",
-        "to":          "2.7.38",
+        "from": "2.7.37",
+        "to": "2.7.38",
         "description": "Feature: Virtual Team persona hints on the sdd dashboard's Full Pipeline stepper -- each step owned by a named team member (Maya, Rex, Ava, Leo, Kai, Quinn, Riley) shows a name badge and a ready-to-type natural-language ask; no manifest schema changes",
         "notes": [
             "User-requested: the dashboard's Full Pipeline stepper showed "
@@ -1463,7 +1486,7 @@ MIGRATIONS = [
             "dashboard.py: each pstep badge shows the persona's name "
             "before its label and the full name/role/ask in its hover "
             "tooltip; the Next box gained a second line -- e.g. "
-            "'Or just say: \"Maya, write the use cases for checkout\" "
+            '\'Or just say: "Maya, write the use cases for checkout" '
             "(Maya — Business Analyst)' -- rendered only when the next "
             "step has a persona owner",
             "Verified end-to-end against a real temp project through a "
@@ -1480,8 +1503,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.38"},
     },
     {
-        "from":        "2.7.38",
-        "to":          "2.7.39",
+        "from": "2.7.38",
+        "to": "2.7.39",
         "description": "Feature: extend Virtual Team persona hints to the dashboard's Documents card and sdd review status; fix: awaiting-review docs no longer show a misleading creation-phrased persona ask; no manifest schema changes",
         "notes": [
             "Extends 2.7.38's dashboard Full Pipeline persona hints to the "
@@ -1522,8 +1545,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.39"},
     },
     {
-        "from":        "2.7.39",
-        "to":          "2.7.40",
+        "from": "2.7.39",
+        "to": "2.7.40",
         "description": "Fix: review-driven document edits (Jira comment, dashboard comment, or chat feedback) now bump the doc's Version header and log a Version History row -- previously only /change did this, and the approval step's Version History row hardcoded '1.0' instead of the document's actual current version; prompt/template content only, no manifest schema changes",
         "notes": [
             "User-reported: after addressing reviewer comments (via Jira, "
@@ -1577,8 +1600,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.40"},
     },
     {
-        "from":        "2.7.40",
-        "to":          "2.7.41",
+        "from": "2.7.40",
+        "to": "2.7.41",
         "description": "Feature: sdd review check/apply now discover and acknowledge dashboard-left review comments in pure local mode (no jira: configured) -- new sdd review comments command too; no manifest schema changes",
         "notes": [
             "User-reported gap, found while shipping 2.7.40's version-bump "
@@ -1632,8 +1655,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.41"},
     },
     {
-        "from":        "2.7.41",
-        "to":          "2.7.42",
+        "from": "2.7.41",
+        "to": "2.7.42",
         "description": "Docs consistency (Virtual Team + /taskstoissues in HOW-TO-USE.md, dangling CHANGELOG.md reference removed, workflow_mode wording propagated to frontend-spa/mobile/fullstack) + new test coverage for sdd init, sdd pr, and the dashboard HTTP handler; no manifest schema changes",
         "notes": [
             "Quick-win doc fixes from a full-project audit: removed the "
@@ -1685,8 +1708,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.42"},
     },
     {
-        "from":        "2.7.42",
-        "to":          "2.7.43",
+        "from": "2.7.42",
+        "to": "2.7.43",
         "description": "Fix: sdd init no longer re-asks project type after a type-dedicated pack (backend-service/frontend-spa/mobile/fullstack) is chosen -- no manifest schema changes",
         "notes": [
             "User-reported: choosing sdd-backend-service from 'Choose from "
@@ -1719,8 +1742,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.43"},
     },
     {
-        "from":        "2.7.43",
-        "to":          "2.7.44",
+        "from": "2.7.43",
+        "to": "2.7.44",
         "description": "Fix: sdd dashboard's Full Pipeline flow no longer shows 'Constitution (Part 2)' as done before /specify has actually run -- no manifest schema changes",
         "notes": [
             "User-reported: on a brand-new project (sdd init only, /specify "
@@ -1760,8 +1783,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.44"},
     },
     {
-        "from":        "2.7.44",
-        "to":          "2.7.45",
+        "from": "2.7.44",
+        "to": "2.7.45",
         "description": "Fix: sdd dashboard crashed on every poll once a feature had a Jira progressive export (docs/jira/{feature}/keys.yml) -- no manifest schema changes",
         "notes": [
             "User-reported: AttributeError ('str' object has no attribute "
@@ -1787,7 +1810,7 @@ MIGRATIONS = [
             "this writer/reader contract can't silently drift apart "
             "again without failing a test",
             "Hardening: /api/status now catches any exception and returns "
-            "a JSON {\"error\": ...} with status 500 instead of a bare "
+            'a JSON {"error": ...} with status 500 instead of a bare '
             "connection reset (which was crashing the whole request, not "
             "just this endpoint); the frontend's 5s poll loop catches "
             "fetch/parse failures and shows a visible error banner "
@@ -1798,8 +1821,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.45"},
     },
     {
-        "from":        "2.7.45",
-        "to":          "2.7.46",
+        "from": "2.7.45",
+        "to": "2.7.46",
         "description": "Fix: a failed sdd review submit (document_reviews not configured for a doc) silently skipped the Confluence draft push and the Jira Epic Business Objectives refresh -- no manifest schema changes",
         "notes": [
             "User-reported: sdd review submit --doc brd failed with "
@@ -1843,8 +1866,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.46"},
     },
     {
-        "from":        "2.7.46",
-        "to":          "2.7.47",
+        "from": "2.7.46",
+        "to": "2.7.47",
         "description": "Feature: cross-project Jira parent-link fallback via a 'Relates' issue link when project_keys routes a level to a different project than its parent -- no manifest schema changes",
         "notes": [
             "User-reported (via follow-up diagnosis of the project_keys "
@@ -1876,8 +1899,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.47"},
     },
     {
-        "from":        "2.7.47",
-        "to":          "2.7.48",
+        "from": "2.7.47",
+        "to": "2.7.48",
         "description": "Feature: dashboard's existing 'Check Jira/Confluence review links' button now also surfaces the sdd review check --doc classification (APPROVED/NEEDS_REVISION/PENDING) and reviewer comments per document -- no manifest schema changes",
         "notes": [
             "User-requested: a dashboard equivalent of `sdd review check "
@@ -1908,8 +1931,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.48"},
     },
     {
-        "from":        "2.7.48",
-        "to":          "2.7.49",
+        "from": "2.7.48",
+        "to": "2.7.49",
         "description": "Fix: a Confluence diagram fence whose *configured* rendering mode failed (missing mmdr package, invalid diagram source, or an app macro mode with no macro name set) silently fell back to a plain code block with zero indication anything was wrong -- now prints a warning naming the reason -- no manifest schema changes",
         "notes": [
             "User-reported: set diagrams.mode: local-svg in "
@@ -1919,7 +1942,7 @@ MIGRATIONS = [
             "anywhere to explain why",
             "Root cause: md_to_cf.py's _render_local_svg() caught every "
             "renderer exception (including the common case -- `pip "
-            "install \"sddflow[diagrams]\"` never having been run, so "
+            'install "sddflow[diagrams]"` never having been run, so '
             "the optional mmdr package isn't installed) and discarded "
             "the reason, falling back to a plain code block silently. A "
             "real, fixable failure was indistinguishable from "
@@ -1928,7 +1951,7 @@ MIGRATIONS = [
             "tuple[str, list[Attachment]] to tuple[str, list[Attachment], "
             "list[str]] -- the third element is one human-readable "
             "warning per diagram fence whose *configured* mode failed to "
-            "render (never populated when diagrams.mode is \"none\", "
+            'render (never populated when diagrams.mode is "none", '
             "since that's expected default behavior, not a failure)",
             "Also fixed the same silent-fallback gap for mermaid-app/"
             "plantuml-macro modes selected with no macro_name configured "
@@ -1950,8 +1973,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.49"},
     },
     {
-        "from":        "2.7.49",
-        "to":          "2.7.50",
+        "from": "2.7.49",
+        "to": "2.7.50",
         "description": "Fix: Confluence diagram attachment uploads (diagrams.mode: local-svg) were rejected with HTTP 415 by every Confluence instance -- the multipart request never actually carried a multipart Content-Type header -- no manifest schema changes",
         "notes": [
             "User-reported (via their own diagnosis of the editable "
@@ -1987,8 +2010,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.50"},
     },
     {
-        "from":        "2.7.50",
-        "to":          "2.7.51",
+        "from": "2.7.50",
+        "to": "2.7.51",
         "description": "Feature: the dashboard's per-document Jira review-gate pill now has a local, instant fallback (mirroring Confluence's), instead of staying blank until the live 'Check Jira/Confluence review links' button is clicked -- no manifest schema changes",
         "notes": [
             "User-reported: the dashboard's Confluence pill next to a "
@@ -2032,8 +2055,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.51"},
     },
     {
-        "from":        "2.7.51",
-        "to":          "2.7.52",
+        "from": "2.7.51",
+        "to": "2.7.52",
         "description": "Fix: dashboard's Full Pipeline 'Next:' text could contradict the pipeline diagram itself when an optional step (e.g. checklist at pilot scope) was consciously skipped -- no manifest schema changes",
         "notes": [
             "User-reported: the dashboard showed the pipeline diagram's "
@@ -2066,8 +2089,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.52"},
     },
     {
-        "from":        "2.7.52",
-        "to":          "2.7.53",
+        "from": "2.7.52",
+        "to": "2.7.53",
         "description": "Feature: blocked documents (e.g. validate.md, on unresolved [NEEDS CLARIFICATION-NNN] markers) can now collect reviewer answers via Jira/Confluence instead of only direct chat/doc edits -- no manifest schema changes",
         "notes": [
             "User-requested: a document like validate.md can be blocked "
@@ -2119,8 +2142,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.53"},
     },
     {
-        "from":        "2.7.53",
-        "to":          "2.7.54",
+        "from": "2.7.53",
+        "to": "2.7.54",
         "description": "Fix: multi-line sdd review pull-answers replies (one 'brd:NC-NNN: answer' per line, e.g. a real 7-item Jira comment) were silently collapsed into a single garbled line, so only the first item ever got parsed -- no manifest schema changes",
         "notes": [
             "User-reported: a reviewer answered all 7 open questions on a "
@@ -2157,8 +2180,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.54"},
     },
     {
-        "from":        "2.7.54",
-        "to":          "2.7.55",
+        "from": "2.7.54",
+        "to": "2.7.55",
         "description": "Fix: sdd review pull-answers never patched a marker in any project whose brd.md/use-cases.md/srd.md predate the NEEDS CLARIFICATION-NNN numbering feature -- no manifest schema changes",
         "notes": [
             "User-reported: pull-answers reported 0 items patched every "
@@ -2173,7 +2196,7 @@ MIGRATIONS = [
             "unnumbered [NEEDS CLARIFICATION: ...] markers (order of "
             "appearance) -- it never writes those numbers back into the "
             "source document, since scanning isn't editing. Confirmed "
-            "via a live grep -o \"NEEDS CLARIFICATION-[0-9]*\" against "
+            'via a live grep -o "NEEDS CLARIFICATION-[0-9]*" against '
             "the user's brd.md returning zero matches despite the "
             "displayed table citing brd:NC-001 etc. _patch_marker's "
             "exact-string search for the numbered form therefore never "
@@ -2206,8 +2229,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.55"},
     },
     {
-        "from":        "2.7.55",
-        "to":          "2.7.56",
+        "from": "2.7.55",
+        "to": "2.7.56",
         "description": "Fix: sdd review pull-answers patched BRD/SRD/UC locally but never refreshed their existing Confluence pages, leaving them showing stale pre-answer [NEEDS CLARIFICATION] markers -- no manifest schema changes",
         "notes": [
             "User-reported: after /validate's push-questions/pull-answers "
@@ -2235,8 +2258,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.56"},
     },
     {
-        "from":        "2.7.56",
-        "to":          "2.7.57",
+        "from": "2.7.56",
+        "to": "2.7.57",
         "description": "Guardrail: validate.prompt.md Step C no longer lets a document-level approval auto-check per-item §1-§4 confirmation checkboxes -- no manifest schema changes",
         "notes": [
             "User-reported (from a live project's /analyze run): a prior "
@@ -2270,8 +2293,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.57"},
     },
     {
-        "from":        "2.7.57",
-        "to":          "2.7.58",
+        "from": "2.7.57",
+        "to": "2.7.58",
         "description": "Feature: analyze.md and clarify.md can now go through the same Jira/Confluence review-gate flow as brd/srd/etc (a new 'validate' phase) -- no manifest schema changes",
         "notes": [
             "User asked why /analyze and /clarify never got pushed to "
@@ -2308,8 +2331,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.58"},
     },
     {
-        "from":        "2.7.58",
-        "to":          "2.7.59",
+        "from": "2.7.58",
+        "to": "2.7.59",
         "description": "Feature: Confluence pages for documents under Jira review now show a live Jira link + status banner, and page_map covers every generated doc type (qa-testcases, tasks, checklist, and the living/service docs) -- no manifest schema changes",
         "notes": [
             "User asked why a doc pushed to Jira for review didn't also "
@@ -2344,8 +2367,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.59"},
     },
     {
-        "from":        "2.7.59",
-        "to":          "2.7.60",
+        "from": "2.7.59",
+        "to": "2.7.60",
         "description": "Feature: clarify.md's own open items (AMB/GAP/CON/ASM/OQ/R) can now be pushed to Jira/Confluence for answers via sdd review push-questions/pull-answers, the same way validate.md's [NEEDS CLARIFICATION-NNN] markers already could -- no manifest schema changes",
         "notes": [
             "User pointed out that /validate's open questions could already "
@@ -2382,8 +2405,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.60"},
     },
     {
-        "from":        "2.7.60",
-        "to":          "2.7.61",
+        "from": "2.7.60",
+        "to": "2.7.61",
         "description": "Fix: /clarify now auto-pushes its open items to Jira/Confluence on generation and auto-pulls answers on re-run, matching /validate's existing behavior -- prompt-only, no CLI or manifest changes",
         "notes": [
             "The 2.7.60 clarify Jira-answers feature only wired the CLI "
@@ -2409,8 +2432,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.61"},
     },
     {
-        "from":        "2.7.61",
-        "to":          "2.7.62",
+        "from": "2.7.61",
+        "to": "2.7.62",
         "description": "Fix: clarify.md's Step 4 now re-syncs affected documents to Confluence/Jira after applying an answer, sdd review apply no longer requires both jira: and confluence:; new sdd confluence push --summary pushes a doc's .summary.md to its own page -- no manifest schema changes",
         "notes": [
             "User found 3 issues with the clarify Jira-answers flow: (1) "
@@ -2446,8 +2469,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.62"},
     },
     {
-        "from":        "2.7.62",
-        "to":          "2.7.63",
+        "from": "2.7.62",
+        "to": "2.7.63",
         "description": "Fix: plan-design.prompt.md's api-spec.md merge and change.prompt.md's entire document walk (UPDATE/RERUN/ANNOTATE) now re-sync to Confluence/Jira after each local update -- prompt-only, no CLI or manifest changes",
         "notes": [
             "Same root cause as 2.7.62's clarify fix, found in two more "
@@ -2476,8 +2499,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.63"},
     },
     {
-        "from":        "2.7.63",
-        "to":          "2.7.64",
+        "from": "2.7.63",
+        "to": "2.7.64",
         "description": "Fix: local-svg diagrams pushed to Confluence now render at a readable width (ac:width=900 by default, configurable via diagrams.local_svg.width) instead of the SVG's own tiny intrinsic size -- no manifest schema changes",
         "notes": [
             "User reported that Mermaid diagrams rendered via "
@@ -2491,7 +2514,7 @@ MIGRATIONS = [
             "configured via a nested diagrams.local_svg.width key in "
             "integrations.yml, matching the existing mermaid_app/"
             "plantuml_macro nested-dict convention",
-            "_render_local_svg() now emits <ac:image ac:width=\"{width}\">"
+            '_render_local_svg() now emits <ac:image ac:width="{width}">'
             " -- Confluence scales height to match, preserving aspect "
             "ratio",
             "integrations.yml.example (all 5 packs) documents the new "
@@ -2503,8 +2526,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.64"},
     },
     {
-        "from":        "2.7.64",
-        "to":          "2.7.65",
+        "from": "2.7.64",
+        "to": "2.7.65",
         "description": "Fix: /task never pushed stories/tasks to Jira or Confluence, diagram attachment 400s hid the real reason, constitution.md is now pushable; adds Approver name column to every Approvals table",
         "notes": [
             "User reported 4 real gaps after running /task: (1) the "
@@ -2567,8 +2590,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.65"},
     },
     {
-        "from":        "2.7.65",
-        "to":          "2.7.66",
+        "from": "2.7.65",
+        "to": "2.7.66",
         "description": "Add: sdd token-log reads Claude Code's own local session transcript for REAL token usage (not the char/4 estimate) -- new CLI command + token-usage-template.md Source column; every other AI tool keeps the existing estimate",
         "notes": [
             "The user asked whether anything more could be done about "
@@ -2616,8 +2639,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.66"},
     },
     {
-        "from":        "2.7.66",
-        "to":          "2.7.67",
+        "from": "2.7.66",
+        "to": "2.7.67",
         "description": "Fix: dashboard Token Usage card showed all blanks for any token-usage.md written after the Source-column rename (2.7.66) dropped the 'Est.' prefix from Running Totals labels",
         "notes": [
             "The 2.7.66 token-usage-template.md rewrite renamed the "
@@ -2640,8 +2663,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.67"},
     },
     {
-        "from":        "2.7.67",
-        "to":          "2.7.68",
+        "from": "2.7.67",
+        "to": "2.7.68",
         "description": "Enhance: sdd dashboard gets a manual Light/Dark/Auto theme toggle (fixes theme not switching for users whose browser doesn't report prefers-color-scheme reliably) plus a discoverable data-sourcing explainer and clearer empty states",
         "notes": [
             "The user reported dark/light mode 'not working' on the "
@@ -2671,8 +2694,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.68"},
     },
     {
-        "from":        "2.7.68",
-        "to":          "2.7.69",
+        "from": "2.7.68",
+        "to": "2.7.69",
         "description": "Enhance: sdd dashboard gets a Real/Estimated token badge, a Features Overview table for multi-feature projects, and auto-refreshing Jira/Confluence review links",
         "notes": [
             "Token Usage card now shows a 'Source mix' row -- Real N / "
@@ -2699,8 +2722,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.69"},
     },
     {
-        "from":        "2.7.69",
-        "to":          "2.7.70",
+        "from": "2.7.69",
+        "to": "2.7.70",
         "description": "Enhance: sdd dashboard's Documents card now shows who should approve a pending document (role + name from roles.yml) and who approved it, via which mode, once it is",
         "notes": [
             "The user asked: for a document that isn't approved, who "
@@ -2746,8 +2769,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.70"},
     },
     {
-        "from":        "2.7.70",
-        "to":          "2.7.71",
+        "from": "2.7.70",
+        "to": "2.7.71",
         "description": "Enhance: sdd dashboard consolidates each document's View/Approvals/Comments toggles into one tabbed Details panel, decluttering the Documents row",
         "notes": [
             "Follow-up to a UX review the user asked for after several "
@@ -2779,8 +2802,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.71"},
     },
     {
-        "from":        "2.7.71",
-        "to":          "2.7.72",
+        "from": "2.7.71",
+        "to": "2.7.72",
         "description": "Fix: sdd dashboard's Constitution/Token-Usage status badges silently lost their green/amber color, and the info box referenced a 'View' button that no longer exists",
         "notes": [
             "A second UX review pass (user asked to review the whole "
@@ -2800,7 +2823,7 @@ MIGRATIONS = [
             "('.kv > span:first-child'), which only ever matches the "
             "row's own direct label span",
             "Stale copy: the info box's 'Where this data comes from' "
-            "text still said '\"View\" reads the raw .md file from "
+            'text still said \'"View" reads the raw .md file from '
             "disk' -- a leftover from before the View/Approvals/"
             "Comments toggles were consolidated into one Details panel "
             "with tabs (2.7.71). Updated to reference the Details "
@@ -2811,8 +2834,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.72"},
     },
     {
-        "from":        "2.7.72",
-        "to":          "2.7.73",
+        "from": "2.7.72",
+        "to": "2.7.73",
         "description": "Fix: sdd dashboard's Approve pill could keep showing a stale approver's name after a document was regenerated back to Draft",
         "notes": [
             "Flagged during the previous UX review as a known, pre-"
@@ -2844,8 +2867,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.73"},
     },
     {
-        "from":        "2.7.73",
-        "to":          "2.7.74",
+        "from": "2.7.73",
+        "to": "2.7.74",
         "description": "Enhance: sdd dashboard now shows live Jira ticket status (not just links) for both review-gate tickets and Jira Export Epic/Story/Task tickets",
         "notes": [
             "User asked directly: 'do we show the Jira status also?' -- "
@@ -2882,8 +2905,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.74"},
     },
     {
-        "from":        "2.7.74",
-        "to":          "2.7.75",
+        "from": "2.7.74",
+        "to": "2.7.75",
         "description": "Fix: sdd_parser.py never matched the actual shipped stories.md/tasks.md templates -- sdd jira push and sdd pr create --task silently found zero stories/tasks for every real generated feature",
         "notes": [
             "Found while helping a user debug why 'sdd jira push' created "
@@ -2923,8 +2946,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.75"},
     },
     {
-        "from":        "2.7.75",
-        "to":          "2.7.76",
+        "from": "2.7.75",
+        "to": "2.7.76",
         "description": "Fix: /release and /implement's runbook never went through Jira/Confluence review despite document_reviews.runbook/.release being fully documented and configurable",
         "notes": [
             "Prompted by a user asking for a full audit of every pipeline "
@@ -2963,8 +2986,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.76"},
     },
     {
-        "from":        "2.7.76",
-        "to":          "2.7.77",
+        "from": "2.7.76",
+        "to": "2.7.77",
         "description": "Fix: self-approval risk undocumented, coverage gate was a bare echo, no test caught either -- verified all three with grep before fixing, per external review of the sdd_parser.py/release.md audit",
         "notes": [
             "An external agent reviewed the two prior fixes (sdd_parser.py, "
@@ -3009,8 +3032,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.77"},
     },
     {
-        "from":        "2.7.77",
-        "to":          "2.7.78",
+        "from": "2.7.77",
+        "to": "2.7.78",
         "description": "Fix: sdd-universal missing UI templates, brd-template.md drift, design-template.md numbering gap -- template quality review found real gaps beyond docs/CI",
         "notes": [
             "sdd-universal was missing ux-flow-template.md, "
@@ -3054,8 +3077,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.78"},
     },
     {
-        "from":        "2.7.78",
-        "to":          "2.7.79",
+        "from": "2.7.78",
+        "to": "2.7.79",
         "description": "Fix: runbook-template.md missing living-doc framing in 4 packs, security-design/data-model/api-spec inconsistencies across packs, release-template.md pilot-scope broken rollback reference, sdd-universal had no project-type flavor branching for data-model/security/runbook",
         "notes": [
             "runbook-template.md was missing its 'Living artifact' framing "
@@ -3106,8 +3129,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.79"},
     },
     {
-        "from":        "2.7.79",
-        "to":          "2.7.80",
+        "from": "2.7.79",
+        "to": "2.7.80",
         "description": "Fix: data-model-template.md missing Version History in frontend-spa/mobile/fullstack, security-design-template.md STRIDE column wording inconsistency in sdd-universal -- found while verifying the v2.7.79 fix batch's own consistency",
         "notes": [
             "data-model-template.md was missing '## Version History' in "
@@ -3129,8 +3152,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.80"},
     },
     {
-        "from":        "2.7.80",
-        "to":          "2.7.81",
+        "from": "2.7.80",
+        "to": "2.7.81",
         "description": "Fix: sdd-micro/setup.sh had zero test coverage -- test-setup.sh only ever tested sdd-universal's setup.sh (hardcoded PACK_DIR); no manifest.yml field changes for any pack, including sdd-micro (this is a CI/test-harness fix, not a pack-content change)",
         "notes": [
             "Found while reviewing sdd-micro end-to-end: "
@@ -3168,8 +3191,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.81"},
     },
     {
-        "from":        "2.7.81",
-        "to":          "2.7.82",
+        "from": "2.7.81",
+        "to": "2.7.82",
         "description": "Feature: Business Objectives traceability + dashboard rollup -- brd.md's Business Objectives (§2) and Business Requirements (§5) were previously unlinked siblings; adds a 'Serves BO' column to §5 and rolls BO -> BR -> FR -> TASK up into a per-feature and cross-feature Business Objectives view in `sdd dashboard`",
         "notes": [
             "Added 'Serves BO' column to brd-template.md's §5 Business "
@@ -3222,8 +3245,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.82"},
     },
     {
-        "from":        "2.7.82",
-        "to":          "2.7.83",
+        "from": "2.7.82",
+        "to": "2.7.83",
         "description": "Fix: `sdd config init`'s .specify/integrations.yml scaffold was built from a small hand-maintained template string in config.py that had drifted far behind the real integrations.yml.example -- missing project_keys, parent_field_by_level, custom_fields_by_level, diagrams, document_reviews, pr_automation, and code_review entirely, plus most of page_map",
         "notes": [
             "Reported directly: 'while creating integration file, it "
@@ -3279,8 +3302,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.83"},
     },
     {
-        "from":        "2.7.83",
-        "to":          "2.7.84",
+        "from": "2.7.83",
+        "to": "2.7.84",
         "description": "Docs: HOW-TO-USE.md's 'Phase 0 -- Setup (before any command)' section listed /create-context and sdd init/setup.sh but never mentioned sdd config init/sdd config test at all -- a reader following that section top to bottom for the full pre-flight checklist would not discover Jira/Confluence setup exists until a much later, unrelated section mentioned it in passing",
         "notes": [
             "Asked directly, after the v2.7.83 config-init fix: 'is that "
@@ -3301,8 +3324,7 @@ MIGRATIONS = [
             "sdd-micro intentionally excluded (no Jira/Confluence "
             "integration in that pack, not part of the shared-block sync "
             "system)",
-            "Docs-only change -- no manifest.yml field changes, no CLI "
-            "behavior change",
+            "Docs-only change -- no manifest.yml field changes, no CLI behavior change",
             "This Node CLI ships from the same pack sources -- this "
             "migration entry exists so both CLIs report the same "
             "sdd_version chain",
@@ -3311,8 +3333,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.84"},
     },
     {
-        "from":        "2.7.84",
-        "to":          "2.7.85",
+        "from": "2.7.84",
+        "to": "2.7.85",
         "description": "Fix batch: full template/parser audit found tasks.md checkboxes never flipped by /implement (silently neutering the BO rollup dashboard), CHG-NNN tasks invisible to the task-heading regex, validate.prompt.md's own step numbering colliding with its template, security-design.md mixing CVSS scoring into a doc that always intended DREAD, CF-NNN consistency findings never reaching clarify.md's gate, and release.md's BO Closure/qa-testcases.md's UAT-relevant rows never feeding back into anything downstream",
         "notes": [
             "Tier 1 (7 fixes): (1) implement.prompt.md now instructs "
@@ -3386,8 +3408,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.85"},
     },
     {
-        "from":        "2.7.85",
-        "to":          "2.7.86",
+        "from": "2.7.85",
+        "to": "2.7.86",
         "description": "Fix: separate plan_mode (arch.md -> hld.md -> adr.md) had no path to generate the living .specify/service/api-spec.md at all -- unified plan_mode's design.md was the only route -- plus the two mode's document sets had drifted apart on several structural columns",
         "notes": [
             "Found via direct question: user asked whether unified design.md "
@@ -3443,8 +3465,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.86"},
     },
     {
-        "from":        "2.7.86",
-        "to":          "2.7.87",
+        "from": "2.7.86",
+        "to": "2.7.87",
         "description": "Fix: specify-doc.prompt.md's own SKIP/ADD-unit/UPDATE-unit living-doc walk (data-model, security-design, component-library) never re-synced Confluence/Jira after an approved change -- only /change's separate living-doc handling did",
         "notes": [
             "Asked directly whether ALL living-document updates get pushed "
@@ -3483,8 +3505,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.87"},
     },
     {
-        "from":        "2.7.87",
-        "to":          "2.7.88",
+        "from": "2.7.87",
+        "to": "2.7.88",
         "description": "Fix: /specify-doc's own 'Action 2 doc-set table' cross-reference pointed at a table that didn't exist in specify.prompt.md in any pack -- broke discoverability of which extended docs (data-model, security, component-spec, etc.) a project actually needs",
         "notes": [
             "User asked how an end user is supposed to know which "
@@ -3544,8 +3566,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.88"},
     },
     {
-        "from":        "2.7.88",
-        "to":          "2.7.89",
+        "from": "2.7.88",
+        "to": "2.7.89",
         "description": "Fix: dashboard's single collapsed 'Extended Specs' pipeline step let generating just one required doc (e.g. security) silently mark ALL of them (data-model, component-spec, ux-flow, ...) as done",
         "notes": [
             "User asked directly whether the dashboard tells someone when "
@@ -3610,8 +3632,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.89"},
     },
     {
-        "from":        "2.7.89",
-        "to":          "2.7.90",
+        "from": "2.7.89",
+        "to": "2.7.90",
         "description": "Fix: dashboard's extended-docs steps listed security-design before data-model, so at mvp+ scope the 'next action' hint told users to run security before data-model -- backwards from the recommended /specify-doc sequence",
         "notes": [
             "User checked the dashboard step order against the practical "
@@ -3642,8 +3664,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.90"},
     },
     {
-        "from":        "2.7.90",
-        "to":          "2.7.91",
+        "from": "2.7.90",
+        "to": "2.7.91",
         "description": "Add a cross-reference linter (packs/_shared/tests/check-cross-references.py) that catches dead 'Action N' / '{doc}.md §N' pointers between prompt files before a user finds them",
         "notes": [
             "Both real bugs found this session (v2.7.88's dead 'Action 2 "
@@ -3698,8 +3720,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.91"},
     },
     {
-        "from":        "2.7.91",
-        "to":          "2.7.92",
+        "from": "2.7.91",
+        "to": "2.7.92",
         "description": "setup.sh/setup.ps1 now interactively ask for reading_mode (auto|summary|full) instead of silently baking in the 'auto' default with no prompt",
         "notes": [
             "A user asked directly: reading_mode already existed as a "
@@ -3723,7 +3745,7 @@ MIGRATIONS = [
             "Verified with a real pty (not piped stdin, which forces "
             "non-interactive mode by the script's own design and would've "
             "given a false pass): the prompt renders, accepts 'summary', "
-            "and writes reading_mode: \"summary\" into manifest.yml. Also "
+            'and writes reading_mode: "summary" into manifest.yml. Also '
             "verified --reading-mode full/summary flags directly on "
             "sdd-backend-service, sdd-frontend-spa, and sdd-universal's "
             "separate setup.sh",
@@ -3739,8 +3761,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.92"},
     },
     {
-        "from":        "2.7.92",
-        "to":          "2.7.93",
+        "from": "2.7.92",
+        "to": "2.7.93",
         "description": "Let Jira and Confluence use separate ~/.sdd/config.yml profiles (jira.profile / confluence.profile in integrations.yml) instead of one shared profile for both",
         "notes": [
             "A user asked directly: their org runs Jira and Confluence as "
@@ -3791,8 +3813,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.93"},
     },
     {
-        "from":        "2.7.93",
-        "to":          "2.7.94",
+        "from": "2.7.93",
+        "to": "2.7.94",
         "description": "'sdd config init' now asks upfront whether Jira and Confluence share one set of credentials or need two, instead of requiring a manual second run + hand-edit to use the jira.profile/confluence.profile split added in 2.7.93",
         "notes": [
             "2.7.93 added jira.profile/confluence.profile overrides so the "
@@ -3837,8 +3859,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.94"},
     },
     {
-        "from":        "2.7.94",
-        "to":          "2.7.95",
+        "from": "2.7.94",
+        "to": "2.7.95",
         "description": "Confluence parent-page prompt/config now accepts a pasted page URL, not just the raw numeric ID",
         "notes": [
             "A user pointed out that when 'sdd config init' asks for the "
@@ -3877,8 +3899,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.95"},
     },
     {
-        "from":        "2.7.95",
-        "to":          "2.7.96",
+        "from": "2.7.95",
+        "to": "2.7.96",
         "description": "'sdd config test' now resolves Jira and Confluence independently, instead of pinging both against one profile's base_url",
         "notes": [
             "A user asked whether all docs were updated for the recent "
@@ -3931,8 +3953,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.96"},
     },
     {
-        "from":        "2.7.96",
-        "to":          "2.7.97",
+        "from": "2.7.96",
+        "to": "2.7.97",
         "description": "Jira Feature/Epic description now carries Problem Statement, Business Hypothesis, Description, Out of Scope, and NFR instead of a bare Business Objectives bullet list",
         "notes": [
             "A user asked for a specific description template on the "
@@ -3985,8 +4007,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.97"},
     },
     {
-        "from":        "2.7.97",
-        "to":          "2.7.98",
+        "from": "2.7.97",
+        "to": "2.7.98",
         "description": "Jira Feature/Epic description gains Business Objectives, Success Criteria, and a Confluence link, following up on the 2.7.97 structured template",
         "notes": [
             "Follow-up to a user's structured-description request "
@@ -4034,8 +4056,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.98"},
     },
     {
-        "from":        "2.7.98",
-        "to":          "2.7.99",
+        "from": "2.7.98",
+        "to": "2.7.99",
         "description": "Packaging metadata only: PyPI/npm Summary and keywords rewritten for discoverability -- no functional change, no manifest.yml effect",
         "notes": [
             "A user looked at the sddflow PyPI page and pointed out the "
@@ -4080,8 +4102,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.99"},
     },
     {
-        "from":        "2.7.99",
-        "to":          "2.7.100",
+        "from": "2.7.99",
+        "to": "2.7.100",
         "description": "'sdd init' now asks plan_mode and reading_mode interactively, like setup.sh already does -- both previously stayed silently at the pack default",
         "notes": [
             "A user ran 'sdd init' (the pip-installed CLI, not "
@@ -4124,8 +4146,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.7.100"},
     },
     {
-        "from":        "2.7.100",
-        "to":          "2.8.0",
+        "from": "2.7.100",
+        "to": "2.8.0",
         "description": "Versioning scheme change: sdd_version is now a capped major.minor.patch counter (patch 0-24, minor 0-9) instead of an ever-growing patch number -- this bump is the one-time reset off the runaway old scheme",
         "notes": [
             "The old scheme just incremented the patch number forever -- "
@@ -4163,8 +4185,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.8.0"},
     },
     {
-        "from":        "2.8.0",
-        "to":          "2.8.1",
+        "from": "2.8.0",
+        "to": "2.8.1",
         "description": "Node CLI gets its first automated tests -- ported cli-python's migration-chain-integrity tests to close a coverage gap flagged in code review",
         "notes": [
             "An external code review pointed out that cli/ (the Node CLI) "
@@ -4200,8 +4222,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.8.1"},
     },
     {
-        "from":        "2.8.1",
-        "to":          "2.8.2",
+        "from": "2.8.1",
+        "to": "2.8.2",
         "description": "'sdd upgrade' no longer needs one invocation per pending migration -- it now finds the whole chain and offers to jump straight to latest",
         "notes": [
             "An external code review (point #3) flagged that "
@@ -4257,8 +4279,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.8.2"},
     },
     {
-        "from":        "2.8.2",
-        "to":          "2.8.3",
+        "from": "2.8.2",
+        "to": "2.8.3",
         "description": "Onboarding-friction fixes from an end-user feedback review: sdd-micro redirect, honest 5-minute claim, optional-persona note, cli/ marked private",
         "notes": [
             "A user shared an end-user feedback review (from another chat "
@@ -4291,7 +4313,7 @@ MIGRATIONS = [
             "the problem (it's a real convenience layer, not a second "
             "required thing to learn), the problem was nothing telling "
             "a first-time reader that before they hit an 8-row table",
-            "Added \"private\": true to cli/package.json -- CLAUDE.md "
+            'Added "private": true to cli/package.json -- CLAUDE.md '
             "already documents this package as 'unpublished, from "
             "source' but nothing enforced that; an accidental npm "
             "publish would have succeeded",
@@ -4311,8 +4333,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.8.3"},
     },
     {
-        "from":        "2.8.3",
-        "to":          "2.8.4",
+        "from": "2.8.3",
+        "to": "2.8.4",
         "description": "Doc-navigation fixes from a third end-user feedback review: Start Here table, self-approval-risk callout, token/cost footprint callout",
         "notes": [
             "A user shared a third, more detailed end-user feedback review "
@@ -4358,8 +4380,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.8.4"},
     },
     {
-        "from":        "2.8.4",
-        "to":          "2.8.5",
+        "from": "2.8.4",
+        "to": "2.8.5",
         "description": "Surface the worked examples to real end users; implement TASK-001/002/003 of examples/todo-api for real",
         "notes": [
             "Two fixes shipped together, following on from the 2.8.3/2.8.4 "
@@ -4431,8 +4453,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.8.5"},
     },
     {
-        "from":        "2.8.5",
-        "to":          "2.8.6",
+        "from": "2.8.5",
+        "to": "2.8.6",
         "description": "Dashboard: per-stage duration, review-round count, and an overall feature Timeline card",
         "notes": [
             "User request: 'sdd dashboard' showed each document's status "
@@ -4495,8 +4517,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.8.6"},
     },
     {
-        "from":        "2.8.6",
-        "to":          "2.8.7",
+        "from": "2.8.6",
+        "to": "2.8.7",
         "description": "Removed IMPROVEMENT-BACKLOG.md from every pack -- it was maintainer-only content that sdd init was shipping into every real user's project",
         "notes": [
             "A user shared a photo of their own project directory (created "
@@ -4546,8 +4568,8 @@ MIGRATIONS = [
         "migrate": lambda m: {**m, "sdd_version": "2.8.7"},
     },
     {
-        "from":        "2.8.7",
-        "to":          "2.8.8",
+        "from": "2.8.7",
+        "to": "2.8.8",
         "description": "Root README '60-Second Overview' and a pack-catalog pointer on every pack's own README -- fixes a first-time-visitor orientation gap",
         "notes": [
             "An external (ChatGPT) review flagged that a newcomer to the "
@@ -4588,6 +4610,262 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.8"},
     },
+    {
+        "from": "2.8.8",
+        "to": "2.8.9",
+        "description": "Dashboard security hardening: session token + Origin check for network writes, read-only sharing mode, and a fix for a real concurrent-write data-loss bug",
+        "notes": [
+            "Highest-priority item from a comprehensive ChatGPT-review "
+            "verification pass -- this closes real, live gaps, not "
+            "hypothetical ones. Dashboard write endpoints (POST /api/"
+            "approve, POST /api/comment) had zero authentication when "
+            "bound to a non-loopback address, only a printed console "
+            "warning. There was also an unguarded concurrent-write race "
+            "on .dashboard-comments.json -- ThreadingHTTPServer runs "
+            "each request on its own thread with no lock around the "
+            "read-modify-write cycle. Verified both: wrote a 12-thread "
+            "concurrency test, confirmed it fails 5/5 without a lock, "
+            "then confirmed it passes reliably once the fix is in place",
+            "New --share flag (shortcut for --host 0.0.0.0) and --write "
+            "flag (required to enable writes over a non-local bind). "
+            "Three modes: `sdd dashboard` (unchanged -- 127.0.0.1, "
+            "writes enabled, no token, zero friction for the default "
+            "local case), `sdd dashboard --share` (network-reachable, "
+            "read-only by default), `sdd dashboard --share --write` "
+            "(network-reachable, writes enabled, gated by a session "
+            "token)",
+            "Session token: secrets.token_urlsafe(24), generated only "
+            "when writes are enabled on a non-local bind, required via "
+            "a custom X-SDD-Token header rather than a cookie -- a "
+            "cookie would be sent automatically by the browser on any "
+            "cross-origin request, which is what makes CSRF possible; a "
+            "custom header only goes out on requests this page's own JS "
+            "explicitly builds, so this one mechanism covers both the "
+            "session-token and CSRF-protection asks from the review. "
+            "The token is delivered via a one-time ?token= query param "
+            "on the auto-opened URL, then stripped from the visible URL "
+            "via history.replaceState so it doesn't linger in browser "
+            "history",
+            "Origin/Host header check as defense in depth on top of the "
+            "token: rejects a write request with 403 if it carries an "
+            "Origin header that doesn't match this server's own known "
+            "addresses, checked before the token so a mismatched Origin "
+            "is rejected even if a token somehow leaked",
+            "New GET /api/dashboard-info endpoint (never includes the "
+            "token itself) so the page's own JS can render an in-page "
+            "network-sharing banner and hide/disable the Approve button "
+            "and comment form when read-only -- the existing printed "
+            "console warning was invisible to anyone using the "
+            "dashboard from a different machine",
+            "The default `sdd dashboard` invocation (no flags) is "
+            "completely unaffected -- all 49 pre-existing dashboard "
+            "tests still pass unchanged, plus a new explicit sanity "
+            "test asserting the default state is local+open",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. The dashboard itself is Python-only -- "
+            "this bump has no corresponding functional change on the "
+            "Node CLI side",
+            "Verified: cli-python pytest 773/773 (765 pre-existing + 8 "
+            "new), plus three live end-to-end smoke tests against a "
+            "real running server in all three modes (default, --share, "
+            "--share --write) confirming the token extracted from the "
+            "printed console output actually works and wrong/missing "
+            "tokens are rejected",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.9"},
+    },
+    {
+        "from": "2.8.9",
+        "to": "2.8.10",
+        "description": "manifest.py atomic writes + corrupt-file handling, and timeout/retry/backoff for all Jira/Confluence HTTP calls",
+        "notes": [
+            "Next tier from the same ChatGPT-review verification pass, "
+            "closing two more real (not hypothetical) gaps found while "
+            "verifying the review's claims against the actual code",
+            "manifest.py: write_manifest() previously wrote directly to "
+            ".specify/manifest.yml with write_text() -- a process killed "
+            "mid-write (e.g. `sdd upgrade` interrupted) could leave a "
+            "truncated file, and every command reads this file, so a "
+            "truncated manifest broke the whole project. Now writes to a "
+            "temp file in the same directory and os.replace()s it into "
+            "place, which is atomic on both POSIX and Windows",
+            "manifest.py: read_manifest() previously let a corrupt YAML "
+            "file raise a raw yaml.YAMLError with no guidance. Now wraps "
+            "the parse in try/except and raises a new ManifestError with "
+            "an actionable message (fix by hand, restore from git, or "
+            "delete and re-run `sdd init`). Deliberately distinct from a "
+            "*missing* manifest, which still returns None as before -- a "
+            "corrupt manifest means the project clearly exists, so "
+            "silently treating it the same as absent risked a caller "
+            "re-scaffolding over it or quietly dropping real config",
+            "atlassian_auth.py: every Jira/Confluence API call goes "
+            "through a requests.Session built by build_session() -- a "
+            "flaky network blip or an Atlassian rate limit previously "
+            "surfaced as a raw unhandled stack trace mid-workflow, since "
+            "requests has no default timeout and no retry logic. Fixed "
+            "once, centrally, by mounting a custom HTTPAdapter on the "
+            "shared session instead of touching the ~25 individual call "
+            "sites across jira_client.py and confluence_client.py: a "
+            "20-second default timeout (requests.Session has no built-in "
+            "way to set one, so overriding the adapter's send() is the "
+            "standard workaround), plus 3 retries with exponential "
+            "backoff on connection errors and on 429/500/502/503/504 "
+            "responses, honoring a 429's Retry-After header",
+            "Retries apply to every HTTP method including POST/PUT -- "
+            "this codebase's writes already lean on label-based "
+            "find-before-create idempotency where duplication would "
+            "matter, and a connection blip silently aborting a document "
+            "approval or Jira push partway through is worse than the "
+            "small remaining risk of an occasional duplicate retry on a "
+            "genuinely dropped response",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. Both fixes are Python-only (manifest.py "
+            "and atlassian_auth.py have no Node CLI equivalent) -- no "
+            "functional change on the Node CLI side",
+            "Verified: cli-python pytest 789/789 (773 pre-existing + 11 "
+            "manifest.py tests + 5 atlassian_auth.py resilience tests), "
+            "including atomicity proven via a monkeypatched os.replace() "
+            "that asserts the destination still holds old content and "
+            "the temp source holds new content at replace-time, and the "
+            "retry logic proven against a real flaky local HTTP server "
+            "(fails twice with 503 then succeeds) plus a control-case "
+            "test showing a plain session without the adapter genuinely "
+            "fails on the same server",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.10"},
+    },
+    {
+        "from": "2.8.10",
+        "to": "2.8.11",
+        "description": "Fix a real Python 3.9 import crash (PEP 604 `X | None` used without `from __future__ import annotations`) plus a ruff lint/format pass",
+        "notes": [
+            "Real bug, not a lint nitpick: 7 modules (init.py, upgrade.py, "
+            "detect.py, manifest.py, scaffold.py, validate.py, plus one "
+            "test file) used `str | None` / `dict | None` union syntax "
+            "directly in function signatures with no `from __future__ "
+            "import annotations` at the top of the file. PEP 604's `X | Y` "
+            "union syntax is only evaluable at runtime from Python 3.10 "
+            "onward -- on 3.9 (which pyproject.toml's own `requires-python "
+            '= ">=3.9"` and classifiers claim to support), importing '
+            "any of these modules raised `TypeError: unsupported operand "
+            "type(s) for |` at function-definition time, before a single "
+            "line of the CLI's own logic ever ran. Caught by ruff's FA102 "
+            "rule while setting up CI's new ruff job (task #32 in this "
+            "session's review-tracker) -- and would have been caught "
+            "immediately by the Python 3.9 CI matrix job added one round "
+            "earlier (v2.8.10 -> this bump's sibling change), since a "
+            "3.9 job would fail on `sdd --help` alone",
+            "Added ruff to CI (`ruff check .` + `ruff format --check .`), "
+            "configured in cli-python/pyproject.toml's new [tool.ruff] "
+            "section. Ran a full pass first: fixed or noqa'd (with a "
+            "reason comment) everything ruff's default ruleset flagged "
+            "except two deliberately-ignored rules -- ISC004 (674 hits, "
+            "this codebase's own style of writing long prose as adjacent "
+            "string literals in lists, not a bug) and BLE001 (67 hits, "
+            "`except Exception:` -- flagged for a dedicated manual triage "
+            "pass, tracked separately, not blanket-suppressed or blanket-"
+            "narrowed blind)",
+            "Applied `ruff format` across the whole package as its own "
+            "prior isolated commit (no functional change, same test "
+            "results before/after) so this commit's diff isn't dominated "
+            "by pure reformatting noise",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. Both fixes are Python-only; no Node CLI "
+            "equivalent exists for either",
+            "Verified: cli-python pytest 789/789 (unchanged pass count "
+            "throughout this round), `ruff check .` and `ruff format "
+            "--check .` both clean, and the specific fix confirmed via "
+            "`ruff check . --select FA102` going from 11 hits to 0",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.11"},
+    },
+    {
+        "from": "2.8.11",
+        "to": "2.8.12",
+        "description": "Dashboard: confirmation dialog before an approval takes effect; dashboard HTML/CSS/JS moved from one giant Python string to real .css/.js/.html files",
+        "notes": [
+            "Real, user-visible dashboard behavior change: clicking Approve "
+            "used to fire straight to the server after two window.prompt() "
+            "calls (name, optional note). Now shows a window.confirm() "
+            "summarizing the document, feature, approver name, and note "
+            "before the request goes out, and bails out entirely if "
+            "declined -- guards against an accidental click by an "
+            "already-authorized user (the bigger risk, an *unauthorized* "
+            "person approving, was already closed by the session-token "
+            "work two rounds back)",
+            "Also (no user-visible difference, verified byte-identical): "
+            "the dashboard's HTML/CSS/JS -- previously one ~1050-line "
+            "Python triple-quoted string with no editor syntax "
+            "highlighting or linting -- now lives in real files under "
+            "sdd/commands/dashboard_static/ (style.css, theme.js, app.js, "
+            "page.html), assembled into the same single self-contained "
+            "HTML response at import time. No new HTTP routes, no extra "
+            "round-trips. Required adding those files to pyproject.toml's "
+            "wheel/sdist `artifacts` lists -- confirmed by actually "
+            "building the wheel and installing it into a clean venv, not "
+            "just by reasoning about the hatchling config",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. The dashboard is Python-only -- no "
+            "corresponding change on the Node CLI side",
+            "Verified: cli-python pytest 793/793 (789 pre-existing + 4 "
+            "new), ruff check/format, mypy, and bandit all clean, coverage "
+            "still 79% (above the 77% floor), and a real wheel build + "
+            "clean-venv install confirming the dashboard's static files "
+            "ship correctly and the page renders with no leaked "
+            "placeholder tokens",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.12"},
+    },
+    {
+        "from": "2.8.12",
+        "to": "2.8.13",
+        "description": "Add lean/standard/regulated as friendly aliases for pilot/mvp/full scope",
+        "notes": [
+            "Real gap the review flagged: examples/todo-api (a real pilot-"
+            "scope run) generates exactly 12 documents, and 'pilot' reads "
+            "as a small, informal effort right up until a team sees the "
+            "actual document count. A full rename of the scope vocabulary "
+            "would be a breaking change to manifest.yml's schema and every "
+            "pack's scope-gating logic, so this ships a much smaller, "
+            "safe version instead: lean/standard/regulated are accepted "
+            "as friendlier input names wherever scope is set "
+            "(setup.sh/setup.ps1's --scope, sdd init's -s/--scope), "
+            "resolved to the canonical pilot/mvp/full before anything is "
+            "written. manifest.yml's own scope: field, and every gate/"
+            "command that reads it, never sees the aliases -- no "
+            "downstream logic needed to change",
+            "Also added real input validation that didn't exist before: "
+            "an unrecognized --scope value (a typo, or anything outside "
+            "the 6 accepted spellings) is now rejected with a clear error "
+            "instead of being silently written into manifest.yml as-is",
+            "Updated in all three implementations that set scope: "
+            "packs/_shared/full/setup.sh and setup.ps1 (synced to 4 of "
+            "the 5 full packs), sdd-universal's own separate setup.sh/"
+            "setup.ps1 copies, and cli-python's sdd init -s/--scope flag. "
+            "Documented in the root CLAUDE.md's Scope Levels section and "
+            "the shared scope-reference block (propagated to every pack's "
+            "own CLAUDE.md via sync-blocks.sh)",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. The Node CLI's own init/upgrade "
+            "scaffolding doesn't take a --scope flag today, so there's no "
+            "corresponding code change on that side",
+            "Verified: cli-python pytest 797/797 (793 pre-existing + 4 "
+            "new), ruff check/format, mypy, and bandit all clean, "
+            "coverage still 79%; setup.sh smoke suite extended with 3 "
+            "alias-resolution cases + 1 invalid-scope rejection case (19/"
+            "19 passing), cross-reference checker and sync-drift check "
+            "both clean across all 6 packs, and a direct manual run "
+            "against a synced pack (sdd-backend-service) confirming both "
+            'the happy path (--scope lean -> scope: "pilot") and the '
+            "rejection path (--scope not-real -> exit 1) end to end",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.13"},
+    },
 ]
 
 
@@ -4600,7 +4878,7 @@ def _stdin_is_interactive() -> bool:
     return sys.stdin.isatty()
 
 
-def _pending_migrations(current_version: str | None) -> list[dict]:
+def _pending_migrations(current_version: str | None) -> list[Migration]:
     """Every migration from current_version to SDD_VERSION, in order --
     walks the linear MIGRATIONS chain (each "from" is unique, so it's a
     simple linked list) rather than matching only the single next hop.
@@ -4629,7 +4907,9 @@ def _resolve_pack(manifest: dict, pack_override: str | None) -> tuple[str, str]:
     Raises ValueError if --pack names something that doesn't exist."""
     if pack_override:
         if pack_override not in ALL_PACKS:
-            raise ValueError(f"Unknown pack '{pack_override}'. Available: {', '.join(ALL_PACKS)}")
+            raise ValueError(
+                f"Unknown pack '{pack_override}'. Available: {', '.join(ALL_PACKS)}"
+            )
         return pack_override, "--pack flag"
 
     stored = manifest.get("pack")
@@ -4643,9 +4923,14 @@ def _resolve_pack(manifest: dict, pack_override: str | None) -> tuple[str, str]:
 
     project_type = manifest.get("project_type")
     if project_type in TYPE_TO_PACK:
-        return TYPE_TO_PACK[project_type], f"inferred from project_type '{project_type}'"
+        return TYPE_TO_PACK[
+            project_type
+        ], f"inferred from project_type '{project_type}'"
 
-    return UNIVERSAL_PACK, "no pack recorded and project_type unrecognized — defaulting to sdd-universal"
+    return (
+        UNIVERSAL_PACK,
+        "no pack recorded and project_type unrecognized — defaulting to sdd-universal",
+    )
 
 
 def _do_sync_prompts(pack_override: str | None, yes: bool) -> None:
@@ -4657,7 +4942,9 @@ def _do_sync_prompts(pack_override: str | None, yes: bool) -> None:
         console.print()
         return
 
-    console.print(f"  [bold]Syncing prompts from pack:[/bold] [cyan]{pack_name}[/cyan]  [dim]({source})[/dim]")
+    console.print(
+        f"  [bold]Syncing prompts from pack:[/bold] [cyan]{pack_name}[/cyan]  [dim]({source})[/dim]"
+    )
     if "inferred" in source or "defaulting" in source:
         console.print(
             "  [dim]Not certain which pack this project uses — pass --pack "
@@ -4668,19 +4955,27 @@ def _do_sync_prompts(pack_override: str | None, yes: bool) -> None:
     preview = sync_pack_prompts(pack_name, dry_run=True)
     changed = preview["updated"] + preview["added"]
     if not changed:
-        console.print("  [green]✓  .github/prompts/ and .claude/commands/ are already up to date.[/green]")
+        console.print(
+            "  [green]✓  .github/prompts/ and .claude/commands/ are already up to date.[/green]"
+        )
         console.print()
         return
 
     if preview["updated"]:
-        console.print(f"  [yellow]{len(preview['updated'])} file(s) will be updated[/yellow] (backed up first):")
+        console.print(
+            f"  [yellow]{len(preview['updated'])} file(s) will be updated[/yellow] (backed up first):"
+        )
         for f in preview["updated"]:
             console.print(f"    [dim]•[/dim] {f}")
     if preview["added"]:
-        console.print(f"  [green]{len(preview['added'])} file(s) will be added[/green] (new in this pack version):")
+        console.print(
+            f"  [green]{len(preview['added'])} file(s) will be added[/green] (new in this pack version):"
+        )
         for f in preview["added"]:
             console.print(f"    [dim]•[/dim] {f}")
-    console.print(f"  [dim]{len(preview['unchanged'])} file(s) already up to date, left alone.[/dim]")
+    console.print(
+        f"  [dim]{len(preview['unchanged'])} file(s) already up to date, left alone.[/dim]"
+    )
     console.print()
 
     if not yes and not click.confirm("  Proceed?", default=True):
@@ -4694,35 +4989,54 @@ def _do_sync_prompts(pack_override: str | None, yes: bool) -> None:
         f"{len(result['unchanged'])} unchanged."
     )
     if result["backup_dir"]:
-        console.print(f"  [dim]Backups of overwritten files: {result['backup_dir']}[/dim]")
+        console.print(
+            f"  [dim]Backups of overwritten files: {result['backup_dir']}[/dim]"
+        )
     console.print()
 
 
 @click.command()
-@click.option("--sync-prompts", is_flag=True,
-              help="Re-copy this project's .github/prompts/ and .claude/commands/ "
-                   "from the current pack, overwriting stale copies. sdd upgrade "
-                   "alone only ever patches manifest.yml's sdd_version -- it never "
-                   "touches these files, so fixes made to prompt content after this "
-                   "project was scaffolded need this flag to actually reach it.")
-@click.option("--pack", "pack_override", default=None,
-              help=f"Pack to sync prompts from, overriding manifest.yml/inference. One of: {', '.join(ALL_PACKS)}")
-@click.option("-y", "--yes", is_flag=True,
-              help="Skip the confirmation prompt for --sync-prompts, and (when "
-                   "multiple migrations are pending) skip the jump-to-latest-vs-"
-                   "step prompt by jumping straight to latest.")
-@click.option("--to-latest", is_flag=True,
-              help="When multiple migrations are pending, apply all of them in "
-                   "this run instead of asking or stopping after one hop.")
-@click.option("--step", is_flag=True,
-              help="When multiple migrations are pending, apply only the next "
-                   "one and stop -- the original behavior, for reviewing each "
-                   "migration's notes before continuing to the next.")
+@click.option(
+    "--sync-prompts",
+    is_flag=True,
+    help="Re-copy this project's .github/prompts/ and .claude/commands/ "
+    "from the current pack, overwriting stale copies. sdd upgrade "
+    "alone only ever patches manifest.yml's sdd_version -- it never "
+    "touches these files, so fixes made to prompt content after this "
+    "project was scaffolded need this flag to actually reach it.",
+)
+@click.option(
+    "--pack",
+    "pack_override",
+    default=None,
+    help=f"Pack to sync prompts from, overriding manifest.yml/inference. One of: {', '.join(ALL_PACKS)}",
+)
+@click.option(
+    "-y",
+    "--yes",
+    is_flag=True,
+    help="Skip the confirmation prompt for --sync-prompts, and (when "
+    "multiple migrations are pending) skip the jump-to-latest-vs-"
+    "step prompt by jumping straight to latest.",
+)
+@click.option(
+    "--to-latest",
+    is_flag=True,
+    help="When multiple migrations are pending, apply all of them in "
+    "this run instead of asking or stopping after one hop.",
+)
+@click.option(
+    "--step",
+    is_flag=True,
+    help="When multiple migrations are pending, apply only the next "
+    "one and stop -- the original behavior, for reviewing each "
+    "migration's notes before continuing to the next.",
+)
 def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
     """Migrate manifest.yml to the current pack version."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print(f"  [bold cyan]SDD Framework[/bold cyan] — upgrade")
+    console.print("  [bold cyan]SDD Framework[/bold cyan] — upgrade")
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()
 
@@ -4731,7 +5045,9 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
         raise SystemExit(1)
 
     if not Path(MANIFEST_PATH).exists():
-        console.print(f"[red]✗  {MANIFEST_PATH} not found — run from the pack root directory.[/red]")
+        console.print(
+            f"[red]✗  {MANIFEST_PATH} not found — run from the pack root directory.[/red]"
+        )
         raise SystemExit(1)
 
     manifest = read_manifest()
@@ -4743,14 +5059,18 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
         if not sync_prompts:
             return
     else:
-        console.print(f"  Current version : [yellow]{current_version or 'pre-versioning (v1.x)'}[/yellow]")
+        console.print(
+            f"  Current version : [yellow]{current_version or 'pre-versioning (v1.x)'}[/yellow]"
+        )
         console.print(f"  Target version  : [green]{SDD_VERSION}[/green]")
         console.print()
 
         pending = _pending_migrations(current_version)
 
         if not pending:
-            console.print("[yellow]  No migration path found. See CHANGELOG.md for manual steps.[/yellow]")
+            console.print(
+                "[yellow]  No migration path found. See CHANGELOG.md for manual steps.[/yellow]"
+            )
             console.print()
             if not sync_prompts:
                 return
@@ -4768,17 +5088,21 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
                     apply_all = True
                 elif _stdin_is_interactive():
                     import questionary
+
                     choice = questionary.select(
                         f"You're {len(pending)} versions behind (latest is "
                         f"v{SDD_VERSION}). How would you like to upgrade?",
                         choices=[
                             questionary.Choice(
                                 f"Jump straight to v{SDD_VERSION} (apply all "
-                                f"{len(pending)} migrations now)", value=True),
+                                f"{len(pending)} migrations now)",
+                                value=True,
+                            ),
                             questionary.Choice(
                                 "Step through one at a time (review each "
                                 "migration's notes before continuing)",
-                                value=False),
+                                value=False,
+                            ),
                         ],
                     ).ask()
                     apply_all = True if choice is None else choice
@@ -4796,14 +5120,18 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
                 console.print()
 
             for migration in to_apply:
-                console.print(f"  [bold]Migrating → v{migration['to']}: {migration['description']}[/bold]")
+                console.print(
+                    f"  [bold]Migrating → v{migration['to']}: {migration['description']}[/bold]"
+                )
                 for note in migration["notes"]:
                     console.print(f"    [dim]•[/dim] {note}")
                 console.print()
 
                 updated = migration["migrate"](read_manifest())
                 patch_manifest({"sdd_version": updated["sdd_version"]})
-                console.print(f"  [green]✓[/green]  {MANIFEST_PATH} updated to v{migration['to']}")
+                console.print(
+                    f"  [green]✓[/green]  {MANIFEST_PATH} updated to v{migration['to']}"
+                )
                 console.print()
 
             final_version = (read_manifest() or {}).get("sdd_version")
@@ -4814,9 +5142,13 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
                 )
                 console.print()
 
-            console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+            console.print(
+                "[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]"
+            )
             console.print("  [bold green]Upgrade complete![/bold green]")
-            console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+            console.print(
+                "[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]"
+            )
             console.print()
 
     if sync_prompts:

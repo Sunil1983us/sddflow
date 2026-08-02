@@ -36,17 +36,17 @@ _ALL_PACKS = [
 
 # doc_key -> the .prompt.md file that's responsible for submitting it for review.
 _DOC_KEY_TO_PROMPT = {
-    "brd":        "specify-brd.prompt.md",
-    "use-cases":  "specify-uc.prompt.md",
-    "srd":        "specify-srd.prompt.md",
-    "design":     "plan-design.prompt.md",
-    "validate":   "validate.prompt.md",
-    "analyze":    "analyze.prompt.md",
-    "clarify":    "clarify.prompt.md",
-    "lld":        "plan-lld.prompt.md",
-    "tasks":      "task.prompt.md",
-    "runbook":    "implement.prompt.md",
-    "release":    "release.prompt.md",
+    "brd": "specify-brd.prompt.md",
+    "use-cases": "specify-uc.prompt.md",
+    "srd": "specify-srd.prompt.md",
+    "design": "plan-design.prompt.md",
+    "validate": "validate.prompt.md",
+    "analyze": "analyze.prompt.md",
+    "clarify": "clarify.prompt.md",
+    "lld": "plan-lld.prompt.md",
+    "tasks": "task.prompt.md",
+    "runbook": "implement.prompt.md",
+    "release": "release.prompt.md",
 }
 
 
@@ -57,7 +57,9 @@ def _active_document_review_keys(pack: str) -> set[str]:
 
 
 def _prompt_submits_doc_for_review(text: str, key: str) -> bool:
-    templated = f"`doc_key` = `{key}`." in text and "sdd review submit --doc {doc_key}" in text
+    templated = (
+        f"`doc_key` = `{key}`." in text and "sdd review submit --doc {doc_key}" in text
+    )
     literal = f"sdd review submit --doc {key}" in text
     return templated or literal
 

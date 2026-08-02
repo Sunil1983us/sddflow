@@ -5,22 +5,28 @@ from pathlib import Path
 
 import sdd.utils.status as status_mod
 from sdd.utils.status import (
-    build_project_status, build_feature_status, build_pipeline,
-    _current_stage, persona_for,
-    _parse_approvals_table, _normalize_role_key, _resolve_expected_approver,
-    _parse_version_history_table, _parse_iso_date, _doc_timing, _feature_timeline,
+    _doc_timing,
+    _normalize_role_key,
+    _parse_approvals_table,
+    _parse_iso_date,
+    _parse_version_history_table,
+    _resolve_expected_approver,
+    build_feature_status,
+    build_pipeline,
+    build_project_status,
+    persona_for,
 )
 
 
 def _write_manifest(root: Path, scope_line: str = "") -> None:
     (root / ".specify").mkdir(parents=True, exist_ok=True)
     (root / ".specify" / "manifest.yml").write_text(
-        'project:\n'
+        "project:\n"
         '  name: "Demo"\n'
         '  feature: "payments"\n'
         '  context_file: "payments.md"\n'
-        + scope_line +
-        'project_type: "backend-service"\n'
+        + scope_line
+        + 'project_type: "backend-service"\n'
         'workflow_mode: "local"\n'
         'sdd_version: "2.7.14"\n'
     )
@@ -79,7 +85,9 @@ def test_normalize_role_key_matches_roles_yml_convention():
 def test_resolve_expected_approver_looks_up_roles_map():
     roles_map = {"product_owner": "Jane Smith", "tech_lead": ""}
     assert _resolve_expected_approver("Product Owner", roles_map) == "Jane Smith"
-    assert _resolve_expected_approver("Tech Lead", roles_map) is None  # blank in roles.yml
+    assert (
+        _resolve_expected_approver("Tech Lead", roles_map) is None
+    )  # blank in roles.yml
     assert _resolve_expected_approver("Unknown Role", roles_map) is None
 
 
@@ -94,8 +102,14 @@ def test_parse_approvals_table_current_4column_format(tmp_path):
         "## Version History\n"
     )
     rows = _parse_approvals_table(doc)
-    assert rows == [{"role": "Product Owner", "approver": "Jane Smith",
-                      "status": "Approved", "date": "2026-07-10"}]
+    assert rows == [
+        {
+            "role": "Product Owner",
+            "approver": "Jane Smith",
+            "status": "Approved",
+            "date": "2026-07-10",
+        }
+    ]
 
 
 def test_parse_approvals_table_legacy_3column_format(tmp_path):
@@ -108,8 +122,14 @@ def test_parse_approvals_table_legacy_3column_format(tmp_path):
         "| Product Owner | Approved | 2026-06-28 |\n"
     )
     rows = _parse_approvals_table(doc)
-    assert rows == [{"role": "Product Owner", "approver": None,
-                      "status": "Approved", "date": "2026-06-28"}]
+    assert rows == [
+        {
+            "role": "Product Owner",
+            "approver": None,
+            "status": "Approved",
+            "date": "2026-06-28",
+        }
+    ]
 
 
 def test_parse_approvals_table_skips_unfilled_placeholder_row(tmp_path):
@@ -133,6 +153,7 @@ def test_parse_approvals_table_missing_section_returns_empty(tmp_path):
 # --- Version History / stage timing (created/approved dates, duration,
 # revision-round count) --------------------------------------------------
 
+
 def test_parse_version_history_table_basic(tmp_path):
     doc = tmp_path / "brd.md"
     doc.write_text(
@@ -144,9 +165,24 @@ def test_parse_version_history_table_basic(tmp_path):
         "| 1.1 | 2026-01-05 | Jane Smith | Approved | — |\n"
     )
     assert _parse_version_history_table(doc) == [
-        {"version": "1.0", "date": "2026-01-01", "changed_by": "Jane", "summary": "Initial draft"},
-        {"version": "1.1", "date": "2026-01-03", "changed_by": "reviewer feedback", "summary": "Clarified scope"},
-        {"version": "1.1", "date": "2026-01-05", "changed_by": "Jane Smith", "summary": "Approved"},
+        {
+            "version": "1.0",
+            "date": "2026-01-01",
+            "changed_by": "Jane",
+            "summary": "Initial draft",
+        },
+        {
+            "version": "1.1",
+            "date": "2026-01-03",
+            "changed_by": "reviewer feedback",
+            "summary": "Clarified scope",
+        },
+        {
+            "version": "1.1",
+            "date": "2026-01-05",
+            "changed_by": "Jane Smith",
+            "summary": "Approved",
+        },
     ]
 
 
@@ -217,7 +253,14 @@ def test_doc_timing_not_yet_approved_has_no_approved_date_or_duration(tmp_path):
 def test_doc_timing_falls_back_to_approvals_table_when_no_version_history(tmp_path):
     doc = tmp_path / "release.md"
     doc.write_text("# Release\n> Version: 1.0 | Date: 2026-02-01\n")
-    approvals = [{"role": "QA Lead", "approver": "Sam", "status": "Approved", "date": "2026-02-10"}]
+    approvals = [
+        {
+            "role": "QA Lead",
+            "approver": "Sam",
+            "status": "Approved",
+            "date": "2026-02-10",
+        }
+    ]
     timing = _doc_timing(doc, "Approved", approvals)
     assert timing["created_date"] is None
     assert timing["approved_date"] == "2026-02-10"
@@ -238,7 +281,9 @@ def test_doc_timing_unparseable_dates_are_silently_none(tmp_path):
     assert timing["duration_days"] is None
 
 
-def test_feature_timeline_start_is_earliest_created_date_no_release_yet(tmp_path, monkeypatch):
+def test_feature_timeline_start_is_earliest_created_date_no_release_yet(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)
     feature_dir = tmp_path / ".specify" / "features" / "payments"
@@ -296,15 +341,21 @@ def test_feature_timeline_empty_when_no_dated_docs(tmp_path, monkeypatch):
     feature_dir.mkdir(parents=True)
     (feature_dir / "brd.md").write_text("# BRD\n> Version: 1.0 | Status: Draft\n")
     feat = build_feature_status(tmp_path, "payments")
-    assert feat["timeline"] == {"start_date": None, "end_date": None, "duration_days": None}
+    assert feat["timeline"] == {
+        "start_date": None,
+        "end_date": None,
+        "duration_days": None,
+    }
 
 
-def test_feature_docs_approvals_resolve_expected_approver_when_pending(tmp_path, monkeypatch):
+def test_feature_docs_approvals_resolve_expected_approver_when_pending(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)
     (tmp_path / ".specify" / "memory").mkdir(parents=True)
     (tmp_path / ".specify" / "memory" / "roles.yml").write_text(
-        "roles:\n  product_owner: Jane Smith\n  tech_lead: \"\"\n"
+        'roles:\n  product_owner: Jane Smith\n  tech_lead: ""\n'
     )
     feature_dir = tmp_path / ".specify" / "features" / "payments"
     feature_dir.mkdir(parents=True)
@@ -317,13 +368,20 @@ def test_feature_docs_approvals_resolve_expected_approver_when_pending(tmp_path,
     )
     feat = build_feature_status(tmp_path, "payments")
     brd = next(d for d in feat["docs"] if d["key"] == "brd")
-    assert brd["approvals"] == [{
-        "role": "Product Owner", "approver": None, "status": "Pending",
-        "date": None, "expected_approver": "Jane Smith",
-    }]
+    assert brd["approvals"] == [
+        {
+            "role": "Product Owner",
+            "approver": None,
+            "status": "Pending",
+            "date": None,
+            "expected_approver": "Jane Smith",
+        }
+    ]
 
 
-def test_feature_docs_approvals_no_expected_approver_when_roles_yml_missing(tmp_path, monkeypatch):
+def test_feature_docs_approvals_no_expected_approver_when_roles_yml_missing(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)
     feature_dir = tmp_path / ".specify" / "features" / "payments"
@@ -582,7 +640,9 @@ def test_constitution_gate1_pending_with_no_downstream_docs(tmp_path, monkeypatc
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)
     (tmp_path / ".specify" / "memory").mkdir(parents=True)
-    (tmp_path / ".specify" / "memory" / "constitution.md").write_text("# Constitution\n")
+    (tmp_path / ".specify" / "memory" / "constitution.md").write_text(
+        "# Constitution\n"
+    )
     status = build_project_status(".")
     assert status["constitution"]["exists"] is True
     assert status["constitution"]["gate1_inferred"] == "pending_or_unknown"
@@ -592,7 +652,9 @@ def test_constitution_gate1_passed_when_downstream_doc_exists(tmp_path, monkeypa
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)
     (tmp_path / ".specify" / "memory").mkdir(parents=True)
-    (tmp_path / ".specify" / "memory" / "constitution.md").write_text("# Constitution\n")
+    (tmp_path / ".specify" / "memory" / "constitution.md").write_text(
+        "# Constitution\n"
+    )
     feature_dir = tmp_path / ".specify" / "features" / "payments"
     feature_dir.mkdir(parents=True)
     (feature_dir / "brd.md").write_text("> Status: Draft\n")
@@ -607,10 +669,14 @@ def test_constitution_gate1_passed_for_micro_style_tasks_only(tmp_path, monkeypa
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)
     (tmp_path / ".specify" / "memory").mkdir(parents=True)
-    (tmp_path / ".specify" / "memory" / "constitution.md").write_text("# Constitution\n")
+    (tmp_path / ".specify" / "memory" / "constitution.md").write_text(
+        "# Constitution\n"
+    )
     feature_dir = tmp_path / ".specify" / "features" / "greeter"
     feature_dir.mkdir(parents=True)
-    (feature_dir / "tasks.md").write_text("## TASK-001 — x\n- **Status:** Not Started\n")
+    (feature_dir / "tasks.md").write_text(
+        "## TASK-001 — x\n- **Status:** Not Started\n"
+    )
     status = build_project_status(".")
     assert status["constitution"]["gate1_inferred"] == "passed"
 
@@ -622,7 +688,9 @@ def test_constitution_missing_reports_not_exists(tmp_path, monkeypatch):
     assert status["constitution"]["exists"] is False
 
 
-def test_constitution_freshly_scaffolded_template_is_not_part2_generated(tmp_path, monkeypatch):
+def test_constitution_freshly_scaffolded_template_is_not_part2_generated(
+    tmp_path, monkeypatch
+):
     """Regression: `sdd init` scaffolds constitution.md for every project,
     Part 2 full of {extracted from context} / {derived} / {date}
     placeholders, before /specify ever runs. That file existing on disk
@@ -662,6 +730,7 @@ def test_constitution_part2_filled_in_is_reported_as_generated(tmp_path, monkeyp
 
 # ── Local Jira/Confluence link resolution (no network) ────────────────────
 
+
 def test_jira_keys_yield_no_links_without_keys_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
@@ -677,7 +746,9 @@ def test_jira_keys_parsed_with_base_url(tmp_path, monkeypatch):
     _save_keys_summary(): epic is a plain string, stories/tasks are
     {sdd_id: jira_key} dicts -- NOT dicts/lists of {"jira_key": ...}."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    monkeypatch.setattr(
+        status_mod, "_local_base_url", lambda: "https://acme.atlassian.net"
+    )
     _write_manifest(tmp_path)
     feature_dir = tmp_path / ".specify" / "features" / "payments"
     feature_dir.mkdir(parents=True)
@@ -690,7 +761,10 @@ def test_jira_keys_parsed_with_base_url(tmp_path, monkeypatch):
     )
     feat = build_feature_status(tmp_path, "payments")
     jira = feat["local_links"]["jira"]
-    assert jira["epic"] == {"key": "PROJ-1", "url": "https://acme.atlassian.net/browse/PROJ-1"}
+    assert jira["epic"] == {
+        "key": "PROJ-1",
+        "url": "https://acme.atlassian.net/browse/PROJ-1",
+    }
     assert sorted(s["key"] for s in jira["stories"]) == ["PROJ-2", "PROJ-3"]
     assert jira["tasks"][0]["url"] == "https://acme.atlassian.net/browse/PROJ-4"
 
@@ -705,7 +779,9 @@ def test_jira_keys_legacy_dict_shape_still_parses(tmp_path, monkeypatch):
     shape (in case of a hand-edited or pre-migration keys.yml) doesn't
     crash either -- both must resolve to the same links."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    monkeypatch.setattr(
+        status_mod, "_local_base_url", lambda: "https://acme.atlassian.net"
+    )
     _write_manifest(tmp_path)
     (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
     jira_dir = tmp_path / "docs" / "jira" / "payments"
@@ -717,7 +793,10 @@ def test_jira_keys_legacy_dict_shape_still_parses(tmp_path, monkeypatch):
     )
     feat = build_feature_status(tmp_path, "payments")
     jira = feat["local_links"]["jira"]
-    assert jira["epic"] == {"key": "PROJ-1", "url": "https://acme.atlassian.net/browse/PROJ-1"}
+    assert jira["epic"] == {
+        "key": "PROJ-1",
+        "url": "https://acme.atlassian.net/browse/PROJ-1",
+    }
     assert sorted(s["key"] for s in jira["stories"]) == ["PROJ-2", "PROJ-3"]
     assert jira["tasks"][0]["key"] == "PROJ-4"
 
@@ -731,20 +810,27 @@ def test_jira_keys_round_trip_through_real_writer(tmp_path, monkeypatch):
     from sdd.commands.jira import _save_keys_summary
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    monkeypatch.setattr(
+        status_mod, "_local_base_url", lambda: "https://acme.atlassian.net"
+    )
     _write_manifest(tmp_path)
     (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
 
     _save_keys_summary(
-        "payments", "PROJ-1",
+        "payments",
+        "PROJ-1",
         {"STORY-001": "PROJ-2", "STORY-002": "PROJ-3"},
         {"TASK-001": "PROJ-4"},
-        None, {},
+        None,
+        {},
     )
 
     feat = build_feature_status(tmp_path, "payments")
     jira = feat["local_links"]["jira"]
-    assert jira["epic"] == {"key": "PROJ-1", "url": "https://acme.atlassian.net/browse/PROJ-1"}
+    assert jira["epic"] == {
+        "key": "PROJ-1",
+        "url": "https://acme.atlassian.net/browse/PROJ-1",
+    }
     assert sorted(s["key"] for s in jira["stories"]) == ["PROJ-2", "PROJ-3"]
     assert jira["tasks"][0]["key"] == "PROJ-4"
 
@@ -752,7 +838,9 @@ def test_jira_keys_round_trip_through_real_writer(tmp_path, monkeypatch):
 def test_jira_keys_scoped_to_own_feature(tmp_path, monkeypatch):
     """A different feature's keys.yml must never leak into this feature's links."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    monkeypatch.setattr(
+        status_mod, "_local_base_url", lambda: "https://acme.atlassian.net"
+    )
     _write_manifest(tmp_path)
     for f in ["payments", "dashboard"]:
         (tmp_path / ".specify" / "features" / f).mkdir(parents=True)
@@ -777,7 +865,9 @@ def test_jira_keys_without_base_url_omit_url_but_keep_key(tmp_path, monkeypatch)
 
 def test_confluence_drafts_parsed(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    monkeypatch.setattr(
+        status_mod, "_local_base_url", lambda: "https://acme.atlassian.net"
+    )
     _write_manifest(tmp_path)
     (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
     (tmp_path / ".specify" / ".confluence-drafts.json").write_text(
@@ -785,7 +875,10 @@ def test_confluence_drafts_parsed(tmp_path, monkeypatch):
     )
     feat = build_feature_status(tmp_path, "payments")
     cf = feat["local_links"]["confluence"]
-    assert cf["brd"]["url"] == "https://acme.atlassian.net/wiki/pages/viewpage.action?pageId=123"
+    assert (
+        cf["brd"]["url"]
+        == "https://acme.atlassian.net/wiki/pages/viewpage.action?pageId=123"
+    )
     assert cf["brd"]["title"] == "Acme — BRD"
 
 
@@ -800,7 +893,9 @@ def test_confluence_drafts_absent_returns_empty_dict(tmp_path, monkeypatch):
 
 def test_review_links_parsed(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    monkeypatch.setattr(
+        status_mod, "_local_base_url", lambda: "https://acme.atlassian.net"
+    )
     _write_manifest(tmp_path)
     (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
     (tmp_path / ".specify" / ".jira-review-links.json").write_text(
@@ -867,7 +962,9 @@ def test_review_links_round_trip_through_real_writer(tmp_path, monkeypatch):
     from sdd.commands.review import _record_review_link
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(status_mod, "_local_base_url", lambda: "https://acme.atlassian.net")
+    monkeypatch.setattr(
+        status_mod, "_local_base_url", lambda: "https://acme.atlassian.net"
+    )
     _write_manifest(tmp_path)
     (tmp_path / ".specify" / "features" / "payments").mkdir(parents=True)
 
@@ -894,6 +991,7 @@ def test_malformed_keys_yml_does_not_crash(tmp_path, monkeypatch):
 
 # ── Approval / comment state surfaced per doc ──────────────────────────────
 
+
 def test_doc_has_no_local_approval_by_default(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
@@ -916,7 +1014,7 @@ def test_doc_local_approval_read_from_approvals_file(tmp_path, monkeypatch):
     feature_dir.mkdir(parents=True)
     (feature_dir / "brd.md").write_text("> Status: Approved\n")
     (tmp_path / ".specify" / ".local-approvals.yml").write_text(
-        "brd:\n  approved_by: \"Jane\"\n  approved_at: \"2026-07-09\"\n  note: \"lgtm\"\n"
+        'brd:\n  approved_by: "Jane"\n  approved_at: "2026-07-09"\n  note: "lgtm"\n'
     )
     feat = build_feature_status(tmp_path, "payments")
     approval = feat["docs"][0]["local_approval"]
@@ -951,7 +1049,9 @@ def test_doc_comments_read_and_feature_scoped(tmp_path, monkeypatch):
     payments = build_feature_status(tmp_path, "payments")
     dashboard = build_feature_status(tmp_path, "dashboard")
     assert [c["text"] for c in payments["docs"][0]["comments"]] == ["looks good"]
-    assert [c["text"] for c in dashboard["docs"][0]["comments"]] == ["different feature"]
+    assert [c["text"] for c in dashboard["docs"][0]["comments"]] == [
+        "different feature"
+    ]
 
 
 def test_malformed_comments_file_does_not_crash(tmp_path, monkeypatch):
@@ -987,17 +1087,32 @@ def _step(pipeline, step_id):
 
 
 def test_pipeline_fresh_project_starts_at_specify():
-    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _NOT_STARTED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert _step(p, "specify")["state"] == "upcoming"
     assert p["next_step_id"] == "specify"
     assert "/specify" in p["next_action"]
 
 
 def test_pipeline_awaiting_gate1_after_constitution_exists():
-    p = build_pipeline([], _NO_TASKS,
-                        {"exists": True, "part2_generated": True, "gate1_inferred": "pending_or_unknown"},
-                        service_docs=_NO_SERVICE_DOCS, plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        {
+            "exists": True,
+            "part2_generated": True,
+            "gate1_inferred": "pending_or_unknown",
+        },
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert _step(p, "specify")["state"] == "done"
     assert _step(p, "gate1")["state"] == "current"
     assert p["next_step_id"] == "gate1"
@@ -1009,9 +1124,14 @@ def test_pipeline_constitution_file_scaffolded_but_specify_not_run_yet_is_upcomi
     project (Part 1 boilerplate + a Part 2 template full of placeholders) --
     the file existing on disk must NOT make the 'Constitution (Part 2)' step
     show done before /specify has actually filled it in."""
-    p = build_pipeline([], _NO_TASKS,
-                        {"exists": True, "part2_generated": False, "gate1_inferred": "unknown"},
-                        service_docs=_NO_SERVICE_DOCS, plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        {"exists": True, "part2_generated": False, "gate1_inferred": "unknown"},
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert _step(p, "specify")["state"] == "upcoming"
     assert _step(p, "gate1")["state"] == "upcoming"
     assert p["next_step_id"] == "specify"
@@ -1019,8 +1139,14 @@ def test_pipeline_constitution_file_scaffolded_but_specify_not_run_yet_is_upcomi
 
 def test_pipeline_doc_awaiting_review_is_current_not_done():
     docs = [{"key": "brd", "status": "Draft"}]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        docs,
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert _step(p, "brd")["state"] == "current"
     assert p["next_step_id"] == "brd"
     assert "sdd review check --doc brd" in p["next_action"]
@@ -1028,8 +1154,14 @@ def test_pipeline_doc_awaiting_review_is_current_not_done():
 
 def test_pipeline_approved_doc_counts_as_done():
     docs = [{"key": "brd", "status": "Approved"}]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        docs,
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert _step(p, "brd")["state"] == "done"
     assert p["next_step_id"] == "use-cases"
 
@@ -1050,8 +1182,14 @@ def test_pipeline_bypassed_optional_step_does_not_win_next_action():
         {"key": "srd", "status": "Approved"},
         {"key": "validate", "status": "Draft"},
     ]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_SECURITY_APPROVED,
-                        plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        docs,
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_SECURITY_APPROVED,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert _step(p, "checklist")["state"] == "upcoming"
     assert _step(p, "validate")["state"] == "current"
     assert p["next_step_id"] == "validate"
@@ -1068,15 +1206,27 @@ def test_pipeline_optional_step_not_yet_reached_is_still_picked_as_next():
         {"key": "use-cases", "status": "Approved"},
         {"key": "srd", "status": "Approved"},
     ]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_SECURITY_APPROVED,
-                        plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        docs,
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_SECURITY_APPROVED,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert p["next_step_id"] == "checklist"
     assert "/checklist" in p["next_action"]
 
 
 def test_pipeline_pilot_scope_skips_data_model_lld_adr_runbook_qa():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+    )
     for step_id in ("data-model", "lld", "runbook", "qa-testcases"):
         step = _step(p, step_id)
         assert step["state"] == "skipped", step_id
@@ -1086,8 +1236,14 @@ def test_pipeline_pilot_scope_skips_data_model_lld_adr_runbook_qa():
 
 
 def test_pipeline_mvp_scope_includes_data_model_lld_adr_runbook_qa_skips_smoke_tests():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="separate", scope="mvp")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="separate",
+        scope="mvp",
+    )
     for step_id in ("data-model", "lld", "runbook", "qa-testcases", "adr"):
         assert _step(p, step_id)["skip"] is None, step_id
     assert _step(p, "smoke-tests")["skip"]
@@ -1099,20 +1255,38 @@ def test_pipeline_security_design_required_even_at_pilot_scope():
     pilot gets §1 (Threat Assessment) only, but the document itself is
     never skipped the way data-model is. The old collapsed 'extended-specs'
     step wrongly skipped both together at pilot scope."""
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert _step(p, "security-design")["skip"] is None
     assert _step(p, "data-model")["skip"]
 
 
 def test_pipeline_resilience_investigation_require_full_scope():
     for scope in ("pilot", "mvp"):
-        p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                            plan_mode="unified", scope=scope)
+        p = build_pipeline(
+            [],
+            _NO_TASKS,
+            _GATE1_PASSED,
+            service_docs=_NO_SERVICE_DOCS,
+            plan_mode="unified",
+            scope=scope,
+        )
         assert _step(p, "resilience")["skip"], scope
         assert _step(p, "investigation")["skip"], scope
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="full")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="full",
+    )
     assert _step(p, "resilience")["skip"] is None
     assert _step(p, "investigation")["skip"] is None
 
@@ -1121,8 +1295,14 @@ def test_pipeline_type_specific_extended_docs_omitted_when_not_applicable():
     """component-spec/ux-flow/screen-spec shouldn't even appear as steps
     for a project type that doesn't use them (e.g. backend-service) --
     not shown as a permanent 'not applicable' row, just absent."""
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="mvp")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="mvp",
+    )
     ids = {s["id"] for s in p["steps"]}
     assert "component-spec" not in ids
     assert "ux-flow" not in ids
@@ -1130,9 +1310,15 @@ def test_pipeline_type_specific_extended_docs_omitted_when_not_applicable():
 
 
 def test_pipeline_type_specific_extended_docs_included_when_applicable():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="mvp",
-                        applicable_extended=frozenset({"component-spec", "ux-flow"}))
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="mvp",
+        applicable_extended=frozenset({"component-spec", "ux-flow"}),
+    )
     assert _step(p, "component-spec")["skip"] is None
     assert _step(p, "ux-flow")["skip"] is None
     assert "screen-spec" not in {s["id"] for s in p["steps"]}
@@ -1143,31 +1329,53 @@ def test_pipeline_service_docs_track_independently():
     must not make data-model.md look done too (and vice versa) -- each
     living doc's state must come from its own file, not a folder-wide
     existence check."""
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED,
-                        service_docs={"security-design": {"exists": True, "status": "Approved"}},
-                        plan_mode="unified", scope="mvp")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs={"security-design": {"exists": True, "status": "Approved"}},
+        plan_mode="unified",
+        scope="mvp",
+    )
     assert _step(p, "security-design")["state"] == "done"
     assert _step(p, "data-model")["state"] == "upcoming"
 
 
 def test_pipeline_service_doc_awaiting_review_is_current_not_done():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED,
-                        service_docs={"data-model": {"exists": True, "status": "Draft"}},
-                        plan_mode="unified", scope="mvp")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs={"data-model": {"exists": True, "status": "Draft"}},
+        plan_mode="unified",
+        scope="mvp",
+    )
     assert _step(p, "data-model")["state"] == "current"
 
 
 def test_pipeline_unified_plan_mode_skips_arch_hld_adr_uses_design():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="mvp")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="mvp",
+    )
     assert _step(p, "design")["skip"] is None
     for step_id in ("arch", "hld", "adr"):
         assert _step(p, step_id)["skip"], step_id
 
 
 def test_pipeline_separate_plan_mode_skips_design_uses_arch_hld_adr():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="separate", scope="mvp")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="separate",
+        scope="mvp",
+    )
     assert _step(p, "design")["skip"]
     for step_id in ("arch", "hld", "adr"):
         assert _step(p, step_id)["skip"] is None, step_id
@@ -1175,39 +1383,92 @@ def test_pipeline_separate_plan_mode_skips_design_uses_arch_hld_adr():
 
 def test_pipeline_implement_reflects_task_progress():
     approved = {"status": "Approved"}
-    docs = [{"key": k, **approved} for k in
-            ("brd", "use-cases", "srd", "checklist", "validate", "analyze", "clarify",
-             "design", "stories", "tasks", "smoke-tests")]
-    p = build_pipeline(docs, {"total": 4, "done": 2}, _GATE1_PASSED, service_docs=_SECURITY_APPROVED,
-                        plan_mode="unified", scope="pilot")
+    docs = [
+        {"key": k, **approved}
+        for k in (
+            "brd",
+            "use-cases",
+            "srd",
+            "checklist",
+            "validate",
+            "analyze",
+            "clarify",
+            "design",
+            "stories",
+            "tasks",
+            "smoke-tests",
+        )
+    ]
+    p = build_pipeline(
+        docs,
+        {"total": 4, "done": 2},
+        _GATE1_PASSED,
+        service_docs=_SECURITY_APPROVED,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert _step(p, "implement")["state"] == "current"
     assert "2/4" in p["next_action"]
 
 
 def test_pipeline_all_done_reports_complete():
     approved = {"status": "Approved"}
-    docs = [{"key": k, **approved} for k in
-            ("brd", "use-cases", "srd", "checklist", "validate", "analyze", "clarify",
-             "design", "stories", "tasks", "smoke-tests", "release")]
+    docs = [
+        {"key": k, **approved}
+        for k in (
+            "brd",
+            "use-cases",
+            "srd",
+            "checklist",
+            "validate",
+            "analyze",
+            "clarify",
+            "design",
+            "stories",
+            "tasks",
+            "smoke-tests",
+            "release",
+        )
+    ]
     tasks = {"total": 2, "done": 2}
-    p = build_pipeline(docs, tasks, _GATE1_PASSED, service_docs=_SERVICE_DOCS_ALL_APPROVED,
-                        plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        docs,
+        tasks,
+        _GATE1_PASSED,
+        service_docs=_SERVICE_DOCS_ALL_APPROVED,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert p["next_step_id"] is None
     assert "complete" in p["next_action"]
 
 
 def test_pipeline_micro_scope_none_uses_3_command_flow():
-    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope=None)
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _NOT_STARTED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope=None,
+    )
     assert [s["id"] for s in p["steps"]] == ["specify", "gate1", "task", "implement"]
 
 
 # ── Persona Hints (Virtual Team) ─────────────────────────────────────────
 
+
 def test_pipeline_next_persona_names_the_owning_team_member():
     docs = [{"key": "brd", "status": "Approved"}]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="pilot", feature="payments")
+    p = build_pipeline(
+        docs,
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+        feature="payments",
+    )
     assert p["next_step_id"] == "use-cases"
     assert p["next_persona"]["name"] == "Maya"
     assert p["next_persona"]["role"] == "Business Analyst"
@@ -1215,8 +1476,15 @@ def test_pipeline_next_persona_names_the_owning_team_member():
 
 
 def test_step_persona_present_on_every_resolved_step_with_an_owner():
-    p = build_pipeline([], _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="pilot", feature="payments")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+        feature="payments",
+    )
     assert _step(p, "srd")["persona"]["name"] == "Rex"
     assert _step(p, "design")["persona"]["name"] == "Ava"
     assert _step(p, "release")["persona"]["name"] == "Riley"
@@ -1225,16 +1493,28 @@ def test_step_persona_present_on_every_resolved_step_with_an_owner():
 def test_specify_and_gate1_have_no_persona_owner():
     """Run before any Virtual Team member takes over -- see _STEP_PERSONA's
     docstring in status.py."""
-    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="pilot")
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _NOT_STARTED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+    )
     assert _step(p, "specify")["persona"] is None
     assert _step(p, "gate1")["persona"] is None
 
 
 def test_micro_scope_never_gets_a_persona_hint():
     """sdd-micro has no Virtual Team at all (see its own CLAUDE.md)."""
-    p = build_pipeline([], _NO_TASKS, _NOT_STARTED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope=None)
+    p = build_pipeline(
+        [],
+        _NO_TASKS,
+        _NOT_STARTED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope=None,
+    )
     for step in p["steps"]:
         assert step["persona"] is None
     assert p["next_persona"] is None
@@ -1245,8 +1525,15 @@ def test_pipeline_awaiting_review_suppresses_the_creation_phrased_ask():
     *created* -- the ask templates are all creation-phrased ('create the
     BRD'), which would misleadingly suggest it doesn't exist yet."""
     docs = [{"key": "brd", "status": "Draft"}]
-    p = build_pipeline(docs, _NO_TASKS, _GATE1_PASSED, service_docs=_NO_SERVICE_DOCS,
-                        plan_mode="unified", scope="pilot", feature="payments")
+    p = build_pipeline(
+        docs,
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="pilot",
+        feature="payments",
+    )
     assert p["next_step_id"] == "brd"
     assert p["next_persona"] is None
     # the per-step badge/tooltip still names the general owner, though
@@ -1258,7 +1545,9 @@ def test_build_feature_status_includes_pipeline(tmp_path, monkeypatch):
     monkeypatch.setattr(status_mod, "_local_base_url", lambda: None)
     _write_manifest(tmp_path, '  scope: "pilot"\n')
     (tmp_path / ".specify" / "memory").mkdir(parents=True)
-    (tmp_path / ".specify" / "memory" / "constitution.md").write_text("# Constitution\n")
+    (tmp_path / ".specify" / "memory" / "constitution.md").write_text(
+        "# Constitution\n"
+    )
     feature_dir = tmp_path / ".specify" / "features" / "payments"
     feature_dir.mkdir(parents=True)
     (feature_dir / "brd.md").write_text("> Status: Draft\n")
@@ -1274,6 +1563,7 @@ def test_build_feature_status_includes_pipeline(tmp_path, monkeypatch):
 
 
 # ── Documents Card "Next" Hint (_current_stage) ──────────────────────────
+
 
 def test_current_stage_fresh_project_hints_the_first_doc_owner(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -1319,7 +1609,8 @@ def test_current_stage_micro_scope_never_gets_a_persona_hint(tmp_path, monkeypat
 
 def test_persona_for_public_wrapper_matches_internal_lookup():
     assert persona_for("srd", "payments", "pilot") == {
-        "name": "Rex", "role": "Requirements Engineer",
+        "name": "Rex",
+        "role": "Requirements Engineer",
         "ask": "write the SRD for payments",
     }
     assert persona_for("srd", "payments", None) is None
@@ -1333,8 +1624,11 @@ def test_persona_for_public_wrapper_matches_internal_lookup():
 # completion count.
 
 from sdd.utils.status import (
-    build_bo_rollup, _parse_brd_bo, _parse_uc_traces, _parse_srd_fr,
+    _parse_brd_bo,
     _parse_release_bo_closure,
+    _parse_srd_fr,
+    _parse_uc_traces,
+    build_bo_rollup,
 )
 
 
@@ -1559,9 +1853,7 @@ def test_build_bo_rollup_not_started_when_task_incomplete(tmp_path):
         "| FR-001 | Create account | UC-001 | BR-001 | Must Have |\n"
     )
     (feature_dir / "tasks.md").write_text(
-        "### TASK-001 — Build signup\n"
-        "**Satisfies:** FR-001\n"
-        "  - [ ] not done yet\n"
+        "### TASK-001 — Build signup\n**Satisfies:** FR-001\n  - [ ] not done yet\n"
     )
     rollup = build_bo_rollup(tmp_path, "payments")
     assert rollup[0]["tasks_done"] == 0
@@ -1597,9 +1889,7 @@ def test_build_bo_rollup_orphaned_br_not_served_by_any_bo_contributes_nothing(tm
         "| FR-001 | Orphan FR | | BR-001 | Must Have |\n"
     )
     (feature_dir / "tasks.md").write_text(
-        "### TASK-001 — Orphan task\n"
-        "**Satisfies:** FR-001\n"
-        "  - [x] done\n"
+        "### TASK-001 — Orphan task\n**Satisfies:** FR-001\n  - [x] done\n"
     )
     rollup = build_bo_rollup(tmp_path, "payments")
     assert rollup[0]["task_count"] == 0
@@ -1684,7 +1974,9 @@ def test_build_bo_rollup_outcome_none_when_no_release_yet(tmp_path):
     assert rollup[0]["measured_result"] is None
 
 
-def test_build_project_status_flattens_bo_rollup_with_feature_tag(tmp_path, monkeypatch):
+def test_build_project_status_flattens_bo_rollup_with_feature_tag(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     _write_manifest(tmp_path)
     _write_full_chain(tmp_path, "payments", "")

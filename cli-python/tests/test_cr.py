@@ -3,7 +3,6 @@
 # routing through jira.py's _upsert_issue(), and had silently skipped
 # cfg.jira.labels (base_fields.labels) and the team stamp that every other
 # issue type (Epic/Story/Task/CHG) gets. Run from repo root: pytest cli-python/tests -q
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -17,12 +16,13 @@ from sdd.utils.atlassian_auth import Profile
 class FakeJiraClient:
     """Same shape as the fakes in test_jira_push_levels.py /
     test_review_helpers.py -- records what cr_submit actually sends."""
+
     def __init__(self, session=None, base_url=None):
         self.created: list[dict] = []
         self.updated: list[tuple[str, dict]] = []
 
     def find_by_label(self, project_key, label):
-        return None   # always "not yet submitted" -- exercises the create path
+        return None  # always "not yet submitted" -- exercises the create path
 
     def create_issue(self, fields):
         self.created.append(fields)
@@ -63,9 +63,16 @@ class TestCrSubmitFieldWiring:
 
     def test_labels_and_team_are_sent(self, project, runner):
         fake = FakeJiraClient()
-        with patch("sdd.commands.cr.load_jira_session",
-                    return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())), \
-             patch("sdd.commands.cr.JiraClient", return_value=fake):
+        with (
+            patch(
+                "sdd.commands.cr.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.cr.JiraClient", return_value=fake),
+        ):
             result = runner.invoke(cr_command, ["submit", "--cr", "CR-001"])
 
         assert result.exit_code == 0, result.output

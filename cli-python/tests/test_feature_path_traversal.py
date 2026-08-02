@@ -16,7 +16,9 @@ def test_confluence_resolve_doc_path_rejects_traversal_context(tmp_path, monkeyp
         _resolve_doc_path("context", "../../../../tmp/pwned")
 
 
-def test_confluence_resolve_doc_path_rejects_traversal_feature_doc(tmp_path, monkeypatch):
+def test_confluence_resolve_doc_path_rejects_traversal_feature_doc(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     with pytest.raises(ValueError):
         _resolve_doc_path("hld", "../../../../tmp/pwned")

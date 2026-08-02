@@ -8,16 +8,28 @@ from click.testing import CliRunner
 
 from sdd.commands import config as config_mod
 from sdd.commands.config import (
-    _integrations_template, _integrations_from_example, config_command,
+    _integrations_from_example,
+    _integrations_template,
+    config_command,
 )
 from sdd.utils import atlassian_auth
 from sdd.utils.integrations import (
-    load_integrations, parse_confluence_page_id, _DEFAULT_PAGE_MAP,
+    _DEFAULT_PAGE_MAP,
+    load_integrations,
+    parse_confluence_page_id,
 )
 
-
-EXPECTED_DOC_KEYS = ["brd", "use-cases", "srd", "design",
-                     "arch", "hld", "adr", "lld", "runbook"]
+EXPECTED_DOC_KEYS = [
+    "brd",
+    "use-cases",
+    "srd",
+    "design",
+    "arch",
+    "hld",
+    "adr",
+    "lld",
+    "runbook",
+]
 
 
 def test_config_template_is_valid_yaml_with_current_doc_keys():
@@ -40,8 +52,10 @@ def test_default_page_map_matches_config_template_keys():
 def test_shipped_example_parses_and_agrees_with_defaults():
     """The integrations.yml.example shipped in packs must load cleanly and
     use the same doc-key vocabulary as the CLI defaults."""
-    example = Path(__file__).resolve().parents[2] / \
-        "packs/_shared/full/.specify/integrations.yml.example"
+    example = (
+        Path(__file__).resolve().parents[2]
+        / "packs/_shared/full/.specify/integrations.yml.example"
+    )
     data = yaml.safe_load(example.read_text())
     # The shipped example is a superset of the wizard's minimal default --
     # it also documents the optional "validate" phase (validate/analyze/
@@ -53,10 +67,20 @@ def test_shipped_example_parses_and_agrees_with_defaults():
     # Confluence page, which page_map alone is enough to provide.
     assert set(EXPECTED_DOC_KEYS) <= set(data["confluence"]["page_map"])
     assert set(data["confluence"]["page_map"]) - set(EXPECTED_DOC_KEYS) == {
-        "validate", "analyze", "clarify",
-        "stories", "tasks", "checklist", "qa-testcases", "smoke-tests",
-        "data-model", "security-design", "api-spec", "component-library",
-        "constitution", "release",
+        "validate",
+        "analyze",
+        "clarify",
+        "stories",
+        "tasks",
+        "checklist",
+        "qa-testcases",
+        "smoke-tests",
+        "data-model",
+        "security-design",
+        "api-spec",
+        "component-library",
+        "constitution",
+        "release",
     }
     # active document_reviews ships in unified mode: design yes, arch/hld/adr commented
     reviews = data["document_reviews"]
@@ -82,14 +106,18 @@ def test_shipped_example_parses_and_agrees_with_defaults():
 # actual shipped .example instead, so it can never drift again.
 
 _SHIPPED_EXAMPLE = (
-    Path(__file__).resolve().parents[2] /
-    "packs/_shared/full/.specify/integrations.yml.example"
+    Path(__file__).resolve().parents[2]
+    / "packs/_shared/full/.specify/integrations.yml.example"
 )
 
 
 def test_integrations_from_example_substitutes_placeholders():
     out = _integrations_from_example(
-        _SHIPPED_EXAMPLE.read_text(), "work-cloud", "PROJ", "ENGSPACE", "999888",
+        _SHIPPED_EXAMPLE.read_text(),
+        "work-cloud",
+        "PROJ",
+        "ENGSPACE",
+        "999888",
     )
     data = yaml.safe_load(out)
     assert data["profile"] == "work-cloud"
@@ -103,17 +131,31 @@ def test_integrations_from_example_carries_every_optional_section():
     had these sections at all, so a user had to know to go copy
     integrations.yml.example by hand to get them."""
     out = _integrations_from_example(
-        _SHIPPED_EXAMPLE.read_text(), "default", "MYPROJ", "ENG", "",
+        _SHIPPED_EXAMPLE.read_text(),
+        "default",
+        "MYPROJ",
+        "ENG",
+        "",
     )
-    for section in ("project_keys", "parent_field_by_level",
-                    "custom_fields_by_level", "diagrams", "document_reviews",
-                    "pr_automation", "code_review"):
+    for section in (
+        "project_keys",
+        "parent_field_by_level",
+        "custom_fields_by_level",
+        "diagrams",
+        "document_reviews",
+        "pr_automation",
+        "code_review",
+    ):
         assert section in out, f"missing section: {section}"
 
 
 def test_integrations_from_example_blank_parent_page_id_stays_commented():
     out = _integrations_from_example(
-        _SHIPPED_EXAMPLE.read_text(), "default", "MYPROJ", "ENG", "",
+        _SHIPPED_EXAMPLE.read_text(),
+        "default",
+        "MYPROJ",
+        "ENG",
+        "",
     )
     assert '# parent_page_id: "123456"' in out
     assert "parent_page_id" not in yaml.safe_load(out)["confluence"]
@@ -124,7 +166,11 @@ def test_integrations_from_example_leaves_runtime_template_vars_untouched():
     _push_doc_page), not at scaffold time -- must survive substitution
     verbatim, not get treated as project_key/space_key placeholders."""
     out = _integrations_from_example(
-        _SHIPPED_EXAMPLE.read_text(), "default", "MYPROJ", "ENG", "",
+        _SHIPPED_EXAMPLE.read_text(),
+        "default",
+        "MYPROJ",
+        "ENG",
+        "",
     )
     assert "{feature} — Business Requirements" in out
 
@@ -177,21 +223,27 @@ def test_load_integrations_local_svg_width_override(tmp_path, monkeypatch):
 # numeric ID memorized -- both the config-init wizard and hand-edited
 # integrations.yml should accept whatever they paste.
 
-@pytest.mark.parametrize("raw,expected", [
-    ("123456", "123456"),
-    ("  123456  ", "123456"),
-    ("https://myorg.atlassian.net/wiki/spaces/ENG/pages/123456789/My+Page",
-     "123456789"),
-    # Server/DC space-permalink form, no "/wiki" prefix: /spaces/{key}/pages/{id}/{title}
-    ("https://confluence.company.com/spaces/xxx/pages/1234/Title+of+the+page",
-     "1234"),
-    ("https://confluence.example.com/pages/viewpage.action?pageId=98765",
-     "98765"),
-    ("https://confluence.example.com/display/ENG/x?spaceKey=ENG&pageId=42",
-     "42"),
-    ("", None),
-    (None, None),
-])
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("123456", "123456"),
+        ("  123456  ", "123456"),
+        (
+            "https://myorg.atlassian.net/wiki/spaces/ENG/pages/123456789/My+Page",
+            "123456789",
+        ),
+        # Server/DC space-permalink form, no "/wiki" prefix: /spaces/{key}/pages/{id}/{title}
+        (
+            "https://confluence.company.com/spaces/xxx/pages/1234/Title+of+the+page",
+            "1234",
+        ),
+        ("https://confluence.example.com/pages/viewpage.action?pageId=98765", "98765"),
+        ("https://confluence.example.com/display/ENG/x?spaceKey=ENG&pageId=42", "42"),
+        ("", None),
+        (None, None),
+    ],
+)
 def test_parse_confluence_page_id_accepts_id_or_url(raw, expected):
     assert parse_confluence_page_id(raw) == expected
 
@@ -249,7 +301,9 @@ def test_jira_and_confluence_can_use_different_profiles(tmp_path, monkeypatch):
     assert cfg.confluence_profile_name() == "confluence-dc"
 
 
-def test_one_service_override_leaves_the_other_on_top_level_profile(tmp_path, monkeypatch):
+def test_one_service_override_leaves_the_other_on_top_level_profile(
+    tmp_path, monkeypatch
+):
     """Only jira.profile set -- confluence still falls back to the
     top-level profile, not to jira's override."""
     monkeypatch.chdir(tmp_path)
@@ -283,9 +337,7 @@ def test_jira_project_keys_default_to_empty_dict(tmp_path, monkeypatch):
     """No project_keys: block -- every level falls back to project_key."""
     monkeypatch.chdir(tmp_path)
     Path(".specify").mkdir()
-    Path(".specify/integrations.yml").write_text(
-        "jira:\n  project_key: MYPROJ\n"
-    )
+    Path(".specify/integrations.yml").write_text("jira:\n  project_key: MYPROJ\n")
     cfg = load_integrations()
     assert cfg.jira.project_keys == {}
     for level in ("feature", "story", "task", "chg", "review"):
@@ -296,15 +348,11 @@ def test_jira_project_keys_override_specific_levels(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path(".specify").mkdir()
     Path(".specify/integrations.yml").write_text(
-        "jira:\n"
-        "  project_key: SUN\n"
-        "  project_keys:\n"
-        "    story: SUNT\n"
-        "    task: SUNT\n"
+        "jira:\n  project_key: SUN\n  project_keys:\n    story: SUNT\n    task: SUNT\n"
     )
     cfg = load_integrations()
-    assert cfg.jira.key_for("feature") == "SUN"   # not overridden -- falls back
-    assert cfg.jira.key_for("review") == "SUN"    # not overridden -- falls back
+    assert cfg.jira.key_for("feature") == "SUN"  # not overridden -- falls back
+    assert cfg.jira.key_for("review") == "SUN"  # not overridden -- falls back
     assert cfg.jira.key_for("story") == "SUNT"
     assert cfg.jira.key_for("task") == "SUNT"
 
@@ -358,9 +406,7 @@ def test_jira_custom_fields_by_level_override_wins_per_key(tmp_path, monkeypatch
 def test_jira_team_defaults_to_none(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path(".specify").mkdir()
-    Path(".specify/integrations.yml").write_text(
-        "jira:\n  project_key: MYPROJ\n"
-    )
+    Path(".specify/integrations.yml").write_text("jira:\n  project_key: MYPROJ\n")
     cfg = load_integrations()
     assert cfg.jira.team is None
 
@@ -369,10 +415,7 @@ def test_jira_team_parsed_from_base_fields(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path(".specify").mkdir()
     Path(".specify/integrations.yml").write_text(
-        "jira:\n"
-        "  project_key: MYPROJ\n"
-        "  base_fields:\n"
-        "    team: Team Phoenix\n"
+        "jira:\n  project_key: MYPROJ\n  base_fields:\n    team: Team Phoenix\n"
     )
     cfg = load_integrations()
     assert cfg.jira.team == "Team Phoenix"
@@ -383,9 +426,7 @@ def test_jira_parent_field_by_level_defaults_to_common_value(tmp_path, monkeypat
     parent_field unchanged."""
     monkeypatch.chdir(tmp_path)
     Path(".specify").mkdir()
-    Path(".specify/integrations.yml").write_text(
-        "jira:\n  project_key: MYPROJ\n"
-    )
+    Path(".specify/integrations.yml").write_text("jira:\n  project_key: MYPROJ\n")
     cfg = load_integrations()
     assert cfg.jira.parent_field_by_level == {}
     for level in ("feature", "story", "task", "chg", "review"):
@@ -421,6 +462,7 @@ class _Answer:
     """Stand-in for questionary's Question object -- .ask() returns a
     canned value instead of driving a real prompt_toolkit UI, which
     doesn't work under CliRunner's plain stdin feeding."""
+
     def __init__(self, value):
         self._value = value
 
@@ -453,12 +495,23 @@ class TestConfigInitCommand:
         return path
 
     def test_keyring_path_stores_secret_and_no_env_field(self, runner, config_home):
-        with patch("questionary.text", side_effect=[
-                _Answer("work-cloud"), _Answer("https://x.atlassian.net"), _Answer("a@b.com")]), \
-             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
-             patch("questionary.password", return_value=_Answer("secret-token")), \
-             patch("questionary.confirm", return_value=_Answer(False)), \
-             patch.object(config_mod, "store_secret") as store:
+        with (
+            patch(
+                "questionary.text",
+                side_effect=[
+                    _Answer("work-cloud"),
+                    _Answer("https://x.atlassian.net"),
+                    _Answer("a@b.com"),
+                ],
+            ),
+            patch(
+                "questionary.select",
+                side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")],
+            ),
+            patch("questionary.password", return_value=_Answer("secret-token")),
+            patch("questionary.confirm", return_value=_Answer(False)),
+            patch.object(config_mod, "store_secret") as store,
+        ):
             result = runner.invoke(config_command, ["init"])
 
         assert result.exit_code == 0, result.output
@@ -472,12 +525,23 @@ class TestConfigInitCommand:
         assert "api_token_env" not in profile  # no env var name for a keyring profile
 
     def test_env_path_stores_env_var_name_not_secret(self, runner, config_home):
-        with patch("questionary.text", side_effect=[
-                _Answer("work-cloud"), _Answer("https://x.atlassian.net"),
-                _Answer("a@b.com"), _Answer("JIRA_API_TOKEN")]), \
-             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("env")]), \
-             patch("questionary.confirm", return_value=_Answer(False)), \
-             patch.object(config_mod, "store_secret") as store:
+        with (
+            patch(
+                "questionary.text",
+                side_effect=[
+                    _Answer("work-cloud"),
+                    _Answer("https://x.atlassian.net"),
+                    _Answer("a@b.com"),
+                    _Answer("JIRA_API_TOKEN"),
+                ],
+            ),
+            patch(
+                "questionary.select",
+                side_effect=[_Answer(True), _Answer("basic"), _Answer("env")],
+            ),
+            patch("questionary.confirm", return_value=_Answer(False)),
+            patch.object(config_mod, "store_secret") as store,
+        ):
             result = runner.invoke(config_command, ["init"])
 
         assert result.exit_code == 0, result.output
@@ -490,16 +554,32 @@ class TestConfigInitCommand:
         # the actual secret value is never in this file, only the env var name
         assert "secret-token" not in config_home.read_text()
 
-    def test_keyring_storage_failure_exits_nonzero_without_partial_config(self, runner, config_home):
+    def test_keyring_storage_failure_exits_nonzero_without_partial_config(
+        self, runner, config_home
+    ):
         """If the keychain backend isn't available (e.g. headless Linux),
         the wizard must fail loudly rather than silently falling back to
         an unsaved or half-configured profile."""
-        with patch("questionary.text", side_effect=[
-                _Answer("work-cloud"), _Answer("https://x.atlassian.net"), _Answer("a@b.com")]), \
-             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
-             patch("questionary.password", return_value=_Answer("secret-token")), \
-             patch.object(config_mod, "store_secret",
-                           side_effect=RuntimeError("no backend available")):
+        with (
+            patch(
+                "questionary.text",
+                side_effect=[
+                    _Answer("work-cloud"),
+                    _Answer("https://x.atlassian.net"),
+                    _Answer("a@b.com"),
+                ],
+            ),
+            patch(
+                "questionary.select",
+                side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")],
+            ),
+            patch("questionary.password", return_value=_Answer("secret-token")),
+            patch.object(
+                config_mod,
+                "store_secret",
+                side_effect=RuntimeError("no backend available"),
+            ),
+        ):
             result = runner.invoke(config_command, ["init"])
 
         assert result.exit_code != 0
@@ -511,15 +591,30 @@ class TestConfigInitCommand:
         packaged project actually has on disk."""
         specify_dir = config_home.parent.parent / ".specify"
         specify_dir.mkdir(parents=True, exist_ok=True)
-        (specify_dir / "integrations.yml.example").write_text(_SHIPPED_EXAMPLE.read_text())
+        (specify_dir / "integrations.yml.example").write_text(
+            _SHIPPED_EXAMPLE.read_text()
+        )
 
-        with patch("questionary.text", side_effect=[
-                _Answer("default"), _Answer("https://x.atlassian.net"), _Answer("a@b.com"),
-                _Answer("PROJ"), _Answer("ENGSPACE"), _Answer("")]), \
-             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
-             patch("questionary.password", return_value=_Answer("secret-token")), \
-             patch("questionary.confirm", return_value=_Answer(True)), \
-             patch.object(config_mod, "store_secret"):
+        with (
+            patch(
+                "questionary.text",
+                side_effect=[
+                    _Answer("default"),
+                    _Answer("https://x.atlassian.net"),
+                    _Answer("a@b.com"),
+                    _Answer("PROJ"),
+                    _Answer("ENGSPACE"),
+                    _Answer(""),
+                ],
+            ),
+            patch(
+                "questionary.select",
+                side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")],
+            ),
+            patch("questionary.password", return_value=_Answer("secret-token")),
+            patch("questionary.confirm", return_value=_Answer(True)),
+            patch.object(config_mod, "store_secret"),
+        ):
             result = runner.invoke(config_command, ["init"])
 
         assert result.exit_code == 0, result.output
@@ -531,22 +626,40 @@ class TestConfigInitCommand:
         assert "document_reviews" in data  # the gap this fix closes
         assert "diagrams:" in dest.read_text()  # commented-out reference, not live YAML
 
-    def test_scaffold_accepts_pasted_page_url_for_parent_page(self, runner, config_home):
+    def test_scaffold_accepts_pasted_page_url_for_parent_page(
+        self, runner, config_home
+    ):
         """Most users have the Confluence page open in a browser, not its
         raw numeric ID -- pasting the full URL at the parent-page prompt
         must resolve to just the ID in the generated integrations.yml."""
         specify_dir = config_home.parent.parent / ".specify"
         specify_dir.mkdir(parents=True, exist_ok=True)
-        (specify_dir / "integrations.yml.example").write_text(_SHIPPED_EXAMPLE.read_text())
+        (specify_dir / "integrations.yml.example").write_text(
+            _SHIPPED_EXAMPLE.read_text()
+        )
 
-        with patch("questionary.text", side_effect=[
-                _Answer("default"), _Answer("https://x.atlassian.net"), _Answer("a@b.com"),
-                _Answer("PROJ"), _Answer("ENGSPACE"),
-                _Answer("https://x.atlassian.net/wiki/spaces/ENG/pages/777888/Root")]), \
-             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
-             patch("questionary.password", return_value=_Answer("secret-token")), \
-             patch("questionary.confirm", return_value=_Answer(True)), \
-             patch.object(config_mod, "store_secret"):
+        with (
+            patch(
+                "questionary.text",
+                side_effect=[
+                    _Answer("default"),
+                    _Answer("https://x.atlassian.net"),
+                    _Answer("a@b.com"),
+                    _Answer("PROJ"),
+                    _Answer("ENGSPACE"),
+                    _Answer(
+                        "https://x.atlassian.net/wiki/spaces/ENG/pages/777888/Root"
+                    ),
+                ],
+            ),
+            patch(
+                "questionary.select",
+                side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")],
+            ),
+            patch("questionary.password", return_value=_Answer("secret-token")),
+            patch("questionary.confirm", return_value=_Answer(True)),
+            patch.object(config_mod, "store_secret"),
+        ):
             result = runner.invoke(config_command, ["init"])
 
         assert result.exit_code == 0, result.output
@@ -554,18 +667,33 @@ class TestConfigInitCommand:
         data = yaml.safe_load(dest.read_text())
         assert data["confluence"]["parent_page_id"] == "777888"
 
-    def test_scaffold_falls_back_to_minimal_template_without_example(self, runner, config_home):
+    def test_scaffold_falls_back_to_minimal_template_without_example(
+        self, runner, config_home
+    ):
         """No .specify/integrations.yml.example on disk (very old init, or
         a pack without one) -- must still produce a working file, just the
         smaller built-in one, not crash."""
         (config_home.parent.parent / ".specify").mkdir(parents=True, exist_ok=True)
-        with patch("questionary.text", side_effect=[
-                _Answer("default"), _Answer("https://x.atlassian.net"), _Answer("a@b.com"),
-                _Answer("PROJ"), _Answer("ENG"), _Answer("")]), \
-             patch("questionary.select", side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")]), \
-             patch("questionary.password", return_value=_Answer("secret-token")), \
-             patch("questionary.confirm", return_value=_Answer(True)), \
-             patch.object(config_mod, "store_secret"):
+        with (
+            patch(
+                "questionary.text",
+                side_effect=[
+                    _Answer("default"),
+                    _Answer("https://x.atlassian.net"),
+                    _Answer("a@b.com"),
+                    _Answer("PROJ"),
+                    _Answer("ENG"),
+                    _Answer(""),
+                ],
+            ),
+            patch(
+                "questionary.select",
+                side_effect=[_Answer(True), _Answer("basic"), _Answer("keyring")],
+            ),
+            patch("questionary.password", return_value=_Answer("secret-token")),
+            patch("questionary.confirm", return_value=_Answer(True)),
+            patch.object(config_mod, "store_secret"),
+        ):
             result = runner.invoke(config_command, ["init"])
 
         assert result.exit_code == 0, result.output
@@ -580,17 +708,31 @@ class TestConfigInitCommand:
         through two full credential rounds -- a 'profile' is understood as
         the entire auth set (base_url + auth_mode + credential), not just
         a URL, so the two profiles below differ in every field."""
-        with patch("questionary.text", side_effect=[
-                _Answer("jira-dc"), _Answer("https://jira.internal"),
-                _Answer("confluence-dc"), _Answer("https://confluence.internal"),
-                _Answer("CONFLUENCE_TOKEN")]), \
-             patch("questionary.select", side_effect=[
-                _Answer(False),               # same site? -> No
-                _Answer("pat"), _Answer("keyring"),      # Jira round
-                _Answer("oauth2"), _Answer("env")]), \
-             patch("questionary.password", return_value=_Answer("jira-secret")), \
-             patch("questionary.confirm", return_value=_Answer(False)), \
-             patch.object(config_mod, "store_secret") as store:
+        with (
+            patch(
+                "questionary.text",
+                side_effect=[
+                    _Answer("jira-dc"),
+                    _Answer("https://jira.internal"),
+                    _Answer("confluence-dc"),
+                    _Answer("https://confluence.internal"),
+                    _Answer("CONFLUENCE_TOKEN"),
+                ],
+            ),
+            patch(
+                "questionary.select",
+                side_effect=[
+                    _Answer(False),  # same site? -> No
+                    _Answer("pat"),
+                    _Answer("keyring"),  # Jira round
+                    _Answer("oauth2"),
+                    _Answer("env"),
+                ],
+            ),
+            patch("questionary.password", return_value=_Answer("jira-secret")),
+            patch("questionary.confirm", return_value=_Answer(False)),
+            patch.object(config_mod, "store_secret") as store,
+        ):
             result = runner.invoke(config_command, ["init"])
 
         assert result.exit_code == 0, result.output
@@ -600,7 +742,7 @@ class TestConfigInitCommand:
 
         saved = yaml.safe_load(config_home.read_text())
         jira_p = saved["profiles"]["jira-dc"]
-        cf_p   = saved["profiles"]["confluence-dc"]
+        cf_p = saved["profiles"]["confluence-dc"]
         assert jira_p["base_url"] == "https://jira.internal"
         assert jira_p["auth_mode"] == "pat"
         assert cf_p["base_url"] == "https://confluence.internal"
@@ -608,7 +750,9 @@ class TestConfigInitCommand:
         assert cf_p["credential_store"] == "env"
 
     def test_different_profiles_wires_confluence_override_into_integrations_yml(
-        self, runner, config_home,
+        self,
+        runner,
+        config_home,
     ):
         """End-to-end: the 'different' path must actually produce an
         integrations.yml where jira: uses the top-level (Jira) profile and
@@ -617,19 +761,37 @@ class TestConfigInitCommand:
         ever wires together."""
         specify_dir = config_home.parent.parent / ".specify"
         specify_dir.mkdir(parents=True, exist_ok=True)
-        (specify_dir / "integrations.yml.example").write_text(_SHIPPED_EXAMPLE.read_text())
+        (specify_dir / "integrations.yml.example").write_text(
+            _SHIPPED_EXAMPLE.read_text()
+        )
 
-        with patch("questionary.text", side_effect=[
-                _Answer("jira-dc"), _Answer("https://jira.internal"),
-                _Answer("confluence-dc"), _Answer("https://confluence.internal"),
-                _Answer("PROJ"), _Answer("ENGSPACE"), _Answer("")]), \
-             patch("questionary.select", side_effect=[
-                _Answer(False),                       # same site? -> No
-                _Answer("pat"), _Answer("keyring"),    # Jira round
-                _Answer("pat"), _Answer("keyring")]), \
-             patch("questionary.password", return_value=_Answer("secret")), \
-             patch("questionary.confirm", return_value=_Answer(True)), \
-             patch.object(config_mod, "store_secret"):
+        with (
+            patch(
+                "questionary.text",
+                side_effect=[
+                    _Answer("jira-dc"),
+                    _Answer("https://jira.internal"),
+                    _Answer("confluence-dc"),
+                    _Answer("https://confluence.internal"),
+                    _Answer("PROJ"),
+                    _Answer("ENGSPACE"),
+                    _Answer(""),
+                ],
+            ),
+            patch(
+                "questionary.select",
+                side_effect=[
+                    _Answer(False),  # same site? -> No
+                    _Answer("pat"),
+                    _Answer("keyring"),  # Jira round
+                    _Answer("pat"),
+                    _Answer("keyring"),
+                ],
+            ),
+            patch("questionary.password", return_value=_Answer("secret")),
+            patch("questionary.confirm", return_value=_Answer(True)),
+            patch.object(config_mod, "store_secret"),
+        ):
             result = runner.invoke(config_command, ["init"])
 
         assert result.exit_code == 0, result.output
@@ -649,26 +811,44 @@ class TestConfigInitCommand:
         assert "--profile" not in result.output
 
     def test_different_profiles_declined_scaffold_suggests_per_profile_test(
-        self, runner, config_home,
+        self,
+        runner,
+        config_home,
     ):
         """If integrations.yml isn't scaffolded, `sdd config test` has no
         way to know about the split -- the closing message must fall back
         to suggesting --profile per service, with a caveat that each call
         only sanity-checks that one profile, not the split itself."""
-        with patch("questionary.text", side_effect=[
-                _Answer("jira-dc"), _Answer("https://jira.internal"),
-                _Answer("confluence-dc"), _Answer("https://confluence.internal")]), \
-             patch("questionary.select", side_effect=[
-                _Answer(False),                       # same site? -> No
-                _Answer("pat"), _Answer("keyring"),    # Jira round
-                _Answer("pat"), _Answer("keyring")]), \
-             patch("questionary.password", return_value=_Answer("secret")), \
-             patch("questionary.confirm", return_value=_Answer(False)), \
-             patch.object(config_mod, "store_secret"):
+        with (
+            patch(
+                "questionary.text",
+                side_effect=[
+                    _Answer("jira-dc"),
+                    _Answer("https://jira.internal"),
+                    _Answer("confluence-dc"),
+                    _Answer("https://confluence.internal"),
+                ],
+            ),
+            patch(
+                "questionary.select",
+                side_effect=[
+                    _Answer(False),  # same site? -> No
+                    _Answer("pat"),
+                    _Answer("keyring"),  # Jira round
+                    _Answer("pat"),
+                    _Answer("keyring"),
+                ],
+            ),
+            patch("questionary.password", return_value=_Answer("secret")),
+            patch("questionary.confirm", return_value=_Answer(False)),
+            patch.object(config_mod, "store_secret"),
+        ):
             result = runner.invoke(config_command, ["init"])
 
         assert result.exit_code == 0, result.output
-        assert not (config_home.parent.parent / ".specify" / "integrations.yml").exists()
+        assert not (
+            config_home.parent.parent / ".specify" / "integrations.yml"
+        ).exists()
         assert "sdd config test --profile jira-dc" in result.output
         assert "sdd config test --profile confluence-dc" in result.output
 
@@ -696,16 +876,24 @@ class TestConfigSetSecretCommand:
 
     def test_unknown_profile_exits_nonzero(self, runner, config_home):
         config_home.parent.mkdir(parents=True)
-        config_home.write_text(yaml.dump({"profiles": {"other": {"auth_mode": "basic"}}}))
+        config_home.write_text(
+            yaml.dump({"profiles": {"other": {"auth_mode": "basic"}}})
+        )
         result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
         assert result.exit_code != 0
         assert "not found" in result.output
 
     def test_env_profile_rejected_with_guidance(self, runner, config_home):
         config_home.parent.mkdir(parents=True)
-        config_home.write_text(yaml.dump({
-            "profiles": {"work": {"auth_mode": "basic", "credential_store": "env"}}
-        }))
+        config_home.write_text(
+            yaml.dump(
+                {
+                    "profiles": {
+                        "work": {"auth_mode": "basic", "credential_store": "env"}
+                    }
+                }
+            )
+        )
         result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
         assert result.exit_code != 0
         assert "credential_store: env" in result.output
@@ -713,26 +901,47 @@ class TestConfigSetSecretCommand:
 
     def test_keyring_profile_stores_new_secret(self, runner, config_home):
         config_home.parent.mkdir(parents=True)
-        config_home.write_text(yaml.dump({
-            "profiles": {"work": {"auth_mode": "basic", "credential_store": "keyring"}}
-        }))
+        config_home.write_text(
+            yaml.dump(
+                {
+                    "profiles": {
+                        "work": {"auth_mode": "basic", "credential_store": "keyring"}
+                    }
+                }
+            )
+        )
         fake_answer = type("Q", (), {"ask": lambda self: "new-secret"})()
-        with patch("questionary.password", return_value=fake_answer) as pw, \
-             patch.object(config_mod, "store_secret") as store:
+        with (
+            patch("questionary.password", return_value=fake_answer),
+            patch.object(config_mod, "store_secret") as store,
+        ):
             result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
         assert result.exit_code == 0
         assert "✓" in result.output
         store.assert_called_once_with("work", "new-secret")
 
-    def test_keychain_backend_failure_surfaces_and_exits_nonzero(self, runner, config_home):
+    def test_keychain_backend_failure_surfaces_and_exits_nonzero(
+        self, runner, config_home
+    ):
         config_home.parent.mkdir(parents=True)
-        config_home.write_text(yaml.dump({
-            "profiles": {"work": {"auth_mode": "basic", "credential_store": "keyring"}}
-        }))
+        config_home.write_text(
+            yaml.dump(
+                {
+                    "profiles": {
+                        "work": {"auth_mode": "basic", "credential_store": "keyring"}
+                    }
+                }
+            )
+        )
         fake_answer = type("Q", (), {"ask": lambda self: "new-secret"})()
-        with patch("questionary.password", return_value=fake_answer), \
-             patch.object(config_mod, "store_secret",
-                           side_effect=RuntimeError("no backend available")):
+        with (
+            patch("questionary.password", return_value=fake_answer),
+            patch.object(
+                config_mod,
+                "store_secret",
+                side_effect=RuntimeError("no backend available"),
+            ),
+        ):
             result = runner.invoke(config_command, ["set-secret", "--profile", "work"])
         assert result.exit_code != 0
 
@@ -761,10 +970,16 @@ class TestConfigTestCommand:
         config_home.write_text(yaml.dump({"profiles": profiles}))
 
     def _fake_client(self, display_name):
-        client = type("C", (), {
-            "__init__": lambda self, session, base_url: setattr(self, "base_url", base_url),
-            "get_myself": lambda self: {"displayName": display_name},
-        })
+        client = type(
+            "C",
+            (),
+            {
+                "__init__": lambda self, session, base_url: setattr(
+                    self, "base_url", base_url
+                ),
+                "get_myself": lambda self: {"displayName": display_name},
+            },
+        )
         return client
 
     def test_single_profile_pings_both_services_once(self, runner, config_home):
@@ -772,27 +987,38 @@ class TestConfigTestCommand:
         profile for both services exactly as before this fix, with no
         'Jira profile:'/'Confluence profile:' lines (would be redundant
         noise when there's only one profile in play)."""
-        self._write_profiles(config_home, work={
-            "auth_mode": "basic", "base_url": "https://x.atlassian.net",
-        })
-        with patch.object(config_mod, "build_session", return_value=object()), \
-             patch.object(config_mod, "JiraClient", self._fake_client("Jane")), \
-             patch.object(config_mod, "ConfluenceClient", self._fake_client("Jane")):
+        self._write_profiles(
+            config_home,
+            work={
+                "auth_mode": "basic",
+                "base_url": "https://x.atlassian.net",
+            },
+        )
+        with (
+            patch.object(config_mod, "build_session", return_value=object()),
+            patch.object(config_mod, "JiraClient", self._fake_client("Jane")),
+            patch.object(config_mod, "ConfluenceClient", self._fake_client("Jane")),
+        ):
             result = runner.invoke(config_command, ["test"])
 
         assert result.exit_code == 0, result.output
         assert "Jira profile:" not in result.output
         assert "connected as Jane" in result.output
 
-    def test_split_profiles_test_each_service_against_its_own_profile(self, runner, config_home):
+    def test_split_profiles_test_each_service_against_its_own_profile(
+        self, runner, config_home
+    ):
         """The bug: integrations.yml routes Jira and Confluence to two
         different Data Center servers. Each must be pinged against its
         OWN base_url, not one profile's base_url reused for both."""
         self._write_profiles(
             config_home,
             **{
-                "jira-dc":       {"auth_mode": "pat", "base_url": "https://jira.internal"},
-                "confluence-dc": {"auth_mode": "pat", "base_url": "https://confluence.internal"},
+                "jira-dc": {"auth_mode": "pat", "base_url": "https://jira.internal"},
+                "confluence-dc": {
+                    "auth_mode": "pat",
+                    "base_url": "https://confluence.internal",
+                },
             },
         )
         Path(".specify").mkdir()
@@ -808,21 +1034,38 @@ class TestConfigTestCommand:
             def _init(self, session, base_url):
                 seen_base_urls.append(base_url)
                 self.base_url = base_url
-            return type("C", (), {"__init__": _init, "get_myself": lambda self: {"displayName": display_name}})
 
-        with patch.object(config_mod, "build_session", return_value=object()), \
-             patch.object(config_mod, "JiraClient", _client_factory("Jira User")), \
-             patch.object(config_mod, "ConfluenceClient", _client_factory("Confluence User")):
+            return type(
+                "C",
+                (),
+                {
+                    "__init__": _init,
+                    "get_myself": lambda self: {"displayName": display_name},
+                },
+            )
+
+        with (
+            patch.object(config_mod, "build_session", return_value=object()),
+            patch.object(config_mod, "JiraClient", _client_factory("Jira User")),
+            patch.object(
+                config_mod, "ConfluenceClient", _client_factory("Confluence User")
+            ),
+        ):
             result = runner.invoke(config_command, ["test"])
 
         assert result.exit_code == 0, result.output
         assert "Jira profile:       jira-dc" in result.output
         assert "Confluence profile: confluence-dc" in result.output
-        assert seen_base_urls == ["https://jira.internal", "https://confluence.internal"]
+        assert seen_base_urls == [
+            "https://jira.internal",
+            "https://confluence.internal",
+        ]
         assert "connected as Jira User" in result.output
         assert "connected as Confluence User" in result.output
 
-    def test_explicit_profile_flag_wins_over_integrations_yml_split(self, runner, config_home):
+    def test_explicit_profile_flag_wins_over_integrations_yml_split(
+        self, runner, config_home
+    ):
         """An explicit --profile is a deliberate override -- e.g.
         sanity-checking a profile before wiring it into integrations.yml
         -- and must test that ONE profile against both services, exactly
@@ -830,9 +1073,15 @@ class TestConfigTestCommand:
         self._write_profiles(
             config_home,
             **{
-                "jira-dc":       {"auth_mode": "pat", "base_url": "https://jira.internal"},
-                "confluence-dc": {"auth_mode": "pat", "base_url": "https://confluence.internal"},
-                "candidate":     {"auth_mode": "basic", "base_url": "https://candidate.example"},
+                "jira-dc": {"auth_mode": "pat", "base_url": "https://jira.internal"},
+                "confluence-dc": {
+                    "auth_mode": "pat",
+                    "base_url": "https://confluence.internal",
+                },
+                "candidate": {
+                    "auth_mode": "basic",
+                    "base_url": "https://candidate.example",
+                },
             },
         )
         Path(".specify").mkdir()
@@ -847,20 +1096,36 @@ class TestConfigTestCommand:
         def _client_factory(display_name):
             def _init(self, session, base_url):
                 seen_base_urls.append(base_url)
-            return type("C", (), {"__init__": _init, "get_myself": lambda self: {"displayName": display_name}})
 
-        with patch.object(config_mod, "build_session", return_value=object()), \
-             patch.object(config_mod, "JiraClient", _client_factory("X")), \
-             patch.object(config_mod, "ConfluenceClient", _client_factory("X")):
+            return type(
+                "C",
+                (),
+                {
+                    "__init__": _init,
+                    "get_myself": lambda self: {"displayName": display_name},
+                },
+            )
+
+        with (
+            patch.object(config_mod, "build_session", return_value=object()),
+            patch.object(config_mod, "JiraClient", _client_factory("X")),
+            patch.object(config_mod, "ConfluenceClient", _client_factory("X")),
+        ):
             result = runner.invoke(config_command, ["test", "--profile", "candidate"])
 
         assert result.exit_code == 0, result.output
-        assert seen_base_urls == ["https://candidate.example", "https://candidate.example"]
+        assert seen_base_urls == [
+            "https://candidate.example",
+            "https://candidate.example",
+        ]
 
     def test_unknown_profile_reports_which_service_failed(self, runner, config_home):
-        self._write_profiles(config_home, **{
-            "jira-dc": {"auth_mode": "pat", "base_url": "https://jira.internal"},
-        })
+        self._write_profiles(
+            config_home,
+            **{
+                "jira-dc": {"auth_mode": "pat", "base_url": "https://jira.internal"},
+            },
+        )
         Path(".specify").mkdir()
         Path(".specify/integrations.yml").write_text(
             "profile: jira-dc\n"

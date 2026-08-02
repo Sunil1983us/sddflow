@@ -20,7 +20,10 @@ class FakeConfluenceClient:
         return self.pages_by_title.get(title)
 
     def create_page(self, space_key, title, body_html, parent_id=None):
-        page = {"id": str(self._next_id), "_links": {"webui": f"/pages/{self._next_id}"}}
+        page = {
+            "id": str(self._next_id),
+            "_links": {"webui": f"/pages/{self._next_id}"},
+        }
         self._next_id += 1
         self.pages_by_title[title] = page
         self.body_by_title[title] = body_html
@@ -64,9 +67,15 @@ def project(tmp_path, monkeypatch):
 
 def _patched(cf_client):
     from sdd.utils.atlassian_auth import Profile
+
     return (
-        patch("sdd.commands.confluence.load_confluence_session",
-              return_value=(Profile(auth_mode="basic", base_url="https://x.atlassian.net"), object())),
+        patch(
+            "sdd.commands.confluence.load_confluence_session",
+            return_value=(
+                Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                object(),
+            ),
+        ),
         patch("sdd.commands.confluence.ConfluenceClient", return_value=cf_client),
     )
 
@@ -76,31 +85,40 @@ class TestConfluencePushSummaryFlag:
         cf_client = FakeConfluenceClient()
         p1, p2 = _patched(cf_client)
         with p1, p2:
-            result = runner.invoke(confluence.confluence_command,
-                                    ["push", "--doc", "brd", "--summary"])
+            result = runner.invoke(
+                confluence.confluence_command, ["push", "--doc", "brd", "--summary"]
+            )
 
         assert result.exit_code == 0, result.output
         assert "auth — Business Requirements — Summary" in cf_client.pages_by_title
-        assert "Short version." in cf_client.body_by_title["auth — Business Requirements — Summary"]
+        assert (
+            "Short version."
+            in cf_client.body_by_title["auth — Business Requirements — Summary"]
+        )
 
     def test_without_summary_flag_pushes_full_doc_unsuffixed(self, project, runner):
         cf_client = FakeConfluenceClient()
         p1, p2 = _patched(cf_client)
         with p1, p2:
-            result = runner.invoke(confluence.confluence_command, ["push", "--doc", "brd"])
+            result = runner.invoke(
+                confluence.confluence_command, ["push", "--doc", "brd"]
+            )
 
         assert result.exit_code == 0, result.output
         assert "auth — Business Requirements" in cf_client.pages_by_title
         assert "auth — Business Requirements — Summary" not in cf_client.pages_by_title
-        assert "Full content." in cf_client.body_by_title["auth — Business Requirements"]
+        assert (
+            "Full content." in cf_client.body_by_title["auth — Business Requirements"]
+        )
 
     def test_summary_flag_skips_doc_with_no_summary_file(self, project, runner):
         (project / ".specify" / "features" / "auth" / "brd.summary.md").unlink()
         cf_client = FakeConfluenceClient()
         p1, p2 = _patched(cf_client)
         with p1, p2:
-            result = runner.invoke(confluence.confluence_command,
-                                    ["push", "--doc", "brd", "--summary"])
+            result = runner.invoke(
+                confluence.confluence_command, ["push", "--doc", "brd", "--summary"]
+            )
 
         assert result.exit_code == 0, result.output
         assert cf_client.pages_by_title == {}
@@ -110,8 +128,10 @@ class TestConfluencePushSummaryFlag:
         cf_client = FakeConfluenceClient()
         p1, p2 = _patched(cf_client)
         with p1, p2:
-            result = runner.invoke(confluence.confluence_command,
-                                    ["push", "--doc", "brd", "--summary", "--dry-run"])
+            result = runner.invoke(
+                confluence.confluence_command,
+                ["push", "--doc", "brd", "--summary", "--dry-run"],
+            )
 
         assert result.exit_code == 0, result.output
         assert "brd.summary.md" in result.output
