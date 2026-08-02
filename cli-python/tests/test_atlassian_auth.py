@@ -3,10 +3,13 @@
 # sandboxed environments have no working keychain backend at all, so a
 # real call would fail for reasons unrelated to the logic under test.
 from __future__ import annotations
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import requests
 import yaml
 
 from sdd.utils import atlassian_auth as auth
@@ -221,3 +224,98 @@ class TestLoadJiraAndConfluenceSession:
         with patch.object(auth.keyring, "get_password", return_value="secret"):
             jira_prof, _ = auth.load_jira_session(cfg, profile_override="manual")
         assert jira_prof.base_url == "https://manual.internal"
+
+
+# --- Network resilience: timeout + retry/backoff on every Jira/Confluence
+# call, mounted once in build_session() rather than at each of the ~25
+# individual call sites in jira_client.py/confluence_client.py -----------
+
+class TestBuildSessionResilience:
+    def _profile(self):
+        return auth.Profile(auth_mode="basic", base_url="https://x.atlassian.net",
+                             email="a@b.com", credential_store="env",
+                             api_token_env="SDD_TEST_RESILIENCE_TOKEN")
+
+    def test_retrying_adapter_mounted_on_https_and_http(self, monkeypatch):
+        monkeypatch.setenv("SDD_TEST_RESILIENCE_TOKEN", "x")
+        session = auth.build_session(self._profile())
+        assert isinstance(session.get_adapter("https://x.atlassian.net/foo"), auth._TimeoutHTTPAdapter)
+        assert isinstance(session.get_adapter("http://x.atlassian.net/foo"), auth._TimeoutHTTPAdapter)
+
+    def test_retry_policy_covers_connection_errors_and_5xx_and_429(self, monkeypatch):
+        monkeypatch.setenv("SDD_TEST_RESILIENCE_TOKEN", "x")
+        session = auth.build_session(self._profile())
+        retry = session.get_adapter("https://x.atlassian.net/foo").max_retries
+        assert retry.total == 3
+        assert set(retry.status_forcelist) == {429, 500, 502, 503, 504}
+        assert retry.respect_retry_after_header is True
+
+    def test_default_timeout_is_20_seconds(self, monkeypatch):
+        monkeypatch.setenv("SDD_TEST_RESILIENCE_TOKEN", "x")
+        session = auth.build_session(self._profile())
+        assert session.get_adapter("https://x.atlassian.net/foo")._timeout == 20
+
+
+class _FlakyThenOKHandler(BaseHTTPRequestHandler):
+    """Fails with 503 the first N times a given path is hit, then returns
+    200 -- lets the retry test prove real end-to-end behavior (a request
+    that would have raised actually succeeds) instead of only inspecting
+    config values."""
+    fail_count = {}  # path -> remaining failures, reset per test via class patching
+
+    def log_message(self, fmt, *args):
+        pass
+
+    def do_GET(self):
+        remaining = _FlakyThenOKHandler.fail_count.get(self.path, 0)
+        if remaining > 0:
+            _FlakyThenOKHandler.fail_count[self.path] = remaining - 1
+            self.send_response(503)
+            self.end_headers()
+        else:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok": true}')
+
+
+@pytest.fixture
+def flaky_server():
+    _FlakyThenOKHandler.fail_count = {}
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), _FlakyThenOKHandler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield httpd
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=5)
+
+
+def test_session_retries_through_transient_503s_and_succeeds(flaky_server, monkeypatch):
+    monkeypatch.setenv("SDD_TEST_RESILIENCE_TOKEN", "x")
+    port = flaky_server.server_address[1]
+    profile = auth.Profile(auth_mode="basic", base_url=f"http://127.0.0.1:{port}",
+                            email="a@b.com", credential_store="env",
+                            api_token_env="SDD_TEST_RESILIENCE_TOKEN")
+    session = auth.build_session(profile)
+    _FlakyThenOKHandler.fail_count["/flaky"] = 2  # fails twice, succeeds on the 3rd try
+
+    resp = session.get(f"http://127.0.0.1:{port}/flaky")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+
+
+def test_plain_session_without_retry_would_fail_on_the_same_server(flaky_server, monkeypatch):
+    """Control case proving the test server itself genuinely fails without
+    a retrying adapter -- so the pass above is attributable to
+    build_session()'s retry config, not to the server being lenient."""
+    port = flaky_server.server_address[1]
+    plain = requests.Session()
+    _FlakyThenOKHandler.fail_count["/flaky"] = 2
+
+    resp = plain.get(f"http://127.0.0.1:{port}/flaky")
+
+    assert resp.status_code == 503

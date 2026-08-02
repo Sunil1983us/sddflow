@@ -3302,6 +3302,63 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.9',
+    to:   '2.8.10',
+    description: "manifest.py atomic writes + corrupt-file handling, and timeout/retry/backoff for all Jira/Confluence HTTP calls",
+    notes: [
+      "Next tier from the same ChatGPT-review verification pass, closing " +
+      "two more real (not hypothetical) gaps found while verifying the " +
+      "review's claims against the actual code",
+      "manifest.py: write_manifest() previously wrote directly to " +
+      ".specify/manifest.yml with write_text() -- a process killed mid-" +
+      "write (e.g. `sdd upgrade` interrupted) could leave a truncated " +
+      "file, and every command reads this file, so a truncated manifest " +
+      "broke the whole project. Now writes to a temp file in the same " +
+      "directory and os.replace()s it into place, which is atomic on " +
+      "both POSIX and Windows",
+      "manifest.py: read_manifest() previously let a corrupt YAML file " +
+      "raise a raw yaml.YAMLError with no guidance. Now wraps the parse " +
+      "in try/except and raises a new ManifestError with an actionable " +
+      "message (fix by hand, restore from git, or delete and re-run " +
+      "`sdd init`). A *missing* manifest still returns None as before -- " +
+      "a corrupt manifest means the project clearly exists, so silently " +
+      "treating it the same as absent risked a caller re-scaffolding " +
+      "over it or quietly dropping real config",
+      "atlassian_auth.py: every Jira/Confluence API call goes through a " +
+      "requests.Session built by build_session() -- a flaky network " +
+      "blip or an Atlassian rate limit previously surfaced as a raw " +
+      "unhandled stack trace mid-workflow, since requests has no " +
+      "default timeout and no retry logic. Fixed once, centrally, by " +
+      "mounting a custom HTTPAdapter on the shared session instead of " +
+      "touching the ~25 individual call sites across jira_client.py and " +
+      "confluence_client.py: a 20-second default timeout, plus 3 " +
+      "retries with exponential backoff on connection errors and on " +
+      "429/500/502/503/504 responses, honoring a 429's Retry-After " +
+      "header",
+      "Retries apply to every HTTP method including POST/PUT -- this " +
+      "codebase's writes already lean on label-based find-before-create " +
+      "idempotency where duplication would matter, and a connection " +
+      "blip silently aborting a document approval or Jira push partway " +
+      "through is worse than the small remaining risk of an occasional " +
+      "duplicate retry on a genuinely dropped response",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. " +
+      "Both fixes are Python-only (manifest.py and atlassian_auth.py " +
+      "have no Node CLI equivalent) -- no functional change on the " +
+      "Node CLI side",
+      "Verified: cli-python pytest 789/789 (773 pre-existing + 11 " +
+      "manifest.py tests + 5 atlassian_auth.py resilience tests), " +
+      "including atomicity proven via a monkeypatched os.replace() and " +
+      "the retry logic proven against a real flaky local HTTP server " +
+      "plus a control-case test showing a plain session without the " +
+      "adapter genuinely fails on the same server",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.10';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

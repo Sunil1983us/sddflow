@@ -4,6 +4,53 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.10] — 2026-08-02 (manifest.py atomic writes + corrupt-file handling; Jira/Confluence HTTP timeout + retry/backoff)
+
+Next tier from the same ChatGPT-review verification pass — two more real gaps
+found while checking the review's claims against the actual code, not
+hypothetical ones.
+
+### Fixed
+
+- **`manifest.py` writes are now atomic.** `write_manifest()` previously
+  wrote directly to `.specify/manifest.yml` with `write_text()` — a process
+  killed mid-write (e.g. an interrupted `sdd upgrade`) could leave a
+  truncated file, and every command reads this file, so a truncated manifest
+  broke the whole project. Now writes to a temp file in the same directory
+  and `os.replace()`s it into place, atomic on both POSIX and Windows.
+- **`manifest.py` now fails loudly on a corrupt manifest.** `read_manifest()`
+  previously let a corrupt YAML file raise a raw `yaml.YAMLError`. Now raises
+  a new `ManifestError` with an actionable message (fix by hand, restore from
+  git, or delete and re-run `sdd init`). A *missing* manifest still returns
+  `None` as before — a corrupt one means the project clearly exists, so
+  treating it the same as absent risked a caller re-scaffolding over it or
+  silently dropping real config.
+- **Jira/Confluence HTTP calls now have a timeout and retry with backoff.**
+  Previously a flaky network blip or an Atlassian rate limit surfaced as a
+  raw unhandled stack trace mid-workflow. Fixed once, centrally, via a custom
+  `HTTPAdapter` mounted on the shared `requests.Session` in
+  `atlassian_auth.py`'s `build_session()` — covers all ~25 call sites across
+  `jira_client.py` and `confluence_client.py` from one place. 20-second
+  default timeout; 3 retries with exponential backoff on connection errors
+  and on 429/500/502/503/504 responses, honoring a 429's `Retry-After`
+  header. Retries apply to POST/PUT too — this codebase's writes already
+  lean on label-based find-before-create idempotency, and a connection blip
+  silently aborting an approval push partway through is worse than the small
+  remaining risk of an occasional duplicate retry.
+
+### Verified
+
+- `cli-python` pytest: 789/789 (773 pre-existing + 11 new `manifest.py`
+  tests + 5 new `atlassian_auth.py` resilience tests)
+- Atomicity proven via a monkeypatched `os.replace()` asserting the
+  destination still holds old content and the temp source holds new content
+  at replace-time; cleanup-on-failure proven the same way
+- Retry logic proven against a real flaky local HTTP server (fails twice
+  with 503, then succeeds), plus a control-case test showing a plain session
+  without the adapter genuinely fails on the same server
+
+---
+
 ## [2.8.9] — 2026-08-02 (Dashboard security hardening: session token, Origin check, read-only sharing, and a real concurrent-write bug fix)
 
 The highest-priority item from a comprehensive verification pass against an

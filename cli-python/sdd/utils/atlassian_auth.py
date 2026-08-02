@@ -5,7 +5,55 @@ from pathlib import Path
 import yaml
 import requests
 import requests.auth
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import keyring
+
+# Every Jira/Confluence API call in this codebase goes through a Session
+# built by build_session() below, so configuring resilience once here --
+# rather than passing timeout=/wrapping try/except at each of the ~25
+# individual call sites across jira_client.py and confluence_client.py --
+# covers all of them. Before this, a flaky network blip or an Atlassian
+# rate limit turned into a raw, unhandled stack trace mid-workflow.
+_DEFAULT_TIMEOUT = 20  # seconds -- generous for a REST call, short enough
+                       # that a hung connection doesn't block an
+                       # interactive CLI command indefinitely
+
+
+class _TimeoutHTTPAdapter(HTTPAdapter):
+    """Applies a default request timeout whenever a call doesn't specify
+    its own -- requests.Session has no built-in way to set a session-wide
+    default timeout (a well-known library gotcha), so overriding the
+    adapter's send() is the standard workaround."""
+
+    def __init__(self, *args, timeout: float = _DEFAULT_TIMEOUT, **kwargs):
+        self._timeout = timeout
+        super().__init__(*args, **kwargs)
+
+    def send(self, request, **kwargs):
+        if kwargs.get("timeout") is None:
+            kwargs["timeout"] = self._timeout
+        return super().send(request, **kwargs)
+
+
+def _retrying_adapter() -> _TimeoutHTTPAdapter:
+    """3 retries with exponential backoff (0s/1s/2s/4s between attempts) on
+    connection errors and on 429/500/502/503/504 responses, honoring a
+    429's Retry-After header when Atlassian sends one. Retries every HTTP
+    method, including POST/PUT -- this codebase's writes already lean on
+    label-based find-before-create idempotency where duplication would
+    matter (see JiraClient.find_by_label), and the alternative (a
+    connection blip silently aborting a document approval or a Jira push
+    partway through) is worse than the small remaining risk of an
+    occasional duplicate retry on a genuinely dropped response."""
+    retry = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=None,
+        respect_retry_after_header=True,
+    )
+    return _TimeoutHTTPAdapter(max_retries=retry)
 
 CONFIG_PATH = Path.home() / ".sdd" / "config.yml"
 
@@ -133,6 +181,8 @@ def _resolve_secret(profile: Profile, env_var_name: str | None, field_name: str)
 
 def build_session(profile: Profile) -> requests.Session:
     session = requests.Session()
+    session.mount("https://", _retrying_adapter())
+    session.mount("http://", _retrying_adapter())
     session.headers["Accept"] = "application/json"
     session.headers["Content-Type"] = "application/json"
 
