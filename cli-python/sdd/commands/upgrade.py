@@ -4901,6 +4901,63 @@ MIGRATIONS: list[Migration] = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.14"},
     },
+    {
+        "from": "2.8.14",
+        "to": "2.8.15",
+        "description": "Add package-verify CI job proving a clean pip install actually works; add sdd init --ai-tool flag",
+        "notes": [
+            "A second external review round flagged that CI never verifies "
+            "the packaging path end to end: sdd/packs/ is gitignored and "
+            "only populated by publish.sh's manual bundling step right "
+            "before a real PyPI upload, so nothing catches a wheel built "
+            "without that step. This was proven to be a live bug, not a "
+            "hypothetical one: a wheel built the way CI already builds it "
+            "(pip install ./cli-python, no publish.sh), installed into a "
+            "venv outside the repo, and run via `sdd init` from a real-"
+            "world project directory, failed with 'SDD pack files not "
+            "found.' scaffold.py's dev-fallback (walk up to a git "
+            "checkout's packs/ directory) silently masks this in any CI "
+            "job or dev environment that still has the full repo checked "
+            "out, which is every environment this project's CI used until "
+            "now",
+            "New 'package-verify' CI job: bundles packs the same way "
+            "publish.sh does, builds sdist+wheel via `python -m build` "
+            "(sdist->wheel path, not --wheel alone, since that alone "
+            "would miss a build backend that only bundles gitignored "
+            "files into the wheel target's own artifacts config, not the "
+            "sdist's), asserts both archives contain "
+            "sdd/packs/sdd-universal/setup.sh, installs the wheel into a "
+            "clean venv, and runs a full `sdd init` from a scratch "
+            "directory outside the repo -- this is the exact reproduction "
+            "that first surfaced the bug, now guarded permanently in CI",
+            "The same assertion (wheel/sdist actually contain the bundled "
+            "packs) is now also run inside publish.sh itself, between the "
+            "build and upload steps, so a manual publish run outside CI "
+            "can't ship a broken package either",
+            "Along the way, running `sdd init` fully non-interactively for "
+            "the CI job surfaced a real, separate gap: every other "
+            "interactive prompt (project type, scope, plan mode, reading "
+            "mode) already had a CLI flag override, but 'Which AI tool "
+            "will you use?' did not -- it was the one prompt with no way "
+            "to skip, so any fully unattended `sdd init` (CI, scripts, "
+            "this new package-verify job) would hang or abort on a "
+            "non-interactive stdin. Added --ai-tool (claude-code | "
+            "copilot | cursor | windsurf | other), validated the same way "
+            "--scope is",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. The Node CLI's own init scaffolding has no "
+            "AI-tool prompt to begin with, so there's no corresponding "
+            "code change on that side",
+            "Verified: cli-python pytest 819/819 (817 pre-existing + 2 "
+            "new --ai-tool tests), ruff check/format, mypy, and bandit all "
+            "clean; the full package-verify sequence (bundle -> build -> "
+            "assert contents -> clean venv install -> sdd init from "
+            "outside the repo) was run manually end to end before adding "
+            "it to CI, confirming both the failure it catches and the fix",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.15"},
+    },
 ]
 
 

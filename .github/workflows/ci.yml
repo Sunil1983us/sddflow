@@ -250,6 +250,77 @@ jobs:
           # though the assertion above passed. Reset it explicitly.
           exit 0
 
+  package-verify:
+    name: Wheel/sdist actually bundle packs (clean-install sdd init works)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Bundle packs into cli-python/sdd/packs (mirrors publish.sh Step 1)
+        run: |
+          set -euo pipefail
+          dest="cli-python/sdd/packs"
+          rm -rf "$dest"
+          mkdir -p "$dest"
+          for pack in sdd-backend-service sdd-frontend-spa sdd-fullstack sdd-mobile sdd-universal sdd-micro; do
+            cp -r "packs/$pack" "$dest/$pack"
+          done
+      - name: Install the build frontend
+        run: pip install build
+      - name: Build sdist + wheel (uv build/twine equivalent -- exercises the sdist->wheel path, not just --wheel)
+        working-directory: cli-python
+        run: python3 -m build
+      - name: Assert both the wheel and the sdist actually contain the bundled packs
+        working-directory: cli-python
+        run: |
+          python3 - <<'PYEOF'
+          import glob
+          import sys
+          import tarfile
+          import zipfile
+
+          needle = "sdd/packs/sdd-universal/setup.sh"
+
+          wheel = glob.glob("dist/*.whl")[0]
+          with zipfile.ZipFile(wheel) as zf:
+              names = zf.namelist()
+          if not any(n.endswith(needle) for n in names):
+              sys.exit(f"::error::{wheel} is missing {needle} -- packaging bundling is broken")
+          print(f"OK: {wheel} contains {needle}")
+
+          sdist = glob.glob("dist/*.tar.gz")[0]
+          with tarfile.open(sdist) as tf:
+              names = tf.getnames()
+          if not any(n.endswith(needle) for n in names):
+              sys.exit(f"::error::{sdist} is missing {needle} -- sdist silently dropped the gitignored packs dir")
+          print(f"OK: {sdist} contains {needle}")
+          PYEOF
+      - name: Install the wheel into a clean venv outside the repo
+        run: |
+          set -euo pipefail
+          wheel="$(ls "$GITHUB_WORKSPACE"/cli-python/dist/*.whl)"
+          python3 -m venv "$RUNNER_TEMP/clean_venv"
+          "$RUNNER_TEMP/clean_venv/bin/pip" install "$wheel"
+      - name: Run sdd init from a real-world project dir (no git checkout, no dev fallback)
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/real_world_project"
+          mkdir -p "$work"
+          cd "$work"
+          "$RUNNER_TEMP/clean_venv/bin/sdd" init \
+            -p "Package Verify Test" -f "smoke-feature" \
+            -t backend-service --pack sdd-backend-service -s pilot \
+            --plan-mode unified --reading-mode auto --ai-tool other \
+            < /dev/null
+          test -f ".specify/manifest.yml" || { echo "::error::manifest.yml not created by a clean-install sdd init"; exit 1; }
+          grep -q 'sdd_version' ".specify/manifest.yml" || { echo "::error::manifest.yml missing sdd_version"; exit 1; }
+          echo "OK: sdd init succeeded from a clean pip install outside the repo"
+      - name: Clean up bundled packs from the source tree (mirrors publish.sh Step 5)
+        if: always()
+        run: rm -rf cli-python/sdd/packs
+
   node-cli-sanity:
     name: Node CLI installs and runs cleanly
     runs-on: ubuntu-latest

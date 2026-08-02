@@ -4,6 +4,50 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.15] — 2026-08-02 (CI now proves a clean pip install actually works; sdd init gets an --ai-tool flag)
+
+A second external review round flagged that CI never verifies the packaging
+path end to end: `sdd/packs/` is gitignored and only populated by
+`publish.sh`'s manual bundling step right before a real PyPI upload. This
+was proven to be a live, currently-undetected bug — a wheel built the way
+CI already builds it (`pip install ./cli-python`, no `publish.sh`),
+installed into a venv outside the repo, and run via `sdd init` from a real
+project directory, failed with `SDD pack files not found.` `scaffold.py`'s
+dev-fallback (walk up to a git checkout's `packs/` directory) silently
+masked this in every environment that still had the full repo checked out
+— which was every CI job and every dev machine, until now.
+
+### Added
+
+- **New `package-verify` CI job.** Bundles packs the same way `publish.sh`
+  does, builds sdist+wheel via `python -m build`, asserts both archives
+  contain `sdd/packs/sdd-universal/setup.sh`, installs the wheel into a
+  clean venv, and runs a full `sdd init` from a scratch directory outside
+  the repo — the exact reproduction that first surfaced the bug, now
+  guarded permanently in CI.
+- The same assertion now also runs inside `publish.sh` itself, between the
+  build and upload steps, so a manual publish run outside CI can't ship a
+  broken package either.
+- **`sdd init --ai-tool`** (`claude-code | copilot | cursor | windsurf |
+  other`). Running `sdd init` fully non-interactively for the CI job above
+  surfaced a real, separate gap: every other interactive prompt (project
+  type, scope, plan mode, reading mode) already had a CLI flag override,
+  but "Which AI tool will you use?" did not — the one prompt with no way
+  to skip, so any fully unattended `sdd init` would hang or abort on a
+  non-interactive stdin.
+
+### Verified
+
+- `cli-python` pytest: 819/819 (817 pre-existing + 2 new `--ai-tool`
+  tests)
+- ruff check/format, mypy, and bandit all clean
+- The full package-verify sequence (bundle → build → assert contents →
+  clean venv install → `sdd init` from outside the repo) was run manually
+  end to end before adding it to CI, confirming both the failure it
+  catches and the fix
+
+---
+
 ## [2.8.14] — 2026-08-02 (Dashboard: gate /api/review-links behind the token in read-only share mode)
 
 A second external review round found a real gap in the dashboard

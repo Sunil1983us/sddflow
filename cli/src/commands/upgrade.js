@@ -3501,6 +3501,46 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.14',
+    to:   '2.8.15',
+    description: "Add package-verify CI job proving a clean pip install actually works; add sdd init --ai-tool flag",
+    notes: [
+      "A second external review round flagged that CI never verifies the " +
+      "packaging path end to end: sdd/packs/ is gitignored and only " +
+      "populated by publish.sh's manual bundling step right before a " +
+      "real PyPI upload. Proven to be a live bug: a wheel built the way " +
+      "CI already builds it, installed into a venv outside the repo, and " +
+      "run via `sdd init`, failed with 'SDD pack files not found.' -- " +
+      "scaffold.py's dev-fallback silently masked this in every " +
+      "environment that still had the full repo checked out",
+      "New 'package-verify' CI job bundles packs like publish.sh does, " +
+      "builds sdist+wheel, asserts both contain sdd/packs/sdd-universal/" +
+      "setup.sh, installs the wheel into a clean venv, and runs a full " +
+      "`sdd init` from outside the repo -- the exact reproduction that " +
+      "surfaced the bug, now guarded permanently in CI. The same " +
+      "assertion also runs inside publish.sh itself between build and " +
+      "upload",
+      "Running sdd init fully non-interactively for that CI job surfaced " +
+      "a separate real gap: every other prompt (project type, scope, " +
+      "plan mode, reading mode) already had a CLI flag override, but " +
+      "'Which AI tool will you use?' did not. Added --ai-tool (claude-" +
+      "code | copilot | cursor | windsurf | other), validated the same " +
+      "way --scope is",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. The " +
+      "Node CLI's own init scaffolding has no AI-tool prompt to begin " +
+      "with, so there's no corresponding code change on that side",
+      "Verified: cli-python pytest 819/819 (817 pre-existing + 2 new " +
+      "--ai-tool tests), ruff check/format, mypy, and bandit all clean; " +
+      "the full package-verify sequence was run manually end to end " +
+      "before adding it to CI",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.15';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

@@ -57,6 +57,35 @@ uv build
 echo "  ✓  $(ls dist/*.whl 2>/dev/null | head -1 | xargs basename)"
 echo "  ✓  $(ls dist/*.tar.gz 2>/dev/null | head -1 | xargs basename)"
 
+# ── Step 3b: Verify the build actually bundled the packs ────────────────────
+# Same assertion CI's package-verify job runs, repeated here so a manual
+# publish can't ship a broken package even if someone runs this script
+# without CI in the loop (e.g. hand-publishing from a laptop).
+echo ""
+echo "▶ Verifying wheel and sdist contain the bundled packs..."
+python3 - <<'PYEOF'
+import glob
+import sys
+import tarfile
+import zipfile
+
+needle = "sdd/packs/sdd-universal/setup.sh"
+
+wheel = glob.glob("dist/*.whl")[0]
+with zipfile.ZipFile(wheel) as zf:
+    names = zf.namelist()
+if not any(n.endswith(needle) for n in names):
+    sys.exit(f"✗  {wheel} is missing {needle} -- aborting, do not upload")
+print(f"  ✓  {wheel} contains {needle}")
+
+sdist = glob.glob("dist/*.tar.gz")[0]
+with tarfile.open(sdist) as tf:
+    names = tf.getnames()
+if not any(n.endswith(needle) for n in names):
+    sys.exit(f"✗  {sdist} is missing {needle} -- aborting, do not upload")
+print(f"  ✓  {sdist} contains {needle}")
+PYEOF
+
 # ── Step 4: Upload ────────────────────────────────────────────────────────────
 echo ""
 if [ "$TEST_MODE" = true ]; then
