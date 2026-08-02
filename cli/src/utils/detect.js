@@ -36,8 +36,12 @@ export function detectProjectType(root = '.') {
     if (has('pom.xml') || has('build.gradle') || has('go.mod')) return 'fullstack';
 
     if (deps.includes('electron')) return 'desktop';
+    // 'angular' as a substring, not startsWith: every real Angular 2+
+    // project depends on scoped packages like '@angular/core', which don't
+    // start with 'angular' -- only ancient AngularJS 1.x used the bare
+    // 'angular' package name.
     if (['react', 'vue', 'svelte', 'next', 'nuxt'].some(d => deps.includes(d)) ||
-        deps.some(d => d.startsWith('angular'))) return 'frontend-spa';
+        deps.some(d => d.includes('angular'))) return 'frontend-spa';
   }
 
   // Desktop (Tauri)

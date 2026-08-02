@@ -4,6 +4,61 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.18] — 2026-08-02 (Fix two real project-type misdetection bugs; add cross-implementation fixture tests)
+
+The final item from the second external review round: building a shared
+fixture-test suite across all four project-type detection implementations
+(`cli-python/sdd/utils/detect.py`, `cli/src/utils/detect.js`,
+`packs/sdd-universal/setup.sh`, `packs/sdd-universal/setup.ps1`) surfaced
+two real, previously-unnoticed bugs, fixed alongside the new tests.
+
+### Fixed
+
+- **`setup.sh`/`setup.ps1`: `react-native-web` was misdetected as
+  `mobile`.** A plain substring/word-boundary check on the `react-native`
+  dependency name also matched `react-native-web` — a real, common npm
+  package for running React Native components on the web, not a mobile
+  project. Fixed with a space-padded whole-token match instead.
+  `detect.py`/`detect.js` already did exact list/array membership and
+  never had this bug.
+- **`detect.py`/`detect.js`: modern Angular projects were never
+  detected at all.** The Angular check used `startswith('angular')` /
+  `startsWith('angular')`, which no real Angular 2+ project satisfies —
+  they depend on scoped packages like `@angular/core`, which start with
+  `@`, not `angular`. Only ancient AngularJS 1.x used the bare `angular`
+  package name. Fixed by switching to a substring check, matching
+  `setup.sh`/`setup.ps1`'s existing (correct) behavior.
+
+### Added
+
+- `cli-python/tests/test_detect.py`, `cli/tests/detect.test.js`
+  (extended), and `packs/_shared/tests/test-detect-fixtures.sh` (new,
+  wired into the `setup-smoke-tests` CI job) all assert the same ~20
+  synthetic project fixtures against their respective implementation —
+  there was no dedicated detection test coverage at all before this in
+  any of the three.
+
+Scoped down from the original review suggestion of making `detect.py`
+canonical and having `setup.sh`/`setup.ps1` shell out to it: that would
+make Python a hard runtime dependency of pack setup scripts (currently
+only a soft dependency, for `package.json` parsing). Keeping four
+independent implementations in sync via identical fixture tests achieves
+the same goal — catching divergence — without that new dependency.
+
+### Verified
+
+- `cli-python` pytest: 848/848 (825 pre-existing + 23 new)
+- ruff check/format, mypy, and bandit all clean
+- `cli` `node --test`: 27/27
+- `bash test-detect-fixtures.sh`: 23/23
+- sync-drift check and cross-reference checker both clean
+- `setup.ps1`'s fix was verified by direct code inspection, not an
+  automated fixture loop (no `pwsh` available in this session's test
+  environment) — PowerShell's `-match` has the same non-anchored
+  substring semantics as bash's `grep -E`, so the identical fix applies
+
+---
+
 ## [2.8.17] — 2026-08-02 (Widen js-yaml's range; friendly dashboard port-conflict error; lazy page assembly)
 
 A batch of three small, independently-verified fixes from the second

@@ -3127,6 +3127,35 @@ export const MIGRATIONS = [
       "js-yaml 5.2.3",
     ],
   },
+  {
+    from: '2.8.17',
+    to:   '2.8.18',
+    description: "Fix two real project-type misdetection bugs; add ~20-fixture cross-implementation test coverage",
+    notes: [
+      "Building a shared fixture-test suite across all detection " +
+      "implementations surfaced two real, previously-unnoticed bugs, " +
+      "fixed alongside the new tests:",
+      "(1) setup.sh/setup.ps1 (sdd-universal's auto-detect): a plain " +
+      "substring/word-boundary check on 'react-native' also matched " +
+      "'react-native-web' -- a real npm package for running React " +
+      "Native components on the web, not a mobile project. detect.py/" +
+      "detect.js already did exact list/array membership and never had " +
+      "this bug",
+      "(2) this file's own Angular check used d.startsWith('angular'), " +
+      "which no real Angular 2+ project satisfies -- they depend on " +
+      "scoped packages like '@angular/core', which start with '@', not " +
+      "'angular'. Fixed by switching to a substring check, matching " +
+      "setup.sh/setup.ps1's existing (correct) behavior",
+      "New tests/detect.test.js (extended) now asserts ~20 synthetic " +
+      "project fixtures, the same set mirrored in cli-python/tests/" +
+      "test_detect.py and packs/_shared/tests/test-detect-fixtures.sh -- " +
+      "there was no dedicated detection test coverage at all before this",
+      "This migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: node --test 27/27, npm test and the --help smoke test " +
+      "both pass",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

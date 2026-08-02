@@ -63,7 +63,11 @@ def detect_project_type(root: str = ".") -> str | None:
             return "desktop"
 
         spa_frameworks = {"react", "vue", "svelte", "next", "nuxt"}
-        if spa_frameworks & set(deps) or any(d.startswith("angular") for d in deps):
+        # "angular" in d (substring), not startswith: every real Angular 2+
+        # project depends on scoped packages like "@angular/core", which
+        # don't start with "angular" -- only ancient AngularJS 1.x used the
+        # bare "angular" package name.
+        if spa_frameworks & set(deps) or any("angular" in d for d in deps):
             return "frontend-spa"
 
     # Desktop (Tauri)

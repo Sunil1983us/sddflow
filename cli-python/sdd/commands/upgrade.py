@@ -4926,6 +4926,65 @@ MIGRATIONS: list[Migration] = [
             "--help smoke test both pass under js-yaml 5.2.3",
         ],
     },
+    {
+        "from": "2.8.17",
+        "to": "2.8.18",
+        "description": "Fix two real project-type misdetection bugs; add ~20-fixture cross-implementation test coverage",
+        "notes": [
+            "Building a shared fixture-test suite across all detection "
+            "implementations (the last item from the second external "
+            "review round) surfaced two real, previously-unnoticed bugs, "
+            "fixed alongside the new tests:",
+            "(1) setup.sh/setup.ps1 (sdd-universal's auto-detect, used "
+            "when project_type is left as 'auto'): a plain substring/"
+            "word-boundary check on the 'react-native' dependency name "
+            "also matched 'react-native-web' -- a real, common npm "
+            "package for running React Native components on the web, not "
+            "a mobile project. The '-' immediately after 'native' is "
+            "already a regex word boundary, so \\b didn't exclude it "
+            "either; fixed with a space-padded whole-token match instead. "
+            "detect.py/detect.js already did exact list/array membership "
+            "and never had this bug",
+            "(2) detect.py/detect.js: the Angular check used "
+            "d.startswith('angular'), which no real Angular 2+ project "
+            "satisfies -- they depend on scoped packages like "
+            "'@angular/core', which start with '@', not 'angular'. Only "
+            "ancient AngularJS 1.x used the bare 'angular' package name. "
+            "Fixed by switching to a substring check, matching setup.sh/"
+            "setup.ps1's existing (correct) behavior. This means real "
+            "Angular projects using sdd-universal's Python/Node auto-"
+            "detect path were silently falling through to no detection "
+            "at all until now",
+            "New: cli-python/tests/test_detect.py, cli/tests/detect.test.js "
+            "(extended), and packs/_shared/tests/test-detect-fixtures.sh "
+            "(new, wired into the setup-smoke-tests CI job) all assert "
+            "the same ~20 synthetic project fixtures against their "
+            "respective implementation -- there was no dedicated "
+            "detection test coverage at all before this in any of the "
+            "three",
+            "Scoped down from the review's original 'make detect.py "
+            "canonical, have setup.sh/setup.ps1 shell out to it' "
+            "suggestion: shelling out would require a Python "
+            "installation as a hard runtime dependency of pack setup "
+            "scripts, which currently only soft-depend on python3 for "
+            "package.json parsing (with no fallback if it's absent). "
+            "Keeping four independent implementations in sync via "
+            "identical fixture tests achieves the same actual goal -- "
+            "catching divergence -- without that new dependency",
+            "setup.ps1 has the equivalent fix but isn't covered by an "
+            "automated fixture loop (no pwsh available in every "
+            "environment this session's tests ran in) -- verified by "
+            "direct code inspection: PowerShell's -match operator has "
+            "the identical non-anchored substring semantics as bash's "
+            "grep -E, so the same space-padded token-match fix applies "
+            "identically. Windows CI (windows-setup-smoke-test) at least "
+            "validates setup.ps1 parses and runs",
+            "Verified: cli-python pytest 848/848 (825 pre-existing + 23 "
+            "new), ruff check/format, mypy, and bandit all clean; cli "
+            "node --test 27/27; bash test-detect-fixtures.sh 23/23; "
+            "sync-drift check and cross-reference checker both clean",
+        ],
+    },
 ]
 
 

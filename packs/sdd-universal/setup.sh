@@ -56,8 +56,13 @@ except Exception:
     print('')
 " 2>/dev/null || echo "")
 
-    # Mobile (React Native / Expo) — before fullstack check
-    if echo "$deps" | grep -qE 'react-native|expo\b'; then echo "mobile"; return; fi
+    # Mobile (React Native / Expo) — before fullstack check. Space-padded,
+    # whole-token match -- a plain substring/word-boundary check on
+    # "react-native" also matches "react-native-web" (a real npm package
+    # for running React Native components on the web, not a mobile
+    # project), since the "-" right after "native" is already a regex
+    # word boundary and wouldn't be excluded by \b either.
+    if echo " $deps " | grep -qE ' (react-native|expo) '; then echo "mobile"; return; fi
 
     # Fullstack: JS frontend + separate backend (only after mobile ruled out)
     if { [ -f "$root/pom.xml" ] || [ -f "$root/build.gradle" ] || [ -f "$root/go.mod" ]; }; then

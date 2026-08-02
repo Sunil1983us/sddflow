@@ -35,6 +35,8 @@ jobs:
         run: bash packs/_shared/tests/test-setup.sh
       - name: Run test-setup-micro.sh (sdd-micro)
         run: bash packs/_shared/tests/test-setup-micro.sh
+      - name: Run test-detect-fixtures.sh (sdd-universal detect_project_type)
+        run: bash packs/_shared/tests/test-detect-fixtures.sh
 
   cross-reference-check:
     name: Prompt cross-references resolve (no dead "Action N" / "§N" pointers)
