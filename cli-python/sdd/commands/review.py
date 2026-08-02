@@ -10,6 +10,7 @@ import yaml
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import load_confluence_session, load_jira_session
+from sdd.utils.atomic_write import atomic_write_text
 from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.dashboard_comments import acknowledge, unacknowledged
 from sdd.utils.integrations import IntegrationsConfig, load_integrations
@@ -40,11 +41,11 @@ def _save_local_approval(doc: str, approved_by: str, note: str = "") -> None:
         "approved_at": str(date.today()),  # noqa: DTZ011 -- local calendar date by design, not a UTC instant
         "note": note,
     }
-    _LOCAL_APPROVALS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _LOCAL_APPROVALS_FILE.write_text(
+    atomic_write_text(
+        _LOCAL_APPROVALS_FILE,
         "# Local approval record — used when Jira is not configured\n"
         "# Written by `sdd review approve --local` or AI fallback flow\n"
-        + yaml.dump(approvals, default_flow_style=False)
+        + yaml.dump(approvals, default_flow_style=False),
     )
 
 
@@ -119,7 +120,7 @@ def _mark_md_approved(md_path: Path) -> bool:
     new = _mark_approvals_table(new, str(date.today()))  # noqa: DTZ011 -- local calendar date by design
     if new == text:
         return False
-    md_path.write_text(new)
+    atomic_write_text(md_path, new)
     return True
 
 
@@ -395,8 +396,7 @@ def _load_review_links() -> dict:
 
 
 def _save_review_links(links: dict) -> None:
-    _REVIEW_LINKS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _REVIEW_LINKS_FILE.write_text(json.dumps(links, indent=2))
+    atomic_write_text(_REVIEW_LINKS_FILE, json.dumps(links, indent=2))
 
 
 def _record_review_link(doc: str, issue_key: str) -> None:
@@ -527,7 +527,7 @@ def _patch_marker(md_path: Path, nnn: str, answer: str) -> bool:
     new_text = _bump_version_and_log(
         new_text, f"NC-{nnn} resolved via Jira/Confluence comment"
     )
-    md_path.write_text(new_text)
+    atomic_write_text(md_path, new_text)
     return True
 
 
@@ -659,7 +659,7 @@ def _patch_clarify_item(md_path: Path, code: str, answer: str) -> bool:
     new_text = _bump_version_and_log(
         new_text, f"{code} resolved via Jira/Confluence comment"
     )
-    md_path.write_text(new_text)
+    atomic_write_text(md_path, new_text)
     return True
 
 
@@ -705,7 +705,7 @@ def _number_legacy_markers(md_path: Path) -> int:
 
     new_text = _LEGACY_MARKER_RE.sub(renumber, text)
     if state["count"]:
-        md_path.write_text(new_text)
+        atomic_write_text(md_path, new_text)
     return state["count"]
 
 

@@ -70,14 +70,17 @@ def test_write_manifest_is_atomic_via_temp_file_and_replace(tmp_path, monkeypatc
     """Verifies the actual mechanism, not just the end result: write_manifest
     must never call write_text() directly on the target path (the old,
     non-atomic behavior) -- it must write to a temp file in the same
-    directory and os.replace() it into place."""
-    import sdd.utils.manifest as manifest_mod
+    directory and os.replace() it into place. The mechanism itself now
+    lives in sdd.utils.atomic_write (see tests/test_atomic_write.py for
+    the full failure-cleanup coverage); this just confirms write_manifest
+    actually routes through it end to end."""
+    import sdd.utils.atomic_write as atomic_write_mod
 
     p = tmp_path / "manifest.yml"
     p.write_text("project:\n  name: Original\n")  # pre-existing file
 
     replace_calls = []
-    original_replace = manifest_mod.os.replace
+    original_replace = atomic_write_mod.os.replace
 
     def spy_replace(src, dst):
         # At the moment of replace, the destination must still hold the
@@ -88,29 +91,11 @@ def test_write_manifest_is_atomic_via_temp_file_and_replace(tmp_path, monkeypatc
         replace_calls.append((src, dst))
         return original_replace(src, dst)
 
-    monkeypatch.setattr(manifest_mod.os, "replace", spy_replace)
+    monkeypatch.setattr(atomic_write_mod.os, "replace", spy_replace)
     write_manifest({"project": {"name": "Updated"}}, str(p))
 
     assert len(replace_calls) == 1
     assert read_manifest(str(p))["project"]["name"] == "Updated"
-
-
-def test_write_manifest_cleans_up_temp_file_on_failure(tmp_path, monkeypatch):
-    import sdd.utils.manifest as manifest_mod
-
-    p = tmp_path / "manifest.yml"
-
-    def boom(*a, **kw):
-        raise OSError("disk full (simulated)")
-
-    monkeypatch.setattr(manifest_mod.os, "replace", boom)
-    with pytest.raises(OSError):
-        write_manifest({"project": {"name": "Demo"}}, str(p))
-
-    leftovers = list(tmp_path.iterdir())
-    assert leftovers == [], (
-        f"temp file(s) left behind after a failed write: {leftovers}"
-    )
 
 
 def test_patch_manifest_still_raises_filenotfound_when_missing(tmp_path):

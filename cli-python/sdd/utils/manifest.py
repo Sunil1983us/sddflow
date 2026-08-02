@@ -5,13 +5,12 @@
 # No string interpolation, no regex substitution, no injection risk.
 from __future__ import annotations
 
-import os
-import tempfile
 from pathlib import Path
 
 import yaml
 
 from sdd import __version__ as SDD_VERSION
+from sdd.utils.atomic_write import atomic_write_text
 
 MANIFEST_PATH = ".specify/manifest.yml"
 # SDD_VERSION is the single source of truth for "what version is this" —
@@ -53,26 +52,11 @@ def write_manifest(manifest: dict, path: str = MANIFEST_PATH) -> None:
     )
     content = header + yaml.dump(manifest, default_flow_style=False, allow_unicode=True)
 
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-
-    # Write-to-temp-then-rename: os.replace() is atomic on both POSIX and
-    # Windows when source and destination share a filesystem -- the temp
-    # file is created in the *same directory* as the target specifically to
-    # guarantee that. Without this, a process killed mid-write (e.g. `sdd
-    # upgrade` interrupted) could leave manifest.yml truncated -- every
-    # command reads this file, so a truncated manifest breaks the whole
-    # project, not just the interrupted command.
-    fd, tmp_path = tempfile.mkstemp(
-        dir=target.parent, prefix=f".{target.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w") as f:
-            f.write(content)
-        os.replace(tmp_path, target)
-    except BaseException:
-        Path(tmp_path).unlink(missing_ok=True)
-        raise
+    # Atomic write matters here specifically: every command reads this
+    # file, so a process killed mid-write (e.g. `sdd upgrade` interrupted)
+    # leaving manifest.yml truncated breaks the whole project, not just
+    # the interrupted command.
+    atomic_write_text(path, content)
 
 
 def patch_manifest(patches: dict, path: str = MANIFEST_PATH) -> dict:
