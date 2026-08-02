@@ -9,7 +9,7 @@ import yaml
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import load_jira_session, load_profile
-from sdd.utils.integrations import JiraConfig, load_integrations
+from sdd.utils.integrations import IntegrationsConfig, JiraConfig, load_integrations
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.manifest import read_manifest
 from sdd.utils.sdd_parser import (
@@ -461,6 +461,114 @@ def parse_changeset(features_dir: Path, cr_id: str) -> list[dict]:
     return chg_tasks
 
 
+# ── jira_push helpers ────────────────────────────────────────────────────────
+# jira_push() itself stays a thin sequence of named steps; each of these
+# owns one concern (banner, config/auth setup, feature resolution, summary
+# display) so it's readable and independently testable without needing to
+# invoke the full Click command. The actual push orchestration was already
+# factored out into _push/_push_stories/_push_tasks/_push_chg/
+# _push_uc_draft_stories well before this split -- this only addresses the
+# setup/validation/display portion that used to be inlined directly in the
+# command function.
+
+
+def _print_push_banner(level: str, dry_run: bool) -> None:
+    console.print()
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    label = "  [bold cyan]SDD → Jira[/bold cyan]"
+    if level != "all":
+        label += f"  [dim](level: {level})[/dim]"
+    if dry_run:
+        label += "  [yellow](dry run)[/yellow]"
+    console.print(label)
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print()
+
+
+def _load_jira_push_config() -> IntegrationsConfig:
+    """Loads .specify/integrations.yml and confirms a jira: section exists
+    -- printed error + SystemExit(1) on either failure, matching every
+    other validation step in jira_push()."""
+    try:
+        cfg = load_integrations()
+    except FileNotFoundError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
+
+    if not cfg.jira:
+        console.print("  [red]✗  No jira: section in .specify/integrations.yml[/red]")
+        raise SystemExit(1)
+
+    return cfg
+
+
+def _resolve_push_feature(feature: str | None) -> tuple[str, str, Path]:
+    """Resolves (project_name, feature_name, features_dir) from the
+    --feature flag (falling back to manifest.yml) -- SystemExit(1) if the
+    feature directory doesn't exist or the name fails path-traversal
+    validation."""
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
+    project_name = proj.get("name", "Unknown Project")
+    feature_name = feature or proj.get("feature", "")
+
+    try:
+        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
+    if not features_dir.exists():
+        console.print(f"  [red]✗  Feature directory not found: {features_dir}[/red]")
+        raise SystemExit(1)
+
+    return project_name, feature_name, features_dir
+
+
+def _print_push_summary(
+    project_name: str,
+    feature_name: str,
+    level: str,
+    jira_cfg: JiraConfig,
+    *,
+    use_cases: list[UseCase] | None = None,
+    stories: list[Story] | None = None,
+    tasks: list[Task] | None = None,
+    chg_tasks: list[dict] | None = None,
+    cr: str | None = None,
+) -> None:
+    h = jira_cfg.issue_hierarchy
+    console.print(f"  Project  : [cyan]{project_name}[/cyan]")
+    console.print(f"  Feature  : [cyan]{feature_name}[/cyan]")
+    if level == "uc-draft":
+        assert use_cases is not None
+        console.print(f"  UCs      : [cyan]{len(use_cases)}[/cyan]")
+    if level in ("story", "all"):
+        assert stories is not None
+        console.print(f"  Stories  : [cyan]{len(stories)}[/cyan]")
+    if level in ("task", "all"):
+        assert tasks is not None
+        console.print(f"  Tasks    : [cyan]{len(tasks)}[/cyan]")
+    if level == "chg":
+        assert chg_tasks is not None
+        console.print(f"  CHG      : [cyan]{len(chg_tasks)}[/cyan]  [dim]({cr})[/dim]")
+    console.print(
+        f"  Jira     : [cyan]{jira_cfg.project_key}[/cyan]  "
+        f"[dim]{h['feature']} → {h['story']} → {h['task']}[/dim]"
+    )
+    if jira_cfg.project_keys:
+        overrides = ", ".join(
+            f"{lvl}→{key}" for lvl, key in jira_cfg.project_keys.items()
+        )
+        console.print(f"  [yellow]project_keys override: {overrides}[/yellow]")
+        console.print(
+            "  [yellow]!  Jira's parent/Epic-Link field generally can't link issues "
+            "across projects — parent links between these levels may fail. Any failure "
+            "prints a warning rather than vanishing silently, but check your Jira "
+            "before relying on this.[/yellow]"
+        )
+    console.print()
+
+
 @click.group()
 def jira_command():
     """Push SDD tasks and stories to Jira (Feature → Story → Task)."""
@@ -496,44 +604,14 @@ def jira_push(profile, feature, level, cr, dry_run):
     for correctness; run --level epic before --level story before
     --level task for parent links to attach, or just use --level all.
     """
-    console.print()
-    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    label = "  [bold cyan]SDD → Jira[/bold cyan]"
-    if level != "all":
-        label += f"  [dim](level: {level})[/dim]"
-    if dry_run:
-        label += "  [yellow](dry run)[/yellow]"
-    console.print(label)
-    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-    console.print()
+    _print_push_banner(level, dry_run)
 
     if level == "chg" and not cr:
         console.print("  [red]✗  --cr CR-NNN is required when --level chg[/red]")
         raise SystemExit(1)
 
-    try:
-        cfg = load_integrations()
-    except FileNotFoundError as e:
-        console.print(f"  [red]✗  {e}[/red]")
-        raise SystemExit(1)
-
-    if not cfg.jira:
-        console.print("  [red]✗  No jira: section in .specify/integrations.yml[/red]")
-        raise SystemExit(1)
-
-    manifest = read_manifest() or {}
-    proj = manifest.get("project") or {}
-    project_name = proj.get("name", "Unknown Project")
-    feature_name = feature or proj.get("feature", "")
-
-    try:
-        features_dir = safe_feature_path(Path(".specify") / "features", feature_name)
-    except ValueError as e:
-        console.print(f"  [red]✗  {e}[/red]")
-        raise SystemExit(1)
-    if not features_dir.exists():
-        console.print(f"  [red]✗  Feature directory not found: {features_dir}[/red]")
-        raise SystemExit(1)
+    cfg = _load_jira_push_config()
+    project_name, feature_name, features_dir = _resolve_push_feature(feature)
 
     if level == "chg":
         try:
@@ -568,32 +646,17 @@ def jira_push(profile, feature, level, cr, dry_run):
 
     jira_cfg = cfg.jira
     h = jira_cfg.issue_hierarchy
-    console.print(f"  Project  : [cyan]{project_name}[/cyan]")
-    console.print(f"  Feature  : [cyan]{feature_name}[/cyan]")
-    if level == "uc-draft":
-        console.print(f"  UCs      : [cyan]{len(use_cases)}[/cyan]")
-    if level in ("story", "all"):
-        console.print(f"  Stories  : [cyan]{len(stories)}[/cyan]")
-    if level in ("task", "all"):
-        console.print(f"  Tasks    : [cyan]{len(tasks)}[/cyan]")
-    if level == "chg":
-        console.print(f"  CHG      : [cyan]{len(chg_tasks)}[/cyan]  [dim]({cr})[/dim]")
-    console.print(
-        f"  Jira     : [cyan]{jira_cfg.project_key}[/cyan]  "
-        f"[dim]{h['feature']} → {h['story']} → {h['task']}[/dim]"
+    _print_push_summary(
+        project_name,
+        feature_name,
+        level,
+        jira_cfg,
+        use_cases=use_cases if level == "uc-draft" else None,
+        stories=stories,
+        tasks=tasks,
+        chg_tasks=chg_tasks if level == "chg" else None,
+        cr=cr,
     )
-    if jira_cfg.project_keys:
-        overrides = ", ".join(
-            f"{lvl}→{key}" for lvl, key in jira_cfg.project_keys.items()
-        )
-        console.print(f"  [yellow]project_keys override: {overrides}[/yellow]")
-        console.print(
-            "  [yellow]!  Jira's parent/Epic-Link field generally can't link issues "
-            "across projects — parent links between these levels may fail. Any failure "
-            "prints a warning rather than vanishing silently, but check your Jira "
-            "before relying on this.[/yellow]"
-        )
-    console.print()
 
     if dry_run:
         if level == "uc-draft":

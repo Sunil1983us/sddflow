@@ -4861,7 +4861,7 @@ MIGRATIONS: list[Migration] = [
             "19 passing), cross-reference checker and sync-drift check "
             "both clean across all 6 packs, and a direct manual run "
             "against a synced pack (sdd-backend-service) confirming both "
-            "the happy path (--scope lean -> scope: \"pilot\") and the "
+            'the happy path (--scope lean -> scope: "pilot") and the '
             "rejection path (--scope not-real -> exit 1) end to end",
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.13"},
