@@ -137,6 +137,11 @@ jobs:
       - name: Run mypy
         working-directory: cli-python
         run: mypy --ignore-missing-imports sdd/
+      - name: Install bandit
+        run: pip install bandit
+      - name: Run bandit
+        working-directory: cli-python
+        run: bandit -r sdd/ -c pyproject.toml
 
   python-min-deps:
     name: Python CLI runs with minimum declared dependency versions

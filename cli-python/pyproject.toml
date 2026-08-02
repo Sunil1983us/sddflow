@@ -108,6 +108,30 @@ ignore = [
     "BLE001",
 ]
 
+[tool.bandit]
+# A full run turned up nothing actionable beyond what's skipped here (one
+# genuine Medium finding -- the --share flag's deliberate 0.0.0.0 bind --
+# was addressed with an inline # nosec at its call site instead, since
+# that one needed its own explanation, not a blanket skip). Everything
+# below is either a false positive or an accepted, already-documented
+# pattern; re-run `bandit -r sdd/` without `skips` after any bandit
+# upgrade in case its detection changes.
+skips = [
+    "B101",  # assert used for internal invariants (see mypy-driven asserts
+             # in dashboard.py/jira.py), not for validating untrusted input
+             # -- being stripped under `python -O` degrades to a different
+             # crash, not a security hole
+    "B105",  # false positive: dashboard.py's _ACCESS["token"] default is
+             # `None` (absence of a token), not a hardcoded secret value
+    "B110",  # try/except/pass -- the 4 hits are the same best-effort
+             # fallbacks already individually annotated with
+             # `# noqa: S110 -- <reason>` for ruff, right at each site
+    "B404",  # subprocess import -- this CLI's whole job is shelling out
+             # to git/gh/glab/az
+    "B603",  # subprocess call -- always list-args with shell=False (the
+             # safe form), never a shell string built from untrusted input
+]
+
 [tool.coverage.run]
 source = ["sdd"]
 

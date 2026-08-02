@@ -1681,7 +1681,10 @@ def dashboard_command(port, host, share, write, no_open):
     A plain --host 0.0.0.0 (without --share) follows the same --write/token
     rule as --share — --share is just a shortcut for the common case.
     """
-    effective_host = "0.0.0.0" if share else host
+    # Deliberate, opt-in network-sharing feature (--share), not an accidental
+    # bind: gated behind the session-token + Origin-check + read-only-by-
+    # default access control implemented in _check_write_access() above.
+    effective_host = "0.0.0.0" if share else host  # nosec B104
     is_local = effective_host in ("127.0.0.1", "localhost")
     writes_enabled = is_local or write
     token = secrets.token_urlsafe(24) if (not is_local and writes_enabled) else None
