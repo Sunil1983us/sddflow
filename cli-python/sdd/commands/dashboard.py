@@ -15,7 +15,9 @@ text) are length-clipped before being written anywhere.
 from __future__ import annotations
 import json
 import re
+import secrets
 import socket
+import threading
 import webbrowser
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,6 +33,25 @@ from sdd.utils.manifest import read_manifest
 console = Console()
 
 _SAFE_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+# --- Access control for non-loopback binds --------------------------------
+# Set once by dashboard_command() before serve_forever(); read by every
+# _Handler instance (http.server makes a fresh handler per request, so this
+# can't live on self -- module-level state set once at startup is the
+# simplest correct home for it). Defaults here are the safe/local case:
+# no token, writes allowed -- matching today's loopback-only behavior
+# exactly, so a plain `sdd dashboard` with no flags is unaffected by any of
+# this.
+_ACCESS = {"is_local": True, "writes_enabled": True, "token": None, "allowed_origins": set()}
+
+# Serializes every write triggered by a dashboard request (approve, comment)
+# behind one lock. ThreadingHTTPServer runs each request on its own thread,
+# and _do_approve/_do_comment each do a read-modify-write on a shared file
+# (.local-approvals.yml / .dashboard-comments.json) with no atomicity of
+# their own -- two near-simultaneous requests can race and silently drop
+# one's write. Dashboard write volume is a human clicking buttons, so
+# serializing it has no meaningful cost.
+_WRITE_LOCK = threading.Lock()
 
 _PAGE = """<!doctype html>
 <html lang="en">
@@ -208,6 +229,15 @@ _PAGE = """<!doctype html>
   .info-box[open] summary::before { transform: rotate(90deg); }
   .info-box .info-content { padding: 0 .8rem .8rem; line-height: 1.6; }
   .info-box code { background: var(--bg); border-radius: 4px; padding: .05rem .35rem; font-size: .9em; }
+  .network-banner {
+    margin: 0 0 1rem; padding: .6rem .9rem; border-radius: 8px; font-size: .85rem; font-weight: 600;
+  }
+  .network-banner-write {
+    background: color-mix(in srgb, var(--bad) 12%, transparent); border: 1px solid var(--bad); color: var(--bad);
+  }
+  .network-banner-readonly {
+    background: color-mix(in srgb, var(--muted) 14%, transparent); border: 1px solid var(--border); color: var(--muted);
+  }
 </style>
 </head>
 <body>
@@ -242,6 +272,9 @@ _PAGE = """<!doctype html>
       once you've clicked it for a feature, it quietly re-checks every 5 minutes so it all stays fresh without you clicking again.
       <strong>Approve</strong> and comments update the local Status header (same as <code>sdd review approve --local</code>),
       mirror to Confluence if configured, and post a best-effort Jira comment.
+      Running with <code>--share</code>? Approve/comment are read-only over the network unless the host machine also
+      passed <code>--write</code>, in which case every write request must carry the one-time token baked into the
+      link you were given — treat that link like a credential.
     </div>
   </details>
   <div id="root"></div>
@@ -286,6 +319,49 @@ function applyTheme(theme) {
 // has no entry yet.
 const state = { openDocs: new Set(), docTab: {}, docContents: {}, reviewLinks: {}, commentDrafts: {} };
 let lastData = null;
+let dashboardInfo = { is_local: true, writes_enabled: true }; // overwritten by fetchDashboardInfo() below
+
+// The server hands the write-access token to THIS browser via a one-time
+// ?token= query param on the URL it auto-opens (see dashboard_command()) --
+// read it once, keep it in memory for the life of this tab, then strip it
+// from the visible URL/history so it doesn't linger somewhere it could be
+// accidentally shared (a screenshot, a copied URL bar, browser history).
+// Sent back on every write request as a custom header (X-SDD-Token), never
+// a cookie -- a cookie would be attached automatically by the browser to
+// any request to this origin, including one a malicious page tricked the
+// user into triggering (classic CSRF); a header only goes out on requests
+// this page's own JS explicitly builds, which a different origin's page
+// cannot do (browsers don't let cross-origin JS read another origin's
+// script state to forge it).
+const _sddToken = new URLSearchParams(window.location.search).get('token');
+if (_sddToken) {
+  history.replaceState({}, '', window.location.pathname);
+}
+
+function writeHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (_sddToken) headers['X-SDD-Token'] = _sddToken;
+  return headers;
+}
+
+async function fetchDashboardInfo() {
+  try {
+    const res = await fetch('/api/dashboard-info');
+    dashboardInfo = await res.json();
+  } catch (err) {
+    // Leave the safe default (is_local: true, writes_enabled: true) --
+    // worst case a local user briefly sees write controls that a retry
+    // will confirm are actually fine, never the other way around.
+  }
+  render();
+}
+
+function renderNetworkBanner() {
+  if (dashboardInfo.is_local) return '';
+  return dashboardInfo.writes_enabled
+    ? `<div class="network-banner network-banner-write">⚠ Shared over your network — write access is enabled. Anyone with this page's link can approve documents and post comments.</div>`
+    : `<div class="network-banner network-banner-readonly">👁 Shared over your network — read-only. Approve/comment controls are hidden here; run with --write on the host machine to enable them.</div>`;
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -547,16 +623,19 @@ function renderCommentsBody(d, feature, reviewJira) {
           <div>${escapeHtml(c.text)}</div>
         </div>`).join('')
     : '<div class="sub">No dashboard comments yet.</div>';
-  return `
-    ${jiraList}
-    ${list}
-    <div class="comment-form">
+  const form = dashboardInfo.writes_enabled
+    ? `<div class="comment-form">
       <input type="text" class="comment-by" data-feature="${feature}" data-doc="${d.key}"
              placeholder="Your name" maxlength="200" value="${escapeHtml(draft.by)}">
       <textarea class="comment-text" data-feature="${feature}" data-doc="${d.key}"
                 placeholder="Add a review comment…" rows="2" maxlength="2000">${escapeHtml(draft.text)}</textarea>
       <button class="link-btn" data-action="submit-comment" data-feature="${feature}" data-doc="${d.key}">Post comment</button>
-    </div>`;
+    </div>`
+    : `<div class="sub">Read-only dashboard — commenting is disabled.</div>`;
+  return `
+    ${jiraList}
+    ${list}
+    ${form}`;
 }
 
 // One "Details" panel with tabs (Content / Approvals / Comments) instead
@@ -602,7 +681,9 @@ function renderDocRow(d, feature, localConfluence, localJiraReview, reviewEntry)
   const info = approvedRowInfo(d);
   const approveControl = info
     ? `<span class="pill pill-ok" title="${escapeHtml(info.note)}${mode ? ' · ' + _APPROVAL_MODE_LABEL[mode] : ''}">✓ ${escapeHtml(info.name)}</span>`
-    : `<button class="link-btn" data-action="approve-doc" data-feature="${feature}" data-doc="${d.key}">Approve</button>`;
+    : (dashboardInfo.writes_enabled
+        ? `<button class="link-btn" data-action="approve-doc" data-feature="${feature}" data-doc="${d.key}">Approve</button>`
+        : '');
   const commentCount = (d.comments || []).length;
   const detailsBtn = `<button class="link-btn" data-action="toggle-details" data-feature="${feature}" data-doc="${d.key}">${
     isOpen ? 'Hide' : 'Details'}${commentCount ? ' 💬' + commentCount : ''}</button>`;
@@ -838,7 +919,7 @@ function render() {
     };
   }
 
-  root.innerHTML = renderProject(data.project, data.constitution) + overview + boOverview + features;
+  root.innerHTML = renderNetworkBanner() + renderProject(data.project, data.constitution) + overview + boOverview + features;
 
   if (focus) {
     const selector = `.${focus.cls}[data-feature="${CSS.escape(focus.feature)}"][data-doc="${CSS.escape(focus.doc)}"]`;
@@ -953,7 +1034,7 @@ document.getElementById('root').addEventListener('click', async (e) => {
     try {
       const res = await fetch('/api/approve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: writeHeaders(),
         body: JSON.stringify({ feature, doc, by, note }),
       });
       const result = await res.json();
@@ -974,7 +1055,7 @@ document.getElementById('root').addEventListener('click', async (e) => {
     try {
       const res = await fetch('/api/comment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: writeHeaders(),
         body: JSON.stringify({ feature, doc, by, text }),
       });
       const result = await res.json();
@@ -1021,6 +1102,7 @@ async function autoRefreshReviewLinks() {
   if (changed) render();
 }
 
+fetchDashboardInfo();
 refresh();
 setInterval(refresh, 5000);
 setInterval(autoRefreshReviewLinks, REVIEW_LINKS_AUTO_REFRESH_MS);
@@ -1362,6 +1444,17 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             self._send_json(_fetch_review_links(feature))
 
+        elif parsed.path == "/api/dashboard-info":
+            # Never includes the token itself -- that's only ever handed out
+            # via the auto-opened URL's ?token= param and the console
+            # printout, both of which only the person who ran `sdd
+            # dashboard` sees. This endpoint just tells the page's own JS
+            # whether to show write controls and the network-sharing banner.
+            self._send_json({
+                "is_local": _ACCESS["is_local"],
+                "writes_enabled": _ACCESS["writes_enabled"],
+            })
+
         else:
             self.send_response(404)
             self.end_headers()
@@ -1378,8 +1471,52 @@ class _Handler(BaseHTTPRequestHandler):
         except (json.JSONDecodeError, UnicodeDecodeError):
             return None
 
+    def _check_write_access(self) -> str | None:
+        """Returns an error message if this write request should be
+        rejected, or None if it's allowed. Three gates, in order:
+
+        1. Read-only mode: non-loopback binds without --write reject every
+           POST outright, regardless of token -- writes are simply off.
+        2. Origin/Host check (defense in depth, non-loopback only): if the
+           browser sent an Origin header, it must match this server's own
+           host:port. A cross-origin page (malicious or just a stray open
+           tab) can't forge this the way it could once ambient cookies --
+           this runs before the token check so a mismatched Origin is
+           rejected even if a token somehow leaked.
+        3. Token check (non-loopback only): the Origin check alone doesn't
+           stop another device on the same network from calling the API
+           directly (curl, not a browser) -- the token is what actually
+           authenticates the request. Sent as a custom header
+           (X-SDD-Token), never a cookie, precisely so it's never included
+           automatically by the browser on a request this page didn't
+           initiate itself -- that property is what makes it double as
+           CSRF protection, not just as auth.
+
+        Loopback binds (the default `sdd dashboard`, no flags) skip all
+        three checks -- this function returns None immediately for them,
+        so today's zero-friction local UX is completely unaffected.
+        """
+        if _ACCESS["is_local"]:
+            return None
+        if not _ACCESS["writes_enabled"]:
+            return ("Dashboard is read-only over the network. Restart with "
+                    "--share --write to enable writes (requires the printed token).")
+        origin = self.headers.get("Origin")
+        if origin and origin not in _ACCESS["allowed_origins"]:
+            return f"Origin not allowed: {origin}"
+        token = self.headers.get("X-SDD-Token")
+        if not token or not secrets.compare_digest(token, _ACCESS["token"] or ""):
+            return "Missing or invalid X-SDD-Token header."
+        return None
+
     def do_POST(self):  # noqa: N802 - http.server API
         parsed = urlparse(self.path)
+
+        write_error = self._check_write_access()
+        if write_error is not None:
+            self._send_json({"error": write_error}, status=403)
+            return
+
         payload = self._read_json_body()
         if payload is None:
             self._send_json({"error": "invalid or oversized JSON body"}, status=400)
@@ -1393,14 +1530,16 @@ class _Handler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/approve":
             try:
-                result = _do_approve(feature, doc, payload.get("by", ""), payload.get("note", ""))
+                with _WRITE_LOCK:
+                    result = _do_approve(feature, doc, payload.get("by", ""), payload.get("note", ""))
                 self._send_json(result)
             except Exception as e:
                 self._send_json({"error": str(e)}, status=500)
 
         elif parsed.path == "/api/comment":
             try:
-                result = _do_comment(feature, doc, payload.get("by", ""), payload.get("text", ""))
+                with _WRITE_LOCK:
+                    result = _do_comment(feature, doc, payload.get("by", ""), payload.get("text", ""))
                 status = 400 if "error" in result else 200
                 self._send_json(result, status=status)
             except Exception as e:
@@ -1428,10 +1567,19 @@ def _lan_ip() -> str | None:
 @click.command()
 @click.option("--port", default=4747, show_default=True, help="Local port to serve on")
 @click.option("--host", default="127.0.0.1", show_default=True,
-              help="Bind address. Use 0.0.0.0 to let teammates on the same "
-                   "network reach this instance (see the printed warning).")
+              help="Bind address for advanced/custom use. Prefer --share for "
+                   "the common case of letting teammates on the same network in.")
+@click.option("--share", is_flag=True,
+              help="Shortcut for --host 0.0.0.0 — reachable by teammates on "
+                   "your network. Read-only by default; add --write to also "
+                   "allow approvals/comments (requires the printed token).")
+@click.option("--write", is_flag=True,
+              help="Allow write actions (approve/comment) over a non-local "
+                   "bind (--share or a manual --host). Ignored/always-on for "
+                   "the local-only default. Generates a session token that "
+                   "must be sent on every write request.")
 @click.option("--no-open", is_flag=True, help="Don't auto-open a browser tab")
-def dashboard_command(port, host, no_open):
+def dashboard_command(port, host, share, write, no_open):
     """Local web UI over the current project's .specify/ status.
 
     Shows pipeline progress, task status, and token usage per feature.
@@ -1441,30 +1589,56 @@ def dashboard_command(port, host, no_open):
     and posts a best-effort Jira comment. Works without Jira/Confluence
     configured at all (unlike `sdd review status`).
 
-    By default this only listens on 127.0.0.1 (your machine only). Run
-    with --host 0.0.0.0 on a shared devbox to let teammates on the same
-    network open it from their own browser at that machine's IP — there's
-    still just one server process; it isn't a hosted/always-on service.
-    Anyone who can reach it can also approve documents and post comments
-    (see the printed warning) — only do this on a network you trust.
+    Three modes:
+
+    \b
+      sdd dashboard                 # 127.0.0.1 only — writes enabled, no token needed
+      sdd dashboard --share         # reachable on your network — read-only
+      sdd dashboard --share --write # reachable on your network — writes enabled,
+                                     # requires the session token printed below
+                                     # (and baked into the auto-opened URL for you)
+
+    A plain --host 0.0.0.0 (without --share) follows the same --write/token
+    rule as --share — --share is just a shortcut for the common case.
     """
-    local_url = f"http://127.0.0.1:{port}/"
-    server = ThreadingHTTPServer((host, port), _Handler)
+    effective_host = "0.0.0.0" if share else host
+    is_local = effective_host in ("127.0.0.1", "localhost")
+    writes_enabled = is_local or write
+    token = secrets.token_urlsafe(24) if (not is_local and writes_enabled) else None
+
+    lan_ip = None if is_local else _lan_ip()
+    allowed_origins = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+    if lan_ip:
+        allowed_origins.add(f"http://{lan_ip}:{port}")
+
+    _ACCESS["is_local"] = is_local
+    _ACCESS["writes_enabled"] = writes_enabled
+    _ACCESS["token"] = token
+    _ACCESS["allowed_origins"] = allowed_origins
+
+    token_qs = f"?token={token}" if token else ""
+    local_url = f"http://127.0.0.1:{port}/{token_qs}"
+    server = ThreadingHTTPServer((effective_host, port), _Handler)
 
     console.print()
-    console.print(f"  [bold cyan]SDD Dashboard[/bold cyan]  [dim]running at {local_url}[/dim]")
+    console.print(f"  [bold cyan]SDD Dashboard[/bold cyan]  [dim]running at http://127.0.0.1:{port}/[/dim]")
 
-    if host not in ("127.0.0.1", "localhost"):
-        lan_ip = _lan_ip()
+    if not is_local:
         if lan_ip:
-            console.print(f"  [dim]Reachable on your network at:[/dim]  http://{lan_ip}:{port}/")
-        console.print(
-            "  [yellow]⚠  Bound to a non-local address — anyone who can reach this "
-            "machine on the network can view this project's .specify/ status, "
-            "AND approve documents / post review comments on your behalf "
-            "(no credentials pass through it, but the actions themselves are "
-            "unauthenticated). Only use this on a network you trust.[/yellow]"
-        )
+            console.print(f"  [dim]Reachable on your network at:[/dim]  http://{lan_ip}:{port}/{token_qs}")
+        if writes_enabled:
+            console.print(
+                "  [yellow]⚠  Write access enabled over the network — anyone with the link "
+                "above (which includes the token) can approve documents and post review "
+                "comments on your behalf. Treat that link like a credential: only share it "
+                "with people you trust, over a channel you trust.[/yellow]"
+            )
+        else:
+            console.print(
+                "  [dim]Read-only — viewers on your network can see this project's "
+                ".specify/ status but cannot approve documents or post comments. "
+                "Add --write to enable that (generates a token).[/dim]"
+            )
 
     console.print("  [dim]Ctrl+C to stop[/dim]")
     console.print()

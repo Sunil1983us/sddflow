@@ -3251,6 +3251,57 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.8',
+    to:   '2.8.9',
+    description: "Dashboard security hardening: session token + Origin check for network writes, read-only sharing mode, and a fix for a real concurrent-write data-loss bug",
+    notes: [
+      "Highest-priority item from a comprehensive ChatGPT-review " +
+      "verification pass -- closes real, live gaps, not hypothetical " +
+      "ones. Dashboard write endpoints had zero authentication when " +
+      "bound to a non-loopback address, only a printed console " +
+      "warning. There was also an unguarded concurrent-write race on " +
+      ".dashboard-comments.json -- verified with a 12-thread " +
+      "concurrency test that fails 5/5 without a lock and passes " +
+      "reliably with the fix",
+      "New --share flag (shortcut for --host 0.0.0.0) and --write flag " +
+      "(required to enable writes over a non-local bind). Three modes: " +
+      "`sdd dashboard` (unchanged -- 127.0.0.1, writes enabled, no " +
+      "token), `sdd dashboard --share` (network-reachable, read-only " +
+      "by default), `sdd dashboard --share --write` (network-" +
+      "reachable, writes gated by a session token)",
+      "Session token via a custom X-SDD-Token header, not a cookie -- " +
+      "a cookie would be sent automatically on any cross-origin " +
+      "request (that's what makes CSRF possible); a custom header " +
+      "only goes out on requests this page's own JS explicitly " +
+      "builds, so this one mechanism covers both session-token auth " +
+      "and CSRF protection. Delivered via a one-time ?token= query " +
+      "param on the auto-opened URL, then stripped from the visible " +
+      "URL via history.replaceState",
+      "Origin/Host header check as defense in depth on top of the " +
+      "token, checked first so a mismatched Origin is rejected even " +
+      "if a token somehow leaked",
+      "New GET /api/dashboard-info endpoint (never includes the token " +
+      "itself) drives an in-page network-sharing banner and hides/" +
+      "disables write controls when read-only -- the existing printed " +
+      "console warning was invisible to anyone using the dashboard " +
+      "from a different machine",
+      "The default `sdd dashboard` invocation (no flags) is completely " +
+      "unaffected -- all 49 pre-existing dashboard tests still pass " +
+      "unchanged",
+      "This Node CLI ships from the same pack sources -- this " +
+      "migration entry exists so both CLIs report the same " +
+      "sdd_version chain. The dashboard itself is Python-only -- no " +
+      "corresponding functional change on the Node CLI side",
+      "Verified: cli-python pytest 773/773 (765 pre-existing + 8 new), " +
+      "plus three live end-to-end smoke tests against a real running " +
+      "server in all three modes",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.9';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

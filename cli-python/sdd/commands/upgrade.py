@@ -4588,6 +4588,71 @@ MIGRATIONS = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.8.8"},
     },
+    {
+        "from":        "2.8.8",
+        "to":          "2.8.9",
+        "description": "Dashboard security hardening: session token + Origin check for network writes, read-only sharing mode, and a fix for a real concurrent-write data-loss bug",
+        "notes": [
+            "Highest-priority item from a comprehensive ChatGPT-review "
+            "verification pass -- this closes real, live gaps, not "
+            "hypothetical ones. Dashboard write endpoints (POST /api/"
+            "approve, POST /api/comment) had zero authentication when "
+            "bound to a non-loopback address, only a printed console "
+            "warning. There was also an unguarded concurrent-write race "
+            "on .dashboard-comments.json -- ThreadingHTTPServer runs "
+            "each request on its own thread with no lock around the "
+            "read-modify-write cycle. Verified both: wrote a 12-thread "
+            "concurrency test, confirmed it fails 5/5 without a lock, "
+            "then confirmed it passes reliably once the fix is in place",
+            "New --share flag (shortcut for --host 0.0.0.0) and --write "
+            "flag (required to enable writes over a non-local bind). "
+            "Three modes: `sdd dashboard` (unchanged -- 127.0.0.1, "
+            "writes enabled, no token, zero friction for the default "
+            "local case), `sdd dashboard --share` (network-reachable, "
+            "read-only by default), `sdd dashboard --share --write` "
+            "(network-reachable, writes enabled, gated by a session "
+            "token)",
+            "Session token: secrets.token_urlsafe(24), generated only "
+            "when writes are enabled on a non-local bind, required via "
+            "a custom X-SDD-Token header rather than a cookie -- a "
+            "cookie would be sent automatically by the browser on any "
+            "cross-origin request, which is what makes CSRF possible; a "
+            "custom header only goes out on requests this page's own JS "
+            "explicitly builds, so this one mechanism covers both the "
+            "session-token and CSRF-protection asks from the review. "
+            "The token is delivered via a one-time ?token= query param "
+            "on the auto-opened URL, then stripped from the visible URL "
+            "via history.replaceState so it doesn't linger in browser "
+            "history",
+            "Origin/Host header check as defense in depth on top of the "
+            "token: rejects a write request with 403 if it carries an "
+            "Origin header that doesn't match this server's own known "
+            "addresses, checked before the token so a mismatched Origin "
+            "is rejected even if a token somehow leaked",
+            "New GET /api/dashboard-info endpoint (never includes the "
+            "token itself) so the page's own JS can render an in-page "
+            "network-sharing banner and hide/disable the Approve button "
+            "and comment form when read-only -- the existing printed "
+            "console warning was invisible to anyone using the "
+            "dashboard from a different machine",
+            "The default `sdd dashboard` invocation (no flags) is "
+            "completely unaffected -- all 49 pre-existing dashboard "
+            "tests still pass unchanged, plus a new explicit sanity "
+            "test asserting the default state is local+open",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain. The dashboard itself is Python-only -- "
+            "this bump has no corresponding functional change on the "
+            "Node CLI side",
+            "Verified: cli-python pytest 773/773 (765 pre-existing + 8 "
+            "new), plus three live end-to-end smoke tests against a "
+            "real running server in all three modes (default, --share, "
+            "--share --write) confirming the token extracted from the "
+            "printed console output actually works and wrong/missing "
+            "tokens are rejected",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.8.9"},
+    },
 ]
 
 

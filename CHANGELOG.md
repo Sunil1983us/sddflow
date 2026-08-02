@@ -4,6 +4,55 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.9] — 2026-08-02 (Dashboard security hardening: session token, Origin check, read-only sharing, and a real concurrent-write bug fix)
+
+The highest-priority item from a comprehensive verification pass against an
+external (ChatGPT) architecture review. This closes real, live gaps — dashboard
+write endpoints had zero authentication over the network, and there was an
+unguarded concurrent-write race that could silently drop a comment.
+
+### Fixed
+
+- **Dashboard write endpoints now require authentication when shared over a
+  network.** Previously, binding `sdd dashboard --host 0.0.0.0` only printed a
+  console warning — anyone reachable on the network could approve documents
+  and post comments. New `--share` (shortcut for `--host 0.0.0.0`) and
+  `--write` flags: `sdd dashboard` (unchanged, local, writes on, no token),
+  `sdd dashboard --share` (network, **read-only**), `sdd dashboard --share
+  --write` (network, writes gated by a session token).
+- **Session token doubles as CSRF protection.** Delivered via a custom
+  `X-SDD-Token` header rather than a cookie — a cookie is sent automatically
+  by the browser on any cross-origin request (the CSRF attack vector); a
+  custom header only goes out on requests this page's own JS explicitly
+  builds. Generated with `secrets.token_urlsafe(24)`, handed to the browser
+  once via the auto-opened URL's `?token=` param, then stripped from the
+  visible URL.
+- **Origin/Host header check** as defense in depth on top of the token,
+  checked first so a mismatched `Origin` is rejected even if a token leaked.
+- **In-page network-sharing banner** and hidden/disabled write controls in
+  read-only mode, via a new `GET /api/dashboard-info` endpoint — the previous
+  console-only warning was invisible to anyone using the dashboard from a
+  different machine.
+- **Fixed a real concurrent-write data-loss bug**: `.dashboard-comments.json`
+  had no lock around its read-modify-write cycle despite the dashboard
+  running on `ThreadingHTTPServer` (one thread per request) — two
+  near-simultaneous comment submissions could race and silently drop one.
+  Verified with a 12-thread concurrency test that reliably fails without a
+  lock and reliably passes with one.
+
+### Verified
+
+- `cli-python` pytest: 773/773 (765 pre-existing + 8 new)
+- All 49 pre-existing dashboard tests pass unchanged — the default
+  `sdd dashboard` invocation (no flags) is completely unaffected
+- Three live end-to-end smoke tests against a real running server, all three
+  modes, confirming the printed token works and wrong/missing tokens are
+  rejected
+- Concurrency test independently verified to catch the regression: fails
+  5/5 with the lock removed, passes reliably with it restored
+
+---
+
 ## [2.8.8] — 2026-08-01 (Root README "60-Second Overview" — first-time-visitor orientation)
 
 An external (ChatGPT) review flagged that a newcomer to the maintainer
