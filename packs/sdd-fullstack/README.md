@@ -6,6 +6,10 @@
 
 ## Start Here — Which File Do I Read?
 
+> Landed here directly and not sure this is the right pack for your
+> project? See the [pack catalog](https://github.com/sunil1983us/universalguide/blob/main/packs/CATALOG.md)
+> for a decision tree.
+
 | Read this | When |
 |---|---|
 | **[`QUICKSTART.md`](QUICKSTART.md)** | First — 5 minutes to get set up and run `/specify` |

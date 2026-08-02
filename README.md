@@ -6,6 +6,21 @@ pipeline from business requirements through to release notes.
 
 ---
 
+## 60-Second Overview
+
+**Built for teams that need audit trails and structured sign-offs.** Solo
+project, prototype, or personal script? Use
+[`sdd-micro`](packs/sdd-micro/) instead — 3 commands, no ceremony.
+
+| | |
+|---|---|
+| **CLI** | `pip install sddflow && sdd init` — Jira/Confluence are optional, not required |
+| **First 3 commands** | `sdd init` → `/specify` → `/specify-brd` |
+| **Documents generated** | 12 at `pilot` scope in [`examples/todo-api`](examples/todo-api/) (a real, complete run) — more at `mvp`/`full`, varies by pack; see each pack's own "Document Inventory by Scope" table for exact counts |
+| **Not sure which pack?** | See [`packs/CATALOG.md`](packs/CATALOG.md) for a decision tree |
+
+---
+
 ## Packs
 
 | Pack | Use when |
