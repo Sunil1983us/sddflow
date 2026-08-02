@@ -98,7 +98,7 @@ _BANNER = f"""
 @click.option(
     "--ai-tool",
     default=None,
-    help=f"AI tool: {', '.join(c.value for c in AI_TOOLS)}",
+    help=f"AI tool: {', '.join(str(c.value) for c in AI_TOOLS)}",
 )
 def init_command(
     project_name,
@@ -113,9 +113,9 @@ def init_command(
     """Initialize an SDD pack in the current project directory."""
     console.print(_BANNER)
     scope = _resolve_scope(scope)
-    if ai_tool is not None and ai_tool not in {c.value for c in AI_TOOLS}:
+    if ai_tool is not None and ai_tool not in {str(c.value) for c in AI_TOOLS}:
         raise click.BadParameter(
-            f"'{ai_tool}' — must be one of: {', '.join(c.value for c in AI_TOOLS)}",
+            f"'{ai_tool}' — must be one of: {', '.join(str(c.value) for c in AI_TOOLS)}",
             param_hint="'--ai-tool'",
         )
 

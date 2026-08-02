@@ -36,10 +36,10 @@ Migration = TypedDict(
     },
 )
 
-_CUSTOM_MIGRATE: "dict[str, Callable[[dict], dict]]" = {}
+_CUSTOM_MIGRATE: dict[str, Callable[[dict], dict]] = {}
 
 
-def _migrate_fn(to: str) -> "Callable[[dict], dict]":
+def _migrate_fn(to: str) -> Callable[[dict], dict]:
     custom = _CUSTOM_MIGRATE.get(to)
     if custom is not None:
         return custom
