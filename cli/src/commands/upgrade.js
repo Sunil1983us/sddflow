@@ -3402,6 +3402,39 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.8.11',
+    to:   '2.8.12',
+    description: "Dashboard: confirmation dialog before an approval takes effect; dashboard HTML/CSS/JS moved from one giant Python string to real .css/.js/.html files",
+    notes: [
+      "Real, user-visible dashboard behavior change: clicking Approve used " +
+      "to fire straight to the server after two window.prompt() calls " +
+      "(name, optional note). Now shows a window.confirm() summarizing " +
+      "the document, feature, approver name, and note before the request " +
+      "goes out, and bails out entirely if declined -- guards against an " +
+      "accidental click by an already-authorized user (the bigger risk, " +
+      "an *unauthorized* person approving, was already closed by the " +
+      "session-token work two rounds back)",
+      "Also (no user-visible difference, verified byte-identical): the " +
+      "dashboard's HTML/CSS/JS -- previously one ~1050-line Python " +
+      "triple-quoted string -- now lives in real files under " +
+      "sdd/commands/dashboard_static/, assembled into the same single " +
+      "self-contained HTML response at import time. No new HTTP routes, " +
+      "no extra round-trips",
+      "This Node CLI ships from the same pack sources -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain. The " +
+      "dashboard is Python-only -- no corresponding change on the Node " +
+      "CLI side",
+      "Verified: cli-python pytest 793/793 (789 pre-existing + 4 new), " +
+      "ruff check/format, mypy, and bandit all clean, coverage still 79%, " +
+      "and a real wheel build + clean-venv install confirming the " +
+      "dashboard's static files ship correctly",
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.8.12';
+      return manifest;
+    },
+  },
 ];
 
 // Every migration from currentVersion to SDD_VERSION, in order -- walks

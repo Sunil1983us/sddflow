@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.12] — 2026-08-02 (Dashboard: confirm before approving; HTML/CSS/JS moved to real files)
+
+### Added
+
+- **Dashboard Approve now requires confirmation.** Previously fired
+  straight to the server after two `window.prompt()` calls (name, optional
+  note). Now shows a `window.confirm()` summarizing the document, feature,
+  approver, and note before the request goes out, and does nothing at all
+  if declined — guards against an accidental click by an already-
+  authorized user. (The bigger risk, an *unauthorized* person approving,
+  was already closed by the session-token work shipped a few versions
+  back.)
+
+### Changed
+
+- **Dashboard HTML/CSS/JS extracted from a single Python string into real
+  files** under `cli-python/sdd/commands/dashboard_static/` (`style.css`,
+  `theme.js`, `app.js`, `page.html`) — editor syntax highlighting and
+  linting now work on them, and diffs to the UI are readable instead of
+  one 1050-line string blob. No behavior change: verified byte-identical
+  output against the previous version, and confirmed the new files ship
+  correctly in a real built-and-installed wheel (they needed an explicit
+  entry in `pyproject.toml`'s packaging config, same as the existing pack
+  files).
+
+### Verified
+
+- `cli-python` pytest: 793/793 (789 pre-existing + 4 new)
+- ruff check/format, mypy, and bandit all clean; coverage still 79%
+  (above the 77% CI floor)
+- A real `python -m build --wheel` + clean-venv install, confirming the
+  dashboard's static files are present and the page renders correctly
+
+---
+
 ## [2.8.11] — 2026-08-02 (Fix a real Python 3.9 import crash; add ruff to CI)
 
 Found while wiring `ruff` into CI (task #32 in the review-tracker): a real

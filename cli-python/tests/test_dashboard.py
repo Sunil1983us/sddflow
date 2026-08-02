@@ -542,6 +542,14 @@ def test_page_contains_css_and_both_js_files_inlined():
     assert "<!doctype html>" in _PAGE  # page.html shell
 
 
+def test_approve_action_requires_confirmation_before_posting():
+    # Guards against an accidental click by an already-authorized user --
+    # window.confirm() must run, and the caller must bail out (return, no
+    # fetch to /api/approve) when it's declined.
+    assert "window.confirm(confirmMsg)" in _PAGE
+    assert "if (!window.confirm(confirmMsg)) return;" in _PAGE
+
+
 def test_dashboard_static_dir_contains_exactly_the_expected_files():
     import sdd.commands.dashboard as dashboard_mod
 

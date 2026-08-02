@@ -720,6 +720,12 @@ document.getElementById('root').addEventListener('click', async (e) => {
     const by = window.prompt('Approve as (your name):');
     if (!by) return;
     const note = window.prompt('Optional note:') || '';
+    const confirmMsg =
+      `Approve ${doc} for ${feature} as "${by}"?` +
+      (note ? `\nNote: ${note}` : '') +
+      '\n\nThis flips the document\'s Status header to Approved and syncs ' +
+      'to Confluence/Jira if configured -- not easily undone from here.';
+    if (!window.confirm(confirmMsg)) return;
     btn.disabled = true;
     try {
       const res = await fetch('/api/approve', {
