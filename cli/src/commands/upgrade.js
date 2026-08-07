@@ -3156,6 +3156,52 @@ export const MIGRATIONS = [
       "both pass",
     ],
   },
+  {
+    from: '2.8.18',
+    to:   '2.8.19',
+    description: "Add Python 3.13 and 3.14 to the tested/declared version range",
+    notes: [
+      "cli-python's CI matrix only covered 3.9-3.12, but pypistats.org's " +
+      "own download breakdown for sddflow showed real installs already " +
+      "happening on Python 3.14 with zero CI coverage for it -- " +
+      "prompted by a real user question about when 3.9 support was " +
+      "added, which surfaced the matrix was stale on the new-version " +
+      "end too, not just the old-version end",
+      "Added '3.13' and '3.14' to python-cli-sanity's matrix, and the " +
+      "matching classifiers to cli-python/pyproject.toml. Verified with " +
+      "a real Python 3.13.12 interpreter: clean pip install, byte-" +
+      "compile, --help smoke test, and the full pytest suite (848/848) " +
+      "all pass unchanged. Python 3.14 was verified via CI's " +
+      "actions/setup-python, not locally",
+      "This Node CLI has no equivalent Python version matrix (it's a " +
+      "Node.js package) -- this migration entry exists so both CLIs " +
+      "report the same sdd_version chain, and no code change was needed " +
+      "here",
+      "Verified: node --test 27/27, npm test and the --help smoke test " +
+      "both pass",
+    ],
+  },
+  {
+    from: '2.8.19',
+    to:   '2.8.20',
+    description: "Drop Python 3.9 support -- requires-python is now >=3.10",
+    notes: [
+      "Python 3.9 reached end-of-life in October 2025 (no more security " +
+      "patches from CPython upstream) -- a deliberate maintainer " +
+      "decision to stop supporting it in cli-python, made right after " +
+      "the previous release added 3.13/3.14 to the tested range and " +
+      "prompted a look at the old end of the matrix too",
+      "cli-python's requires-python bumped from '>=3.9' to '>=3.10'; " +
+      "the '3.9' classifier and CI matrix entry removed. Real breaking " +
+      "change -- `pip install sddflow` now refuses outright on Python " +
+      "3.9, verified by inspecting the built wheel's METADATA directly",
+      "This Node CLI has no Python version floor of its own (it's a " +
+      "Node.js package, unaffected) -- this migration entry exists so " +
+      "both CLIs report the same sdd_version chain",
+      "Verified: node --test 27/27, npm test and the --help smoke test " +
+      "both pass",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, TypedDict
+from typing import TypedDict
 
 import click
 from rich.console import Console
@@ -4983,6 +4984,78 @@ MIGRATIONS: list[Migration] = [
             "new), ruff check/format, mypy, and bandit all clean; cli "
             "node --test 27/27; bash test-detect-fixtures.sh 23/23; "
             "sync-drift check and cross-reference checker both clean",
+        ],
+    },
+    {
+        "from": "2.8.18",
+        "to": "2.8.19",
+        "description": "Add Python 3.13 and 3.14 to the tested/declared version range",
+        "notes": [
+            "CI's python-cli-sanity matrix only covered 3.9-3.12, but "
+            "pypistats.org's own download breakdown for sddflow showed "
+            "real installs already happening on Python 3.14 with zero CI "
+            "coverage for it -- prompted by a real user question about "
+            "when 3.9 support was added, which surfaced the matrix was "
+            "stale on the new-version end too, not just the old-version "
+            "end",
+            "Added '3.13' and '3.14' to python-cli-sanity's matrix, and "
+            "the matching classifiers to pyproject.toml. Verified with "
+            "the real Python 3.13.12 interpreter (installed locally, not "
+            "simulated): clean pip install, byte-compile, --help smoke "
+            "test, and the full pytest suite (848/848) all pass "
+            "unchanged. Python 3.14 has no local interpreter available "
+            "to verify directly in this environment -- CI's "
+            "actions/setup-python will be the first real verification "
+            "for it",
+            "No code changes needed -- the codebase already builds "
+            "cleanly on 3.13, consistent with there being no 3.9-only "
+            "syntax debt left after the from __future__ import "
+            "annotations fix in v2.8.11",
+            "This Node CLI has no equivalent Python version matrix (it's "
+            "a Node.js package) -- this migration entry exists so both "
+            "CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 848/848 under both the default "
+            "interpreter and a real Python 3.13.12 venv; ruff check/"
+            "format, mypy, and bandit all clean",
+        ],
+    },
+    {
+        "from": "2.8.19",
+        "to": "2.8.20",
+        "description": "Drop Python 3.9 support -- requires-python is now >=3.10",
+        "notes": [
+            "Python 3.9 reached end-of-life in October 2025 (no more "
+            "security patches from CPython upstream) -- a deliberate "
+            "maintainer decision to stop supporting it, made right after "
+            "the previous release added 3.13/3.14 to the tested range "
+            "and prompted a look at the old end of the matrix too",
+            "requires-python bumped from '>=3.9' to '>=3.10' in "
+            "pyproject.toml; the '3.9' classifier and CI matrix entry "
+            "removed. This is a real breaking change -- `pip install "
+            "sddflow` (or any upgrade) now refuses outright on Python "
+            "3.9, verified by inspecting the built wheel's METADATA: "
+            "'Requires-Python: >=3.10' is correctly embedded, which is "
+            "what pip actually checks before installing, on any Python "
+            "version, without needing a 3.9 interpreter present to "
+            "verify the rejection",
+            "Bumping ruff's target-version from py39 to py310 (matching "
+            "the new floor) surfaced two real modernization findings "
+            "ruff couldn't previously suggest (they require 3.10+): "
+            "typing.Callable -> collections.abc.Callable in upgrade.py, "
+            "and manual zip(chain, chain[1:]) -> itertools.pairwise() in "
+            "test_upgrade.py. Both fixed",
+            "The from __future__ import annotations guards added in "
+            "v2.8.11 (for the Python 3.9 crash fix) were left in place "
+            "rather than removed -- they're harmless no-ops on 3.10+ and "
+            "removing them would be pure unnecessary churn",
+            "This Node CLI has no Python version floor of its own (it's "
+            "a Node.js package) -- this migration entry exists so both "
+            "CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 848/848 on both a real Python "
+            "3.10.20 interpreter (the new floor) and a real Python "
+            "3.13.12 interpreter; ruff check/format, mypy, and bandit "
+            "all clean; wheel METADATA inspected directly to confirm "
+            "the Requires-Python constraint took effect",
         ],
     },
 ]

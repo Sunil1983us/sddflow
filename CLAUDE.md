@@ -38,7 +38,7 @@ packs/
                      # Intentionally diverges from PACK-SPEC.md — see its
                      # own CLAUDE.md and WHY-SDD.md. Not part of the
                      # shared-block sync system (no _shared/blocks/ markers).
-cli/                # Node.js CLI (unpublished, from source) — init/upgrade scaffolding only
+cli/                # Node.js CLI (npm: sddflow) — init/upgrade scaffolding only
 cli-python/         # Python CLI (pip: sddflow) — full-featured (Jira, Confluence, reviews, PRs)
 examples/
   todo-api/         # Complete worked example of SDD outputs

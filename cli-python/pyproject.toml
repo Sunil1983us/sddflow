@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sddflow"
-version = "2.8.18"
+version = "2.8.20"
 description = "Spec-Driven Development CLI for AI coding agents — SDLC workflows with Jira/Confluence sync, multi-host PR automation, and live progress dashboards"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
     { name = "Sunil Kumar", email = "sunil1983.us@gmail.com" }
@@ -24,10 +24,11 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development",
     "Topic :: Software Development :: Documentation",
     "Topic :: Utilities",
@@ -88,7 +89,7 @@ include = [
 ]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 # Uses ruff's own default rule selection rather than a hand-picked list --

@@ -1,5 +1,11 @@
 # SDD Framework — Spec-Driven Development
 
+[![PyPI version](https://img.shields.io/pypi/v/sddflow.svg?color=blue)](https://pypi.org/project/sddflow/)
+[![Python versions](https://img.shields.io/pypi/pyversions/sddflow.svg)](https://pypi.org/project/sddflow/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/sddflow.svg?color=green)](https://pypistats.org/packages/sddflow)
+[![License](https://img.shields.io/pypi/l/sddflow.svg)](LICENSE)
+[![CI](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml)
+
 A collection of self-contained packs that bring a structured, AI-assisted SDLC
 into any project. Copy one pack, run one command, get a full specification
 pipeline from business requirements through to release notes.
@@ -74,7 +80,7 @@ Agent commands (Claude Code / Copilot):
 
 → Full reference: [`cli-python/README.md`](cli-python/README.md)
 
-### Node.js CLI (Deprecated — from source only)
+### Node.js CLI (Deprecated)
 
 > ⚠️ **Deprecated.** This Node CLI only receives fixes, not new features, and
 > covers scaffolding only (`init`/`upgrade` — no Jira, Confluence, review
@@ -82,12 +88,12 @@ Agent commands (Claude Code / Copilot):
 > (`pip install sddflow`) instead** unless you specifically need a
 > Node-only environment with no Python available. Do NOT
 > `npm install -g sdd-init` — that name on npm belongs to an unrelated
-> third-party package, not this project. This Node CLI is not published at
-> all; install from source:
+> third-party package, not this project. This Node CLI publishes to npm
+> under the name `sddflow` (same name as the Python package — they collide
+> on the `sdd` binary if both are installed globally; prefer the Python one):
 
 ```bash
-git clone https://github.com/Sunil1983us/Universalguide
-npm install -g ./Universalguide/cli
+npm install -g sddflow
 sdd init
 ```
 

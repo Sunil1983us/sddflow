@@ -2,12 +2,11 @@
 
 > **Deprecated.** This Node.js CLI covers scaffolding only
 > (`sdd init` / `sdd upgrade`), receives fixes only — no new features are
-> planned — and is not published to npm. **Use the Python CLI instead**
-> (`pip install sddflow`) unless you specifically need a Node-only
-> environment with no Python available: it has all of this CLI's
-> functionality plus Jira, Confluence, review gates, and PR automation.
-> If you install both, they collide on the `sdd` binary name: prefer the
-> Python CLI.
+> planned. **Use the Python CLI instead** (`pip install sddflow`) unless
+> you specifically need a Node-only environment with no Python available:
+> it has all of this CLI's functionality plus Jira, Confluence, review
+> gates, and PR automation. If you install both, they collide on the
+> `sdd` binary name: prefer the Python CLI.
 
 Cross-platform replacement for `setup.sh` / `setup.ps1`.  
 No bash required. Works on Mac, Linux, and Windows.
@@ -15,11 +14,11 @@ No bash required. Works on Mac, Linux, and Windows.
 ## Install
 
 > ⚠️ The `sdd-init` name on npm belongs to an **unrelated third-party
-> package** — do not install it. This CLI ships from source only:
+> package** — do not install that one. This CLI publishes to npm under
+> the name `sddflow`:
 
 ```bash
-git clone https://github.com/Sunil1983us/Universalguide
-npm install -g ./Universalguide/cli
+npm install -g sddflow
 sdd init
 ```
 
