@@ -13,12 +13,16 @@ No bash required. Works on Mac, Linux, and Windows.
 
 ## Install
 
-> ⚠️ The `sdd-init` name on npm belongs to an **unrelated third-party
-> package** — do not install that one. This CLI publishes to npm under
-> the name `sddflow`:
+> ⚠️ Two things to avoid confusing this with: the `sdd-init` name on npm
+> belongs to an **unrelated third-party package** — do not install that
+> one. And npm's own anti-squatting policy blocks the unscoped name
+> `sddflow` as "too similar" to an unrelated existing package
+> (`sdd-flow`) — so this CLI publishes under the **scoped** name
+> `@sunil1983us/sddflow` instead. The `sdd` command it installs is
+> unaffected by the scope:
 
 ```bash
-npm install -g sddflow
+npm install -g @sunil1983us/sddflow
 sdd init
 ```
 
