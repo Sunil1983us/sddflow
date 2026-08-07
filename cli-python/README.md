@@ -1,7 +1,17 @@
 # sddflow (Python) — SDD Framework CLI
 
+[![PyPI version](https://img.shields.io/pypi/v/sddflow.svg?color=blue)](https://pypi.org/project/sddflow/)
+[![Python versions](https://img.shields.io/pypi/pyversions/sddflow.svg)](https://pypi.org/project/sddflow/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/sddflow.svg?color=green)](https://pypistats.org/packages/sddflow)
+[![License](https://img.shields.io/pypi/l/sddflow.svg)](../LICENSE)
+[![CI](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml)
+
 Python CLI for the SDD (Spec-Driven Development) Framework.  
 Mirrors the Node.js CLI exactly and adds Jira + Confluence integration.
+
+> The **Python versions** badge above is generated live from this package's
+> published PyPI metadata — it always reflects exactly what's actually
+> supported, with nothing to keep in sync by hand.
 
 ## Install
 
@@ -9,8 +19,6 @@ Mirrors the Node.js CLI exactly and adds Jira + Confluence integration.
 pip install sddflow
 sdd init
 ```
-
-**Requirements:** Python ≥ 3.10
 
 For development / contributors:
 
