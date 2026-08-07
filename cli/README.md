@@ -1,5 +1,10 @@
 # sddflow — SDD Framework CLI (Node.js)
 
+[![npm version](https://img.shields.io/npm/v/@sunil1983us/sddflow.svg?color=blue)](https://www.npmjs.com/package/@sunil1983us/sddflow)
+[![npm downloads](https://img.shields.io/npm/dm/@sunil1983us/sddflow.svg?color=green)](https://www.npmjs.com/package/@sunil1983us/sddflow)
+[![License](https://img.shields.io/npm/l/@sunil1983us/sddflow.svg)](../LICENSE)
+[![CI](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml)
+
 > **Deprecated.** This Node.js CLI covers scaffolding only
 > (`sdd init` / `sdd upgrade`), receives fixes only — no new features are
 > planned. **Use the Python CLI instead** (`pip install sddflow`) unless
