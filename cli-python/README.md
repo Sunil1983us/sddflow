@@ -10,7 +10,7 @@ pip install sddflow
 sdd init
 ```
 
-**Requirements:** Python ≥ 3.9
+**Requirements:** Python ≥ 3.10
 
 For development / contributors:
 

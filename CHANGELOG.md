@@ -4,6 +4,40 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.20] — 2026-08-07 (Drop Python 3.9 support — requires-python is now >=3.10)
+
+**Breaking change.** Python 3.9 reached end-of-life in October 2025 (no
+more security patches from CPython upstream). A deliberate maintainer
+decision to stop supporting it.
+
+### Changed
+
+- `requires-python` bumped from `>=3.9` to `>=3.10` in `pyproject.toml`;
+  the `3.9` classifier and CI matrix entry removed. `pip install sddflow`
+  (or any upgrade) now refuses outright on Python 3.9 — verified by
+  inspecting the built wheel's `METADATA` directly (`Requires-Python:
+  >=3.10`, which is what pip checks before installing, on any Python
+  version).
+- `ruff`'s `target-version` bumped from `py39` to `py310`, which surfaced
+  two real modernization findings ruff couldn't previously suggest:
+  `typing.Callable` → `collections.abc.Callable` in `upgrade.py`, and a
+  manual `zip(chain, chain[1:])` → `itertools.pairwise()` in
+  `test_upgrade.py`. Both fixed.
+
+The `from __future__ import annotations` guards added in `v2.8.11` (for
+the Python 3.9 crash fix) were left in place rather than removed — they're
+harmless no-ops on 3.10+ and removing them would be pure churn.
+
+### Verified
+
+- `cli-python` pytest: 848/848 on both a real Python 3.10.20 interpreter
+  (the new floor) and a real Python 3.13.12 interpreter
+- ruff check/format, mypy, and bandit all clean
+- Wheel `METADATA` inspected directly to confirm the `Requires-Python`
+  constraint took effect
+
+---
+
 ## [2.8.19] — 2026-08-07 (Add Python 3.13 and 3.14 to the tested/declared version range)
 
 CI's `python-cli-sanity` matrix only covered Python 3.9–3.12, but

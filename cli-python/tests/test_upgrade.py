@@ -1,4 +1,5 @@
 # Unit tests for the sdd upgrade migration chain.
+from itertools import pairwise
 from unittest.mock import patch
 
 import pytest
@@ -74,7 +75,7 @@ def test_pending_migrations_walks_the_whole_chain_not_just_one_hop():
     assert chain[0]["from"] == "2.0.0"
     assert chain[-1]["to"] == SDD_VERSION
     # strictly connected, no gaps or repeats
-    for a, b in zip(chain, chain[1:]):
+    for a, b in pairwise(chain):
         assert a["to"] == b["from"]
 
 
