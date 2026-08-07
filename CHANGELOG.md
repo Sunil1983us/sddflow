@@ -4,6 +4,30 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.19] — 2026-08-07 (Add Python 3.13 and 3.14 to the tested/declared version range)
+
+CI's `python-cli-sanity` matrix only covered Python 3.9–3.12, but
+pypistats.org's own download breakdown for `sddflow` showed real installs
+already happening on Python 3.14 — with zero CI coverage for it.
+
+### Added
+
+- **Python 3.13 and 3.14** added to `python-cli-sanity`'s CI matrix and to
+  `pyproject.toml`'s classifiers. No code changes were needed — the
+  codebase already builds cleanly on 3.13 (verified with a real
+  Python 3.13.12 interpreter: clean install, byte-compile, `--help` smoke
+  test, full pytest suite). Python 3.14 has no local interpreter available
+  to verify directly; CI's `actions/setup-python` is the first real
+  verification for it.
+
+### Verified
+
+- `cli-python` pytest: 848/848, under both the default interpreter and a
+  real Python 3.13.12 venv
+- ruff check/format, mypy, and bandit all clean
+
+---
+
 ## [2.8.18] — 2026-08-02 (Fix two real project-type misdetection bugs; add cross-implementation fixture tests)
 
 The final item from the second external review round: building a shared

@@ -4985,6 +4985,39 @@ MIGRATIONS: list[Migration] = [
             "sync-drift check and cross-reference checker both clean",
         ],
     },
+    {
+        "from": "2.8.18",
+        "to": "2.8.19",
+        "description": "Add Python 3.13 and 3.14 to the tested/declared version range",
+        "notes": [
+            "CI's python-cli-sanity matrix only covered 3.9-3.12, but "
+            "pypistats.org's own download breakdown for sddflow showed "
+            "real installs already happening on Python 3.14 with zero CI "
+            "coverage for it -- prompted by a real user question about "
+            "when 3.9 support was added, which surfaced the matrix was "
+            "stale on the new-version end too, not just the old-version "
+            "end",
+            "Added '3.13' and '3.14' to python-cli-sanity's matrix, and "
+            "the matching classifiers to pyproject.toml. Verified with "
+            "the real Python 3.13.12 interpreter (installed locally, not "
+            "simulated): clean pip install, byte-compile, --help smoke "
+            "test, and the full pytest suite (848/848) all pass "
+            "unchanged. Python 3.14 has no local interpreter available "
+            "to verify directly in this environment -- CI's "
+            "actions/setup-python will be the first real verification "
+            "for it",
+            "No code changes needed -- the codebase already builds "
+            "cleanly on 3.13, consistent with there being no 3.9-only "
+            "syntax debt left after the from __future__ import "
+            "annotations fix in v2.8.11",
+            "This Node CLI has no equivalent Python version matrix (it's "
+            "a Node.js package) -- this migration entry exists so both "
+            "CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 848/848 under both the default "
+            "interpreter and a real Python 3.13.12 venv; ruff check/"
+            "format, mypy, and bandit all clean",
+        ],
+    },
 ]
 
 
