@@ -5058,6 +5058,60 @@ MIGRATIONS: list[Migration] = [
             "the Requires-Python constraint took effect",
         ],
     },
+    {
+        "from": "2.8.20",
+        "to": "2.8.21",
+        "description": (
+            "Fix a severe bug in the published Node CLI: every "
+            "interactive `sdd init` (and the AI-tool prompt in `sdd "
+            "upgrade`) crashed with UnknownPromptTypeError"
+        ),
+        "notes": [
+            "Dependabot bumped the Node CLI's inquirer dependency from "
+            "9.2.0 to 14.0.2 (merged into main, inherited by this repo's "
+            "release branch during an earlier PR's merge-conflict "
+            "resolution). inquirer 9+ dropped the legacy 'list' prompt "
+            "type in favor of 'select' -- inquirer.prompt() throws for "
+            "any unregistered type string, so this broke every "
+            "interactive sdd init for anyone not passing every single "
+            "CLI flag (there's no flag to skip the AI-tool prompt)",
+            "Found by actually running a real interactive `sdd init` "
+            "against a clean install of the live, already-published npm "
+            "package while answering an unrelated question about "
+            "functional parity between the two CLIs -- none of the "
+            "existing automated tests caught this because they only "
+            "exercised migration-chain logic, never a real inquirer "
+            "prompt call",
+            "Fixed cli/src/commands/init.js (5 occurrences) and "
+            "cli/src/commands/upgrade.js (1 occurrence): "
+            "type: 'list' -> type: 'select'. Also fixed a silent "
+            "secondary bug in init.js's scope prompt: the new "
+            "@inquirer/select prompt's `default` option is compared "
+            "against the choice's *value*, not an index into the "
+            "choices array like the old 'list' type -- "
+            "SCOPES.indexOf(...) was replaced with the actual default "
+            "scope value",
+            "Added cli/tests/inquirer-prompt-types.test.js: a "
+            "regression test that scans every inquirer.prompt() call "
+            "in src/commands/*.js, extracts each type: '...' string "
+            "used, and asserts it's a member of the installed "
+            "inquirer's own currently-registered prompt types (read "
+            "live from inquirer.prompt.prompts, not hardcoded) -- a "
+            "future inquirer upgrade that renames or drops a type this "
+            "codebase depends on now fails this test immediately "
+            "instead of only surfacing as a crash for a real user",
+            "This Python CLI never used inquirer (it's a Node package) "
+            "and is unaffected by the underlying bug -- this migration "
+            "entry exists only so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: real clean install of the fixed Node CLI, real "
+            "PTY-based interactive `sdd init` run (piped stdin doesn't "
+            "work against modern @inquirer/* prompts, which require "
+            "raw-mode TTY input) confirmed the full flow completes and "
+            "writes a correct manifest.yml; cli node --test 28/28 "
+            "(27 pre-existing + 1 new); cli-python pytest 848/848",
+        ],
+    },
 ]
 
 

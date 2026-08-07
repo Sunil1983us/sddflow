@@ -100,7 +100,7 @@ export async function initCommand(opts) {
 
     if (!projectType) {
       const { chosen } = await inquirer.prompt([{
-        type: 'list',
+        type: 'select',
         name: 'chosen',
         message: '  Project type:',
         choices: PROJECT_TYPES,
@@ -129,7 +129,7 @@ export async function initCommand(opts) {
       validate: v => validateName(v, 'Feature name'),
     },
     {
-      type: 'list',
+      type: 'select',
       name: 'scope',
       message: 'Scope:',
       choices: [
@@ -137,7 +137,7 @@ export async function initCommand(opts) {
         { name: 'mvp    — production-ready (+ api-spec, data-model, LLD, ADR)', value: 'mvp' },
         { name: 'full   — enterprise (+ resilience, investigation, security-design)', value: 'full' },
       ],
-      default: SCOPES.indexOf(opts.scope ?? 'pilot'),
+      default: opts.scope ?? 'pilot',
       when: !isMicro && (!opts.scope || !SCOPES.includes(opts.scope)),
     },
   ]);
@@ -147,7 +147,7 @@ export async function initCommand(opts) {
   const scope       = answers.scope ?? opts.scope ?? 'pilot';
 
   const { aiTool } = await inquirer.prompt([{
-    type: 'list',
+    type: 'select',
     name: 'aiTool',
     message: 'Which AI tool will you use?',
     choices: AI_TOOLS,
@@ -246,7 +246,7 @@ async function scaffoldMode(projectType, packOverride) {
   } else {
     const choices = buildPackChoices(projectType, rec);
     const { selected } = await inquirer.prompt([{
-      type: 'list',
+      type: 'select',
       name: 'selected',
       message: 'Which pack would you like to scaffold?',
       choices,
@@ -255,7 +255,7 @@ async function scaffoldMode(projectType, packOverride) {
 
     if (selected === '__all__') {
       const { all } = await inquirer.prompt([{
-        type: 'list',
+        type: 'select',
         name: 'all',
         message: 'Select pack:',
         choices: ALL_PACKS.map(p => ({

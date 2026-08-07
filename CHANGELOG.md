@@ -4,6 +4,55 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.21] — 2026-08-07 (Fix severe Node CLI bug: `sdd init` crashed on every interactive run)
+
+**Bug fix — severe, affects the already-published npm package.** The Node
+CLI's `inquirer` dependency was bumped by Dependabot from `9.2.0` to
+`14.0.2` (merged via an earlier PR), which dropped the legacy `'list'`
+prompt type in favor of `'select'`. Every `inquirer.prompt()` call in this
+codebase still used `type: 'list'`, so `inquirer.prompt()` threw
+`UnknownPromptTypeError` at runtime — breaking every interactive `sdd init`
+(and the AI-tool prompt in `sdd upgrade`) for anyone not passing every
+single CLI flag. There's no flag to skip the AI-tool prompt, so this hit
+essentially all interactive users of `@sunil1983us/sddflow@2.8.20`.
+
+Found by actually running a real interactive `sdd init` against a clean
+install of the live, published npm package — none of the existing
+automated tests caught it, since they only exercised migration-chain
+logic, never a real inquirer prompt call.
+
+### Fixed
+
+- `cli/src/commands/init.js` (5 sites) and `cli/src/commands/upgrade.js`
+  (1 site): `type: 'list'` → `type: 'select'`.
+- A silent secondary bug in `init.js`'s scope prompt: the new
+  `@inquirer/select` prompt's `default` option is compared against the
+  choice's *value*, not an index into the choices array like the old
+  `'list'` type did — `SCOPES.indexOf(...)` replaced with the actual
+  default scope value.
+
+### Added
+
+- `cli/tests/inquirer-prompt-types.test.js` — a regression test that scans
+  every `inquirer.prompt()` call in `src/commands/*.js`, extracts each
+  `type: '...'` string used, and asserts it's a member of the installed
+  `inquirer` package's own currently-registered prompt types (read live,
+  not hardcoded) — a future `inquirer` upgrade that renames or drops a
+  type this codebase depends on now fails this test immediately instead of
+  only surfacing as a crash for a real user.
+
+### Verified
+
+- Real clean install of the fixed CLI, real PTY-based interactive
+  `sdd init` run (piped stdin doesn't work against modern `@inquirer/*`
+  prompts, which require raw-mode TTY input) confirmed the full flow
+  completes and writes a correct `manifest.yml`
+- `node --test` 28/28 (27 pre-existing + 1 new)
+- `cli-python` pytest 848/848 (unaffected — Python CLI never used
+  `inquirer`)
+
+---
+
 ## [2.8.20] — 2026-08-07 (Drop Python 3.9 support — requires-python is now >=3.10)
 
 **Breaking change.** Python 3.9 reached end-of-life in October 2025 (no
