@@ -88,12 +88,15 @@ Agent commands (Claude Code / Copilot):
 > (`pip install sddflow`) instead** unless you specifically need a
 > Node-only environment with no Python available. Do NOT
 > `npm install -g sdd-init` — that name on npm belongs to an unrelated
-> third-party package, not this project. This Node CLI publishes to npm
-> under the name `sddflow` (same name as the Python package — they collide
-> on the `sdd` binary if both are installed globally; prefer the Python one):
+> third-party package, not this project. This Node CLI publishes to npm as
+> the **scoped** package `@sunil1983us/sddflow` (npm's anti-squatting
+> policy blocks the unscoped name `sddflow` as too similar to an
+> unrelated existing package). Either CLI installs the same `sdd` binary
+> name, so they collide if both are installed globally; prefer the
+> Python one:
 
 ```bash
-npm install -g sddflow
+npm install -g @sunil1983us/sddflow
 sdd init
 ```
 
