@@ -5701,6 +5701,90 @@ MIGRATIONS: list[Migration] = [
             "files",
         ],
     },
+    {
+        "from": "2.8.31",
+        "to": "2.8.32",
+        "description": (
+            "Add a project-level 'Living Documents' dashboard section "
+            "for Data Model and Security Design -- previously only "
+            "shown as a bare progress dot duplicated inside every "
+            "feature's own pipeline card, with no Approve button, no "
+            "Confluence/Jira links, and easy to miss entirely"
+        ),
+        "notes": [
+            "Reported by a user: couldn't find Data Model on the "
+            "dashboard at all, and after generating it its status stuck "
+            "showing 'waiting for review' -- the second part turned out "
+            "to be correct/by-design (a Draft doc is genuinely awaiting "
+            "approval), but the first part was a real gap: these two "
+            "living/service-level docs (one shared file for the whole "
+            "project, .specify/service/{key}.md, not per-feature) were "
+            "only ever inserted as ordinary steps inside each feature's "
+            "own pipeline -- meaning on a multi-feature project the SAME "
+            "doc showed up duplicated once per feature card, each "
+            "computed from the identical underlying file, and neither "
+            "instance had the Approve button / Confluence+Jira links / "
+            "Details panel every per-feature document already gets, "
+            "since the per-feature Documents table (_feature_docs()) "
+            "only ever scanned .specify/features/{feature}/, never "
+            ".specify/service/",
+            "New _service_level_docs() in status.py builds full doc "
+            "entries (status, approvals, comments, timing -- same shape "
+            "_feature_docs() returns) for Data Model and Security "
+            "Design, exposed as a new top-level living_documents / "
+            "living_local_links pair in build_project_status()'s JSON, "
+            "separate from any one feature",
+            "Removed the two 'service_doc' step entries from "
+            "extended_steps in build_pipeline() so they no longer "
+            "duplicate inside every feature's own Full Pipeline card. "
+            "build_pipeline()'s service_docs parameter and "
+            "_step_state()'s 'service_doc' kind branch are now dead "
+            "code (no step ever produces that kind anymore) -- left in "
+            "place rather than removed, since trimming a public "
+            "function's signature would touch every call site/test that "
+            "constructs it for no behavioral gain",
+            "New renderLivingDocuments() in the dashboard's app.js "
+            "renders a 'Living Documents' card between the Project/"
+            "Constitution cards and the Features Overview table, reusing "
+            "renderDocRow() directly -- the exact same Approve button, "
+            "Details panel (Content/Approvals/Comments tabs), and "
+            "Confluence/Jira link pills every per-feature document "
+            "already has, with zero new dashboard.py backend endpoints "
+            "needed (approve/comment/doc-content already route through "
+            "resolve_doc_path(), which was already living-doc-aware). "
+            "Only docs that actually exist are shown, matching how "
+            "per-feature Documents tables never show a row for an "
+            "ungenerated doc either",
+            "api-spec and component-library (also in LIVING_SERVICE_DOCS, "
+            "sdd/utils/validate.py) are deliberately NOT included in "
+            "this section -- api-spec is produced by /plan-design §3, "
+            "not a standalone /specify-doc command, and neither has any "
+            "dashboard tracking to build on yet; a real gap, but a "
+            "separate follow-up, not scope-crept into this fix",
+            "This Node CLI has no dashboard at all (scaffolding-only by "
+            "design) and is unaffected -- this migration entry exists "
+            "so both CLIs report the same sdd_version chain",
+            "Updated 5 pre-existing tests in test_status.py that "
+            "asserted the old per-feature 'data-model'/'security-design' "
+            "pipeline steps existed, rewriting them against "
+            "_service_level_docs() directly (independent tracking, "
+            "Draft-is-not-Approved, pilot-scope gating). Added 3 new "
+            "end-to-end tests: living_documents/living_local_links "
+            "appear in build_project_status()'s output, the exact "
+            "reported multi-feature duplication bug (a shared doc must "
+            "not appear as a step in any feature's own pipeline), and "
+            "sdd-micro (scope=None) safely reports an empty list rather "
+            "than crashing or showing the backend-service default pair",
+            "Verified: cli-python pytest 892/892 (889 pre-existing + 3 "
+            "net new -- 2 removed, 4 rewritten, 5 added across the "
+            "rewrite); ruff check/format and mypy --ignore-missing-"
+            "imports (matching CI's exact invocation) both clean on the "
+            "changed files; node --check on app.js clean; manually "
+            "verified build_project_status()'s JSON shape end-to-end "
+            "against a real fixture project (Draft data-model.md with "
+            "an Approvals table) before wiring the frontend",
+        ],
+    },
 ]
 
 

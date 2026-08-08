@@ -101,6 +101,36 @@ function renderProject(p, constitution) {
   </div>`;
 }
 
+// Living/service-level docs (Data Model, Security Design) shown once at
+// the project level -- not per-feature, since the underlying file is
+// shared across every feature (.specify/service/{key}.md, generated once
+// via /specify-doc, then extended/amended by every later feature, never
+// regenerated per feature -- see CLAUDE.md "Living Documents"). Reuses
+// renderDocRow directly (same Approve button / Details panel / comments
+// every per-feature document row already has) rather than the whole
+// renderDocs() wrapper, since there's no per-feature "stage.next" concept
+// to show here. Only docs that actually exist are shown -- same as
+// per-feature Documents tables, which never show a row for a doc that
+// hasn't been generated yet; showing an Approve button with nothing
+// behind it would just error.
+function renderLivingDocuments(docs, localLinks, feature) {
+  const shown = (docs || []).filter(d => d.exists && !d.skip);
+  if (shown.length === 0) return '';
+  const links = localLinks || {};
+  const rows = shown
+    .map(d => renderDocRow(d, feature, links.confluence, links.jira_review, null))
+    .join('');
+  return `
+    <div class="card card-wide" style="margin-bottom:1.5rem">
+      <h2>Living Documents <span class="sub">(project-wide, not per-feature)</span></h2>
+      <div class="sub" style="margin-bottom:.5rem">Generated once for the whole
+        project via <code>/specify-doc {name}</code>, then extended/amended by
+        every later feature — never regenerated per feature, and not tied to
+        any one feature card below.</div>
+      <table><thead><tr><th>Document</th><th>Status</th><th>Links</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+}
+
 function renderTasks(tasks) {
   if (!tasks || tasks.total === 0) {
     return '<div class="empty">No tasks.md yet.</div>';
@@ -582,6 +612,9 @@ function render() {
   if (!lastData) return;
   const data = lastData;
   document.getElementById('generated-at').textContent = 'Generated ' + data.generated_at;
+  const livingDocs = renderLivingDocuments(
+    data.living_documents, data.living_local_links, data.project.current_feature || ''
+  );
   const overview = renderFeatureOverview(data.features);
   const boOverview = renderBusinessObjectivesOverview(data.business_objectives);
   const features = data.features.length
@@ -609,7 +642,7 @@ function render() {
     };
   }
 
-  root.innerHTML = renderNetworkBanner() + renderProject(data.project, data.constitution) + overview + boOverview + features;
+  root.innerHTML = renderNetworkBanner() + renderProject(data.project, data.constitution) + livingDocs + overview + boOverview + features;
 
   if (focus) {
     const selector = `.${focus.cls}[data-feature="${CSS.escape(focus.feature)}"][data-doc="${CSS.escape(focus.doc)}"]`;

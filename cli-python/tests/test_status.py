@@ -11,6 +11,7 @@ from sdd.utils.status import (
     _parse_iso_date,
     _parse_version_history_table,
     _resolve_expected_approver,
+    _service_level_docs,
     build_feature_status,
     build_pipeline,
     build_project_status,
@@ -1331,7 +1332,10 @@ def test_pipeline_optional_step_not_yet_reached_is_still_picked_as_next():
     assert "/checklist" in p["next_action"]
 
 
-def test_pipeline_pilot_scope_skips_data_model_lld_adr_runbook_qa():
+def test_pipeline_pilot_scope_skips_lld_adr_runbook_qa():
+    """data-model/security-design are no longer per-feature pipeline
+    steps at all (see _service_level_docs()'s dedicated scope-gating
+    tests below) -- this only covers the genuinely per-feature steps."""
     p = build_pipeline(
         [],
         _NO_TASKS,
@@ -1340,15 +1344,17 @@ def test_pipeline_pilot_scope_skips_data_model_lld_adr_runbook_qa():
         plan_mode="unified",
         scope="pilot",
     )
-    for step_id in ("data-model", "lld", "runbook", "qa-testcases"):
+    for step_id in ("lld", "runbook", "qa-testcases"):
         step = _step(p, step_id)
         assert step["state"] == "skipped", step_id
         assert step["skip"]
     # pilot uses smoke-tests instead of qa-testcases
     assert _step(p, "smoke-tests")["skip"] is None
+    assert "data-model" not in {s["id"] for s in p["steps"]}
+    assert "security-design" not in {s["id"] for s in p["steps"]}
 
 
-def test_pipeline_mvp_scope_includes_data_model_lld_adr_runbook_qa_skips_smoke_tests():
+def test_pipeline_mvp_scope_includes_lld_adr_runbook_qa_skips_smoke_tests():
     p = build_pipeline(
         [],
         _NO_TASKS,
@@ -1357,27 +1363,23 @@ def test_pipeline_mvp_scope_includes_data_model_lld_adr_runbook_qa_skips_smoke_t
         plan_mode="separate",
         scope="mvp",
     )
-    for step_id in ("data-model", "lld", "runbook", "qa-testcases", "adr"):
+    for step_id in ("lld", "runbook", "qa-testcases", "adr"):
         assert _step(p, step_id)["skip"] is None, step_id
     assert _step(p, "smoke-tests")["skip"]
 
 
-def test_pipeline_security_design_required_even_at_pilot_scope():
+def test_service_level_docs_security_design_required_even_at_pilot_scope(
+    tmp_path, monkeypatch
+):
     """Regression: security-design.md (living, .specify/service/) is
     required at every scope per CLAUDE.md's Scope Reference table --
     pilot gets §1 (Threat Assessment) only, but the document itself is
-    never skipped the way data-model is. The old collapsed 'extended-specs'
-    step wrongly skipped both together at pilot scope."""
-    p = build_pipeline(
-        [],
-        _NO_TASKS,
-        _GATE1_PASSED,
-        service_docs=_NO_SERVICE_DOCS,
-        plan_mode="unified",
-        scope="pilot",
-    )
-    assert _step(p, "security-design")["skip"] is None
-    assert _step(p, "data-model")["skip"]
+    never skipped the way data-model is."""
+    monkeypatch.chdir(tmp_path)
+    docs = _service_level_docs(tmp_path, "payments", "pilot")
+    by_key = {d["key"]: d for d in docs}
+    assert by_key["security-design"]["skip"] is None
+    assert by_key["data-model"]["skip"]
 
 
 def test_pipeline_resilience_investigation_require_full_scope():
@@ -1437,33 +1439,35 @@ def test_pipeline_type_specific_extended_docs_included_when_applicable():
     assert "screen-spec" not in {s["id"] for s in p["steps"]}
 
 
-def test_pipeline_service_docs_track_independently():
-    """The core bug this fix addresses: generating only security-design.md
-    must not make data-model.md look done too (and vice versa) -- each
-    living doc's state must come from its own file, not a folder-wide
-    existence check."""
-    p = build_pipeline(
-        [],
-        _NO_TASKS,
-        _GATE1_PASSED,
-        service_docs={"security-design": {"exists": True, "status": "Approved"}},
-        plan_mode="unified",
-        scope="mvp",
+def test_service_level_docs_track_independently(tmp_path, monkeypatch):
+    """generating only security-design.md must not make data-model.md
+    look done too (and vice versa) -- each living doc's state must come
+    from its own file, not a folder-wide existence check."""
+    monkeypatch.chdir(tmp_path)
+    service_dir = tmp_path / ".specify" / "service"
+    service_dir.mkdir(parents=True)
+    (service_dir / "security-design.md").write_text(
+        "# Security Design\nStatus: Approved\n"
     )
-    assert _step(p, "security-design")["state"] == "done"
-    assert _step(p, "data-model")["state"] == "upcoming"
+    docs = _service_level_docs(tmp_path, "payments", "mvp")
+    by_key = {d["key"]: d for d in docs}
+    assert by_key["security-design"]["exists"] is True
+    assert by_key["security-design"]["status"] == "Approved"
+    assert by_key["data-model"]["exists"] is False
+    assert by_key["data-model"]["status"] is None
 
 
-def test_pipeline_service_doc_awaiting_review_is_current_not_done():
-    p = build_pipeline(
-        [],
-        _NO_TASKS,
-        _GATE1_PASSED,
-        service_docs={"data-model": {"exists": True, "status": "Draft"}},
-        plan_mode="unified",
-        scope="mvp",
-    )
-    assert _step(p, "data-model")["state"] == "current"
+def test_service_level_docs_awaiting_review_status_is_not_approved(
+    tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    service_dir = tmp_path / ".specify" / "service"
+    service_dir.mkdir(parents=True)
+    (service_dir / "data-model.md").write_text("# Data Model\nStatus: Draft\n")
+    docs = _service_level_docs(tmp_path, "payments", "mvp")
+    by_key = {d["key"]: d for d in docs}
+    assert by_key["data-model"]["exists"] is True
+    assert by_key["data-model"]["status"] == "Draft"
 
 
 def test_pipeline_unified_plan_mode_skips_arch_hld_adr_uses_design():
@@ -2098,3 +2102,59 @@ def test_build_project_status_flattens_bo_rollup_with_feature_tag(
     assert status["business_objectives"][0]["feature"] == "payments"
     assert status["business_objectives"][0]["bo_id"] == "BO-001"
     assert persona_for("specify", "payments", "pilot") is None
+
+
+class TestLivingDocumentsProjectLevel:
+    """Regression coverage for a user-reported dashboard gap: Data Model
+    (living/service-level, one file for the whole project) wasn't visible
+    on the dashboard at all -- it only ever showed as a bare progress dot
+    buried inside a per-feature pipeline card, with no Approve button,
+    no Confluence/Jira links, and (on a multi-feature project) duplicated
+    once per feature card even though there's only one underlying file."""
+
+    def test_living_documents_appear_at_project_level(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_manifest(tmp_path, '  scope: "mvp"\n')
+        service_dir = tmp_path / ".specify" / "service"
+        service_dir.mkdir(parents=True)
+        (service_dir / "data-model.md").write_text("# Data Model\nStatus: Draft\n")
+        status = build_project_status(".")
+        keys = {d["key"] for d in status["living_documents"]}
+        assert keys == {"data-model", "security-design"}
+        data_model = next(
+            d for d in status["living_documents"] if d["key"] == "data-model"
+        )
+        assert data_model["exists"] is True
+        assert data_model["status"] == "Draft"
+        assert "living_local_links" in status
+
+    def test_living_documents_not_duplicated_across_multiple_features(
+        self, tmp_path, monkeypatch
+    ):
+        """The exact bug: a shared, project-wide doc must not show up as
+        a separate per-feature pipeline step on each feature's card."""
+        monkeypatch.chdir(tmp_path)
+        _write_manifest(tmp_path, '  scope: "mvp"\n')
+        for f in ["payments", "checkout"]:
+            (tmp_path / ".specify" / "features" / f).mkdir(parents=True)
+        service_dir = tmp_path / ".specify" / "service"
+        service_dir.mkdir(parents=True)
+        (service_dir / "data-model.md").write_text("# Data Model\nStatus: Draft\n")
+        status = build_project_status(".")
+        assert len(status["living_documents"]) == 2  # data-model + security-design once
+        for feature in status["features"]:
+            step_ids = {s["id"] for s in feature["pipeline"]["steps"]}
+            assert "data-model" not in step_ids
+            assert "security-design" not in step_ids
+
+    def test_micro_style_project_has_no_living_documents(self, tmp_path, monkeypatch):
+        """sdd-micro has no scope field at all (scope is None) -- must not
+        crash and must report an empty list, not the backend-service
+        default pair."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".specify").mkdir(parents=True)
+        (tmp_path / ".specify" / "manifest.yml").write_text(
+            'project:\n  name: "Demo"\n  feature: "greeter"\n'
+        )
+        status = build_project_status(".")
+        assert status["living_documents"] == []

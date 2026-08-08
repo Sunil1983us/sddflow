@@ -4,6 +4,56 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.32] — 2026-08-08 (Add: project-level "Living Documents" dashboard section)
+
+Reported by a user: they couldn't find **Data Model** on the dashboard at
+all, and after generating it its status stuck showing "waiting for
+review." The second part turned out to be correct — a Draft document is
+genuinely awaiting approval — but the first part was a real gap.
+
+Data Model and Security Design are living/service-level documents: one
+shared file for the *whole project* (`.specify/service/{key}.md`), not
+per-feature. But the dashboard only ever inserted them as ordinary steps
+inside each **feature's own** pipeline card — meaning on a multi-feature
+project the same document showed up duplicated once per feature card,
+each computed from the identical underlying file, and neither instance
+had the Approve button, Confluence/Jira links, or Details panel every
+per-feature document already gets (the per-feature Documents table only
+ever scanned `.specify/features/{feature}/`, never `.specify/service/`).
+
+### Added
+
+- New project-level **"Living Documents"** dashboard section, shown once
+  between the Project/Constitution cards and the Features Overview table —
+  not nested inside any one feature. Full functionality: status badge,
+  Approve button, Confluence/Jira links, and the same Details panel
+  (Content/Approvals/Comments) every per-feature document has.
+- `_service_level_docs()` in `status.py`, exposed as `living_documents` /
+  `living_local_links` in the dashboard's JSON.
+
+### Fixed
+
+- Removed the duplicated Data Model / Security Design steps from every
+  feature's own pipeline — they now appear exactly once, at the project
+  level, regardless of how many features exist.
+
+### Known follow-up
+
+- `api-spec` and `component-library` (also living/service-level docs) are
+  **not** included in this section yet — `api-spec` has no standalone
+  `/specify-doc` command to link to (it's produced by `/plan-design §3`),
+  and neither has dashboard tracking to build on. Real gap, separate scope.
+
+### Verified
+
+- `cli-python` pytest 892/892 (889 pre-existing, net +3 — 5 tests
+  rewritten against the new function, 3 new end-to-end tests added,
+  including the exact reported multi-feature duplication scenario).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean; `node --check` on `app.js` clean.
+
+---
+
 ## [2.8.31] — 2026-08-08 (Fix: re-pushing a local-svg diagram to Confluence a second time always failed)
 
 Reported by a user during testing: pushed a page with a `local-svg` diagram

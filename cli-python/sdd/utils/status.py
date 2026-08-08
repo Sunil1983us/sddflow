@@ -529,6 +529,82 @@ def _service_doc_info(root: Path, key: str) -> dict:
     return {"exists": True, "status": _doc_status(path)}
 
 
+# Living/service-level docs shown in the dashboard's project-level
+# "Living Documents" section (see _service_level_docs() below) --
+# (key, label, command, always_shown). Data Model and Security Design are
+# the two currently wired up; api-spec and component-library are also in
+# LIVING_SERVICE_DOCS (sdd/utils/validate.py) but aren't generated via a
+# standalone /specify-doc command (api-spec comes from /plan-design §3;
+# component-library has no dashboard tracking yet either) -- deliberately
+# left out here rather than showing a command hint that doesn't exist.
+_SERVICE_LEVEL_DOC_SPECS = [
+    ("data-model", "Data Model", "/specify-doc data-model", False),
+    ("security-design", "Security Design", "/specify-doc security", True),
+]
+
+
+def _service_level_docs(
+    root: Path, current_feature: str, scope: str | None
+) -> list[dict]:
+    """Full doc entries (same shape _feature_docs() returns -- status,
+    approvals, comments, timing) for the project-wide living/service-level
+    docs, so the dashboard's project-level "Living Documents" section gets
+    the exact same Approve button / Confluence+Jira links / Details panel
+    every per-feature document already has, instead of being reduced to a
+    bare progress dot inside one feature's own pipeline (which is what
+    build_pipeline()'s old "service_doc" steps did -- see their docstring
+    note in build_pipeline() -- and, worse, meant the SAME shared doc
+    displayed as a separate dot inside every feature's own pipeline card
+    on a multi-feature project, each computed from the identical
+    underlying file. Reported by a user who couldn't find Data Model on
+    the dashboard at all and found its "waiting for review" status
+    confusing buried in a per-feature progress list).
+
+    current_feature is used only for the local comments-store key
+    (.dashboard-comments.json, keyed "{feature}/{doc}") and Jira-ticket
+    lookup, matching the exact same feature-tagging `sdd review submit`
+    itself already uses for these docs (it has no living-doc special
+    case either -- the review ticket for a living doc ends up labeled
+    with whatever feature was active/passed at submit time). This keeps
+    the dashboard consistent with the CLI's own pre-existing behavior
+    rather than inventing a different scheme; .local-approvals.yml
+    (unlike comments) is already bare-doc-keyed with no feature
+    involved at all, so approval state is unaffected by this either way.
+    """
+    mvp_plus = _scope_at_least(scope, "mvp")
+    approvals = _local_approvals(root)
+    roles_map = _load_roles_map(root)
+    docs: list[dict] = []
+    for key, label, command, always_shown in _SERVICE_LEVEL_DOC_SPECS:
+        skip = None if (always_shown or mvp_plus) else "pilot scope"
+        path = root / ".specify" / "service" / f"{key}.md"
+        exists = path.is_file()
+        status = _doc_status(path) if exists else None
+        approvals_table = (
+            _annotate_approvals(_parse_approvals_table(path), roles_map)
+            if exists
+            else []
+        )
+        docs.append(
+            {
+                "key": key,
+                "label": label,
+                "command": command,
+                "skip": skip,
+                "exists": exists,
+                "status": status,
+                "path": str(path) if exists else None,
+                "local_approval": approvals.get(key),
+                "comments": _dashboard_comments(root, current_feature, key)
+                if current_feature
+                else [],
+                "approvals": approvals_table,
+                "timing": _doc_timing(path, status, approvals_table),
+            }
+        )
+    return docs
+
+
 # Per-feature extended docs whose applicability depends on project type --
 # detected from which template file the pack actually ships, rather than
 # hardcoding pack names. This works for the 4 single-type packs (each ships
@@ -657,14 +733,12 @@ def _standard_pipeline_steps(
     can show *why* a step is absent rather than silently omitting it —
     the skip reasons mirror CLAUDE.md's "Scope Reference" table exactly.
 
-    Extended docs (data-model, security-design, and the type-specific ones)
-    used to be a single collapsed "Extended Specs" step whose done/upcoming
-    state came from "does *any* file exist under .specify/service/" — so
-    generating just security-design silently marked data-model as done too.
-    Each now gets its own step, gated by its own real scope/type rule:
-    - security-design: required at every scope (pilot gets §1 only, per
-      CLAUDE.md's Scope Reference table) — never skipped
-    - data-model: mvp+ only
+    data-model and security-design (living/service-level, one shared file
+    for the whole project, not per-feature) are NOT steps in this
+    sequence — see _service_level_docs() and the dashboard's project-level
+    "Living Documents" section instead. The type-specific extended docs
+    (component-spec/ux-flow/screen-spec) genuinely are per-feature, so
+    they stay here:
     - component-spec / ux-flow / screen-spec: mvp+, and only included at
       all when `applicable_extended` says this project's type uses them
       (component-spec/ux-flow: frontend-spa/desktop/fullstack; screen-spec/
@@ -688,37 +762,21 @@ def _standard_pipeline_steps(
             "optional": optional,
         }
 
-    def service_doc(id_, command, label, doc_key, skip=None):
-        return {
-            "id": id_,
-            "command": command,
-            "label": label,
-            "kind": "service_doc",
-            "doc_key": doc_key,
-            "skip": skip,
-            "optional": False,
-        }
-
-    extended_steps = [
-        # Ordered to match the practical /specify-doc sequence recommended
-        # to users: data-model -> security -> (component-spec/ux-flow if
-        # applicable) -- neither doc depends on the other, but next_action
-        # picks the first non-done step in list order, so the order here
-        # is what the dashboard tells someone to run first.
-        service_doc(
-            "data-model",
-            "/specify-doc data-model",
-            "Data Model",
-            "data-model",
-            skip=None if mvp_plus else "pilot scope",
-        ),
-        service_doc(
-            "security-design",
-            "/specify-doc security",
-            "Security Design",
-            "security-design",
-        ),
-    ]
+    # Data Model / Security Design used to each get a "service_doc" step
+    # here too, but that meant the SAME project-wide file (.specify/
+    # service/{key}.md, generated once, not per-feature) showed as a
+    # separate progress dot inside every single feature's own pipeline
+    # card on a multi-feature project -- confusing, and easy to miss
+    # entirely since it was buried mid-list rather than surfaced
+    # anywhere project-level. They're now in their own project-level
+    # "Living Documents" section instead (see _service_level_docs()),
+    # shown once, not duplicated per feature. build_pipeline()'s
+    # `service_docs` param and _step_state()'s "service_doc" kind branch
+    # are dead code as of this change (no step ever produces that kind
+    # anymore) -- left in place rather than removed, since trimming them
+    # would touch build_pipeline()'s public signature and every call
+    # site/test that constructs it, for no behavioral gain.
+    extended_steps: list[dict] = []
     if "component-spec" in applicable_extended:
         extended_steps.append(
             doc(
@@ -1731,6 +1789,18 @@ def build_project_status(root: str | Path = ".") -> dict:
         for bo in f["business_objectives"]
     ]
 
+    # Living/service-level docs (Data Model, Security Design) shown once,
+    # project-level -- not sdd-micro, which has no such concept (scope is
+    # None there, same guard _micro_pipeline_steps() uses). See
+    # _service_level_docs()'s docstring for why current_feature is used
+    # for the comments-store key.
+    base_url = _local_base_url()
+    living_documents = (
+        _service_level_docs(root, proj.get("feature") or "", scope)
+        if scope is not None
+        else []
+    )
+
     return {
         "project": {
             "name": proj.get("name") or None,
@@ -1744,5 +1814,10 @@ def build_project_status(root: str | Path = ".") -> dict:
         "constitution": constitution,
         "features": features,
         "business_objectives": business_objectives,
+        "living_documents": living_documents,
+        "living_local_links": {
+            "confluence": _local_confluence_links(root, base_url),
+            "jira_review": _local_review_links(root, base_url),
+        },
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }

@@ -3607,6 +3607,48 @@ export const MIGRATIONS = [
       "CI's exact invocation) both clean on the changed files",
     ],
   },
+  {
+    from: '2.8.31',
+    to:   '2.8.32',
+    description: "Add a project-level 'Living Documents' dashboard " +
+      "section for Data Model and Security Design -- previously only " +
+      "shown as a bare progress dot duplicated inside every feature's " +
+      "own pipeline card, with no Approve button, no Confluence/Jira " +
+      "links, and easy to miss entirely",
+    notes: [
+      "Reported by a user: couldn't find Data Model on the dashboard " +
+      "at all, and after generating it its status stuck showing " +
+      "'waiting for review' -- the second part turned out to be " +
+      "correct/by-design, but the first part was real: these living/ " +
+      "service-level docs (one shared file for the whole project, not " +
+      "per-feature) were only ever inserted as ordinary steps inside " +
+      "each feature's own pipeline -- duplicated once per feature card " +
+      "on a multi-feature project, with none of the Approve button/" +
+      "links/Details panel every per-feature document already gets",
+      "New _service_level_docs() in cli-python's status.py builds full " +
+      "doc entries for Data Model and Security Design, exposed as a " +
+      "new top-level living_documents/living_local_links pair, " +
+      "separate from any one feature. Removed the duplicated per-" +
+      "feature pipeline steps. New renderLivingDocuments() in the " +
+      "dashboard's app.js renders a card between the Project/" +
+      "Constitution cards and the Features Overview table, reusing the " +
+      "exact same row-rendering every per-feature document already " +
+      "uses -- zero new backend endpoints needed",
+      "api-spec and component-library (also living-service docs) are " +
+      "deliberately not included -- api-spec has no standalone /specify-" +
+      "doc command to link to, and neither has dashboard tracking to " +
+      "build on yet; a real gap, but a separate follow-up",
+      "This Node CLI has no dashboard at all (scaffolding-only by " +
+      "design) and is unaffected -- this migration entry exists so " +
+      "both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 892/892 (889 pre-existing, net +3 " +
+      "after rewriting 5 tests that asserted the old per-feature steps " +
+      "and adding 3 new end-to-end tests including the exact reported " +
+      "multi-feature duplication scenario); ruff check/format and mypy " +
+      "--ignore-missing-imports (matching CI's exact invocation) both " +
+      "clean; node --check on app.js clean",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
