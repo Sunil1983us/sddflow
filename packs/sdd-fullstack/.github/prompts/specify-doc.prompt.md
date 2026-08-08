@@ -351,6 +351,17 @@ you answered without editing the document).
 Check what documents remain ungenerated for this scope.
 
 If more remain — State: "**{DOC} generated.** Review in Confluence/Jira (or above), then run **/specify-doc {next-doc}**. Remaining: {list}."
-If none remain — State: "**{DOC} generated** — all spec documents complete. Run **/validate** for business sign-off."
+If none remain — check `manifest.project.scope` before naming the next
+command. `/checklist` sits between the extended document set and
+`/validate` in the command order (see CLAUDE.md "Command Order" and
+"`/checklist` — Optional Spec-Quality Gate") and is **mandatory at
+mvp/full scope** — never optional the way it's stated to be for pilot.
+This step must not point past it:
+- `mvp`/`full` scope: State: "**{DOC} generated** — all spec documents
+  complete. Run **/checklist** next (mandatory at this scope) before
+  **/validate**."
+- `pilot` scope: State: "**{DOC} generated** — all spec documents
+  complete. Run **/checklist** (optional spec-quality gate) or go
+  straight to **/validate** for business sign-off."
 
 **Stop — do not generate the next document in this turn.**

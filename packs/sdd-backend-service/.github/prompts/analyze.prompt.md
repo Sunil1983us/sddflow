@@ -81,6 +81,26 @@ CF-NNN IDs. Include in analyze.summary.md:
 - Save summary to: analyze.summary.md (max SUMMARY_MAX_LINES)
 - Present the report.
 
+### Update BRD Build Effort
+
+brd.md §9 Investment Summary's "Build effort (T-shirt)" row is deliberately
+left as plain deferred text by `/specify-brd` ("Pending — estimated after
+/analyze") rather than a `[NEEDS CLARIFICATION]` marker, specifically
+because this analysis — the COMPLEXITY ratings by feature area/FR above —
+is the only source that can fill it; it cannot exist any earlier in the
+pipeline. Now that it does:
+
+- Derive one overall T-shirt size (S < 1 sprint / M 1–3 / L 3–6 / XL 6+)
+  from this analysis's COMPLEXITY ratings — e.g. any HIGH item pushes the
+  overall estimate toward L/XL, an even mix of MEDIUM toward M, mostly LOW
+  toward S. Use judgement across the whole feature, not a single FR.
+- Update brd.md §9's "Build effort (T-shirt)" row: replace the deferred
+  text with the derived size, and change "Source / Notes" to "Derived from
+  analyze.md §{complexity section number}, {today's date}".
+- Regenerate brd.summary.md.
+- Mention the update in one line when presenting the report: "brd.md's
+  Build effort estimate is now filled in: {size}."
+
 ### Stakeholder Review and Approval
 
 **Step B — Formal submission**

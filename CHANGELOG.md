@@ -4,6 +4,57 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.34] — 2026-08-08 (Fix: two sequencing bugs found during real `/checklist` testing — one a genuine framework logic conflict)
+
+Found by a user running the framework end-to-end: after approving the last
+extended document, then running `/checklist`.
+
+### Fixed
+
+**1. `/specify-doc` chat message skipped the mandatory `/checklist` gate.**
+The dashboard correctly showed "Spec Quality Checklist" as the next step at
+mvp+/full scope, but the "all documents complete" chat message named
+`/validate` unconditionally — a pure prompt-text bug with zero awareness
+that `/checklist` is mandatory (not optional) at that scope. Fixed
+`specify-doc.prompt.md`'s "none remain" branch to check
+`manifest.project.scope`: mvp/full now names `/checklist` (mandatory) as
+the next command; pilot still offers it as optional before `/validate`.
+
+**2. `brd.md` generated an unresolvable `[NEEDS CLARIFICATION]` marker by
+design.** `brd-template.md` §9's "Build effort (T-shirt)" row was written
+as "Derived from analyze.md (filled after /analyze)" under a blanket rule
+that marks any unfilled Investment Summary item `[NEEDS CLARIFICATION]` —
+but `analyze.md` doesn't exist until `/analyze` runs, which is *after*
+`/validate` in the pipeline order (SPECIFY → GATE-1 → VALIDATE → ANALYZE),
+and `checklist.prompt.md`'s CRITICAL rule blocks `/validate` on any
+unresolved marker with no per-field exception. A user's own `/checklist`
+run surfaced this exact conflict. Three-part fix:
+- `brd-template.md` §9 now writes plain deferred text — "Pending —
+  estimated after /analyze" — for this field, never a
+  `[NEEDS CLARIFICATION]` marker.
+- `analyze.prompt.md` gained a new "Update BRD Build Effort" step that
+  actually implements the template's own long-standing but
+  never-implemented promise: derives a T-shirt size from the COMPLEXITY
+  ratings `/analyze` just produced and writes it back into `brd.md` §9.
+- `checklist.prompt.md`'s CRITICAL rule #1 gained an explicit
+  known-exception carve-out for this field, as a defensive safety net for
+  any `brd.md` generated before this fix.
+
+`specify-doc.prompt.md`, `brd-template.md`, and `checklist.prompt.md` are
+`_shared/full/` sources — edited once, synced to all 5 packs.
+`analyze.prompt.md` is authored per-pack — the same "Update BRD Build
+Effort" step was added individually to all 5 packs, verified identical.
+
+### Verified
+
+- cli-python pytest 904/904 (no Python code touched, only markdown/prompt
+  files)
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `assert-output.sh` clean against `examples/todo-api` (33/33)
+
+---
+
 ## [2.8.33] — 2026-08-08 (Fix: 4 real bugs found during a living-document review cycle — one a genuine data-corruption bug)
 
 Found by a user actually testing the framework — approving a Data Model

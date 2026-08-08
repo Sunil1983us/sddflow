@@ -5876,6 +5876,69 @@ MIGRATIONS: list[Migration] = [
             "pass",
         ],
     },
+    {
+        "from": "2.8.33",
+        "to": "2.8.34",
+        "description": (
+            "Fix two live sequencing bugs a user hit back-to-back during "
+            "real testing: a /specify-doc chat message that skipped over "
+            "the mandatory /checklist gate at mvp+/full scope, and a "
+            "brd.md field that generated an unresolvable [NEEDS "
+            "CLARIFICATION] marker by design"
+        ),
+        "notes": [
+            "Bug 1 -- specify-doc.prompt.md's 'all documents complete' "
+            "message named /validate as the next step unconditionally, "
+            "even though /checklist sits between the extended document "
+            "set and /validate in the command order and is mandatory at "
+            "mvp/full scope (optional only at pilot). Reported by a user: "
+            "the dashboard correctly showed 'Spec Quality Checklist' as "
+            "the next step, but the chat message after the last document "
+            "approval said 'Run /validate ... the gate before /analyze,' "
+            "skipping /checklist entirely. Fixed by making the 'none "
+            "remain' branch check manifest.project.scope: mvp/full now "
+            "names /checklist (mandatory) as the next command; pilot "
+            "names it as an optional gate before /validate",
+            "Bug 2 -- brd.md §9's 'Build effort (T-shirt)' row was "
+            "generated as 'Derived from analyze.md (filled after "
+            "/analyze)' under a blanket instruction that marks any "
+            "unfilled Investment Summary item [NEEDS CLARIFICATION]. But "
+            "analyze.md doesn't exist until /analyze runs, which is AFTER "
+            "/validate in the pipeline order (SPECIFY -> GATE-1 -> "
+            "VALIDATE -> ANALYZE) -- and checklist.prompt.md's CRITICAL "
+            "rule #1 blocks /validate on any unresolved [NEEDS "
+            "CLARIFICATION] marker with no per-field carve-out. A user's "
+            "own /checklist run surfaced this exact conflict verbatim. "
+            "Three-part fix: (1) brd-template.md §9 now writes plain "
+            "deferred text 'Pending -- estimated after /analyze' for this "
+            "field instead of an implicit-marker-prone placeholder -- "
+            "never a [NEEDS CLARIFICATION] marker; (2) analyze.prompt.md "
+            "gained a new 'Update BRD Build Effort' step that actually "
+            "implements the template's own long-standing but never-"
+            "implemented promise -- derives a T-shirt size from the "
+            "COMPLEXITY ratings just produced and writes it back into "
+            "brd.md §9; (3) checklist.prompt.md's CRITICAL rule #1 "
+            "gained an explicit known-exception carve-out for this one "
+            "field, as a defensive safety net for any brd.md generated "
+            "before this fix",
+            "specify-doc.prompt.md and brd-template.md and "
+            "checklist.prompt.md are _shared/full/ sources -- edited "
+            "once, synced to all 5 packs via sync-blocks.sh. "
+            "analyze.prompt.md is authored per-pack (not in _shared/) -- "
+            "the same 'Update BRD Build Effort' step was added "
+            "individually to all 5 packs' analyze.prompt.md, verified "
+            "identical in content across all 5",
+            "This Node CLI has no Jira/Confluence integration and no "
+            "review-approval flow of its own (scaffolding-only by "
+            "design) and is unaffected by any of this -- this migration "
+            "entry exists so both CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 904/904 (no Python code touched, "
+            "only markdown/prompt files); check-cross-references.py clean "
+            "across all 6 packs; test-setup.sh (19/19) and "
+            "test-setup-micro.sh (12/12) both pass; assert-output.sh "
+            "clean against examples/todo-api (33/33)",
+        ],
+    },
 ]
 
 
