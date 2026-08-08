@@ -4,6 +4,63 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.35] — 2026-08-08 (Audit: review-gate consistency across every living and feature document — 2 behavioural gaps + 1 sync-tooling bug)
+
+Requested audit: check that every living document (Data Model, Security
+Design, API Spec) and feature document creates a review ticket, pushes to
+Confluence, and pulls review from Jira/Confluence the same way when
+either is configured — falling back to chat otherwise. Found two real
+behavioural gaps, and a third issue in the sync tooling itself while
+fixing one of them.
+
+### Fixed
+
+**1. `validate`/`analyze`/`clarify` skipped the Confluence-only fallback.**
+These three documents only ever called `sdd review submit` (which
+requires both `jira:` and `confluence:` configured, confirmed in the
+CLI) and fell straight to pure chat mode if it failed. Every other
+reviewed document falls through to `sdd confluence draft` first when
+only Confluence is configured. In a Confluence-only project, these three
+documents silently never reached Confluence — contradicting the
+project's own "Confluence stays in sync in every mode" claim. Fixed by
+switching them onto the same shared submission/approval blocks the
+other 12 review-gated commands already use, preserving each document's
+own approval-scope caveat as trailing prose.
+
+**2. `api-spec.md`'s first version never got a review ticket.** Unlike
+its sibling living documents (Data Model, Security Design), the API
+Spec — generated inside `/plan-design` on the first service-providing
+feature — had no submission step on first creation. It only reached
+Confluence/Jira later, when a subsequent feature updated it. Fixed by
+adding the same shared submission block right after first-time
+generation, independent of `design.md`'s own approval.
+
+**3. `sync-blocks.sh` ran its two sync passes in the wrong order.** Ten
+`.github/prompts/` files that are synced whole-file from `_shared/full/`
+(`specify-brd`, `specify-uc`, `specify-srd`, `specify-doc`, `plan-arch`,
+`plan-hld`, `plan-adr`, `plan-design`, `plan-lld`, `task`) also embed the
+shared submission/approval block markers — but the full-file sync ran
+*after* the marker-fill pass, so every run silently overwrote the
+just-refreshed marker content with whatever stale copy was baked into
+`_shared/full/`'s own file. Confirmed live: `validate.prompt.md` (never
+full-file-synced) had the current approval logic; `specify-brd.prompt.md`
+(full-file-synced) was missing a step added to the canonical block since
+these files were last hand-synced — same pack, same sync run. Fixed by
+reordering the two passes so the marker-fill pass always runs last, and
+refreshed the 10 files' own stale embedded copies. Added a rule to
+`packs/_shared/README.md` documenting the gotcha.
+
+### Verified
+
+- cli-python pytest 904/904
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `assert-output.sh` clean against `examples/todo-api` (33/33)
+- Three consecutive `sync-blocks.sh` runs confirmed idempotent (zero
+  diffs after the first)
+
+---
+
 ## [2.8.34] — 2026-08-08 (Fix: two sequencing bugs found during real `/checklist` testing — one a genuine framework logic conflict)
 
 Found by a user running the framework end-to-end: after approving the last

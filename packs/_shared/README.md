@@ -58,6 +58,20 @@ Two sync mechanisms, for two kinds of shared content:
 - If a file legitimately needs to diverge between packs (even slightly),
   remove it from `full/` rather than letting `sync-blocks.sh` fight the
   divergence.
+- **A `full/{relpath}` file that also contains `shared:{id}` markers must
+  keep its own copy between those markers up to date with `blocks/{id}.md`
+  — don't let it drift.** `sync-blocks.sh` runs the full-file pass before
+  the blocks pass specifically so the blocks pass always has the last word
+  on every marker region in every pack file; but `full/{relpath}` itself is
+  never touched by the blocks pass (it only globs `../sdd-*/`), so if its
+  own inline copy of a block goes stale, a maintainer reading `full/` directly
+  sees outdated content even though the packs are fine. Ten `.github/prompts/`
+  files currently do this (`specify-brd`, `specify-uc`, `specify-srd`,
+  `specify-doc`, `plan-arch`, `plan-hld`, `plan-adr`, `plan-design`,
+  `plan-lld`, `task`) — after editing `blocks/submit-for-review-step.md` or
+  `blocks/review-decision-step.md`, also refresh these ten files' own
+  embedded copies (or just re-run `./sync-blocks.sh` and diff `full/`
+  against `blocks/` to check for drift; the script itself won't do it for you).
 
 ## Current blocks
 

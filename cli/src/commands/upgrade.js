@@ -3764,6 +3764,91 @@ export const MIGRATIONS = [
       'examples/todo-api (33/33)',
     ],
   },
+  {
+    from: '2.8.34',
+    to:   '2.8.35',
+    description: 'Full review-gate audit across every living and ' +
+      'feature document: closed two behavioural gaps (validate/' +
+      'analyze/clarify missing the Confluence-only submission ' +
+      'fallback; api-spec.md\'s first version never getting a review ' +
+      'ticket/page) and fixed a sync-tooling bug that was silently ' +
+      'serving 10 pack prompts a stale copy of the approval logic',
+    notes: [
+      'Requested audit: \'perform an audit to see all living document ' +
+      'and feature document create the review ticket and pushed to ' +
+      'confluence page and review is pulled from jira and confluence ' +
+      'to make sure all are having the same process if jira or ' +
+      'confluence is active, else it can be done in chat\'',
+      'Finding A -- validate.prompt.md, analyze.prompt.md, ' +
+      'clarify.prompt.md (hand-authored, not shared, identical across ' +
+      'all 5 packs) only ever called `sdd review submit` and fell ' +
+      'straight to pure chat mode on failure. review.py\'s ' +
+      'review_submit requires BOTH jira: and confluence: sections and ' +
+      'hard-fails otherwise (confirmed by reading the CLI) -- so in a ' +
+      'confluence-only project (no jira:) these three documents never ' +
+      'reached Confluence, unlike every other reviewed document, which ' +
+      'falls through to `sdd confluence draft` first. Fixed by ' +
+      'swapping their Step B/C onto the same submit-for-review-step/' +
+      'review-decision-step shared blocks the other 12 commands ' +
+      'already use, adding the markers to all 5 packs\' copies of the ' +
+      '3 files and running sync-blocks.sh -- each file\'s own document-' +
+      'specific approval-scope caveat (e.g. validate.md\'s per-item ' +
+      'checkboxes not being itemized by a blanket approval) was ' +
+      'preserved as trailing prose after the shared block, not lost in ' +
+      'the swap',
+      'Finding B -- api-spec.md (the third living document, generated ' +
+      'inside plan-design.prompt.md when a service-providing feature ' +
+      'is planned) had no submission step on first creation, unlike ' +
+      'its sibling living docs (data-model, security-design), which ' +
+      'get one via specify-doc.prompt.md\'s shared block. api-spec.md ' +
+      'only ever reached Confluence/Jira later, when a subsequent ' +
+      'feature called `sdd review apply --doc api-spec` on an update ' +
+      '-- meaning a service\'s first feature could ship an API ' +
+      'contract that was never actually routed through a review ' +
+      'ticket. Fixed by adding the same shared submission block ' +
+      '(doc_key = api-spec) right after first-time generation, ' +
+      'independent of design.md\'s own later approval step',
+      'Finding C (found while fixing B, not part of the original two) ' +
+      '-- sync-blocks.sh\'s two loops ran in the wrong order: the ' +
+      'blocks loop (which refreshes shared:{id} marker regions in ' +
+      'pack files) ran BEFORE the full-file loop (which copies ' +
+      '_shared/full/{path} whole-file into every pack). Ten ' +
+      '.github/prompts/ files in full/ (specify-brd, specify-uc, ' +
+      'specify-srd, specify-doc, plan-arch, plan-hld, plan-adr, plan-' +
+      'design, plan-lld, task) themselves embed submit-for-review-' +
+      'step/review-decision-step markers -- full/ is never itself ' +
+      'touched by the blocks loop (it only globs ../sdd-*/), so those ' +
+      '10 files\' own inline copies had silently drifted stale ' +
+      '(missing review-decision-step\'s \'resolve the approver\'s ' +
+      'name from roles.yml, fill the Approver column\' step, added to ' +
+      'blocks/review-decision-step.md at some point after these 10 ' +
+      'files were last hand-synced). Every sync-blocks.sh run: blocks ' +
+      'loop correctly refreshed the 10 files in all 5 packs, then the ' +
+      'full-file loop immediately overwrote them back to the stale ' +
+      'full/ copy, since cmp always showed a diff. Verified directly: ' +
+      'validate.prompt.md (never full-file-synced) had the fresh ' +
+      'content, specify-brd.prompt.md (full-file-synced) did not, in ' +
+      'the same pack, same run. Fixed two ways: (1) swapped the loop ' +
+      'order in sync-blocks.sh so the blocks pass always runs last and ' +
+      'has the final word on every marker region regardless of which ' +
+      'loop last touched the file; (2) refreshed the 10 full/ files\' ' +
+      'own embedded copies to match blocks/*.md exactly, so a ' +
+      'maintainer reading full/ directly isn\'t misled either. ' +
+      'Confirmed idempotent: three consecutive sync-blocks.sh runs ' +
+      'after the fix produce zero further file changes. Added a ' +
+      'README.md rule documenting the gotcha so it isn\'t reintroduced',
+      'This Node CLI has no Jira/Confluence integration and no review-' +
+      'approval flow of its own (scaffolding-only by design) and is ' +
+      'unaffected by any of this -- this migration entry exists so ' +
+      'both CLIs report the same sdd_version chain',
+      'Verified: cli-python pytest 904/904; check-cross-references.py ' +
+      'clean across all 6 packs; test-setup.sh (19/19) and test-' +
+      'setup-micro.sh (12/12) both pass; assert-output.sh clean ' +
+      'against examples/todo-api (33/33); three consecutive sync-' +
+      'blocks.sh runs confirmed idempotent (zero diffs after the ' +
+      'first)',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
