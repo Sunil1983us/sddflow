@@ -3363,6 +3363,38 @@ export const MIGRATIONS = [
       "CI's exact invocation) both clean on the changed files",
     ],
   },
+  {
+    from: '2.8.24',
+    to:   '2.8.25',
+    description: "Fix dashboard 'not set in roles.yml' false negative: a " +
+      "fully filled-in roles.yml still showed no expected approver, " +
+      "because every real template's Approvals table Role cell carries " +
+      "a RACI annotation the role-key matcher never stripped",
+    notes: [
+      "Reported by a user: filled in every role in roles.yml (real " +
+      "names for product_owner, business_analyst, etc.), but the " +
+      "dashboard's BRD Approvals detail panel still showed nothing for " +
+      "the pending rows",
+      "Root cause: cli-python's status.py normalizes a document's " +
+      "Approvals-table Role cell text to roles.yml's snake_case key " +
+      "convention ('Product Owner' -> 'product_owner') to match the " +
+      "two up. But every shipped template's actual Role cell carries a " +
+      "RACI annotation in parentheses -- e.g. brd-template.md's real " +
+      "text is 'Product Owner (accountable -- business objectives " +
+      "sign-off)', not bare 'Product Owner'. Normalizing the full " +
+      "string never matched any roles.yml key -- a 100% miss rate " +
+      "across every role, in every document, in every project",
+      "Fixed in cli-python's sdd/utils/status.py: the role-key " +
+      "normalizer now strips everything from the first '(' onward " +
+      "before matching",
+      "This Node CLI has no dashboard at all (scaffolding-only by " +
+      "design) and is unaffected -- this migration entry exists so " +
+      "both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 874/874 (871 pre-existing + 3 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

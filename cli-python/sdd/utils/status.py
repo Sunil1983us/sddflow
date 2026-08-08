@@ -339,8 +339,19 @@ def _normalize_role_key(role_label: str) -> str:
     """'DevOps/SRE' / 'QA Lead' / 'Tech Lead' -> 'devops_sre' / 'qa_lead' /
     'tech_lead' -- matches roles.yml's snake_case key convention so a
     document's human-readable Approvals-table Role column can be looked
-    up directly, without a second hardcoded mapping to keep in sync."""
-    return re.sub(r"[^a-z0-9]+", "_", role_label.strip().lower()).strip("_")
+    up directly, without a second hardcoded mapping to keep in sync.
+
+    Every real template's Approvals table Role cell carries a RACI
+    annotation in parentheses -- e.g. "Product Owner (accountable --
+    business objectives sign-off)" (brd-template.md) or "DevOps/SRE
+    (consulted -- deployment readiness)" (release-template.md), never
+    just the bare role name. That suffix must be stripped before
+    normalizing, or the result ("product_owner_accountable_business_..."
+    ) never matches any roles.yml key -- which used to mean every
+    project's Approvals detail panel showed "not set in roles.yml" for
+    every role, even with roles.yml fully filled in."""
+    label = re.split(r"\s*\(", role_label.strip(), maxsplit=1)[0]
+    return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
 
 
 def _resolve_expected_approver(role_label: str, roles_map: dict) -> str | None:

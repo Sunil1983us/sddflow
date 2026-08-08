@@ -5324,6 +5324,61 @@ MIGRATIONS: list[Migration] = [
             "this change too, unrelated to it",
         ],
     },
+    {
+        "from": "2.8.24",
+        "to": "2.8.25",
+        "description": (
+            "Fix dashboard 'not set in roles.yml' false negative: a "
+            "fully filled-in roles.yml still showed no expected approver, "
+            "because every real template's Approvals table Role cell "
+            "carries a RACI annotation the role-key matcher never "
+            "stripped"
+        ),
+        "notes": [
+            "Reported by a user: filled in every role in roles.yml "
+            "(product_owner, business_analyst, etc., each with a real "
+            "name), but the dashboard's BRD Approvals detail panel still "
+            "showed nothing for the pending rows",
+            "Root cause: status.py's _normalize_role_key() converts a "
+            "document's Approvals-table Role cell text to roles.yml's "
+            "snake_case key convention ('Product Owner' -> "
+            "'product_owner') so the two can be matched up. But every "
+            "shipped template's actual Role cell carries a RACI "
+            "annotation in parentheses -- e.g. brd-template.md's real "
+            "text is 'Product Owner (accountable -- business objectives "
+            "sign-off)', not bare 'Product Owner'. Normalizing the full "
+            "string produced "
+            "'product_owner_accountable_business_objectives_sign_off', "
+            "which never matches any roles.yml key -- a 100% miss rate "
+            "across every role, in every document, in every project, "
+            "regardless of how completely roles.yml was filled in. The "
+            "pre-existing tests never caught this because they only ever "
+            "exercised bare role labels ('Product Owner'), not the real "
+            "template shape",
+            "Fixed in sdd/utils/status.py's _normalize_role_key(): now "
+            "strips everything from the first '(' onward before "
+            "normalizing, so 'Product Owner (accountable -- ...)' and "
+            "'DevOps/SRE (consulted -- ...)' resolve the same as their "
+            "bare forms did",
+            "This Node CLI has no dashboard at all (scaffolding-only by "
+            "design) and is unaffected -- this migration entry exists "
+            "so both CLIs report the same sdd_version chain",
+            "Added 3 new tests to tests/test_status.py: "
+            "test_normalize_role_key_strips_raci_annotation_from_real_template_shape "
+            "(unit-level, every real Role-cell shape from the shipped "
+            "templates), "
+            "test_resolve_expected_approver_with_real_template_role_label "
+            "(through the public resolver), and "
+            "test_feature_docs_approvals_resolve_expected_approver_with_real_brd_role_label "
+            "(end-to-end through build_feature_status with a real "
+            "roles.yml and a real BRD-shaped Approvals table -- the "
+            "exact reported scenario)",
+            "Verified: cli-python pytest 874/874 (871 pre-existing + 3 "
+            "new); ruff check/format and mypy --ignore-missing-imports "
+            "(matching CI's exact invocation) both clean on the changed "
+            "files",
+        ],
+    },
 ]
 
 

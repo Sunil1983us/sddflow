@@ -82,6 +82,36 @@ def test_normalize_role_key_matches_roles_yml_convention():
     assert _normalize_role_key("Tech Lead") == "tech_lead"
 
 
+def test_normalize_role_key_strips_raci_annotation_from_real_template_shape():
+    """Regression: every real template's Approvals table Role cell carries
+    a RACI annotation in parentheses -- e.g. brd-template.md's actual text
+    "Product Owner (accountable -- business objectives sign-off)" -- never
+    just the bare role name the pre-fix tests exercised. Before this fix,
+    normalizing that full string produced
+    "product_owner_accountable_business_objectives_sign_off", which never
+    matched any roles.yml key -- so a fully filled-in roles.yml still
+    showed every role as unresolved on the dashboard."""
+    assert (
+        _normalize_role_key(
+            "Product Owner (accountable — business objectives sign-off)"
+        )
+        == "product_owner"
+    )
+    assert (
+        _normalize_role_key("Business Analyst (responsible — requirements accuracy)")
+        == "business_analyst"
+    )
+    assert (
+        _normalize_role_key("QA Lead (consulted — test case mapping confirmed, mvp+)")
+        == "qa_lead"
+    )
+    assert (
+        _normalize_role_key("DevOps/SRE (consulted — deployment readiness)")
+        == "devops_sre"
+    )
+    assert _normalize_role_key("Architect (consulted, mvp+)") == "architect"
+
+
 def test_resolve_expected_approver_looks_up_roles_map():
     roles_map = {"product_owner": "Jane Smith", "tech_lead": ""}
     assert _resolve_expected_approver("Product Owner", roles_map) == "Jane Smith"
@@ -89,6 +119,18 @@ def test_resolve_expected_approver_looks_up_roles_map():
         _resolve_expected_approver("Tech Lead", roles_map) is None
     )  # blank in roles.yml
     assert _resolve_expected_approver("Unknown Role", roles_map) is None
+
+
+def test_resolve_expected_approver_with_real_template_role_label(tmp_path):
+    """Same regression as above, exercised through the public resolver
+    with the exact Role cell text brd-template.md ships."""
+    roles_map = {"product_owner": "Sunil PO"}
+    assert (
+        _resolve_expected_approver(
+            "Product Owner (accountable — business objectives sign-off)", roles_map
+        )
+        == "Sunil PO"
+    )
 
 
 def test_parse_approvals_table_current_4column_format(tmp_path):
@@ -377,6 +419,38 @@ def test_feature_docs_approvals_resolve_expected_approver_when_pending(
             "expected_approver": "Jane Smith",
         }
     ]
+
+
+def test_feature_docs_approvals_resolve_expected_approver_with_real_brd_role_label(
+    tmp_path, monkeypatch
+):
+    """End-to-end regression for the reported bug: a fully filled-in
+    roles.yml still showed no expected approver, because the real BRD
+    template's Role cell ("Product Owner (accountable -- business
+    objectives sign-off)") carries a RACI annotation the old
+    _normalize_role_key never stripped."""
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "memory").mkdir(parents=True)
+    (tmp_path / ".specify" / "memory" / "roles.yml").write_text(
+        "roles:\n"
+        '  product_owner: "Sunil PO"\n'
+        '  business_analyst: "Sunil Business Analyst"\n'
+    )
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\nStatus: Draft\n\n"
+        "## Approvals\n\n"
+        "| Role | Approver | Status | Date |\n"
+        "|---|---|---|---|\n"
+        "| Product Owner (accountable — business objectives sign-off) | | Pending | |\n"
+        "| Business Analyst (responsible — requirements accuracy) | | Pending | |\n"
+    )
+    feat = build_feature_status(tmp_path, "payments")
+    brd = next(d for d in feat["docs"] if d["key"] == "brd")
+    assert brd["approvals"][0]["expected_approver"] == "Sunil PO"
+    assert brd["approvals"][1]["expected_approver"] == "Sunil Business Analyst"
 
 
 def test_feature_docs_approvals_no_expected_approver_when_roles_yml_missing(

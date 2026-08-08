@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.25] — 2026-08-08 (Fix: dashboard "not set in roles.yml" false negative)
+
+Reported by a user right after filling in `roles.yml` with real names for
+every role: the dashboard's Approvals detail panel still showed nothing for
+any pending row — as if `roles.yml` were empty, when it wasn't.
+
+`status.py` normalizes a document's Approvals-table **Role** cell text to
+`roles.yml`'s snake_case key convention (`"Product Owner"` → `product_owner`)
+to match the two up. But every shipped template's actual Role cell carries a
+RACI annotation in parentheses — e.g. `brd-template.md`'s real text is
+`"Product Owner (accountable — business objectives sign-off)"`, never the
+bare role name. Normalizing the full string (including the parenthetical)
+never matched any `roles.yml` key — **a 100% miss rate**, across every role,
+every document, every project, no matter how completely `roles.yml` was
+filled in. Pre-existing tests never caught this because they only ever
+exercised bare role labels, not the real template shape.
+
+### Fixed
+
+- `sdd/utils/status.py`'s `_normalize_role_key()` now strips everything from
+  the first `(` onward before normalizing, so `"Product Owner (accountable —
+  ...)"` and `"DevOps/SRE (consulted — ...)"` resolve exactly like their bare
+  forms always did.
+
+### Verified
+
+- `cli-python` pytest 874/874 (871 pre-existing + 3 new: a unit-level test
+  covering every real Role-cell shape from the shipped templates, a resolver
+  test, and an end-to-end test through `build_feature_status` with a real
+  `roles.yml` and a real BRD-shaped Approvals table — the exact reported
+  scenario).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+
+---
+
 ## [2.8.24] — 2026-08-08 (Fix: dashboard GATE-1 false positive)
 
 Found via real user testing, right after the 2.8.23 fixes: the dashboard
