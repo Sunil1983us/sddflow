@@ -3570,6 +3570,43 @@ export const MIGRATIONS = [
       "both pass",
     ],
   },
+  {
+    from: '2.8.30',
+    to:   '2.8.31',
+    description: "Fix re-pushing a local-svg diagram to Confluence a " +
+      "second time -- always failed with 'Cannot add a new attachment " +
+      "with same file name as an existing attachment'",
+    notes: [
+      "Reported by a user during testing: pushed a page with a " +
+      "local-svg diagram once successfully, then re-pushed it (no " +
+      "content change) -- the SVG attachment upload failed every time " +
+      "with a 400 BadRequestException naming the exact collision. The " +
+      "page body itself still updated fine, so the failure was easy to " +
+      "miss unless watching stderr",
+      "Root cause: cli-python's confluence_client.py upload_attachment() " +
+      "always POSTed to Confluence's CREATE-a-new-attachment endpoint. " +
+      "Its own docstring claimed Confluence auto-versions an existing " +
+      "same-named attachment -- that claim was wrong. Confluence " +
+      "Cloud's actual behavior: creating a second attachment with an " +
+      "already-existing filename is rejected outright. Updating an " +
+      "existing attachment's content requires a DIFFERENT endpoint " +
+      "(.../child/attachment/{attachmentId}/data), needing the " +
+      "attachment's ID first",
+      "Fixed with a new get_attachment_by_filename() lookup -- " +
+      "upload_attachment() now checks for an existing same-named " +
+      "attachment first and routes to the update-data endpoint when " +
+      "one exists, the create endpoint otherwise. A page's first push " +
+      "(no existing attachment) behaves identically to before; only " +
+      "the second-and-later push of the same diagram was affected, " +
+      "exactly what was broken",
+      "This Node CLI has no Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 889/889 (882 pre-existing + 7 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

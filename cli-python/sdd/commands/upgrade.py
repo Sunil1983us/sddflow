@@ -5640,6 +5640,67 @@ MIGRATIONS: list[Migration] = [
             "(12/12) both pass",
         ],
     },
+    {
+        "from": "2.8.30",
+        "to": "2.8.31",
+        "description": (
+            "Fix re-pushing a local-svg diagram to Confluence a second "
+            "time -- always failed with 'Cannot add a new attachment "
+            "with same file name as an existing attachment'"
+        ),
+        "notes": [
+            "Reported by a user during testing: pushed a page with a "
+            "local-svg diagram once successfully, then re-pushed it "
+            "(no content change, purely a re-push) -- the SVG attachment "
+            "upload failed every single time with a 400 "
+            "BadRequestException naming the exact collision. The page "
+            "body itself still updated fine, so the failure was easy to "
+            "miss unless you were watching stderr",
+            "Root cause: confluence_client.py's upload_attachment() "
+            "always POSTed to Confluence's CREATE-a-new-attachment "
+            "endpoint (.../child/attachment). Its own docstring claimed "
+            "Confluence auto-versions an existing same-named attachment "
+            "the way page updates do -- that claim was simply wrong. "
+            "Confluence Cloud's actual behavior: creating a second "
+            "attachment with a filename that already exists on the page "
+            "is rejected outright. Updating an existing attachment's "
+            "content requires a DIFFERENT endpoint entirely (POST "
+            ".../child/attachment/{attachmentId}/data), which needs the "
+            "attachment's ID first",
+            "Fixed with a new get_attachment_by_filename() lookup "
+            "(Confluence's attachment-list endpoint supports filtering "
+            "by filename server-side, so this is one extra call, not a "
+            "fetch-all-and-scan) -- upload_attachment() now checks for "
+            "an existing same-named attachment first and routes to the "
+            "update-data endpoint when one exists, the create endpoint "
+            "otherwise. Every page's first push (no existing attachment) "
+            "behaves identically to before; only the second-and-later "
+            "push of the same diagram is affected, which is exactly "
+            "what was broken",
+            "This Node CLI has no Confluence integration at all "
+            "(scaffolding-only by design) and is unaffected -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Added 7 new tests in test_confluence_client.py: "
+            "TestGetAttachmentByFilename (3 tests: none-found, "
+            "found-returns-first-match, queries by the right filename) "
+            "and TestUploadAttachmentUpdatesExisting (4 tests: no-"
+            "existing-attachment still hits the create endpoint, an "
+            "existing attachment hits the update-data endpoint -- the "
+            "exact reported bug -- not the create endpoint, the update "
+            "path still sends the same XSRF/Content-Type headers and "
+            "multipart file the create path already needed, and the "
+            "lookup uses the actual filename being uploaded). Updated "
+            "the pre-existing TestUploadAttachment fixture to explicitly "
+            "mock the new lookup call (previously relied on implicit "
+            "MagicMock auto-attributes, which would have silently taken "
+            "the wrong branch after this fix)",
+            "Verified: cli-python pytest 889/889 (882 pre-existing + 7 "
+            "new); ruff check/format and mypy --ignore-missing-imports "
+            "(matching CI's exact invocation) both clean on the changed "
+            "files",
+        ],
+    },
 ]
 
 

@@ -4,6 +4,52 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.31] — 2026-08-08 (Fix: re-pushing a local-svg diagram to Confluence a second time always failed)
+
+Reported by a user during testing: pushed a page with a `local-svg` diagram
+once successfully, then re-pushed it (no content change) — the SVG
+attachment upload failed **every single time** with:
+
+```
+BadRequestException: Cannot add a new attachment with same file name as
+an existing attachment: diagram-1.svg
+```
+
+The page body itself still updated fine, so the failure was easy to miss
+unless you were watching stderr — but the diagram attachment silently
+never got its new content.
+
+`confluence_client.py`'s `upload_attachment()` always POSTed to
+Confluence's *create*-a-new-attachment endpoint. Its own docstring claimed
+Confluence auto-versions an existing same-named attachment the way page
+updates do — **that claim was simply wrong**. Confluence Cloud rejects a
+second create with an already-existing filename outright. Updating an
+existing attachment's content requires a different endpoint entirely
+(`POST .../child/attachment/{attachmentId}/data`), which needs the
+attachment's ID first.
+
+### Fixed
+
+- New `get_attachment_by_filename()` lookup (Confluence's attachment-list
+  endpoint supports filtering by filename server-side — one extra call, not
+  a fetch-all-and-scan). `upload_attachment()` now checks for an existing
+  same-named attachment first and routes to the update-data endpoint when
+  one exists, the create endpoint otherwise. A page's first push (no
+  existing attachment) behaves identically to before; only the
+  second-and-later push of the same diagram was affected — exactly what
+  was broken.
+
+### Verified
+
+- `cli-python` pytest 889/889 (882 pre-existing + 7 new: `TestGetAttachmentByFilename`
+  and `TestUploadAttachmentUpdatesExisting`, covering the lookup and both
+  the create and update-data code paths — including the exact reported
+  collision scenario).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+
+---
+
 ## [2.8.30] — 2026-08-08 (Add: document_reviews examples for living/service-level docs)
 
 Follow-up to the previous round's `issue_hierarchy`/`page_map` audit: a user

@@ -85,6 +85,19 @@ class ConfluenceClient:
         r.raise_for_status()
         return r.json()
 
+    def get_attachment_by_filename(self, page_id: str, filename: str) -> dict | None:
+        """Look up an existing attachment on a page by its exact filename.
+        Confluence's own attachment list endpoint supports a `filename`
+        query param that does this filtering server-side, so this is a
+        single call, not a fetch-all-and-scan."""
+        r = self._s.get(
+            self._api(f"/content/{page_id}/child/attachment"),
+            params={"filename": filename},
+        )
+        r.raise_for_status()
+        results = r.json().get("results", [])
+        return results[0] if results else None
+
     def upload_attachment(
         self,
         page_id: str,
@@ -92,12 +105,22 @@ class ConfluenceClient:
         content: bytes,
         media_type: str = "image/svg+xml",
     ) -> dict:
-        """Attach a file to a page. Confluence's attachment endpoint
-        automatically creates a new version of an existing attachment
-        with the same filename rather than erroring or duplicating it --
-        callers don't need to check for an existing attachment first,
-        the same idempotent-by-name behavior upsert_page() already
-        relies on for pages themselves.
+        """Attach a file to a page, creating it or updating an existing
+        same-named attachment's content as appropriate.
+
+        This does NOT auto-version by filename the way upsert_page() does
+        for pages -- an earlier version of this docstring claimed it did,
+        which was simply wrong and shipped a real bug: POST .../child/
+        attachment always CREATES a new attachment, and Confluence Cloud
+        rejects a second create with the same filename outright
+        ('BadRequestException: Cannot add a new attachment with same file
+        name as an existing attachment'). Reported by a user re-pushing a
+        local-svg diagram page a second time -- reproduced as failing
+        100% of the time, every re-push, not an occasional race.
+        Confluence's actual "add a new version to an existing attachment"
+        operation is a DIFFERENT endpoint (POST .../child/attachment/
+        {attachmentId}/data), which needs the attachment's ID first --
+        hence the lookup below.
 
         X-Atlassian-Token: nocheck is required on multipart uploads --
         Confluence's XSRF protection otherwise rejects them.
@@ -114,11 +137,19 @@ class ConfluenceClient:
         is what a missing SVG image with no error looked like in
         practice). Passing None here is requests' documented way to
         remove a session-level header for one request."""
-        r = self._s.post(
-            self._api(f"/content/{page_id}/child/attachment"),
-            headers={"X-Atlassian-Token": "nocheck", "Content-Type": None},
-            files={"file": (filename, content, media_type)},
-        )
+        existing = self.get_attachment_by_filename(page_id, filename)
+        if existing is not None:
+            r = self._s.post(
+                self._api(f"/content/{page_id}/child/attachment/{existing['id']}/data"),
+                headers={"X-Atlassian-Token": "nocheck", "Content-Type": None},
+                files={"file": (filename, content, media_type)},
+            )
+        else:
+            r = self._s.post(
+                self._api(f"/content/{page_id}/child/attachment"),
+                headers={"X-Atlassian-Token": "nocheck", "Content-Type": None},
+                files={"file": (filename, content, media_type)},
+            )
         r.raise_for_status()
         return r.json()
 
