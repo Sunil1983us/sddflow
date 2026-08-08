@@ -4,6 +4,34 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.26] — 2026-08-08 (Fix: "Error loading the extension!" on Confluence after Jira approval)
+
+Reported by a user right after approving a BRD: its Confluence page showed
+**"Error loading the extension!"** where the "Jira review: VALT-1 —
+Approved" status banner should have been.
+
+`review.py`'s `_jira_status_banner()` maps review status to a Confluence
+panel macro name — `{"APPROVED": "success", "NEEDS_REVISION": "warning"}`,
+default `"info"`. Confluence's built-in panel macros are only `info`, `tip`,
+`note`, and `warning` — **there is no `success` macro** — so the page tried
+to render an unregistered extension. This was invisible until now because
+`PENDING` (the only status a fresh review ticket starts in) correctly used
+`info`; the bug only fires once a real document reaches `APPROVED`.
+
+### Fixed
+
+- `APPROVED` now maps to `tip` (a real Confluence panel macro, renders as a
+  green highlighted box) instead of the nonexistent `success`.
+
+### Verified
+
+- `cli-python` pytest 874/874 — updated `test_banner_for_approved_status` to
+  assert the real macro name and that the invalid one is gone.
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+
+---
+
 ## [2.8.25] — 2026-08-08 (Fix: dashboard "not set in roles.yml" false negative)
 
 Reported by a user right after filling in `roles.yml` with real names for

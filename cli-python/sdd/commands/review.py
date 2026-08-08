@@ -131,10 +131,14 @@ def _mark_md_approved(md_path: Path) -> bool:
 def _jira_status_banner(issue_key: str, issue_url: str, status: str, role: str) -> str:
     """Confluence storage-format panel summarizing the Jira review ticket's
     link and current status, prepended to the page body on every push so a
-    reviewer can see review state without leaving Confluence."""
-    macro_type = {"APPROVED": "success", "NEEDS_REVISION": "warning"}.get(
-        status, "info"
-    )
+    reviewer can see review state without leaving Confluence.
+
+    Confluence's built-in panel macros are only "info", "tip", "note", and
+    "warning" -- there is no "success" macro. Using an unregistered macro
+    name renders as "Error loading the extension!" instead of the panel,
+    which only became visible once a real document reached APPROVED (the
+    PENDING/default "info" case was always valid)."""
+    macro_type = {"APPROVED": "tip", "NEEDS_REVISION": "warning"}.get(status, "info")
     label = {
         "APPROVED": "Approved",
         "NEEDS_REVISION": "Needs Revision",

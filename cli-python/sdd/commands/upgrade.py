@@ -5379,6 +5379,43 @@ MIGRATIONS: list[Migration] = [
             "files",
         ],
     },
+    {
+        "from": "2.8.25",
+        "to": "2.8.26",
+        "description": (
+            "Fix 'Error loading the extension!' on Confluence: the Jira "
+            "review status banner used a macro name Confluence doesn't "
+            "actually have"
+        ),
+        "notes": [
+            "Reported by a user: right after approving a BRD, its "
+            "Confluence page showed 'Error loading the extension!' where "
+            "the 'Jira review: VALT-1 -- Approved' banner should be",
+            "Root cause: review.py's _jira_status_banner() maps review "
+            "status to a Confluence panel macro name -- "
+            "{'APPROVED': 'success', 'NEEDS_REVISION': 'warning'}, "
+            "default 'info'. Confluence's built-in panel macros are only "
+            "info/tip/note/warning -- there is no 'success' macro, so "
+            "the page tried to render an unregistered extension and "
+            "showed the generic error instead. This was invisible until "
+            "now because PENDING (the only status a fresh review ticket "
+            "starts in) correctly used 'info' -- the bug only fires once "
+            "a real document reaches APPROVED",
+            "Fixed by mapping APPROVED to 'tip' (a real Confluence panel "
+            "macro, renders as a green highlighted box) instead of the "
+            "nonexistent 'success'",
+            "This Node CLI has no Jira/Confluence integration at all "
+            "(scaffolding-only by design) and is unaffected -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Updated tests/test_review_helpers.py's "
+            "test_banner_for_approved_status to assert the real macro "
+            "name and explicitly assert the invalid one is gone",
+            "Verified: cli-python pytest 874/874; ruff check/format "
+            "clean; mypy --ignore-missing-imports (matching CI's exact "
+            "invocation) clean on the changed files",
+        ],
+    },
 ]
 
 

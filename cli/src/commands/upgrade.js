@@ -3395,6 +3395,35 @@ export const MIGRATIONS = [
       "CI's exact invocation) both clean on the changed files",
     ],
   },
+  {
+    from: '2.8.25',
+    to:   '2.8.26',
+    description: "Fix 'Error loading the extension!' on Confluence: the " +
+      "Jira review status banner used a macro name Confluence doesn't " +
+      "actually have",
+    notes: [
+      "Reported by a user: right after approving a BRD, its Confluence " +
+      "page showed 'Error loading the extension!' where the 'Jira " +
+      "review: VALT-1 -- Approved' banner should be",
+      "Root cause: cli-python's review.py maps review status to a " +
+      "Confluence panel macro name -- {'APPROVED': 'success', " +
+      "'NEEDS_REVISION': 'warning'}, default 'info'. Confluence's " +
+      "built-in panel macros are only info/tip/note/warning -- there is " +
+      "no 'success' macro, so the page tried to render an unregistered " +
+      "extension. Invisible until now because PENDING (the only status " +
+      "a fresh review ticket starts in) correctly used 'info' -- the " +
+      "bug only fires once a real document reaches APPROVED",
+      "Fixed by mapping APPROVED to 'tip' (a real Confluence panel " +
+      "macro, renders as a green highlighted box) instead of the " +
+      "nonexistent 'success'",
+      "This Node CLI has no Jira/Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 874/874; ruff check/format clean; " +
+      "mypy --ignore-missing-imports (matching CI's exact invocation) " +
+      "clean on the changed files",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
