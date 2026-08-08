@@ -555,6 +555,21 @@ approved_statuses: [Done, Approved]
 # Comment keywords that count as approval (case-insensitive)
 approved_keywords: [approved, lgtm, "looks good", "go ahead", confirmed]
 
+# Status to transition a review ticket to when "sdd review apply" fires --
+# i.e. a document changed after it was already approved (a /clarify answer
+# patched an Approved doc, or a reviewer's NEEDS REVISION feedback is being
+# addressed). Must name a real status in this Jira project's workflow --
+# check your board for the exact name (commonly "In Review", "To Do", or a
+# custom "Reopened" status). Leave commented out / unset to skip the
+# transition attempt entirely: "sdd review apply" still posts a "please
+# re-review" comment on the ticket and reverts the document's own
+# Status: header either way -- this setting only controls whether the
+# Jira ticket itself also moves, e.g. out of Done/Closed so the comment
+# above doesn't sit unnoticed on a closed ticket. Unset by default because
+# workflow status names vary too much across orgs to guess safely; a name
+# that doesn't exist in your workflow is silently a no-op, never an error.
+# reopen_status: "In Review"
+
 
 # ── PR automation ─────────────────────────────────────────────────────────────
 #

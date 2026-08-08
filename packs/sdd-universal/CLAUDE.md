@@ -387,6 +387,30 @@ When `sdd review check` exits 1 (NEEDS REVISION): read reviewer comments, update
 the document, then run `sdd review apply` and ask reviewer to re-review.
 Configure reviewers in `.specify/integrations.yml` — see `integrations.yml.example`.
 
+**What `sdd review apply` actually does to an already-Approved document.**
+This is the command every revision-driven step calls (a reviewer's NEEDS
+REVISION feedback being addressed, or `/clarify` patching a document that
+was already Approved) — it never creates a second Jira ticket for the
+same document; it always re-uses the one ticket found by that document's
+persistent label, updating it in place. On every call it also:
+1. **Reverts the document's own `Status:` header** from `Approved` back
+   to `Draft` (or `Proposed` for `adr.md`) — this happens unconditionally,
+   even in pure chat/local mode with no `jira:`/`confluence:` configured,
+   since it's a local-file operation. A document still mid-review (never
+   yet Approved) is left untouched — nothing to revert.
+2. Posts a "please re-review" comment on the existing Jira ticket, if one
+   exists for this doc.
+3. **Nudges the ticket's Jira workflow status**, only if `reopen_status`
+   is set in `integrations.yml` (unset by default — see
+   `integrations.yml.example`). The CLI cannot guess a real status name
+   for your workflow, so this is opt-in: without it, a ticket already
+   moved to Done/Closed stays there and only gets the comment above —
+   with it, `sdd review apply` attempts a transition to the configured
+   status (e.g. `"In Review"`) so the re-review request doesn't sit
+   unnoticed on a closed ticket. Silently a no-op if the ticket is
+   already in that status or the workflow has no path to it from the
+   current state — never blocks the rest of the command.
+
 **The `validate` phase is optional per-document.** Unlike the `specify`/
 `planning`/`tasks`/`release` phases, `validate`/`analyze`/`clarify` fall back
 to chat approval individually if their own `document_reviews` entry is

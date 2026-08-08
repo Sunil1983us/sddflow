@@ -4,6 +4,53 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.37] — 2026-08-08 (Fix: `sdd review apply` never reverted a document's Approved status, and could never reopen a closed Jira ticket)
+
+A user asked how post-approval revisions actually work — does the status
+change, does it create a new Jira ticket, does a closed ticket get
+reopened? Tracing the actual code (not assuming) surfaced two real gaps,
+which the user then asked to have fixed.
+
+### Fixed
+
+**1. The document's own `Status: Approved` header was never reverted.**
+When `/clarify` (or reviewer feedback) patches an already-Approved
+document, only the version history got a new row — the header still
+claimed `Approved`. Added `_mark_md_needs_revision()`, the direct
+counterpart to the existing `_mark_md_approved()`: reverts `Status:
+Approved` back to `Draft` (or `Proposed` for `adr.md`), scoped to the
+document's front matter only, same corruption-safety reasoning as its
+counterpart. No-op for a document that was never Approved. Wired into
+`sdd review apply` unconditionally — fires the same way in every
+integration mode, including pure chat/local with no Jira/Confluence at
+all.
+
+**2. `JiraClient` had no way to reopen a ticket.** There was literally no
+transition/workflow-status capability in the codebase — a ticket already
+moved to Done/Closed stayed there forever; `sdd review apply` could only
+ever post a comment on it. Added `get_transitions()` and
+`transition_issue()` (the real Jira REST transitions API), wired into
+`sdd review apply`: after the existing re-review comment, it now attempts
+a transition to a new opt-in `reopen_status` setting in
+`integrations.yml` (unset by default — workflow status names vary too
+much across orgs to guess safely). Silently a no-op if the ticket's
+already there or the workflow has no path to it — never blocks the rest
+of the command.
+
+Documented the full actual behavior — what `sdd review apply` does to an
+Approved document, step by step — in the review-gates shared block
+(`CLAUDE.md`, all 5 packs), replacing what had only ever been described
+at the "push/notify" level.
+
+### Verified
+
+- cli-python pytest 922/922 (904 pre-existing + 18 new)
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `sync-blocks.sh` confirmed idempotent
+
+---
+
 ## [2.8.36] — 2026-08-08 (Fix: brd.md's ACT-NNN stakeholder IDs never got back-filled by `/specify-uc`)
 
 Found by a user: after the BRD is created and `/specify-uc` runs, `brd.md`

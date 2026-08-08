@@ -146,6 +146,48 @@ def _mark_md_approved(md_path: Path) -> bool:
     return True
 
 
+def _mark_md_needs_revision(md_path: Path) -> bool:
+    """Flip an Approved document's header back to a pre-approval status
+    the moment its content changes post-approval -- e.g. /clarify patches
+    an already-Approved document to apply a resolved item, or a
+    reviewer's NEEDS REVISION feedback is being addressed. Called from
+    `sdd review apply`, the single place every revision-driven prompt
+    step already calls after re-saving a document, so this fires
+    uniformly regardless of which command triggered the edit -- no
+    per-prompt discipline required.
+
+    Reverts to 'Proposed' for adr.md (its own lifecycle word) and
+    'Draft' for everything else -- both are already recognized by
+    _mark_md_approved's own regex (`Draft|Proposed` -> `Approved`), so
+    the existing re-approval flow works unchanged on a reverted document
+    with zero changes needed anywhere else.
+
+    Scoped to front matter only, mirroring _mark_md_approved exactly and
+    for the same corruption-safety reason -- see that function's
+    docstring. Only flips when the current status is exactly 'Approved';
+    a document still in Draft/Proposed (e.g. mid-review, addressing a
+    NEEDS REVISION comment before its first approval) is left untouched
+    -- there is nothing to revert for a document that was never approved
+    in the first place. Returns True if the file was changed."""
+    text = md_path.read_text()
+    heading = re.search(r"^## ", text, flags=re.MULTILINE)
+    front_matter_end = heading.start() if heading else len(text)
+    front_matter = text[:front_matter_end]
+    revert_to = "Proposed" if md_path.stem == "adr" else "Draft"
+    new_front_matter = re.sub(
+        r"Status:\s*Approved\b",
+        f"Status: {revert_to}",
+        front_matter,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    if new_front_matter == front_matter:
+        return False
+    new = new_front_matter + text[front_matter_end:]
+    atomic_write_text(md_path, new)
+    return True
+
+
 def _jira_status_banner(issue_key: str, issue_url: str, status: str, role: str) -> str:
     """Confluence storage-format panel summarizing the Jira review ticket's
     link and current status, prepended to the page body on every push so a
@@ -1645,6 +1687,26 @@ def review_apply(doc, profile, feature):
     feature_name = feature or proj.get("feature", "")
 
     try:
+        md_path = resolve_doc_path(doc, feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
+
+    # Revert an Approved document's header the instant it changes post-
+    # approval -- before anything below pushes/notifies, so Confluence and
+    # the reviewer both see the true current state, not a stale "Approved"
+    # header. Runs unconditionally, ahead of the integrations checks below,
+    # since it's a pure local-file operation with no Jira/Confluence
+    # dependency. No-op (returns False) for a document that isn't
+    # currently Approved -- e.g. this is a pre-approval NEEDS REVISION
+    # round, nothing to revert.
+    if md_path.exists() and _mark_md_needs_revision(md_path):
+        console.print(
+            f"  [green]✓[/green]  {doc.upper()} header reverted from Approved "
+            f"— pending re-review."
+        )
+
+    try:
         cfg = load_integrations()
         jira_prof, session = load_jira_session(cfg, profile)
     except Exception:
@@ -1672,12 +1734,6 @@ def review_apply(doc, profile, feature):
     # that may already be under review in either integration independently
     # -- confluence-only and jira-only configs both re-push/notify with
     # whatever's actually configured, rather than hard-requiring both.
-    try:
-        md_path = resolve_doc_path(doc, feature_name)
-    except ValueError as e:
-        console.print(f"  [red]✗  {e}[/red]")
-        raise SystemExit(1)
-
     page_url = ""
     if cfg.confluence:
         if md_path.exists():
@@ -1708,6 +1764,34 @@ def review_apply(doc, profile, feature):
                 f"  [green]✓[/green]  Reviewer notified on [cyan]{issue['key']}[/cyan]"
             )
             _record_review_link(doc, issue["key"])
+
+            # Best-effort: nudge a Done/Closed ticket back into an active
+            # workflow status so the re-review comment above doesn't sit
+            # unnoticed on a closed ticket. Opt-in via reopen_status
+            # (unset by default -- see IntegrationsConfig.reopen_status);
+            # silently a no-op if unset, if the ticket is already in that
+            # status, or if the project's workflow has no transition to it
+            # from the ticket's current state -- never blocks the rest of
+            # this command.
+            if cfg.reopen_status:
+                try:
+                    moved = jira_client.transition_issue(
+                        issue["key"], cfg.reopen_status
+                    )
+                    if moved:
+                        console.print(
+                            f"  [green]✓[/green]  {issue['key']} transitioned to "
+                            f"[cyan]{cfg.reopen_status}[/cyan]"
+                        )
+                    else:
+                        console.print(
+                            f"  [dim]·[/dim]  {issue['key']} already at (or has no "
+                            f"transition to) '{cfg.reopen_status}' — status left as is"
+                        )
+                except Exception as e:
+                    console.print(
+                        f"  [yellow]!  Could not transition {issue['key']}: {e}[/yellow]"
+                    )
         else:
             console.print(
                 f"  [yellow]·[/yellow]  No Jira review story found for {doc.upper()}"

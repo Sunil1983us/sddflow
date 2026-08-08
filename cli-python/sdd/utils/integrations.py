@@ -437,6 +437,18 @@ class IntegrationsConfig:
             "confirmed",
         ]
     )
+    # Status to transition a review ticket to when `sdd review apply` fires
+    # (a document changed post-approval -- e.g. /clarify patched an
+    # Approved doc, or NEEDS REVISION feedback is being addressed). Must
+    # name a real status in the Jira project's workflow; None (the
+    # default -- unset in integrations.yml) skips the transition attempt
+    # entirely. Deliberately opt-in rather than defaulting to a guessed
+    # name like "In Review": workflow status names vary too much across
+    # orgs to guess safely, and a wrong guess would just 400 silently
+    # (transition_issue() no-ops instead of erroring either way, but an
+    # unset default avoids the wasted API call altogether for anyone who
+    # hasn't configured it).
+    reopen_status: str | None = None
     pr_automation: PrAutomation = field(default_factory=PrAutomation)
     code_review: CodeReviewConfig = field(default_factory=CodeReviewConfig)
 
@@ -549,6 +561,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             "approved_keywords",
             ["approved", "lgtm", "looks good", "go ahead", "confirmed"],
         ),
+        reopen_status=raw.get("reopen_status"),
         pr_automation=pr_automation,
         code_review=code_review,
     )

@@ -119,3 +119,85 @@ class TestLinkIssues:
             assert False, "expected an exception"
         except Exception as e:
             assert "400" in str(e)
+
+
+def _client_with_mock_get(json_body: dict) -> tuple[JiraClient, MagicMock]:
+    session = MagicMock()
+    response = MagicMock()
+    response.json.return_value = json_body
+    response.raise_for_status.return_value = None
+    session.get.return_value = response
+    client = JiraClient(session, "https://example.atlassian.net")
+    return client, session
+
+
+class TestGetTransitions:
+    def test_gets_transitions_endpoint(self):
+        client, session = _client_with_mock_get({"transitions": []})
+        client.get_transitions("PROJ-1")
+        url = session.get.call_args.args[0]
+        assert (
+            url == "https://example.atlassian.net/rest/api/3/issue/PROJ-1/transitions"
+        )
+
+    def test_returns_transitions_list(self):
+        transitions = [{"id": "21", "to": {"name": "In Review"}}]
+        client, _ = _client_with_mock_get({"transitions": transitions})
+        assert client.get_transitions("PROJ-1") == transitions
+
+    def test_missing_transitions_key_returns_empty_list(self):
+        client, _ = _client_with_mock_get({})
+        assert client.get_transitions("PROJ-1") == []
+
+
+class TestTransitionIssue:
+    """transition_issue() -- the reopen/re-review nudge sdd review apply
+    uses (opt-in via integrations.yml's reopen_status) when a document
+    changes after its Jira review ticket was already moved to Done/Closed."""
+
+    def _client_with_transitions(self, transitions: list[dict]):
+        session = MagicMock()
+        get_response = MagicMock()
+        get_response.json.return_value = {"transitions": transitions}
+        get_response.raise_for_status.return_value = None
+        session.get.return_value = get_response
+        post_response = MagicMock()
+        post_response.raise_for_status.return_value = None
+        session.post.return_value = post_response
+        client = JiraClient(session, "https://example.atlassian.net")
+        return client, session
+
+    def test_executes_matching_transition(self):
+        client, session = self._client_with_transitions(
+            [{"id": "21", "to": {"name": "In Review"}}]
+        )
+        result = client.transition_issue("PROJ-1", "In Review")
+        assert result is True
+        url = session.post.call_args.args[0]
+        assert (
+            url == "https://example.atlassian.net/rest/api/3/issue/PROJ-1/transitions"
+        )
+        body = session.post.call_args.kwargs["json"]
+        assert body == {"transition": {"id": "21"}}
+
+    def test_match_is_case_insensitive(self):
+        client, session = self._client_with_transitions(
+            [{"id": "21", "to": {"name": "in review"}}]
+        )
+        assert client.transition_issue("PROJ-1", "In Review") is True
+
+    def test_no_matching_transition_returns_false_without_posting(self):
+        """A ticket already in the target status (Jira offers no self-
+        transition) or a workflow with no path to it from the current
+        state -- both must be silent no-ops, never an error."""
+        client, session = self._client_with_transitions(
+            [{"id": "31", "to": {"name": "Done"}}]
+        )
+        result = client.transition_issue("PROJ-1", "In Review")
+        assert result is False
+        session.post.assert_not_called()
+
+    def test_empty_transitions_list_returns_false(self):
+        client, session = self._client_with_transitions([])
+        assert client.transition_issue("PROJ-1", "In Review") is False
+        session.post.assert_not_called()

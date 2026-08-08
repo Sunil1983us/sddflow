@@ -98,6 +98,45 @@ class JiraClient:
         r.raise_for_status()
         return r.json().get("comments", [])
 
+    def get_transitions(self, issue_key: str) -> list[dict]:
+        """List the transitions currently available for this issue, given
+        its current workflow state. Each entry has at least 'id' and
+        'to': {'name': ...}."""
+        r = self._s.get(self._api(f"/issue/{issue_key}/transitions"))
+        r.raise_for_status()
+        return r.json().get("transitions", [])
+
+    def transition_issue(self, issue_key: str, target_status_name: str) -> bool:
+        """Move an issue to the named status, if a transition to it exists
+        from the issue's current workflow state. Returns True if a
+        transition was found and executed, False if none matches (e.g.
+        the ticket is already in that status -- Jira does not offer a
+        self-transition -- or the configured workflow simply doesn't
+        allow reaching that status from here).
+
+        False is a normal, silent outcome for callers, not an error:
+        workflow shapes vary per Jira project (custom status names,
+        custom transition graphs) and this is a best-effort nudge, never
+        a hard requirement for the review-apply flow to proceed."""
+        transitions = self.get_transitions(issue_key)
+        match = next(
+            (
+                t
+                for t in transitions
+                if t.get("to", {}).get("name", "").casefold()
+                == target_status_name.casefold()
+            ),
+            None,
+        )
+        if not match:
+            return False
+        r = self._s.post(
+            self._api(f"/issue/{issue_key}/transitions"),
+            json={"transition": {"id": match["id"]}},
+        )
+        r.raise_for_status()
+        return True
+
     def add_comment(self, issue_key: str, text: str) -> dict:
         """Add a plain-text comment. Uses ADF format for Cloud/Server compatibility."""
         payload = {

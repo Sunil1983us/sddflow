@@ -6076,6 +6076,88 @@ MIGRATIONS: list[Migration] = [
             "sync-blocks.sh confirmed idempotent",
         ],
     },
+    {
+        "from": "2.8.36",
+        "to": "2.8.37",
+        "description": (
+            "Answered a user's process question about review revisions "
+            "by fixing the two real gaps it exposed: 'sdd review apply' "
+            "never reverted an Approved document's own Status header, "
+            "and never had any way to move a Done/Closed Jira ticket "
+            "back into an active workflow status"
+        ),
+        "notes": [
+            "User question: after /validate, /analyze, or /clarify "
+            "updates documents post-approval, does the status change to "
+            "review, does that create a new Jira ticket, and does a "
+            "Closed ticket get reopened? Answer at the time (traced "
+            "through the actual code, not assumed): no new ticket is "
+            "ever created (find_by_label always re-uses the same "
+            "ticket); JiraClient had literally no transition capability "
+            "at all -- no method to change a ticket's workflow status, "
+            "so a Done/Closed ticket stayed there forever, only ever "
+            "getting a 'please re-review' comment; and the document's "
+            "own Status: header was never reverted from Approved either, "
+            "so both signals of 'this changed, please look again' were "
+            "weak. User asked to fix both",
+            "Fix 1 (document status) -- added _mark_md_needs_revision() "
+            "to review.py, the direct counterpart to the existing "
+            "_mark_md_approved(): flips 'Status: Approved' back to "
+            "'Status: Draft' (or 'Proposed' for adr.md, matching its own "
+            "lifecycle vocabulary) in the document's front matter only "
+            "(same corruption-safety scoping as _mark_md_approved -- see "
+            "its own docstring for why that matters). No-op for a "
+            "document that was never Approved in the first place (e.g. "
+            "addressing NEEDS REVISION feedback pre-approval). Wired "
+            "into 'sdd review apply' unconditionally, before any Jira/"
+            "Confluence branching, so it fires the same way in every "
+            "integration mode including pure chat/local",
+            "Fix 2 (Jira ticket reopening) -- added get_transitions() "
+            "and transition_issue() to JiraClient (GET/POST "
+            "/issue/{key}/transitions, the real Jira REST API for "
+            "workflow moves -- previously entirely unimplemented). "
+            "transition_issue() looks for a transition whose target "
+            "matches the requested status name and executes it, "
+            "returning False (never raising) if no match exists -- a "
+            "ticket already in that status, or a workflow with no path "
+            "to it from the current state, are both normal, silent "
+            "outcomes. Wired into 'sdd review apply': after posting the "
+            "existing re-review comment, attempts a transition to the "
+            "new 'reopen_status' integrations.yml setting (unset by "
+            "default -- deliberately opt-in, since workflow status "
+            "names vary too much across orgs to guess safely; documented "
+            "in integrations.yml.example)",
+            "Documented the full actual behavior in the review-gates "
+            "shared block (CLAUDE.md, all 5 packs): what 'sdd review "
+            "apply' does to an Approved document, step by step, "
+            "replacing what had only ever been described at the "
+            "'push/notify' level",
+            "review-gates.md is a _shared/blocks/ source; "
+            "integrations.yml.example is a _shared/full/ source -- both "
+            "edited once, synced to all 5 packs",
+            "Added 18 new tests: TestMarkMdNeedsRevision (6, mirroring "
+            "TestMarkMdApproved's own coverage including the front-"
+            "matter-scoping regression and an end-to-end revert-then-"
+            "reapprove symmetry check) in test_review_helpers.py; "
+            "TestGetTransitions (3) and TestTransitionIssue (4) in "
+            "test_jira_client.py; TestReviewApplyRevertsStatusAndReopens "
+            "(5, CliRunner-based) in test_review_helpers.py covering: "
+            "status reverted with zero integrations configured, no-op "
+            "when not yet Approved, reopen_status unset skips the "
+            "transition attempt, reopen_status configured transitions a "
+            "Done ticket, and a configured status with no matching "
+            "workflow transition is silently reported rather than erring",
+            "This Node CLI has no Jira/Confluence integration and no "
+            "review-approval flow of its own (scaffolding-only by "
+            "design) and is unaffected by any of this -- this migration "
+            "entry exists so both CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 922/922 (904 pre-existing + 18 "
+            "new); ruff check/format clean on all changed files; "
+            "check-cross-references.py clean across all 6 packs; "
+            "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both "
+            "pass; sync-blocks.sh confirmed idempotent",
+        ],
+    },
 ]
 
 

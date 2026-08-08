@@ -114,6 +114,67 @@ class TestMarkMdApproved:
         assert "> Status: Approved | Date: x" in p.read_text()
 
 
+class TestMarkMdNeedsRevision:
+    """_mark_md_needs_revision() -- reverts an Approved document's header
+    the instant its content changes post-approval (called from `sdd
+    review apply`). Symmetric counterpart to _mark_md_approved above:
+    same front-matter scoping, same corruption-safety reasoning."""
+
+    def test_flips_approved_to_draft(self, project):
+        p = _write_doc(project, "brd", "Status: Approved")
+        assert review._mark_md_needs_revision(p) is True
+        assert "Status: Draft" in p.read_text()
+        assert "Approved" not in p.read_text()
+
+    def test_case_insensitive_match(self, project):
+        p = _write_doc(project, "brd", "Status: APPROVED")
+        assert review._mark_md_needs_revision(p) is True
+        assert "Status: Draft" in p.read_text()
+
+    def test_adr_reverts_to_proposed_not_draft(self, project):
+        """adr.md's own lifecycle word is 'Proposed', never 'Draft' --
+        see _mark_md_approved's docstring. Reverting it to 'Draft' would
+        break the existing Draft-or-Proposed -> Approved re-approval
+        regex on the next cycle for this doc type specifically."""
+        p = project / ".specify" / "features" / "auth" / "adr.md"
+        p.write_text("# ADR\n> Status: Approved | Date: x | Author: y\n\nbody\n")
+        assert review._mark_md_needs_revision(p) is True
+        assert "Status: Proposed" in p.read_text()
+
+    def test_not_yet_approved_is_noop(self, project):
+        """A document mid-review (still Draft/Proposed, never approved)
+        has nothing to revert -- e.g. addressing a NEEDS REVISION comment
+        before the first approval."""
+        p = _write_doc(project, "brd", "Status: Draft")
+        assert review._mark_md_needs_revision(p) is False
+        assert p.read_text().count("Status: Draft") == 1
+
+    def test_scoped_to_front_matter_only(self, project):
+        """Mirrors _mark_md_approved's own regression test: a body field
+        that happens to contain the literal substring 'Status: Approved'
+        must never be touched, only the real header."""
+        p = project / ".specify" / "features" / "auth" / "data-model.md"
+        p.write_text(
+            "# Data Model\n"
+            "> Version: 1.0 | Status: Approved | Date: x\n\n"
+            "## 3. Enums\n\n"
+            "RuleVersionStatus: DRAFT, SUBMITTED, APPROVED, RETIRED\n"
+        )
+        assert review._mark_md_needs_revision(p) is True
+        text = p.read_text()
+        assert "> Version: 1.0 | Status: Draft | Date: x" in text
+        assert "RuleVersionStatus: DRAFT, SUBMITTED, APPROVED, RETIRED" in text
+
+    def test_re_approval_regex_still_matches_after_revert(self, project):
+        """End-to-end symmetry check: after a revert, _mark_md_approved
+        must still be able to flip the document back to Approved on the
+        next review cycle, with zero special-casing needed anywhere."""
+        p = _write_doc(project, "brd", "Status: Approved")
+        review._mark_md_needs_revision(p)
+        assert review._mark_md_approved(p) is True
+        assert "Status: Approved" in p.read_text()
+
+
 class TestMarkApprovalsTable:
     def _doc_with_approvals(self, project, rows):
         table = "\n".join(f"| {role} | Pending | |" for role in rows)
@@ -243,12 +304,25 @@ class FakeJiraClient:
         self.comments_by_key: dict[str, list[dict]] = {}
         self.added_comments: list[tuple[str, str]] = []
         self._next_key = 1
+        # transition_issue() test surface -- set available_transitions
+        # (list of target-status names) before invoking to control which
+        # transitions "exist" for a given ticket; defaults to none.
+        self.available_transitions: list[str] = []
+        self.transitioned: list[tuple[str, str]] = []
 
     def find_by_label(self, project_key, label):
         return self.by_label.get(label)
 
     def add_comment(self, issue_key, text):
         self.added_comments.append((issue_key, text))
+
+    def transition_issue(self, issue_key, target_status_name):
+        if target_status_name.casefold() not in {
+            t.casefold() for t in self.available_transitions
+        }:
+            return False
+        self.transitioned.append((issue_key, target_status_name))
+        return True
 
     def create_issue(self, fields):
         key = f"PROJ-{self._next_key}"
@@ -896,6 +970,176 @@ class TestReviewApplyRecordsLink:
             ("PROJ-9", "Document updated per review comments. Please re-review:")
         ]
         assert "Confluence" not in result.output
+
+
+class TestReviewApplyRevertsStatusAndReopens:
+    """`sdd review apply` on an Approved document: reverts the doc's own
+    Status header (regardless of integration mode) and, when
+    reopen_status is configured, nudges a Done/Closed Jira ticket back
+    into an active workflow status."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+
+        return CliRunner()
+
+    def _write_approved_brd(self, project):
+        p = project / ".specify" / "features" / "auth" / "brd.md"
+        p.write_text(
+            "# BRD\n> Version: 1.1 | Status: Approved | Date: x | Author: y\n\nbody\n"
+        )
+        return p
+
+    def test_status_reverted_with_no_integrations_configured(self, project, runner):
+        """Pure local/chat mode -- no integrations.yml at all. The status
+        revert is a local-file-only operation and must still happen."""
+        p = self._write_approved_brd(project)
+        result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+        assert result.exit_code == 0, result.output
+        assert "Status: Draft" in p.read_text()
+        assert "header reverted from Approved" in result.output
+
+    def test_status_not_yet_approved_left_alone(self, project, runner):
+        """A brd.md still in Draft (never approved) has nothing to revert
+        -- e.g. addressing NEEDS REVISION feedback before first approval."""
+        p = project / ".specify" / "features" / "auth" / "brd.md"
+        p.write_text("# BRD\n> Version: 1.0 | Status: Draft | Date: x\n\nbody\n")
+        result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+        assert result.exit_code == 0, result.output
+        assert "Status: Draft" in p.read_text()
+        assert "header reverted" not in result.output
+
+    def test_reopen_status_not_configured_skips_transition(self, project, runner):
+        """reopen_status unset (default) -- no transition attempted, even
+        though a Jira ticket exists and a comment is posted."""
+        p = self._write_approved_brd(project)
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "document_reviews:\n"
+            "  brd:\n    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n    sequence: 1\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-3",
+            "fields": {"status": {"name": "Done"}},
+        }
+        fake_jira.available_transitions = ["In Review"]
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+        ):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert "Status: Draft" in p.read_text()
+        assert fake_jira.transitioned == []
+
+    def test_reopen_status_configured_transitions_closed_ticket(self, project, runner):
+        """reopen_status configured and a matching transition exists --
+        the ticket is nudged out of Done/Closed."""
+        self._write_approved_brd(project)
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "document_reviews:\n"
+            "  brd:\n    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n    sequence: 1\n"
+            "reopen_status: 'In Review'\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-4",
+            "fields": {"status": {"name": "Done"}},
+        }
+        fake_jira.available_transitions = ["In Review"]
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+        ):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert fake_jira.transitioned == [("PROJ-4", "In Review")]
+        assert "transitioned to" in result.output
+
+    def test_reopen_status_configured_but_no_matching_transition_is_silent(
+        self, project, runner
+    ):
+        """Workflow has no path to the configured status from the
+        ticket's current state -- must not error, just report it left
+        as-is (transition_issue()'s own False return, surfaced)."""
+        self._write_approved_brd(project)
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "document_reviews:\n"
+            "  brd:\n    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n    sequence: 1\n"
+            "reopen_status: 'Nonexistent Status'\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-5",
+            "fields": {"status": {"name": "Done"}},
+        }
+        fake_jira.available_transitions = ["In Review"]  # no "Nonexistent Status"
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+        ):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert fake_jira.transitioned == []
+        assert "already at (or has no transition to)" in result.output
 
 
 class TestValidatePhaseDocKeys:
