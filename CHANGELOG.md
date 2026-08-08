@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.27] — 2026-08-08 (Fix: {Feature Name} document header had no defined source)
+
+Reported by a user: a generated BRD's `# Feature: {Feature Name}` header
+showed "NIPE Validation Service" while `manifest.yml` said `name:
+Validation` — the two had silently diverged.
+
+`{Feature Name}` is used as a header placeholder in ~20 templates across
+every pack (BRD, SRD, use-cases, design, tasks, release, etc.), but only
+**one** place in any prompt file ever explicitly defined what it should
+resolve to (the Jira Epic Summary line in `specify-brd.prompt.md`). Every
+document-header instance was left to each session's judgment, so it could
+silently drift to `context.md`'s own free-text title instead of
+`manifest.yml` — and could even differ document-to-document within the same
+project.
+
+### Added
+
+- New shared block `_shared/blocks/feature-name-convention.md`, inserted
+  into each pack's `CLAUDE.md` right after the "Confirm: project.name,
+  scope, feature, context_file" startup step (read at the start of every
+  session, before any document is generated). States explicitly:
+  `{Feature Name}` = `manifest.yml` `project.name` (falling back to
+  `project.feature`), never `context.md`'s title.
+- Applied to all 5 lockstep packs (backend-service, frontend-spa, fullstack,
+  mobile, universal). `sdd-micro` is intentionally excluded — it's outside
+  the shared-block sync system and has no BRD/SRD/etc. templates using this
+  placeholder.
+
+### Verified
+
+- `python3 packs/_shared/tests/check-cross-references.py --verbose` clean
+  across all 6 packs.
+- `packs/_shared/tests/test-setup.sh` (19/19) and `test-setup-micro.sh`
+  (12/12) both pass.
+- Manually confirmed identical shared-block content across all 5 packs'
+  `CLAUDE.md`.
+
+---
+
 ## [2.8.26] — 2026-08-08 (Fix: "Error loading the extension!" on Confluence after Jira approval)
 
 Reported by a user right after approving a BRD: its Confluence page showed

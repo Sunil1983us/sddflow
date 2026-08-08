@@ -5416,6 +5416,56 @@ MIGRATIONS: list[Migration] = [
             "invocation) clean on the changed files",
         ],
     },
+    {
+        "from": "2.8.26",
+        "to": "2.8.27",
+        "description": (
+            "Standardize the {Feature Name} document-header placeholder "
+            "on manifest.yml project.name -- it previously had no "
+            "defined source and silently drifted to context.md's own "
+            "title instead"
+        ),
+        "notes": [
+            "Reported by a user: a generated BRD's '# Feature: {Feature "
+            "Name}' header showed 'NIPE Validation Service' while "
+            "manifest.yml said name: Validation -- the two had silently "
+            "diverged",
+            "Root cause: {Feature Name} is used as a header placeholder "
+            "in ~20 templates across every pack (BRD, SRD, use-cases, "
+            "design, tasks, release, etc.), but only ONE place in any "
+            "prompt file ever explicitly defined what it should resolve "
+            "to -- the Jira Epic Summary line in specify-brd.prompt.md "
+            "('Feature Name from manifest.yml project.name, or "
+            "project.feature if absent'). Every document-header instance "
+            "was left to each session's judgment, so it could drift to "
+            "context.md's own free-text title ('# System Context -- "
+            "{Service Name}') instead, and could even differ "
+            "document-to-document within the same project",
+            "Fixed by adding a new shared block, "
+            "_shared/blocks/feature-name-convention.md, inserted into "
+            "each pack's CLAUDE.md right after the 'Confirm: "
+            "project.name, scope, feature, context_file' startup step "
+            "(read at the start of every session, so it's in context "
+            "before any document is generated). States explicitly: "
+            "{Feature Name} = manifest.yml project.name (fallback "
+            "project.feature), never context.md's title",
+            "Applied to all 5 lockstep packs (backend-service, "
+            "frontend-spa, fullstack, mobile, universal) -- sdd-micro is "
+            "intentionally excluded from the shared-block sync system "
+            "per its own CLAUDE.md and has no BRD/SRD/etc. templates "
+            "using this placeholder",
+            "This Node CLI has no CLAUDE.md content of its own "
+            "(scaffolding-only by design) and is unaffected -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: python3 packs/_shared/tests/check-cross-"
+            "references.py --verbose clean across all 6 packs; "
+            "packs/_shared/tests/test-setup.sh (19/19) and "
+            "test-setup-micro.sh (12/12) both pass; manually confirmed "
+            "the same shared-block content appears identically in all 5 "
+            "packs' CLAUDE.md",
+        ],
+    },
 ]
 
 

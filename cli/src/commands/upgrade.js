@@ -3424,6 +3424,40 @@ export const MIGRATIONS = [
       "clean on the changed files",
     ],
   },
+  {
+    from: '2.8.26',
+    to:   '2.8.27',
+    description: "Standardize the {Feature Name} document-header " +
+      "placeholder on manifest.yml project.name -- it previously had " +
+      "no defined source and silently drifted to context.md's own " +
+      "title instead",
+    notes: [
+      "Reported by a user: a generated BRD's '# Feature: {Feature " +
+      "Name}' header showed 'NIPE Validation Service' while " +
+      "manifest.yml said name: Validation -- the two had silently " +
+      "diverged",
+      "Root cause: {Feature Name} is used as a header placeholder in " +
+      "~20 templates across every pack, but only ONE place in any " +
+      "prompt file ever explicitly defined what it should resolve to " +
+      "(the Jira Epic Summary line in specify-brd.prompt.md). Every " +
+      "document-header instance was left to each session's judgment, " +
+      "so it could drift to context.md's own free-text title instead",
+      "Fixed by adding a new shared block, " +
+      "_shared/blocks/feature-name-convention.md, inserted into each " +
+      "pack's CLAUDE.md right after the 'Confirm: project.name, scope, " +
+      "feature, context_file' startup step. States explicitly: " +
+      "{Feature Name} = manifest.yml project.name (fallback " +
+      "project.feature), never context.md's title",
+      "Applied to all 5 lockstep packs -- sdd-micro is intentionally " +
+      "excluded from the shared-block sync system and has no " +
+      "BRD/SRD/etc. templates using this placeholder",
+      "This Node CLI has no CLAUDE.md content of its own " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: check-cross-references.py clean across all 6 packs; " +
+      "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
