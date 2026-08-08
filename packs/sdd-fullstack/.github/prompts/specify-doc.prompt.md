@@ -16,6 +16,18 @@ Document name passed as argument — e.g.:
 
 > **Note:** `api-spec` has moved to `/plan-design` (§3 API Design). Do not generate it here.
 
+**Resolve `{doc}` before doing anything else.** `security` is the only
+argument whose value differs from the real doc key: normalize it to
+`security-design` immediately (matching the actual filename,
+`security-design-template.md`/`security-design.md`, and the only doc key
+every `sdd` command below actually accepts — `sdd review submit --doc
+security` and `sdd confluence draft --doc security` both fail outright).
+Every `{doc}` reference for the rest of this command — template path,
+save path, and every `sdd` CLI invocation — uses this resolved value.
+Every other argument (`data-model`, `component-spec`, `ux-flow`,
+`screen-spec`, `resilience`, `investigation`) already equals its own doc
+key unchanged.
+
 If no argument given — read the Action 2 doc-set table in
 `.github/prompts/specify.prompt.md`, filter it to this project's
 `manifest.project.scope` (and `project_type` for sdd-universal), check
@@ -317,17 +329,26 @@ increment the document's `Version:` header (`1.0` → `1.1`, `1.1` → `1.2`,
 only if the feedback needed no content change (e.g. a clarifying question
 you answered without editing the document).
 
-2. Update the document header: flip its `Status:` value (`Draft` or
+2. Resolve the approver's name: find this gate's `accountable` role in
+   `.specify/memory/roles.yml` → `gates:` (match by document/command name;
+   `roles.yml`'s own comments name which gate maps to which document), then
+   look up that role key (e.g. `product_owner`) in `roles.yml`'s top-level
+   `roles:` map. If a non-empty name is filled in there, use it directly —
+   no need to ask. Only if `roles.yml` doesn't exist, the matching gate/role
+   entry is missing, or the value is still the shipped empty string (`""`),
+   ask once instead: "Recording the approval — approver name and an
+   optional comment?" (default comment if none given: "approved in chat").
+3. Update the document header: flip its `Status:` value (`Draft` or
    `Proposed`) to `Approved`, date → today.
-3. Update the Approvals table: all Pending rows → `Approved` + today's
-   date. Version History: append a row using the document's **current**
-   version (a pure approval doesn't bump it — only Revision Logging
-   above does that):
-   `| {current version} | {today} | {jira or chat} | Approved | — |`
-4. Re-save the document and regenerate its `.summary.md`.
-5. Ask once: "Recording the approval — approver name/role and an optional
-   comment?" (defaults: the accountable role for this gate in roles.yml;
-   "approved in chat")
+4. Update the Approvals table: all Pending rows → `Approved` + today's
+   date, and fill each row's `Approver` column with the name resolved in
+   step 2 — this is what makes "who actually approved this" visible
+   directly in the document, not just the role that was accountable for
+   it. Version History: append a row using the document's **current**
+   version (a pure approval doesn't bump it — only Revision Logging above
+   does that):
+   `| {current version} | {today} | {approver name from step 2} | Approved | — |`
+5. Re-save the document and regenerate its `.summary.md`.
 6. If the `sdd` CLI is installed, record it:
    `sdd review approve --doc {doc_key} --local --by "{approver}" --note "{comment}"`
    This also updates the document's existing Confluence page when a
@@ -339,6 +360,17 @@ you answered without editing the document).
 Check what documents remain ungenerated for this scope.
 
 If more remain — State: "**{DOC} generated.** Review in Confluence/Jira (or above), then run **/specify-doc {next-doc}**. Remaining: {list}."
-If none remain — State: "**{DOC} generated** — all spec documents complete. Run **/validate** for business sign-off."
+If none remain — check `manifest.project.scope` before naming the next
+command. `/checklist` sits between the extended document set and
+`/validate` in the command order (see CLAUDE.md "Command Order" and
+"`/checklist` — Optional Spec-Quality Gate") and is **mandatory at
+mvp/full scope** — never optional the way it's stated to be for pilot.
+This step must not point past it:
+- `mvp`/`full` scope: State: "**{DOC} generated** — all spec documents
+  complete. Run **/checklist** next (mandatory at this scope) before
+  **/validate**."
+- `pilot` scope: State: "**{DOC} generated** — all spec documents
+  complete. Run **/checklist** (optional spec-quality gate) or go
+  straight to **/validate** for business sign-off."
 
 **Stop — do not generate the next document in this turn.**

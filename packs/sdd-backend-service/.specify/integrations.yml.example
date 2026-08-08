@@ -60,18 +60,70 @@ jira:
   #   story: SUNT
   #   task: SUNT
 
-  # Issue type names for the Feature → Story → Task hierarchy.
+  # Issue type names, one per level -- same keys as project_keys above
+  # (feature/story/task/review/chg/cr), same parent-key fallback rule
+  # (an unlisted level falls back to whatever "task"/"story" resolve to
+  # by default below -- see JiraConfig.issue_type_for()). Uncomment a
+  # level to give it its own issue type instead of riding along on its
+  # default.
   #
   # These must exactly match the issue type names in your Jira project.
   # Common alternatives:
-  #   feature: Epic       (if your project has no "Feature" type)
-  #   task:    Sub-task   (for classic company-managed projects)
+  #   feature: Epic              (if your project has no "Feature" type)
+  #   task:    Sub-task          (for classic company-managed projects)
+  #   review:  Task, Bug         (if you don't want review tickets at Story level)
+  #   cr:      "Change Request"  (if your project has a dedicated type)
   #
   # Run: Jira → Project Settings → Issue Types to see your type names.
   issue_hierarchy:
     feature: Feature
     story: Story
     task: Task
+    # review: Story          # the review-gate ticket sdd review submit creates
+    # chg: Task               # CHG-NNN implementation tasks (see change_requests below)
+    # cr: Task                 # the CR-NNN review ticket sdd cr submit creates
+
+  # Parent-child linking -- who nests under whom, and why:
+  #
+  #   feature (Epic)                  — top level, no parent
+  #   ├── story                       — parent: feature. Includes both
+  #   │                                 real Stories (from stories.md)
+  #   │                                 and the placeholder Story
+  #   │                                 `sdd jira push --level uc-draft`
+  #   │                                 creates right after /specify-uc,
+  #   │                                 before stories.md exists.
+  #   │   └── task                    — parent: the story listed in its
+  #   │                                 STORY-NNN reference (tasks.md);
+  #   │                                 no parent if it has none.
+  #   ├── review                      — parent: feature. One per spec doc
+  #   │                                 (BRD/SRD/etc.) reviewed via
+  #   │                                 `sdd review submit` -- sits at the
+  #   │                                 same hierarchy depth as a dev
+  #   │                                 Story, not nested under one.
+  #   └── cr                          — parent: feature. The CR-NNN
+  #       │                             Change Request's own review
+  #       │                             ticket (`sdd cr submit`) -- this
+  #       │                             is where reviewers approve/reject
+  #       │                             the CHANGE ITSELF, before any
+  #       │                             chg implementation task exists.
+  #       └── chg (via story, not cr) — parent: whichever Story satisfies
+  #                                     the FR-NNN the CHG-NNN task
+  #                                     references (parsed from the CR's
+  #                                     §4 table); falls back to feature
+  #                                     if no matching Story is found.
+  #                                     NOT parented under its own cr
+  #                                     ticket -- a chg task is dev work
+  #                                     against the existing Story tree,
+  #                                     the cr ticket is a separate,
+  #                                     parallel approval record for the
+  #                                     change proposal that produced it.
+  #
+  # In short: cr = "should we make this change?" (one review ticket per
+  # CR-NNN, approved/rejected as a whole). chg = "here's the actual dev
+  # task implementing one line of an approved CR's plan" (one per
+  # CHG-NNN row in the CR's §4 table, tracked like any other dev Task).
+  # A CR can produce several chg tasks; a chg task always traces back to
+  # exactly one CR (see the CR-NNN mentioned in its Jira description).
 
   # How child issues link to their parent.
   #
@@ -233,6 +285,12 @@ confluence:
                              # is actually ignored (title is always "{project} — Constitution"),
                              # this key only controls whether a bare `sdd confluence push`
                              # (no --doc) includes it; remove the line to opt out
+    context:   "Context"                     # same deal as constitution above — the value
+                             # here is ignored (title is always "{feature} — Context"), this
+                             # key only controls whether a bare `sdd confluence push` (no
+                             # --doc) includes it; remove the line to opt out. `sdd confluence
+                             # draft --doc context` (what /create-context actually calls) is
+                             # unaffected either way — it takes --doc directly
     release:   "{feature} — Release Notes"
 
   # Diagram rendering: Confluence has NO native Mermaid or PlantUML
@@ -360,6 +418,48 @@ document_reviews:
     phase:              specify
     sequence:           4    # cannot submit until SRD approved
     confluence_page:    "{feature} — Design"
+
+  # ── extended documents (optional, living/service-level) ───────────────────
+  # data-model / security-design / api-spec / component-library are living
+  # documents (see CLAUDE.md "Living Documents") generated via
+  # `/specify-doc {name}` once SRD is approved — but independent of each
+  # other and of design.md (any order, no dependency between them). Each
+  # gets its OWN single-entry phase below rather than sharing one with a
+  # sequence number, which would wrongly imply doc B can't be submitted
+  # until doc A is approved. None of these are wired up by default — a
+  # bare `sdd config init` project has none of them in document_reviews,
+  # so `sdd review submit --doc data-model` falls through to
+  # `sdd confluence draft --doc data-model` instead (see
+  # specify-doc.prompt.md's "Submit for Review" step — this is the
+  # documented fallback, not an error).
+  # Uncomment whichever of these your project wants a formal Jira gate on.
+  # data-model:
+  #   reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect's accountId (same as design)
+  #   reviewer_role:      Architect
+  #   phase:              data-model
+  #   sequence:           1
+  #   confluence_page:    "Data Model"           # living — no {feature}, matches page_map above
+  #
+  # security-design:
+  #   reviewer_jira_user: "2j4i5h9g7f0e8d1c6b3a5f98"   # Security Officer's accountId
+  #   reviewer_role:      Security Officer
+  #   phase:              security-design
+  #   sequence:           1
+  #   confluence_page:    "Security Design"      # living — no {feature}, matches page_map above
+  #
+  # api-spec:
+  #   reviewer_jira_user: "7e9d0c4f2g5b3c6d1e8f0h43"   # Architect's accountId (same as design)
+  #   reviewer_role:      Architect
+  #   phase:              api-spec
+  #   sequence:           1
+  #   confluence_page:    "API Specification"    # living — no {feature}, matches page_map above
+  #
+  # component-library:
+  #   reviewer_jira_user: "3k5j6i0h8g1f9e2d7c4b6g09"   # UX Lead's accountId (UI-facing packs)
+  #   reviewer_role:      UX Lead
+  #   phase:              component-library
+  #   sequence:           1
+  #   confluence_page:    "Component Library"    # living — no {feature}, matches page_map above
 
   # ── validate phase (Validate → Analyze → Clarify) ─────────────────────────
   # Runs after the specify phase is fully approved, before planning begins.

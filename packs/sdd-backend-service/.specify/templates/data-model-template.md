@@ -1,6 +1,6 @@
 # Data Model
 # Service: {Service Name}
-> Version: 1.0 | Date: {date: YYYY-MM-DD} | Scope: MVP+
+> Version: 1.0 | Status: Draft | Date: {date: YYYY-MM-DD} | Scope: MVP+
 >
 > **Living document** — describes the whole service's schema, not one
 > feature. Lives at `.specify/service/data-model.md`. Every feature after

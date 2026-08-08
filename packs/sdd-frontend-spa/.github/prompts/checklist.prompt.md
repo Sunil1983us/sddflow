@@ -25,7 +25,14 @@ Review brd.md and srd.md for quality issues. For each finding, generate a
 CHK-NNN item using the template. Check in this order:
 
 ### CRITICAL checks (block /validate if any open)
-1. **Unresolved markers** — any `[NEEDS CLARIFICATION: ...]` in brd.md or srd.md
+1. **Unresolved markers** — any `[NEEDS CLARIFICATION: ...]` in brd.md or srd.md.
+   **Known exception:** brd.md §9's "Build effort (T-shirt)" row is never
+   part of this check, whether it reads "Pending — estimated after
+   /analyze" or holds a size already filled in by `/analyze`. It is
+   structurally unfillable before `/validate` — `/analyze` runs AFTER
+   `/validate` in the pipeline order (SPECIFY → GATE-1 → VALIDATE →
+   ANALYZE) — so by-design deferred text there is not a spec-quality gap.
+   Do not raise a CHK-NNN for it.
 2. **Unmeasured NFRs** — any NFR-NNN without a numeric threshold (e.g. "fast", "99.9%", "500ms" — the last two are fine, the first is not)
 3. **FR without acceptance scenario** — any FR-NNN in srd.md with no UC-NNN that covers it
 4. **UC without paths** — any UC-NNN in `use-cases.md` missing a Main Path (MP) or lacking at least one AP-NNN-X or EP-NNN-X

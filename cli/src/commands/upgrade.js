@@ -3424,6 +3424,473 @@ export const MIGRATIONS = [
       "clean on the changed files",
     ],
   },
+  {
+    from: '2.8.26',
+    to:   '2.8.27',
+    description: "Standardize the {Feature Name} document-header " +
+      "placeholder on manifest.yml project.name -- it previously had " +
+      "no defined source and silently drifted to context.md's own " +
+      "title instead",
+    notes: [
+      "Reported by a user: a generated BRD's '# Feature: {Feature " +
+      "Name}' header showed 'NIPE Validation Service' while " +
+      "manifest.yml said name: Validation -- the two had silently " +
+      "diverged",
+      "Root cause: {Feature Name} is used as a header placeholder in " +
+      "~20 templates across every pack, but only ONE place in any " +
+      "prompt file ever explicitly defined what it should resolve to " +
+      "(the Jira Epic Summary line in specify-brd.prompt.md). Every " +
+      "document-header instance was left to each session's judgment, " +
+      "so it could drift to context.md's own free-text title instead",
+      "Fixed by adding a new shared block, " +
+      "_shared/blocks/feature-name-convention.md, inserted into each " +
+      "pack's CLAUDE.md right after the 'Confirm: project.name, scope, " +
+      "feature, context_file' startup step. States explicitly: " +
+      "{Feature Name} = manifest.yml project.name (fallback " +
+      "project.feature), never context.md's title",
+      "Applied to all 5 lockstep packs -- sdd-micro is intentionally " +
+      "excluded from the shared-block sync system and has no " +
+      "BRD/SRD/etc. templates using this placeholder",
+      "This Node CLI has no CLAUDE.md content of its own " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: check-cross-references.py clean across all 6 packs; " +
+      "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
+    ],
+  },
+  {
+    from: '2.8.27',
+    to:   '2.8.28',
+    description: "Per-level Jira issue type overrides (review/chg/cr) " +
+      "now actually work; cr.py's Change Request review ticket now " +
+      "gets a parent Epic link like every other issue type; " +
+      "constitution.md's DRAFT now pushes to Confluence immediately at " +
+      "/specify, not only after GATE-1 finalizes",
+    notes: [
+      "User request: project_keys already supports per-level overrides " +
+      "for feature/story/task/review/chg/cr -- asked for the same on " +
+      "issue_hierarchy (the Jira issue TYPE per level), and for the " +
+      "hierarchy/parent-linking model to be explained and documented",
+      "Investigating found issue_hierarchy per-level overrides for " +
+      "review/chg/cr were completely non-functional: cli-python's " +
+      "load_integrations() built JiraConfig with only feature/story/task " +
+      "hardcoded, silently dropping any review/chg/cr entry the user " +
+      "wrote in integrations.yml. Fixed with a new " +
+      "JiraConfig.issue_type_for(level) method every issue-creation call " +
+      "site now routes through, replacing all direct issue_hierarchy[...] " +
+      "dict indexing",
+      "Also fixed: cr.py's 'sdd cr submit' created the CR-NNN review " +
+      "ticket as a fully standalone issue with no parent link at all -- " +
+      "the only Jira issue type this CLI ever created that way. It now " +
+      "self-bootstraps the Epic and links the CR review ticket under it, " +
+      "same as review submit's own review tickets do",
+      "Documented the full parent-child hierarchy and the cr-vs-chg " +
+      "distinction (cr = the Change Request's own approval ticket, one " +
+      "per CR-NNN; chg = individual dev tasks implementing one line of " +
+      "an approved CR's plan, one per CHG-NNN row, parented to whichever " +
+      "Story satisfies its FR-NNN reference) directly in " +
+      "integrations.yml.example's issue_hierarchy comment block and in " +
+      "cli-python/README.md",
+      "Separately: constitution.md's DRAFT now pushes to Confluence " +
+      "immediately when /specify first generates it (same as " +
+      "context.md's own draft push in /create-context), not only when " +
+      "GATE-1 finalization pushes it later. Applied to all 5 packs' " +
+      "specify.prompt.md individually",
+      "This Node CLI has no Jira/Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected by any of this -- " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: cli-python pytest 880/880 (874 pre-existing + 6 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files; " +
+      "check-cross-references.py clean across all 6 packs; " +
+      "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
+    ],
+  },
+  {
+    from: '2.8.28',
+    to:   '2.8.29',
+    description: "Fix bare `sdd confluence push` (no --doc) never " +
+      "including the context.md page -- the same gap as v2.8.23's " +
+      "constitution fix, found while auditing integrations.yml.example " +
+      "at a user's request to confirm everything was documented",
+    notes: [
+      "User asked to double-check integrations.yml.example documented " +
+      "everything discussed in the previous round. While re-reading it " +
+      "end to end, found 'context' was missing entirely -- not in " +
+      "page_map, not in the code's default page map -- the exact same " +
+      "bug class as v2.8.23's constitution fix, just never caught for " +
+      "context.md at the time",
+      "Root cause: cli-python's confluence.py special-cases 'context' " +
+      "to always resolve to '{feature} -- Context' regardless of " +
+      "page_map -- so `sdd confluence draft --doc context` (what " +
+      "/create-context actually calls) worked fine on its own. But a " +
+      "bare `sdd confluence push` (no --doc) iterates page_map.keys(), " +
+      "and 'context' was never in that set",
+      "Fixed by adding 'context' to _DEFAULT_PAGE_MAP, the wizard's " +
+      "minimal fallback template, and integrations.yml.example's " +
+      "page_map",
+      "This Node CLI has no Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 882/882 (880 pre-existing + 2 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files; " +
+      "check-cross-references.py clean across all 6 packs; " +
+      "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
+    ],
+  },
+  {
+    from: '2.8.29',
+    to:   '2.8.30',
+    description: "Add commented-out document_reviews example entries " +
+      "for the living/service-level docs (data-model, security-design, " +
+      "api-spec, component-library) to integrations.yml.example",
+    notes: [
+      "User request, following up on the previous round's " +
+      "issue_hierarchy/page_map audit: these four docs had a page_map " +
+      "entry (Confluence) but no document_reviews entry (Jira) anywhere " +
+      "in the shipped example -- by design (specify-doc.prompt.md's " +
+      "documented fallback), but a team that DOES want a formal Jira " +
+      "gate on one had no template to copy from",
+      "Each gets its OWN single-entry phase (e.g. phase: data-model, " +
+      "sequence: 1) rather than sharing one with each other or with " +
+      "design -- they're independent (any order, no dependency between " +
+      "them), and the predecessor check gates strictly on matching " +
+      "phase + sequence-1, so sharing a phase would wrongly block one " +
+      "doc on another's approval",
+      "All four entries stay fully commented out by default -- active " +
+      "document_reviews / page_map keys are completely unaffected",
+      "This Node CLI has no Jira/Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 882/882 (no change -- inert " +
+      "commented content); check-cross-references.py clean across all " +
+      "6 packs; test-setup.sh (19/19) and test-setup-micro.sh (12/12) " +
+      "both pass",
+    ],
+  },
+  {
+    from: '2.8.30',
+    to:   '2.8.31',
+    description: "Fix re-pushing a local-svg diagram to Confluence a " +
+      "second time -- always failed with 'Cannot add a new attachment " +
+      "with same file name as an existing attachment'",
+    notes: [
+      "Reported by a user during testing: pushed a page with a " +
+      "local-svg diagram once successfully, then re-pushed it (no " +
+      "content change) -- the SVG attachment upload failed every time " +
+      "with a 400 BadRequestException naming the exact collision. The " +
+      "page body itself still updated fine, so the failure was easy to " +
+      "miss unless watching stderr",
+      "Root cause: cli-python's confluence_client.py upload_attachment() " +
+      "always POSTed to Confluence's CREATE-a-new-attachment endpoint. " +
+      "Its own docstring claimed Confluence auto-versions an existing " +
+      "same-named attachment -- that claim was wrong. Confluence " +
+      "Cloud's actual behavior: creating a second attachment with an " +
+      "already-existing filename is rejected outright. Updating an " +
+      "existing attachment's content requires a DIFFERENT endpoint " +
+      "(.../child/attachment/{attachmentId}/data), needing the " +
+      "attachment's ID first",
+      "Fixed with a new get_attachment_by_filename() lookup -- " +
+      "upload_attachment() now checks for an existing same-named " +
+      "attachment first and routes to the update-data endpoint when " +
+      "one exists, the create endpoint otherwise. A page's first push " +
+      "(no existing attachment) behaves identically to before; only " +
+      "the second-and-later push of the same diagram was affected, " +
+      "exactly what was broken",
+      "This Node CLI has no Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 889/889 (882 pre-existing + 7 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files",
+    ],
+  },
+  {
+    from: '2.8.31',
+    to:   '2.8.32',
+    description: "Add a project-level 'Living Documents' dashboard " +
+      "section for Data Model and Security Design -- previously only " +
+      "shown as a bare progress dot duplicated inside every feature's " +
+      "own pipeline card, with no Approve button, no Confluence/Jira " +
+      "links, and easy to miss entirely",
+    notes: [
+      "Reported by a user: couldn't find Data Model on the dashboard " +
+      "at all, and after generating it its status stuck showing " +
+      "'waiting for review' -- the second part turned out to be " +
+      "correct/by-design, but the first part was real: these living/ " +
+      "service-level docs (one shared file for the whole project, not " +
+      "per-feature) were only ever inserted as ordinary steps inside " +
+      "each feature's own pipeline -- duplicated once per feature card " +
+      "on a multi-feature project, with none of the Approve button/" +
+      "links/Details panel every per-feature document already gets",
+      "New _service_level_docs() in cli-python's status.py builds full " +
+      "doc entries for Data Model and Security Design, exposed as a " +
+      "new top-level living_documents/living_local_links pair, " +
+      "separate from any one feature. Removed the duplicated per-" +
+      "feature pipeline steps. New renderLivingDocuments() in the " +
+      "dashboard's app.js renders a card between the Project/" +
+      "Constitution cards and the Features Overview table, reusing the " +
+      "exact same row-rendering every per-feature document already " +
+      "uses -- zero new backend endpoints needed",
+      "api-spec and component-library (also living-service docs) are " +
+      "deliberately not included -- api-spec has no standalone /specify-" +
+      "doc command to link to, and neither has dashboard tracking to " +
+      "build on yet; a real gap, but a separate follow-up",
+      "This Node CLI has no dashboard at all (scaffolding-only by " +
+      "design) and is unaffected -- this migration entry exists so " +
+      "both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 892/892 (889 pre-existing, net +3 " +
+      "after rewriting 5 tests that asserted the old per-feature steps " +
+      "and adding 3 new end-to-end tests including the exact reported " +
+      "multi-feature duplication scenario); ruff check/format and mypy " +
+      "--ignore-missing-imports (matching CI's exact invocation) both " +
+      "clean; node --check on app.js clean",
+    ],
+  },
+  {
+    from: '2.8.32',
+    to:   '2.8.33',
+    description: "Fix a real document-corrupting bug in `sdd review " +
+      "approve --local` (a blind 'Status: Draft' find-replace could " +
+      "mangle enum content anywhere in a document's body), a severe " +
+      "Confluence-pull data-loss bug (mismatched ac: tag closing could " +
+      "delete whole sections), an HTML-comment mangling bug on both " +
+      "push and pull, and the security/security-design doc-key naming " +
+      "inconsistency -- all found by a user during a real living-" +
+      "document review cycle",
+    notes: [
+      "Bug 1 (data corruption) -- cli-python's review.py flipped a " +
+      "document's Status: header via an unanchored regex-replace across " +
+      "the ENTIRE document, not scoped to the real header. Reported by " +
+      "a user: data-model.md's own template (unlike every other spec " +
+      "template) had NO Status: header field at all, so the regex's " +
+      "first (and only) match was a §3 enum field written as " +
+      "'RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED, RETIRED' -- " +
+      "silently mangled into 'RuleVersionStatus: Approved, SUBMITTED, " +
+      "PUBLISHED, RETIRED'. Fixed by scoping the flip to the document's " +
+      "front matter (before the first '## ' heading)",
+      "Root-caused further: data-model-template.md and security-design-" +
+      "template.md never had a Status: header field to begin with -- " +
+      "added 'Status: Draft' to both, across all 5 packs, restoring " +
+      "correct Draft/Approved status tracking for these living docs",
+      "Bug 2 (severe data loss) -- cf_to_md.py's 'strip remaining ac:* " +
+      "elements' cleanup paired an opening ac: tag with the NEXT ac: " +
+      "closing tag of ANY name, not necessarily its own. Reported by a " +
+      "user: a page with a local-svg diagram, followed later by " +
+      "another unhandled/nested ac: element, had everything between " +
+      "them silently deleted -- 6 tables and an entire numbered section " +
+      "in their case. Fixed with a backreference so a match can only " +
+      "ever span exactly one element's own content",
+      "Bug 3 (data loss + visible garbage) -- HTML comments (e.g. the " +
+      "security-sign-off marker specify-doc.prompt.md requires) fell " +
+      "through to the paragraph branch on push, getting HTML-escaped " +
+      "into VISIBLE garbage text on the actual Confluence page, then " +
+      "deleted outright by the generic tag-stripper on pull. Fixed on " +
+      "both sides: push passes a comment-only line through literally; " +
+      "pull stashes comments into placeholders before any other " +
+      "processing and restores them verbatim at the end",
+      "Bug 4 (naming inconsistency) -- specify-doc.prompt.md's own " +
+      "prose calls it `/specify-doc security`, but every sdd CLI " +
+      "command actually requires the doc key `security-design`. Added " +
+      "an explicit resolution rule right after the Input section",
+      "This Node CLI has no Jira/Confluence integration and no review-" +
+      "approval flow of its own (scaffolding-only by design) and is " +
+      "unaffected by any of this -- this migration entry exists so " +
+      "both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 904/904 (892 pre-existing + 12 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files; " +
+      "check-cross-references.py clean across all 6 packs; " +
+      "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
+    ],
+  },
+  {
+    from: '2.8.33',
+    to:   '2.8.34',
+    description: 'Fix two live sequencing bugs a user hit back-to-back ' +
+      'during real testing: a /specify-doc chat message that skipped ' +
+      'over the mandatory /checklist gate at mvp+/full scope, and a ' +
+      'brd.md field that generated an unresolvable [NEEDS ' +
+      'CLARIFICATION] marker by design',
+    notes: [
+      "Bug 1 -- specify-doc.prompt.md's 'all documents complete' " +
+      'message named /validate as the next step unconditionally, even ' +
+      'though /checklist sits between the extended document set and ' +
+      '/validate in the command order and is mandatory at mvp/full ' +
+      'scope (optional only at pilot). Reported by a user: the ' +
+      "dashboard correctly showed 'Spec Quality Checklist' as the next " +
+      "step, but the chat message after the last document approval " +
+      "said 'Run /validate ... the gate before /analyze,' skipping " +
+      "/checklist entirely. Fixed by making the 'none remain' branch " +
+      'check manifest.project.scope: mvp/full now names /checklist ' +
+      '(mandatory) as the next command; pilot names it as an optional ' +
+      'gate before /validate',
+      "Bug 2 -- brd.md §9's 'Build effort (T-shirt)' row was " +
+      "generated as 'Derived from analyze.md (filled after /analyze)' " +
+      'under a blanket instruction that marks any unfilled Investment ' +
+      'Summary item [NEEDS CLARIFICATION]. But analyze.md doesn\'t ' +
+      'exist until /analyze runs, which is AFTER /validate in the ' +
+      'pipeline order (SPECIFY -> GATE-1 -> VALIDATE -> ANALYZE) -- ' +
+      "and checklist.prompt.md's CRITICAL rule #1 blocks /validate on " +
+      'any unresolved [NEEDS CLARIFICATION] marker with no per-field ' +
+      "carve-out. A user's own /checklist run surfaced this exact " +
+      'conflict verbatim. Three-part fix: (1) brd-template.md §9 ' +
+      "now writes plain deferred text 'Pending -- estimated after " +
+      "/analyze' for this field instead of an implicit-marker-prone " +
+      'placeholder -- never a [NEEDS CLARIFICATION] marker; (2) ' +
+      "analyze.prompt.md gained a new 'Update BRD Build Effort' step " +
+      "that actually implements the template's own long-standing but " +
+      'never-implemented promise -- derives a T-shirt size from the ' +
+      'COMPLEXITY ratings just produced and writes it back into brd.md ' +
+      '§9; (3) checklist.prompt.md\'s CRITICAL rule #1 gained an ' +
+      'explicit known-exception carve-out for this one field, as a ' +
+      'defensive safety net for any brd.md generated before this fix',
+      'specify-doc.prompt.md and brd-template.md and ' +
+      'checklist.prompt.md are _shared/full/ sources -- edited once, ' +
+      'synced to all 5 packs via sync-blocks.sh. analyze.prompt.md is ' +
+      'authored per-pack (not in _shared/) -- the same \'Update BRD ' +
+      "Build Effort' step was added individually to all 5 packs' " +
+      'analyze.prompt.md, verified identical in content across all 5',
+      'This Node CLI has no Jira/Confluence integration and no review-' +
+      'approval flow of its own (scaffolding-only by design) and is ' +
+      'unaffected by any of this -- this migration entry exists so ' +
+      'both CLIs report the same sdd_version chain',
+      'Verified: cli-python pytest 904/904 (no Python code touched, ' +
+      'only markdown/prompt files); check-cross-references.py clean ' +
+      'across all 6 packs; test-setup.sh (19/19) and test-setup-' +
+      'micro.sh (12/12) both pass; assert-output.sh clean against ' +
+      'examples/todo-api (33/33)',
+    ],
+  },
+  {
+    from: '2.8.34',
+    to:   '2.8.35',
+    description: 'Full review-gate audit across every living and ' +
+      'feature document: closed two behavioural gaps (validate/' +
+      'analyze/clarify missing the Confluence-only submission ' +
+      'fallback; api-spec.md\'s first version never getting a review ' +
+      'ticket/page) and fixed a sync-tooling bug that was silently ' +
+      'serving 10 pack prompts a stale copy of the approval logic',
+    notes: [
+      'Requested audit: \'perform an audit to see all living document ' +
+      'and feature document create the review ticket and pushed to ' +
+      'confluence page and review is pulled from jira and confluence ' +
+      'to make sure all are having the same process if jira or ' +
+      'confluence is active, else it can be done in chat\'',
+      'Finding A -- validate.prompt.md, analyze.prompt.md, ' +
+      'clarify.prompt.md (hand-authored, not shared, identical across ' +
+      'all 5 packs) only ever called `sdd review submit` and fell ' +
+      'straight to pure chat mode on failure. review.py\'s ' +
+      'review_submit requires BOTH jira: and confluence: sections and ' +
+      'hard-fails otherwise (confirmed by reading the CLI) -- so in a ' +
+      'confluence-only project (no jira:) these three documents never ' +
+      'reached Confluence, unlike every other reviewed document, which ' +
+      'falls through to `sdd confluence draft` first. Fixed by ' +
+      'swapping their Step B/C onto the same submit-for-review-step/' +
+      'review-decision-step shared blocks the other 12 commands ' +
+      'already use, adding the markers to all 5 packs\' copies of the ' +
+      '3 files and running sync-blocks.sh -- each file\'s own document-' +
+      'specific approval-scope caveat (e.g. validate.md\'s per-item ' +
+      'checkboxes not being itemized by a blanket approval) was ' +
+      'preserved as trailing prose after the shared block, not lost in ' +
+      'the swap',
+      'Finding B -- api-spec.md (the third living document, generated ' +
+      'inside plan-design.prompt.md when a service-providing feature ' +
+      'is planned) had no submission step on first creation, unlike ' +
+      'its sibling living docs (data-model, security-design), which ' +
+      'get one via specify-doc.prompt.md\'s shared block. api-spec.md ' +
+      'only ever reached Confluence/Jira later, when a subsequent ' +
+      'feature called `sdd review apply --doc api-spec` on an update ' +
+      '-- meaning a service\'s first feature could ship an API ' +
+      'contract that was never actually routed through a review ' +
+      'ticket. Fixed by adding the same shared submission block ' +
+      '(doc_key = api-spec) right after first-time generation, ' +
+      'independent of design.md\'s own later approval step',
+      'Finding C (found while fixing B, not part of the original two) ' +
+      '-- sync-blocks.sh\'s two loops ran in the wrong order: the ' +
+      'blocks loop (which refreshes shared:{id} marker regions in ' +
+      'pack files) ran BEFORE the full-file loop (which copies ' +
+      '_shared/full/{path} whole-file into every pack). Ten ' +
+      '.github/prompts/ files in full/ (specify-brd, specify-uc, ' +
+      'specify-srd, specify-doc, plan-arch, plan-hld, plan-adr, plan-' +
+      'design, plan-lld, task) themselves embed submit-for-review-' +
+      'step/review-decision-step markers -- full/ is never itself ' +
+      'touched by the blocks loop (it only globs ../sdd-*/), so those ' +
+      '10 files\' own inline copies had silently drifted stale ' +
+      '(missing review-decision-step\'s \'resolve the approver\'s ' +
+      'name from roles.yml, fill the Approver column\' step, added to ' +
+      'blocks/review-decision-step.md at some point after these 10 ' +
+      'files were last hand-synced). Every sync-blocks.sh run: blocks ' +
+      'loop correctly refreshed the 10 files in all 5 packs, then the ' +
+      'full-file loop immediately overwrote them back to the stale ' +
+      'full/ copy, since cmp always showed a diff. Verified directly: ' +
+      'validate.prompt.md (never full-file-synced) had the fresh ' +
+      'content, specify-brd.prompt.md (full-file-synced) did not, in ' +
+      'the same pack, same run. Fixed two ways: (1) swapped the loop ' +
+      'order in sync-blocks.sh so the blocks pass always runs last and ' +
+      'has the final word on every marker region regardless of which ' +
+      'loop last touched the file; (2) refreshed the 10 full/ files\' ' +
+      'own embedded copies to match blocks/*.md exactly, so a ' +
+      'maintainer reading full/ directly isn\'t misled either. ' +
+      'Confirmed idempotent: three consecutive sync-blocks.sh runs ' +
+      'after the fix produce zero further file changes. Added a ' +
+      'README.md rule documenting the gotcha so it isn\'t reintroduced',
+      'This Node CLI has no Jira/Confluence integration and no review-' +
+      'approval flow of its own (scaffolding-only by design) and is ' +
+      'unaffected by any of this -- this migration entry exists so ' +
+      'both CLIs report the same sdd_version chain',
+      'Verified: cli-python pytest 904/904; check-cross-references.py ' +
+      'clean across all 6 packs; test-setup.sh (19/19) and test-' +
+      'setup-micro.sh (12/12) both pass; assert-output.sh clean ' +
+      'against examples/todo-api (33/33); three consecutive sync-' +
+      'blocks.sh runs confirmed idempotent (zero diffs after the ' +
+      'first)',
+    ],
+  },
+  {
+    from: '2.8.35',
+    to:   '2.8.36',
+    description: 'Fix a real bug reported from live use: brd.md\'s ' +
+      'Stakeholders table never actually got its ACT-NNN identifiers ' +
+      'filled in by /specify-uc -- the instruction existed but was too ' +
+      'easy for an agent to skip',
+    notes: [
+      'User report: \'after the BRD is created, the ACT-NNN was never ' +
+      'assigned after /specify-uc\'',
+      'Root cause: specify-uc.prompt.md\'s \'Back-fill BRD ' +
+      'Stakeholders\' instruction existed and was structurally correct ' +
+      '(right after Save/Write, before drafting Jira stories), but had ' +
+      'almost no structural weight -- a single bolded inline paragraph ' +
+      'with no heading, sandwiched between two \'Save to:\'/\'Write:\' ' +
+      'bullets and the \'Draft Jira Stories\' paragraph, and never ' +
+      'mentioned again in the command\'s own completion message (\'Use ' +
+      'Cases generated. Review and approve...\') -- nothing in the ' +
+      'output even hinted the back-fill had (or hadn\'t) happened. ' +
+      'This is the same failure mode as v2.8.34\'s brd.md Build Effort ' +
+      'field, fixed the same way there by giving the step its own ' +
+      'heading',
+      'Fix: promoted the instruction to its own \'### Back-fill BRD ' +
+      'Stakeholders (mandatory -- do not skip)\' heading with explicit ' +
+      'numbered steps (open brd.md, match each remaining placeholder ' +
+      'row to its real actor by role, resolve every cell to either a ' +
+      'real ACT-NNN or _(N/A)_, save + regenerate brd.summary.md), and ' +
+      'added a line to the completion message confirming the back-fill ' +
+      'happened by name, so a skipped back-fill is now visible in the ' +
+      'command\'s own output rather than silent',
+      'specify-uc.prompt.md is a _shared/full/ source -- edited once, ' +
+      'synced to all 5 packs via sync-blocks.sh',
+      'This Node CLI has no Jira/Confluence integration and no review-' +
+      'approval flow of its own (scaffolding-only by design) and is ' +
+      'unaffected by any of this -- this migration entry exists so ' +
+      'both CLIs report the same sdd_version chain',
+      'Verified: cli-python pytest 904/904; check-cross-references.py ' +
+      'clean across all 6 packs; test-setup.sh (19/19) and test-' +
+      'setup-micro.sh (12/12) both pass; sync-blocks.sh confirmed ' +
+      'idempotent',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

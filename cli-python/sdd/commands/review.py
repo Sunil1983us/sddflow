@@ -112,15 +112,33 @@ def _mark_md_approved(md_path: Path) -> bool:
     net for direct CLI/dashboard usage (the AI approval flow normally does
     both edits itself in chat) — running it again also self-heals a doc
     whose header was flipped before this function updated the Approvals
-    table too."""
+    table too.
+
+    The header flip is scoped to the document's front matter (everything
+    before the first '## ' section heading) -- every template's own
+    '> Version: ... | Status: Draft | ...' line (or, for adr.md, '>
+    Status: Proposed | ...') lives there, in the first few lines. This
+    used to search/replace across the ENTIRE document unanchored, which
+    matched -- and corrupted -- any content anywhere in the body
+    containing the literal substring 'Status: Draft'/'Status: Proposed',
+    not just the real header. Reported by a user: a data-model.md enum
+    field written as 'RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED,
+    RETIRED' (data-model.md's own template has no Status: header field
+    at all -- see data-model-template.md -- so that enum line was the
+    FIRST, and only, match in the whole document) got silently mangled
+    into 'RuleVersionStatus: Approved, SUBMITTED, PUBLISHED, RETIRED'."""
     text = md_path.read_text()
-    new = re.sub(
+    heading = re.search(r"^## ", text, flags=re.MULTILINE)
+    front_matter_end = heading.start() if heading else len(text)
+    front_matter = text[:front_matter_end]
+    new_front_matter = re.sub(
         r"Status:\s*(Draft|Proposed)\b",
         "Status: Approved",
-        text,
+        front_matter,
         count=1,
         flags=re.IGNORECASE,
     )
+    new = new_front_matter + text[front_matter_end:]
     new = _mark_approvals_table(new, str(date.today()))  # noqa: DTZ011 -- local calendar date by design
     if new == text:
         return False
@@ -743,11 +761,10 @@ def _ensure_epic(
         extra = feature_extra_fields(
             features_dir, jira_cfg, feature_name, confluence_base_url
         )
-        h = jira_cfg.issue_hierarchy
         key, _ = _upsert_issue(
             jira_client,
             jira_cfg.key_for("feature"),
-            h["feature"],
+            jira_cfg.issue_type_for("feature"),
             feature_name,
             extra,
             f"sdd-feature:{feature_name}",
@@ -908,9 +925,11 @@ def review_submit(doc, profile, feature):
     epic_key = _ensure_epic(jira_client, cfg.jira, feature_name, cf_prof.base_url)
 
     # ── Create / update Jira review story ─────────────────────────────────────
-    # Issue type is "story" (not "task") so review tickets sit at the same
-    # hierarchy level as dev Stories under the Epic -- Epic -> Story -> Task
-    # throughout, review tickets included, not a separate shape.
+    # Issue type defaults to "Story" (not "Task") so review tickets sit at
+    # the same hierarchy level as dev Stories under the Epic -- Epic ->
+    # Story -> Task throughout, review tickets included, not a separate
+    # shape -- but is independently overridable via issue_hierarchy.review
+    # in integrations.yml (see JiraConfig.issue_type_for()).
     # Label is feature-qualified for the same reason Story/Task labels are
     # (see jira.py's _item_label): an un-qualified "sdd-doc:brd" would let
     # a second feature's BRD review submission find and silently overwrite
@@ -927,7 +946,7 @@ def review_submit(doc, profile, feature):
     )
     fields: dict = {
         "project": {"key": review_project_key},
-        "issuetype": {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
+        "issuetype": {"name": cfg.jira.issue_type_for("review")},
         "summary": story_summary,
         # cfg.jira.labels (base_fields.labels, e.g. "sdd-generated") is
         # applied here the same way _upsert_issue() applies it to every
@@ -1133,7 +1152,7 @@ def review_push_questions(doc, profile, feature):
     )
     fields: dict = {
         "project": {"key": review_project_key},
-        "issuetype": {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
+        "issuetype": {"name": cfg.jira.issue_type_for("review")},
         "summary": f"Open Questions: {project_name} — {doc.upper()}",
         "labels": cfg.jira.labels
         + ["sdd-review", "sdd-open-questions", idempotency_label],

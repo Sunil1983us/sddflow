@@ -15,6 +15,26 @@ def cf_to_md(storage_xml: str) -> str:
     """Return a Markdown string approximating the Confluence storage XML."""
     text = storage_xml
 
+    # Stash raw HTML comments (e.g. specify-doc.prompt.md's
+    # "<!-- security-sign-off: ... -->" marker) into placeholders before
+    # any other processing, and restore them literally at the very end.
+    # Without this, "Strip any remaining HTML tags" near the end of this
+    # pipeline deletes them outright -- <!-- ... --> matches that step's
+    # <[^>]+> pattern exactly like a real tag would, since it has no
+    # notion of comments vs. tags. Placed first so every intermediate
+    # regex pass (including the ac:* stripping right below) can't touch
+    # a comment's contents either, on the same principle -- md_to_cf.py
+    # (the push side) has the matching fix so a round-trip preserves
+    # these end to end rather than mangling them on the way in and
+    # losing them on the way out.
+    _comments: list[str] = []
+
+    def _stash_comment(m: re.Match) -> str:
+        _comments.append(m.group(0))
+        return f"\x00SDD-COMMENT-{len(_comments) - 1}\x00"
+
+    text = re.sub(r"<!--.*?-->", _stash_comment, text, flags=re.DOTALL)
+
     # Confluence code macros → fenced code blocks
     text = re.sub(
         r'<ac:structured-macro ac:name="code">\s*'
@@ -30,9 +50,25 @@ def cf_to_md(storage_xml: str) -> str:
         flags=re.DOTALL,
     )
 
-    # Strip remaining ac:* elements (Confluence macros we don't handle)
+    # Strip remaining ac:* elements (Confluence macros we don't handle,
+    # e.g. <ac:image> diagram references -- local-svg mode's diagram
+    # attachment reference has no markdown equivalent, so it's dropped
+    # here rather than left as unresolvable raw XML).
+    #
+    # The closing tag MUST be captured via a backreference to the same
+    # tag name as the opening one -- a bare `<ac:[^>]+>.*?</ac:[^>]+>`
+    # (no backreference) pairs an opening tag with the next ac: closing
+    # tag of ANY name, not necessarily its own. Confirmed as a real,
+    # severe data-loss bug reported by a user: a page with an <ac:image>
+    # diagram followed later by any other unhandled/nested ac: element
+    # (e.g. a structured-macro's own nested <ac:rich-text-body>, or a
+    # second macro further down the page) had everything between the
+    # <ac:image> and that unrelated LATER closing tag silently deleted --
+    # in their case, 6 tables and an entire numbered section. The
+    # backreference guarantees this only ever spans exactly one element's
+    # own content, never past it into unrelated markup.
     text = re.sub(r"<ac:[^>]+/>", "", text)
-    text = re.sub(r"<ac:[^>]+>.*?</ac:[^>]+>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<ac:([a-zA-Z-]+)[^>]*>.*?</ac:\1>", "", text, flags=re.DOTALL)
 
     # Headings (h1–h6)
     for lvl in range(6, 0, -1):
@@ -89,6 +125,11 @@ def cf_to_md(storage_xml: str) -> str:
 
     # Normalise whitespace
     text = re.sub(r"\n{3,}", "\n\n", text)
+
+    # Restore stashed HTML comments
+    for i, comment in enumerate(_comments):
+        text = text.replace(f"\x00SDD-COMMENT-{i}\x00", comment)
+
     return text.strip()
 
 

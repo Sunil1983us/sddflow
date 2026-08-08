@@ -103,6 +103,20 @@ def md_to_storage(
             i += 1
             continue
 
+        # Raw HTML comment on its own line (e.g. specify-doc.prompt.md's
+        # "<!-- security-sign-off: ... -->" marker) -- passed through
+        # literally rather than falling into the paragraph branch below,
+        # which would run it through _inline()'s HTML-escaping and turn
+        # an invisible comment into visible garbage text on the page
+        # ("&lt;!-- security-sign-off: ... --&gt;"). See cf_to_md.py's
+        # matching fix on the pull side.
+        if re.match(r"^<!--.*-->\s*$", line):
+            flush_para()
+            flush_list()
+            out.append(line.strip())
+            i += 1
+            continue
+
         # Unordered list
         m = re.match(r"^[-*]\s+(.*)", line)
         if m:

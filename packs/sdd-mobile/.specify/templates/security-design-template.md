@@ -1,7 +1,7 @@
 # Security Design
 # App: {App Name}
-> Version: 1.0 | Date: {date: YYYY-MM-DD} | Generated at ALL scopes — depth scales
-> with scope (see section markers)
+> Version: 1.0 | Status: Draft | Date: {date: YYYY-MM-DD} | Generated at ALL
+> scopes — depth scales with scope (see section markers)
 >
 > **Living document** — describes the whole app's security baseline
 > (Keychain/Keystore usage, transport, MASVS controls), not one feature.

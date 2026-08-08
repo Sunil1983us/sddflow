@@ -193,3 +193,52 @@ class TestConfluencePushIncludesConstitutionByDefault:
 
         assert result.exit_code == 0, result.output
         assert "Demo — Constitution" in cf_client.pages_by_title
+
+
+class TestConfluencePushIncludesContextByDefault:
+    """Same bug class as TestConfluencePushIncludesConstitutionByDefault
+    above, found while auditing _DEFAULT_PAGE_MAP for this exact gap
+    after fixing "constitution": "context" was also missing, so a bare
+    `sdd confluence push` never included the context.md page either --
+    even though `sdd confluence draft --doc context` (what
+    /create-context actually calls) worked fine on its own."""
+
+    @pytest.fixture()
+    def bare_project_with_context(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".specify" / "contexts").mkdir(parents=True)
+        (tmp_path / ".specify" / "manifest.yml").write_text(
+            yaml.dump({"project": {"name": "Demo", "feature": "auth"}})
+        )
+        (tmp_path / ".specify" / "integrations.yml").write_text(
+            "profile: default\nconfluence:\n  space_key: ENG\n"
+        )
+        (tmp_path / ".specify" / "contexts" / "auth.md").write_text(
+            "# System Context — Auth\n\nWhat this service does.\n"
+        )
+        return tmp_path
+
+    def test_bare_push_creates_the_context_page(
+        self, bare_project_with_context, runner
+    ):
+        cf_client = FakeConfluenceClient()
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
+            result = runner.invoke(confluence.confluence_command, ["push"])
+
+        assert result.exit_code == 0, result.output
+        assert "auth — Context" in cf_client.pages_by_title
+        assert "What this service does." in cf_client.body_by_title["auth — Context"]
+
+    def test_explicit_doc_context_also_works(self, bare_project_with_context, runner):
+        """Was never broken -- --doc bypasses page_map lookup entirely,
+        same as --doc constitution."""
+        cf_client = FakeConfluenceClient()
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
+            result = runner.invoke(
+                confluence.confluence_command, ["push", "--doc", "context"]
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "auth — Context" in cf_client.pages_by_title

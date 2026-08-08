@@ -287,17 +287,26 @@ increment the document's `Version:` header (`1.0` → `1.1`, `1.1` → `1.2`,
 only if the feedback needed no content change (e.g. a clarifying question
 you answered without editing the document).
 
-2. Update the document header: flip its `Status:` value (`Draft` or
+2. Resolve the approver's name: find this gate's `accountable` role in
+   `.specify/memory/roles.yml` → `gates:` (match by document/command name;
+   `roles.yml`'s own comments name which gate maps to which document), then
+   look up that role key (e.g. `product_owner`) in `roles.yml`'s top-level
+   `roles:` map. If a non-empty name is filled in there, use it directly —
+   no need to ask. Only if `roles.yml` doesn't exist, the matching gate/role
+   entry is missing, or the value is still the shipped empty string (`""`),
+   ask once instead: "Recording the approval — approver name and an
+   optional comment?" (default comment if none given: "approved in chat").
+3. Update the document header: flip its `Status:` value (`Draft` or
    `Proposed`) to `Approved`, date → today.
-3. Update the Approvals table: all Pending rows → `Approved` + today's
-   date. Version History: append a row using the document's **current**
-   version (a pure approval doesn't bump it — only Revision Logging
-   above does that):
-   `| {current version} | {today} | {jira or chat} | Approved | — |`
-4. Re-save the document and regenerate its `.summary.md`.
-5. Ask once: "Recording the approval — approver name/role and an optional
-   comment?" (defaults: the accountable role for this gate in roles.yml;
-   "approved in chat")
+4. Update the Approvals table: all Pending rows → `Approved` + today's
+   date, and fill each row's `Approver` column with the name resolved in
+   step 2 — this is what makes "who actually approved this" visible
+   directly in the document, not just the role that was accountable for
+   it. Version History: append a row using the document's **current**
+   version (a pure approval doesn't bump it — only Revision Logging above
+   does that):
+   `| {current version} | {today} | {approver name from step 2} | Approved | — |`
+5. Re-save the document and regenerate its `.summary.md`.
 6. If the `sdd` CLI is installed, record it:
    `sdd review approve --doc {doc_key} --local --by "{approver}" --note "{comment}"`
    This also updates the document's existing Confluence page when a

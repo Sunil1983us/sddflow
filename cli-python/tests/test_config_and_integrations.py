@@ -32,6 +32,7 @@ EXPECTED_DOC_KEYS = [
     "lld",
     "runbook",
     "constitution",
+    "context",
 ]
 
 
@@ -510,6 +511,83 @@ class TestJiraConfigRobustness:
         assert cfg.profile == "default"
         assert cfg.jira.key_for("story") == "SUNT"
         assert cfg.jira.key_for("feature") == "MYPROJ"
+
+
+class TestIssueTypeFor:
+    """Regression coverage: a user asked to override the Jira issue type
+    per level the same way project_keys already supports (feature/story/
+    task/review/chg/cr), and found it silently didn't work. Root cause:
+    load_integrations() only ever populated "feature"/"story"/"task" in
+    the JiraConfig it built -- any "review"/"chg"/"cr" entry the user
+    wrote under issue_hierarchy: in integrations.yml was dropped on the
+    floor before JiraConfig even existed, regardless of what jira.py's
+    own `.get("chg", ...)` fallback code implied was possible."""
+
+    def test_defaults_match_pre_existing_behavior_when_unconfigured(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text("jira:\n  project_key: MYPROJ\n")
+        cfg = load_integrations()
+        assert cfg.jira.issue_type_for("feature") == "Feature"
+        assert cfg.jira.issue_type_for("story") == "Story"
+        assert cfg.jira.issue_type_for("task") == "Task"
+        assert cfg.jira.issue_type_for("review") == "Story"
+        assert cfg.jira.issue_type_for("chg") == "Task"
+        assert cfg.jira.issue_type_for("cr") == "Task"
+
+    def test_review_chg_cr_are_independently_overridable(self, tmp_path, monkeypatch):
+        """The exact gap reported: previously these three were silently
+        dropped from issue_hierarchy no matter what was written here."""
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n"
+            "  project_key: MYPROJ\n"
+            "  issue_hierarchy:\n"
+            "    review: Bug\n"
+            "    chg: Change\n"
+            "    cr: Change Request\n"
+        )
+        cfg = load_integrations()
+        assert cfg.jira.issue_type_for("review") == "Bug"
+        assert cfg.jira.issue_type_for("chg") == "Change"
+        assert cfg.jira.issue_type_for("cr") == "Change Request"
+        # feature/story/task untouched by the partial override
+        assert cfg.jira.issue_type_for("feature") == "Feature"
+        assert cfg.jira.issue_type_for("story") == "Story"
+        assert cfg.jira.issue_type_for("task") == "Task"
+
+    def test_epic_is_accepted_as_an_alias_for_feature(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n  project_key: MYPROJ\n  issue_hierarchy:\n    epic: Initiative\n"
+        )
+        cfg = load_integrations()
+        assert cfg.jira.issue_type_for("feature") == "Initiative"
+        assert cfg.jira.issue_type_for("epic") == "Initiative"
+
+    def test_review_ticket_creation_uses_the_configured_type(
+        self, tmp_path, monkeypatch
+    ):
+        """End-to-end: review.py's Jira review-story creation must
+        actually call issue_type_for("review"), not silently reuse
+        "story"'s type."""
+        from sdd.utils.integrations import JiraConfig
+
+        cfg = JiraConfig(
+            project_key="MYPROJ", issue_hierarchy={"review": "Bug", "story": "Story"}
+        )
+        assert cfg.issue_type_for("review") == "Bug"
+
+    def test_cr_review_task_uses_the_configured_type(self, tmp_path, monkeypatch):
+        """Same as above for cr.py's CR review-task creation."""
+        from sdd.utils.integrations import JiraConfig
+
+        cfg = JiraConfig(project_key="MYPROJ", issue_hierarchy={"cr": "Change Request"})
+        assert cfg.issue_type_for("cr") == "Change Request"
 
 
 def test_jira_custom_fields_by_level_default_to_common_mapping(tmp_path, monkeypatch):

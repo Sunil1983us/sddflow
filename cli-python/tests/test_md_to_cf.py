@@ -178,6 +178,36 @@ class TestDiagramMacros:
         assert "&lt;D&gt;" in html
 
 
+class TestHtmlComments:
+    """Regression coverage: a raw HTML comment on its own line (e.g.
+    specify-doc.prompt.md's "<!-- security-sign-off: ... -->" marker)
+    used to fall through to the generic paragraph branch, which runs
+    every line through _inline()'s HTML-escaping -- turning an invisible
+    comment into VISIBLE garbage text on the actual Confluence page
+    ("&lt;!-- security-sign-off: ... --&gt;"). Reported by a user during
+    a Confluence review round-trip. See test_cf_to_md.py's matching
+    TestHtmlComments for the pull-side half of this fix."""
+
+    def test_comment_line_is_not_html_escaped(self):
+        md = "<!-- security-sign-off: pending | reviewer: X | date: 2026-08-08 -->"
+        html, _, _ = md_to_storage(md)
+        assert html == md
+        assert "&lt;" not in html
+        assert "&gt;" not in html
+
+    def test_comment_line_is_not_wrapped_in_a_paragraph_tag(self):
+        md = "<!-- security-sign-off: pending -->"
+        html, _, _ = md_to_storage(md)
+        assert "<p>" not in html
+
+    def test_comment_between_real_content_does_not_disturb_neighbors(self):
+        md = "Some content.\n\n<!-- marker -->\n\n## Approvals\n"
+        html, _, _ = md_to_storage(md)
+        assert "<p>Some content.</p>" in html
+        assert "<!-- marker -->" in html
+        assert "<h2>Approvals</h2>" in html
+
+
 class TestLocalSvgMode:
     """diagrams.mode: local-svg -- render a ```mermaid fence to SVG
     locally (no Confluence app, no network call), reference it via

@@ -1,7 +1,7 @@
 # Security Design
 # Service: {Service Name}
-> Version: 1.0 | Date: {date: YYYY-MM-DD} | Generated at ALL scopes — depth scales
-> with scope (see section markers)
+> Version: 1.0 | Status: Draft | Date: {date: YYYY-MM-DD} | Generated at ALL
+> scopes — depth scales with scope (see section markers)
 >
 > **Living document** — describes the whole service's security baseline,
 > not one feature. Lives at `.specify/service/security-design.md`. Every

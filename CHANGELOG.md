@@ -4,6 +4,461 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.36] — 2026-08-08 (Fix: brd.md's ACT-NNN stakeholder IDs never got back-filled by `/specify-uc`)
+
+Found by a user: after the BRD is created and `/specify-uc` runs, `brd.md`
+§3 Stakeholders table still showed `_(set by /specify-uc)_` placeholders
+instead of real `ACT-NNN` values.
+
+### Fixed
+
+`specify-uc.prompt.md`'s instruction to back-fill `brd.md` §3 existed and
+was in the right place, but had almost no structural weight — a single
+bolded inline paragraph with no heading, sandwiched between the
+"Save to:"/"Write:" bullets and the "Draft Jira Stories" paragraph, never
+referenced again in the command's own completion message. Nothing in the
+command's output confirmed whether the back-fill had actually happened —
+the same failure mode as v2.8.34's `brd.md` Build Effort field, which was
+fixed the same way there.
+
+Promoted it to its own `### Back-fill BRD Stakeholders (mandatory — do
+not skip)` heading with explicit numbered steps (match each remaining
+placeholder row to its actor by role, resolve every cell to a real
+`ACT-NNN` or `_(N/A)_`, save + regenerate `brd.summary.md`), and added a
+line to the completion message confirming it happened by name.
+
+### Verified
+
+- cli-python pytest 904/904
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `sync-blocks.sh` confirmed idempotent
+
+---
+
+## [2.8.35] — 2026-08-08 (Audit: review-gate consistency across every living and feature document — 2 behavioural gaps + 1 sync-tooling bug)
+
+Requested audit: check that every living document (Data Model, Security
+Design, API Spec) and feature document creates a review ticket, pushes to
+Confluence, and pulls review from Jira/Confluence the same way when
+either is configured — falling back to chat otherwise. Found two real
+behavioural gaps, and a third issue in the sync tooling itself while
+fixing one of them.
+
+### Fixed
+
+**1. `validate`/`analyze`/`clarify` skipped the Confluence-only fallback.**
+These three documents only ever called `sdd review submit` (which
+requires both `jira:` and `confluence:` configured, confirmed in the
+CLI) and fell straight to pure chat mode if it failed. Every other
+reviewed document falls through to `sdd confluence draft` first when
+only Confluence is configured. In a Confluence-only project, these three
+documents silently never reached Confluence — contradicting the
+project's own "Confluence stays in sync in every mode" claim. Fixed by
+switching them onto the same shared submission/approval blocks the
+other 12 review-gated commands already use, preserving each document's
+own approval-scope caveat as trailing prose.
+
+**2. `api-spec.md`'s first version never got a review ticket.** Unlike
+its sibling living documents (Data Model, Security Design), the API
+Spec — generated inside `/plan-design` on the first service-providing
+feature — had no submission step on first creation. It only reached
+Confluence/Jira later, when a subsequent feature updated it. Fixed by
+adding the same shared submission block right after first-time
+generation, independent of `design.md`'s own approval.
+
+**3. `sync-blocks.sh` ran its two sync passes in the wrong order.** Ten
+`.github/prompts/` files that are synced whole-file from `_shared/full/`
+(`specify-brd`, `specify-uc`, `specify-srd`, `specify-doc`, `plan-arch`,
+`plan-hld`, `plan-adr`, `plan-design`, `plan-lld`, `task`) also embed the
+shared submission/approval block markers — but the full-file sync ran
+*after* the marker-fill pass, so every run silently overwrote the
+just-refreshed marker content with whatever stale copy was baked into
+`_shared/full/`'s own file. Confirmed live: `validate.prompt.md` (never
+full-file-synced) had the current approval logic; `specify-brd.prompt.md`
+(full-file-synced) was missing a step added to the canonical block since
+these files were last hand-synced — same pack, same sync run. Fixed by
+reordering the two passes so the marker-fill pass always runs last, and
+refreshed the 10 files' own stale embedded copies. Added a rule to
+`packs/_shared/README.md` documenting the gotcha.
+
+### Verified
+
+- cli-python pytest 904/904
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `assert-output.sh` clean against `examples/todo-api` (33/33)
+- Three consecutive `sync-blocks.sh` runs confirmed idempotent (zero
+  diffs after the first)
+
+---
+
+## [2.8.34] — 2026-08-08 (Fix: two sequencing bugs found during real `/checklist` testing — one a genuine framework logic conflict)
+
+Found by a user running the framework end-to-end: after approving the last
+extended document, then running `/checklist`.
+
+### Fixed
+
+**1. `/specify-doc` chat message skipped the mandatory `/checklist` gate.**
+The dashboard correctly showed "Spec Quality Checklist" as the next step at
+mvp+/full scope, but the "all documents complete" chat message named
+`/validate` unconditionally — a pure prompt-text bug with zero awareness
+that `/checklist` is mandatory (not optional) at that scope. Fixed
+`specify-doc.prompt.md`'s "none remain" branch to check
+`manifest.project.scope`: mvp/full now names `/checklist` (mandatory) as
+the next command; pilot still offers it as optional before `/validate`.
+
+**2. `brd.md` generated an unresolvable `[NEEDS CLARIFICATION]` marker by
+design.** `brd-template.md` §9's "Build effort (T-shirt)" row was written
+as "Derived from analyze.md (filled after /analyze)" under a blanket rule
+that marks any unfilled Investment Summary item `[NEEDS CLARIFICATION]` —
+but `analyze.md` doesn't exist until `/analyze` runs, which is *after*
+`/validate` in the pipeline order (SPECIFY → GATE-1 → VALIDATE → ANALYZE),
+and `checklist.prompt.md`'s CRITICAL rule blocks `/validate` on any
+unresolved marker with no per-field exception. A user's own `/checklist`
+run surfaced this exact conflict. Three-part fix:
+- `brd-template.md` §9 now writes plain deferred text — "Pending —
+  estimated after /analyze" — for this field, never a
+  `[NEEDS CLARIFICATION]` marker.
+- `analyze.prompt.md` gained a new "Update BRD Build Effort" step that
+  actually implements the template's own long-standing but
+  never-implemented promise: derives a T-shirt size from the COMPLEXITY
+  ratings `/analyze` just produced and writes it back into `brd.md` §9.
+- `checklist.prompt.md`'s CRITICAL rule #1 gained an explicit
+  known-exception carve-out for this field, as a defensive safety net for
+  any `brd.md` generated before this fix.
+
+`specify-doc.prompt.md`, `brd-template.md`, and `checklist.prompt.md` are
+`_shared/full/` sources — edited once, synced to all 5 packs.
+`analyze.prompt.md` is authored per-pack — the same "Update BRD Build
+Effort" step was added individually to all 5 packs, verified identical.
+
+### Verified
+
+- cli-python pytest 904/904 (no Python code touched, only markdown/prompt
+  files)
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `assert-output.sh` clean against `examples/todo-api` (33/33)
+
+---
+
+## [2.8.33] — 2026-08-08 (Fix: 4 real bugs found during a living-document review cycle — one a genuine data-corruption bug)
+
+Found by a user actually testing the framework — approving a Data Model
+document, then generating and reviewing a Security Design document.
+
+### Fixed
+
+**1. Document corruption in `sdd review approve --local`.** The Status-header
+flip used an unanchored regex-replace across the **entire** document, not
+just the real header. `data-model.md`'s own template (unlike every other
+spec template) had no `Status: Draft` header field at all, so the regex's
+first — and only — match was a §3 enum field written as `RuleVersionStatus:
+DRAFT, SUBMITTED, PUBLISHED, RETIRED`, silently mangled into
+`RuleVersionStatus: Approved, SUBMITTED, PUBLISHED, RETIRED`. Fixed by
+scoping the flip to the document's front matter (before the first `## `
+heading). Root cause addressed too: added a missing `Status: Draft` header
+field to `data-model-template.md` and `security-design-template.md` across
+all 5 packs, restoring correct Draft/Approved tracking for these two living
+docs.
+
+**2. Severe Confluence-pull data loss.** `cf_to_md.py`'s "strip remaining
+`ac:*` elements" cleanup paired an opening `ac:` tag with the *next* `ac:`
+closing tag of any name, not necessarily its own. A page with a `local-svg`
+diagram, followed later by another unhandled/nested `ac:` element, had
+everything between them silently deleted — 6 tables and an entire numbered
+section, in the reporting user's case. Fixed with a backreference so a
+match can only ever span exactly one element's own content.
+
+**3. HTML comments mangled on both push and pull.** A comment like
+`specify-doc.prompt.md`'s required `<!-- security-sign-off: ... -->` marker
+fell through to the paragraph branch on push, HTML-escaping it into
+*visible* garbage text on the actual Confluence page, then got deleted
+outright by the generic tag-stripper on pull. Fixed on both sides.
+
+**4. `security` vs `security-design` doc-key inconsistency.** `specify-doc.prompt.md`'s
+own prose calls it `/specify-doc security`, but `sdd review submit --doc
+security` and `sdd confluence draft --doc security` both fail — every `sdd`
+command actually requires `security-design`. Added an explicit resolution
+rule right after the command's Input section.
+
+### Verified
+
+- `cli-python` pytest 904/904 (892 pre-existing + 12 new regression tests
+  covering all four bugs, including the exact reported corruption/data-loss
+  shapes).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean.
+- `check-cross-references.py` clean across all 6 packs; `test-setup.sh`
+  (19/19) and `test-setup-micro.sh` (12/12) both pass.
+
+---
+
+## [2.8.32] — 2026-08-08 (Add: project-level "Living Documents" dashboard section)
+
+Reported by a user: they couldn't find **Data Model** on the dashboard at
+all, and after generating it its status stuck showing "waiting for
+review." The second part turned out to be correct — a Draft document is
+genuinely awaiting approval — but the first part was a real gap.
+
+Data Model and Security Design are living/service-level documents: one
+shared file for the *whole project* (`.specify/service/{key}.md`), not
+per-feature. But the dashboard only ever inserted them as ordinary steps
+inside each **feature's own** pipeline card — meaning on a multi-feature
+project the same document showed up duplicated once per feature card,
+each computed from the identical underlying file, and neither instance
+had the Approve button, Confluence/Jira links, or Details panel every
+per-feature document already gets (the per-feature Documents table only
+ever scanned `.specify/features/{feature}/`, never `.specify/service/`).
+
+### Added
+
+- New project-level **"Living Documents"** dashboard section, shown once
+  between the Project/Constitution cards and the Features Overview table —
+  not nested inside any one feature. Full functionality: status badge,
+  Approve button, Confluence/Jira links, and the same Details panel
+  (Content/Approvals/Comments) every per-feature document has.
+- `_service_level_docs()` in `status.py`, exposed as `living_documents` /
+  `living_local_links` in the dashboard's JSON.
+
+### Fixed
+
+- Removed the duplicated Data Model / Security Design steps from every
+  feature's own pipeline — they now appear exactly once, at the project
+  level, regardless of how many features exist.
+
+### Known follow-up
+
+- `api-spec` and `component-library` (also living/service-level docs) are
+  **not** included in this section yet — `api-spec` has no standalone
+  `/specify-doc` command to link to (it's produced by `/plan-design §3`),
+  and neither has dashboard tracking to build on. Real gap, separate scope.
+
+### Verified
+
+- `cli-python` pytest 892/892 (889 pre-existing, net +3 — 5 tests
+  rewritten against the new function, 3 new end-to-end tests added,
+  including the exact reported multi-feature duplication scenario).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean; `node --check` on `app.js` clean.
+
+---
+
+## [2.8.31] — 2026-08-08 (Fix: re-pushing a local-svg diagram to Confluence a second time always failed)
+
+Reported by a user during testing: pushed a page with a `local-svg` diagram
+once successfully, then re-pushed it (no content change) — the SVG
+attachment upload failed **every single time** with:
+
+```
+BadRequestException: Cannot add a new attachment with same file name as
+an existing attachment: diagram-1.svg
+```
+
+The page body itself still updated fine, so the failure was easy to miss
+unless you were watching stderr — but the diagram attachment silently
+never got its new content.
+
+`confluence_client.py`'s `upload_attachment()` always POSTed to
+Confluence's *create*-a-new-attachment endpoint. Its own docstring claimed
+Confluence auto-versions an existing same-named attachment the way page
+updates do — **that claim was simply wrong**. Confluence Cloud rejects a
+second create with an already-existing filename outright. Updating an
+existing attachment's content requires a different endpoint entirely
+(`POST .../child/attachment/{attachmentId}/data`), which needs the
+attachment's ID first.
+
+### Fixed
+
+- New `get_attachment_by_filename()` lookup (Confluence's attachment-list
+  endpoint supports filtering by filename server-side — one extra call, not
+  a fetch-all-and-scan). `upload_attachment()` now checks for an existing
+  same-named attachment first and routes to the update-data endpoint when
+  one exists, the create endpoint otherwise. A page's first push (no
+  existing attachment) behaves identically to before; only the
+  second-and-later push of the same diagram was affected — exactly what
+  was broken.
+
+### Verified
+
+- `cli-python` pytest 889/889 (882 pre-existing + 7 new: `TestGetAttachmentByFilename`
+  and `TestUploadAttachmentUpdatesExisting`, covering the lookup and both
+  the create and update-data code paths — including the exact reported
+  collision scenario).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+
+---
+
+## [2.8.30] — 2026-08-08 (Add: document_reviews examples for living/service-level docs)
+
+Follow-up to the previous round's `issue_hierarchy`/`page_map` audit: a user
+asked to double-check `data-model`, `security-design`, `api-spec`, and
+`component-library` were fully documented in `integrations.yml.example`.
+They had a `page_map` entry (Confluence) each, but no `document_reviews`
+entry (Jira) anywhere in the shipped example — confirmed as by-design
+(`specify-doc.prompt.md`'s documented fallback: `sdd review submit` fails
+with no `document_reviews` entry, falls through to `sdd confluence draft`
+instead of silently dropping to chat mode), but a team that *does* want a
+formal Jira gate on one of these had nothing to copy from.
+
+### Added
+
+- Commented-out `document_reviews` example entries for all four living/
+  service-level docs. Each gets its **own single-entry phase** (e.g.
+  `phase: data-model, sequence: 1`) rather than sharing one with each other
+  or with `design` — they're independent (any order, no dependency between
+  them), and the predecessor check gates strictly on matching phase +
+  `sequence - 1`, so sharing a phase would wrongly block one doc on
+  another's approval.
+
+All four entries stay fully commented out by default — active
+`document_reviews`/`page_map` keys, and every existing project's behavior,
+are completely unaffected.
+
+### Verified
+
+- `cli-python` pytest 882/882 (no change — inert commented content); the
+  file still parses as valid YAML and the active key sets are unchanged.
+- `check-cross-references.py` clean across all 6 packs; `test-setup.sh`
+  (19/19) and `test-setup-micro.sh` (12/12) both pass.
+
+---
+
+## [2.8.29] — 2026-08-08 (Fix: bare Confluence push missing the context.md page)
+
+Prompted by a user asking to double-check `integrations.yml.example`
+documented everything discussed in the previous round. Re-reading it end to
+end turned up a real gap: **`context` was missing entirely** — not in
+`page_map`, not in the code's default page map — the exact same bug class
+fixed for `constitution` back in v2.8.23, just never caught for `context.md`
+at the time.
+
+`confluence.py` special-cases `"context"` to always resolve to `"{feature}
+— Context"` regardless of `page_map`, so `sdd confluence draft --doc
+context` (what `/create-context` actually calls) always worked fine on its
+own. But a bare `sdd confluence push` (no `--doc`) iterates
+`page_map.keys()`, and `"context"` was never in that set — so a bulk push
+silently never attempted the context page.
+
+### Fixed
+
+- Added `"context"` to `_DEFAULT_PAGE_MAP` (`sdd/utils/integrations.py`),
+  the wizard's minimal fallback template (`_integrations_template()` in
+  `sdd/commands/config.py`), and `integrations.yml.example`'s `page_map`
+  (with the same "value is ignored, only presence matters" comment already
+  on the `constitution` entry).
+
+### Verified
+
+- `cli-python` pytest 882/882 (880 pre-existing + 2 new:
+  `TestConfluencePushIncludesContextByDefault`, mirroring the existing
+  constitution regression test class).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+- `check-cross-references.py` clean across all 6 packs; `test-setup.sh`
+  (19/19) and `test-setup-micro.sh` (12/12) both pass.
+
+---
+
+## [2.8.28] — 2026-08-08 (Jira issue-type overrides, CR parent linking, constitution draft push)
+
+Prompted by a user request: `project_keys` already lets you override the
+Jira **project** per level (`feature`/`story`/`task`/`review`/`chg`/`cr`) —
+they asked for the same on the Jira **issue type**, plus a clear explanation
+of the parent-child hierarchy and what distinguishes `chg` from `cr`.
+
+Investigating found the issue-type overrides didn't actually work at all:
+`load_integrations()` built the Jira config with only `feature`/`story`/
+`task` hardcoded, silently dropping any `review`/`chg`/`cr` entry written
+under `issue_hierarchy:` — even though the per-call-site fallback code
+implied it was supported. Also found, while tracing the hierarchy: `sdd cr
+submit`'s Change Request review ticket was the only Jira issue type this
+CLI ever created with **no parent link at all** — every other type (Epic,
+Story, Task, review tickets) nests under the Epic; CR review tickets just
+sat standalone.
+
+### Added
+
+- `JiraConfig.issue_type_for(level)` — resolves the Jira issue type for
+  `feature`/`story`/`task`/`review`/`chg`/`cr` (plus the `epic` alias for
+  `feature`), honoring `issue_hierarchy:` overrides. Every issue-creation
+  call site in `jira.py`/`review.py`/`cr.py` now routes through it.
+- `sdd cr submit` now self-bootstraps the Epic and links the CR review
+  ticket under it, matching every other issue type.
+- Documented the full parent-child hierarchy and the `cr`-vs-`chg`
+  distinction directly in `integrations.yml.example`'s `issue_hierarchy`
+  comment block (the canonical source synced to every pack) and in
+  `cli-python/README.md`: **`cr`** is the Change Request's own approval
+  ticket (one per CR-NNN); **`chg`** is an individual dev task implementing
+  one line of an already-approved CR's plan (one per CHG-NNN row, parented
+  to whichever Story satisfies its FR-NNN reference — not to its own `cr`
+  ticket).
+- `constitution.md`'s DRAFT now pushes to Confluence immediately when
+  `/specify` first generates it — same as `context.md`'s own draft push in
+  `/create-context` — instead of only once GATE-1 finalization pushes it.
+  A reviewer can now comment on the constitution in Confluence before
+  finalizing, not only after.
+
+### Fixed
+
+- `issue_hierarchy: {review: ..., chg: ..., cr: ...}` overrides in
+  `integrations.yml` are no longer silently discarded.
+
+### Verified
+
+- `cli-python` pytest 880/880 (874 pre-existing + 6 new: `TestIssueTypeFor`
+  covering defaults, independent review/chg/cr overrides, and the epic
+  alias; `TestCrSubmitParentLink` verifying the Epic self-bootstrap +
+  parent link).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+- `check-cross-references.py` clean across all 6 packs; `test-setup.sh`
+  (19/19) and `test-setup-micro.sh` (12/12) both pass.
+
+---
+
+## [2.8.27] — 2026-08-08 (Fix: {Feature Name} document header had no defined source)
+
+Reported by a user: a generated BRD's `# Feature: {Feature Name}` header
+showed "NIPE Validation Service" while `manifest.yml` said `name:
+Validation` — the two had silently diverged.
+
+`{Feature Name}` is used as a header placeholder in ~20 templates across
+every pack (BRD, SRD, use-cases, design, tasks, release, etc.), but only
+**one** place in any prompt file ever explicitly defined what it should
+resolve to (the Jira Epic Summary line in `specify-brd.prompt.md`). Every
+document-header instance was left to each session's judgment, so it could
+silently drift to `context.md`'s own free-text title instead of
+`manifest.yml` — and could even differ document-to-document within the same
+project.
+
+### Added
+
+- New shared block `_shared/blocks/feature-name-convention.md`, inserted
+  into each pack's `CLAUDE.md` right after the "Confirm: project.name,
+  scope, feature, context_file" startup step (read at the start of every
+  session, before any document is generated). States explicitly:
+  `{Feature Name}` = `manifest.yml` `project.name` (falling back to
+  `project.feature`), never `context.md`'s title.
+- Applied to all 5 lockstep packs (backend-service, frontend-spa, fullstack,
+  mobile, universal). `sdd-micro` is intentionally excluded — it's outside
+  the shared-block sync system and has no BRD/SRD/etc. templates using this
+  placeholder.
+
+### Verified
+
+- `python3 packs/_shared/tests/check-cross-references.py --verbose` clean
+  across all 6 packs.
+- `packs/_shared/tests/test-setup.sh` (19/19) and `test-setup-micro.sh`
+  (12/12) both pass.
+- Manually confirmed identical shared-block content across all 5 packs'
+  `CLAUDE.md`.
+
+---
+
 ## [2.8.26] — 2026-08-08 (Fix: "Error loading the extension!" on Confluence after Jira approval)
 
 Reported by a user right after approving a BRD: its Confluence page showed

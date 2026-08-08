@@ -263,7 +263,16 @@ Set/bump Part 2 version line:
 - Re-run on finalized Part 2: bump v{X.Y} → v{X.Y+1}, Amended By = CHG-NNN or "manual /specify re-run"
 
 Save updated constitution.md — Part 1 unchanged, Part 2 is a DRAFT.
-List any `[MISSING — ask user]` rows as Open Items. State: "Constitution Part 2 generated — DRAFT. Review and finalize every row (GATE-1) before /validate."
+List any `[MISSING — ask user]` rows as Open Items.
+If `.specify/integrations.yml` has a `confluence:` section, push this
+DRAFT now too — same as context.md's own draft push in
+`/create-context`, so a reviewer can comment on the constitution in
+Confluence before GATE-1, not only after it: `sdd confluence push --doc
+constitution`. Skip silently if `confluence:` is not configured, or the
+command fails (this is a convenience push, not a gate — GATE-1
+finalization's own push below re-syncs the page regardless of whether
+this one succeeded).
+State: "Constitution Part 2 generated — DRAFT. Review and finalize every row (GATE-1) before /validate."
 
 ---
 

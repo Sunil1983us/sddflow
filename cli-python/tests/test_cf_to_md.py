@@ -28,6 +28,124 @@ class TestTables:
         # separating cells at all.
         assert back.count("\n") >= 2
 
+
+class TestHtmlComments:
+    """Regression coverage: an HTML comment surviving push (see
+    test_md_to_cf.py's matching TestHtmlComments) still has to survive
+    the pull direction too. Before this fix, "Strip any remaining HTML
+    tags" near the end of cf_to_md()'s pipeline deleted any <!-- ... -->
+    outright -- it matches that step's generic <[^>]+> pattern exactly
+    like a real tag would, since the regex has no notion of comments vs.
+    tags. Reported by a user: specify-doc.prompt.md's own
+    "<!-- security-sign-off: ... -->" marker vanished after a Confluence
+    review round-trip (draft -> edit in Confluence -> sdd confluence
+    pull)."""
+
+    def test_comment_survives_the_full_round_trip(self):
+        md = (
+            "# Security Design\n\n"
+            "Some content.\n\n"
+            "<!-- security-sign-off: pending | reviewer: X | date: 2026-08-08 -->\n\n"
+            "## Approvals\n"
+        )
+        storage = md_to_storage(md)[0]
+        back = cf_to_md(storage)
+        assert (
+            "<!-- security-sign-off: pending | reviewer: X | date: 2026-08-08 -->"
+            in back
+        )
+        assert "Some content." in back
+        assert "## Approvals" in back
+
+    def test_comment_is_not_swallowed_by_the_generic_tag_stripper(self):
+        """Direct test of the pull-side fix, independent of the push
+        side -- feeds storage-format XML with a bare, unescaped comment
+        straight in, matching what a real Confluence page returns."""
+        html = "<p>Before.</p>\n<!-- a raw comment -->\n<p>After.</p>\n"
+        back = cf_to_md(html)
+        assert "<!-- a raw comment -->" in back
+        assert "Before." in back
+        assert "After." in back
+
+    def test_comment_contents_are_not_touched_by_other_conversion_steps(self):
+        """A comment containing characters that would otherwise trigger
+        other regex passes (asterisks, pipes) must come back verbatim,
+        not partially converted."""
+        html = "<!-- *not bold* | not | a | table -->"
+        back = cf_to_md(html)
+        assert back == "<!-- *not bold* | not | a | table -->"
+
+
+class TestAcTagStripping:
+    """Regression coverage for a severe, real data-loss bug: the
+    "strip remaining ac:* elements" cleanup step used
+    `<ac:[^>]+>.*?</ac:[^>]+>` -- pairing an opening ac: tag with the
+    next ac: CLOSING tag of ANY name, not necessarily its own. Reported
+    by a user: a page with a local-svg <ac:image> diagram, followed
+    later by another unhandled/nested ac: element (e.g. a structured-
+    macro's own nested <ac:rich-text-body>), had everything between the
+    <ac:image> and that unrelated LATER closing tag silently deleted --
+    6 tables and an entire numbered section, in their case. The fix
+    requires the closing tag to match the opening tag's own name via a
+    backreference."""
+
+    def test_diagram_image_followed_by_unrelated_content_is_preserved(self):
+        """The exact reported shape: an <ac:image> diagram, then real
+        document content (a table, a heading, a paragraph), then a
+        later unhandled macro with its OWN nested ac: element. Before
+        the fix, everything between <ac:image> and the nested
+        <ac:rich-text-body>'s closing tag vanished."""
+        html = (
+            '<ac:image ac:width="900">'
+            '<ri:attachment ri:filename="diagram-1.svg" />'
+            "</ac:image>\n"
+            "<table><tbody><tr><td>Table 1 content</td></tr></tbody></table>\n"
+            "<h2>3. Enums</h2>\n"
+            "<p>RuleVersionStatus values</p>\n"
+            '<ac:structured-macro ac:name="info">'
+            "<ac:rich-text-body><p>unrelated note</p></ac:rich-text-body>"
+            "</ac:structured-macro>\n"
+        )
+        back = cf_to_md(html)
+        assert "Table 1 content" in back
+        assert "## 3. Enums" in back
+        assert "RuleVersionStatus values" in back
+        # The diagram reference itself and the unrelated macro are both
+        # correctly stripped (neither has a markdown equivalent) -- just
+        # not the real content sitting between them.
+        assert "ac:image" not in back
+        assert "ac:structured-macro" not in back
+        assert "unrelated note" not in back
+
+    def test_diagram_alone_on_a_page_is_stripped_cleanly(self):
+        html = (
+            "<p>Before the diagram.</p>\n"
+            '<ac:image ac:width="900">'
+            '<ri:attachment ri:filename="diagram-1.svg" />'
+            "</ac:image>\n"
+            "<p>After the diagram.</p>\n"
+        )
+        back = cf_to_md(html)
+        assert "Before the diagram." in back
+        assert "After the diagram." in back
+        assert "ac:image" not in back
+        assert "ri:attachment" not in back
+
+    def test_two_separate_macros_each_only_consume_their_own_content(self):
+        html = (
+            '<ac:structured-macro ac:name="note">'
+            "<ac:rich-text-body><p>first macro body</p></ac:rich-text-body>"
+            "</ac:structured-macro>\n"
+            "<p>Real content between the two macros must survive.</p>\n"
+            '<ac:structured-macro ac:name="warning">'
+            "<ac:rich-text-body><p>second macro body</p></ac:rich-text-body>"
+            "</ac:structured-macro>\n"
+        )
+        back = cf_to_md(html)
+        assert "Real content between the two macros must survive." in back
+        assert "first macro body" not in back
+        assert "second macro body" not in back
+
     def test_no_run_on_line_for_a_wide_table(self):
         """The exact shape reported as broken: a multi-column,
         multi-row table must come back as one row per line, not one
