@@ -15,6 +15,8 @@ from sdd.commands.config import (
 from sdd.utils import atlassian_auth
 from sdd.utils.integrations import (
     _DEFAULT_PAGE_MAP,
+    IntegrationsConfigError,
+    JiraConfigError,
     load_integrations,
     parse_confluence_page_id,
 )
@@ -29,6 +31,7 @@ EXPECTED_DOC_KEYS = [
     "adr",
     "lld",
     "runbook",
+    "constitution",
 ]
 
 
@@ -79,7 +82,6 @@ def test_shipped_example_parses_and_agrees_with_defaults():
         "security-design",
         "api-spec",
         "component-library",
-        "constitution",
         "release",
     }
     # active document_reviews ships in unified mode: design yes, arch/hld/adr commented
@@ -355,6 +357,159 @@ def test_jira_project_keys_override_specific_levels(tmp_path, monkeypatch):
     assert cfg.jira.key_for("review") == "SUN"  # not overridden -- falls back
     assert cfg.jira.key_for("story") == "SUNT"
     assert cfg.jira.key_for("task") == "SUNT"
+
+
+class TestJiraConfigRobustness:
+    """Regression coverage for a real user-reported bug: `sdd jira push
+    --level epic` crashed with `AttributeError: 'dict' object has no
+    attribute 'replace'` deep inside jira_client.py's find_by_label().
+    Root cause (confirmed by the reporting user): a hand-edited
+    integrations.yml had a second `project_key:` block under `jira:`
+    that should have been `project_keys:` (plural) -- YAML silently
+    keeps only the last occurrence of a duplicate mapping key, so the
+    plain string from the first block was clobbered by a dict from the
+    second. Two independent hardening layers now cover this: duplicate
+    keys are rejected at parse time (closest to the actual mistake), and
+    JiraConfig.key_for()/parent_field_for() validate the resolved value
+    is a string regardless of how it got malformed."""
+
+    def test_duplicate_project_key_is_rejected_at_load_time(
+        self, tmp_path, monkeypatch
+    ):
+        """The exact shape reported as broken: project_key: written
+        twice, the second time as what should have been project_keys:
+        (plural, with per-level overrides nested under it)."""
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n"
+            "  project_key: VAL\n"
+            "  project_key:\n"
+            "    story: VALT\n"
+            "    task: VALT\n"
+        )
+        with pytest.raises(IntegrationsConfigError, match="Duplicate key"):
+            load_integrations()
+
+    def test_duplicate_key_error_names_the_line_and_suggests_the_fix(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n  project_key: VAL\n  project_key:\n    story: VALT\n"
+        )
+        with pytest.raises(IntegrationsConfigError) as exc_info:
+            load_integrations()
+        message = str(exc_info.value)
+        assert "line 3" in message
+        assert "project_keys" in message  # the "did you mean" hint
+
+    def test_duplicate_key_elsewhere_in_the_file_is_also_caught(
+        self, tmp_path, monkeypatch
+    ):
+        """Not jira-specific -- any duplicate top-level or nested key in
+        integrations.yml silently clobbers the earlier value the same
+        way, so the detector isn't scoped to jira: alone."""
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n  project_key: MYPROJ\n"
+            "confluence:\n  space_key: ENG\n  space_key: OTHER\n"
+        )
+        with pytest.raises(IntegrationsConfigError, match='Duplicate key "space_key"'):
+            load_integrations()
+
+    def test_project_key_as_a_mapping_raises_a_clear_error_not_an_attributeerror(
+        self, tmp_path, monkeypatch
+    ):
+        """Same underlying malformed-value problem as the duplicate-key
+        case, but via a single occurrence with the wrong shape (e.g.
+        copying Jira's own `{"key": "..."}` REST payload shape into the
+        YAML instead of a bare string) -- key_for()'s own type check is
+        the second line of defense here, independent of the duplicate-
+        key detector."""
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n  project_key: MYPROJ\n  project_keys:\n    feature:\n      key: SUN\n"
+        )
+        cfg = load_integrations()
+        with pytest.raises(JiraConfigError, match="project_keys.feature"):
+            cfg.jira.key_for("feature")
+
+    def test_parent_field_as_a_mapping_raises_a_clear_error(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n  project_key: MYPROJ\n  parent_field_by_level:\n"
+            "    story:\n      field: customfield_10014\n"
+        )
+        cfg = load_integrations()
+        with pytest.raises(JiraConfigError, match="parent_field_by_level.story"):
+            cfg.jira.parent_field_for("story")
+
+    def test_epic_is_accepted_as_an_alias_for_feature_in_project_keys(
+        self, tmp_path, monkeypatch
+    ):
+        """The CLI's own `--level epic` flag (see jira.py's _LEVELS)
+        doesn't match project_keys' documented "feature" key -- and
+        jira.py's push code always resolves via key_for("feature"),
+        never key_for("epic"). A user writing `project_keys: {epic:
+        SUN}` (matching the CLI's own terminology) must still work."""
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n  project_key: MYPROJ\n  project_keys:\n    epic: SUN\n"
+        )
+        cfg = load_integrations()
+        # This is what _push_epic() actually calls:
+        assert cfg.jira.key_for("feature") == "SUN"
+        # And the alias resolves the same way from the other direction:
+        assert cfg.jira.key_for("epic") == "SUN"
+
+    def test_epic_alias_does_not_override_an_explicit_feature_entry(
+        self, tmp_path, monkeypatch
+    ):
+        """If both are somehow present, the exact key requested wins --
+        the alias is a fallback, not a merge."""
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n  project_key: MYPROJ\n  project_keys:\n"
+            "    feature: SUN\n    epic: OTHER\n"
+        )
+        cfg = load_integrations()
+        assert cfg.jira.key_for("feature") == "SUN"
+
+    def test_epic_alias_also_applies_to_parent_field_by_level(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "jira:\n  project_key: MYPROJ\n  parent_field_by_level:\n"
+            "    epic: customfield_10014\n"
+        )
+        cfg = load_integrations()
+        assert cfg.jira.parent_field_for("feature") == "customfield_10014"
+
+    def test_no_duplicate_keys_loads_exactly_as_before(self, tmp_path, monkeypatch):
+        """A well-formed file must be completely unaffected by the
+        stricter loader -- this isn't a stricter YAML subset, just
+        duplicate-key detection."""
+        monkeypatch.chdir(tmp_path)
+        Path(".specify").mkdir()
+        Path(".specify/integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n  project_keys:\n    story: SUNT\n"
+        )
+        cfg = load_integrations()
+        assert cfg.profile == "default"
+        assert cfg.jira.key_for("story") == "SUNT"
+        assert cfg.jira.key_for("feature") == "MYPROJ"
 
 
 def test_jira_custom_fields_by_level_default_to_common_mapping(tmp_path, monkeypatch):

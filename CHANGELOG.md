@@ -4,6 +4,81 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.23] — 2026-08-08 (Fix: Jira config resolution crash + Confluence bulk push missing the Constitution page)
+
+**Two bug fixes**, both found via real user testing.
+
+**1. `sdd jira push --level epic` crashed with a raw `AttributeError`.**
+Root-caused by the reporting user: a hand-edited `integrations.yml` had a
+second `project_key:` block under `jira:` that should have been
+`project_keys:` (plural, for the per-level override section right below
+it). YAML silently keeps only the *last* occurrence of a duplicate mapping
+key, so the plain string from the first block was clobbered by a dict from
+the second — and `jira.project_key` resolved to a dict, which then crashed
+`jira_client.py`'s `find_by_label()` three call frames away with `'dict'
+object has no attribute 'replace'`.
+
+### Fixed
+
+- `load_integrations()` now parses `integrations.yml` with a custom PyYAML
+  loader that rejects a duplicate mapping key anywhere in the file at parse
+  time — naming the exact line number, and suggesting the fix when the key
+  is `project_key` specifically.
+- `JiraConfig.key_for()`/`parent_field_for()` now validate the resolved
+  value is actually a string, raising a new `JiraConfigError` that names
+  the exact bad YAML key, instead of letting a malformed value silently
+  propagate into a low-level HTTP helper.
+- **Related gap found during investigation:** the CLI's own `--level epic`
+  flag has no relationship to the config-facing level key `feature` used
+  throughout `project_keys`/`custom_fields_by_level`/`parent_field_by_level`
+  — so a user writing `project_keys: {epic: SUN}` (the natural thing to
+  write, matching the CLI's own terminology) was silently ignored with no
+  error at all. `epic` is now accepted as a bidirectional alias for
+  `feature` everywhere a level name is resolved.
+- Every `load_integrations()` call site (jira.py, confluence.py, cr.py,
+  review.py, pr.py, dashboard.py, config.py, status.py) updated to catch
+  the new `IntegrationsConfigError` alongside the existing
+  `FileNotFoundError` handling.
+
+**2. A bare `sdd confluence push` (no `--doc`) never included the
+Constitution page.** `sdd confluence draft --doc constitution` worked fine
+on its own (its title/path resolution is fully special-cased), but a bulk
+push iterates the configured `page_map` — and both the code's default
+`page_map` fallback and the `sdd config init` wizard's generated template
+omitted the `constitution` key entirely, even though the full
+`integrations.yml.example` reference file already had it (with a comment
+explaining exactly this). A clean drift bug: the `.example` file was
+updated for this reason at some point; the other two definitions of the
+default doc set never were.
+
+### Fixed
+
+- Added `constitution` to `_DEFAULT_PAGE_MAP`
+  (`sdd/utils/integrations.py`) and to the wizard template's `page_map`
+  block (`sdd/commands/config.py`'s `_integrations_template()`).
+
+### Added
+
+- 11 new tests: 9 in `tests/test_config_and_integrations.py`
+  (`TestJiraConfigRobustness`) covering duplicate-key detection (including
+  the exact reported shape), wrong-shape `project_key`/`parent_field`
+  values, the `epic`/`feature` alias in both directions, and a well-formed
+  file loading completely unaffected by the stricter loader; 2 in
+  `tests/test_confluence_push_cli.py` confirming a bare push now creates
+  the Constitution page and that explicit `--doc constitution` continues
+  to work.
+
+### Verified
+
+- `cli-python` pytest 869/869 (858 pre-existing + 11 new)
+- ruff check/format clean
+- `mypy --ignore-missing-imports` (matching CI's exact invocation) clean
+  with no issues in 31 source files
+- Manually reproduced the exact reported duplicate-key YAML shape and
+  confirmed it now raises a clear error instead of crashing
+
+---
+
 ## [2.8.22] — 2026-08-08 (Fix: `sdd confluence pull` flattened every markdown table into one run-on line)
 
 **Bug fix.** Reported by a user testing the Confluence review round-trip on

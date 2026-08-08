@@ -481,11 +481,11 @@ def config_test(profile):
 
     cfg = None
     if profile is None:
-        from sdd.utils.integrations import load_integrations
+        from sdd.utils.integrations import IntegrationsConfigError, load_integrations
 
         try:
             cfg = load_integrations()
-        except FileNotFoundError:
+        except (FileNotFoundError, IntegrationsConfigError):
             pass
 
     jira_name = profile or (cfg.jira_profile_name() if cfg else None)
@@ -555,10 +555,10 @@ def config_fields(profile, project):
     # file to exist.
     cfg = None
     try:
-        from sdd.utils.integrations import load_integrations
+        from sdd.utils.integrations import IntegrationsConfigError, load_integrations
 
         cfg = load_integrations()
-    except FileNotFoundError:
+    except (FileNotFoundError, IntegrationsConfigError):
         pass
 
     try:
@@ -663,6 +663,10 @@ confluence:
     adr:       "{project_name} — Architecture Decisions"
     lld:       "{project_name} — Low-Level Design"
     runbook:   "{project_name} — Runbook"
+    # Title here is ignored (always "{{project}} — Constitution") -- this
+    # key's only job is making a bare "sdd confluence push" (no --doc)
+    # include the Constitution page; remove the line to opt out
+    constitution: "{project_name} — Constitution"
 
 # For the Jira review workflow (sdd review submit/check/apply), add a
 # document_reviews: section — see .specify/integrations.yml.example for the

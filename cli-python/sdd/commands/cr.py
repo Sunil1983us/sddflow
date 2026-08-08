@@ -7,7 +7,7 @@ from rich.console import Console
 
 from sdd.utils.atlassian_auth import load_confluence_session, load_jira_session
 from sdd.utils.confluence_client import ConfluenceClient
-from sdd.utils.integrations import load_integrations
+from sdd.utils.integrations import IntegrationsConfigError, load_integrations
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.manifest import read_manifest
 from sdd.utils.md_to_cf import md_to_storage
@@ -74,7 +74,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IntegrationsConfigError) as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 

@@ -1521,12 +1521,12 @@ def _local_base_url() -> str | None:
     on every dashboard poll. Returns None if unconfigured/ambiguous."""
     try:
         from sdd.utils.atlassian_auth import load_profile
-        from sdd.utils.integrations import load_integrations
+        from sdd.utils.integrations import IntegrationsConfigError, load_integrations
 
         profile_name = None
         try:
             profile_name = load_integrations().profile
-        except FileNotFoundError:
+        except (FileNotFoundError, IntegrationsConfigError):
             pass
         return load_profile(profile_name).base_url
     except Exception:

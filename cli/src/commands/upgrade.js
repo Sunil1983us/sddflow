@@ -3283,6 +3283,52 @@ export const MIGRATIONS = [
       "and mypy both clean",
     ],
   },
+  {
+    from: '2.8.22',
+    to:   '2.8.23',
+    description: "Fix two real integrations.yml bugs: `sdd jira push " +
+      "--level epic` crashed with a raw AttributeError on a malformed " +
+      "config value, and a bare `sdd confluence push` never included " +
+      "the Constitution page",
+    notes: [
+      "Bug 1 -- reported by a user: `sdd jira push --level epic` " +
+      "crashed with `AttributeError: 'dict' object has no attribute " +
+      "'replace'` deep inside jira_client.py's find_by_label(). Root " +
+      "cause (found by the user): a hand-edited integrations.yml had a " +
+      "second `project_key:` block under `jira:` that should have been " +
+      "`project_keys:` (plural) -- YAML silently keeps only the LAST " +
+      "occurrence of a duplicate mapping key, so a plain string was " +
+      "clobbered by a dict",
+      "Fixed with two hardening layers in cli-python's " +
+      "sdd/utils/integrations.py: a custom PyYAML loader that rejects " +
+      "duplicate mapping keys at parse time (naming the exact line and " +
+      "suggesting the likely fix for 'project_key'), and type " +
+      "validation in JiraConfig.key_for()/parent_field_for() that " +
+      "raises a clear error naming the bad YAML key instead of letting " +
+      "a malformed value crash a low-level HTTP helper three call " +
+      "frames later",
+      "Also fixed a related naming gap: the CLI's own `--level epic` " +
+      "flag has no relationship to the config-facing level key " +
+      "'feature' used throughout project_keys/custom_fields_by_level/ " +
+      "parent_field_by_level, so `project_keys: {epic: SUN}` -- the " +
+      "natural thing to write -- was silently ignored. 'epic' is now a " +
+      "bidirectional alias for 'feature'",
+      "Bug 2 -- a bare `sdd confluence push` (no --doc, the normal flow " +
+      "right after create-context) never included the Constitution " +
+      "page: both the code's default page_map fallback and the " +
+      "`sdd config init` wizard's generated page_map omitted the " +
+      "'constitution' key, even though the full " +
+      "integrations.yml.example reference file already had it. Fixed " +
+      "by adding it to both",
+      "This Node CLI has no Jira/Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected by either fix -- " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: cli-python pytest 869/869 (858 pre-existing + 11 new); " +
+      "ruff check/format clean; mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) clean with no issues in 31 source files",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

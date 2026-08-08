@@ -5178,6 +5178,101 @@ MIGRATIONS: list[Migration] = [
             "literal pipe",
         ],
     },
+    {
+        "from": "2.8.22",
+        "to": "2.8.23",
+        "description": (
+            "Fix two real integrations.yml bugs: `sdd jira push --level "
+            "epic` crashed with a raw AttributeError on a malformed "
+            "config value, and a bare `sdd confluence push` never "
+            "included the Constitution page"
+        ),
+        "notes": [
+            "Bug 1 -- reported by a user: `sdd jira push --level epic` "
+            "crashed with `AttributeError: 'dict' object has no "
+            "attribute 'replace'` deep inside jira_client.py's "
+            "find_by_label(). The user root-caused their own instance: "
+            "a hand-edited integrations.yml had a second `project_key:` "
+            "block under `jira:` that should have been `project_keys:` "
+            "(plural, for the per-level override section) -- YAML "
+            "silently keeps only the LAST occurrence of a duplicate "
+            "mapping key, so the plain string from the first block was "
+            "clobbered by a dict from the second, and jira.project_key "
+            "resolved to a dict instead of a string",
+            "Fixed with two independent hardening layers in "
+            "sdd/utils/integrations.py: (1) load_integrations() now "
+            "parses integrations.yml with a custom PyYAML loader "
+            "(_DuplicateKeyLoader) that rejects a duplicate mapping key "
+            "anywhere in the file at parse time, naming the exact line "
+            "number and -- when the key is 'project_key' specifically -- "
+            "suggesting the likely fix ('did you mean \"project_keys\"'); "
+            "(2) JiraConfig.key_for()/parent_field_for() now validate "
+            "the resolved value is actually a string, raising a new "
+            "JiraConfigError naming the exact bad YAML key instead of "
+            "letting a malformed value silently propagate three call "
+            "frames deep into a low-level HTTP helper. New "
+            "IntegrationsConfigError/JiraConfigError exception types; "
+            "every load_integrations() call site across jira.py, "
+            "confluence.py, cr.py, review.py, pr.py, dashboard.py, "
+            "config.py, and status.py updated to catch the new error "
+            "type alongside the existing FileNotFoundError handling",
+            "Also fixed a related, independently-discovered naming gap "
+            "while investigating: the CLI's own `--level epic` flag "
+            "(jira.py's _LEVELS) has no relationship to the config-facing "
+            "level key 'feature' used throughout project_keys / "
+            "custom_fields_by_level / parent_field_by_level -- and "
+            "jira.py's own code always resolves via key_for('feature'), "
+            "never key_for('epic'). A user writing `project_keys: {epic: "
+            "SUN}` (the natural thing to write, matching the CLI's own "
+            "terminology) was silently ignored with no error at all. "
+            "key_for()/fields_for()/parent_field_for() now accept "
+            "'epic' as a bidirectional alias for 'feature'",
+            "Bug 2 -- found while investigating a second user report: "
+            "`sdd confluence draft --doc constitution` works fine (the "
+            "title/path resolution for 'constitution' is fully special-"
+            "cased and doesn't touch page_map at all), but a bare `sdd "
+            "confluence push` (no --doc, the normal flow right after "
+            "create-context) iterates page_map.keys() -- and both "
+            "_DEFAULT_PAGE_MAP (the code fallback used when "
+            "integrations.yml has no explicit page_map: override, which "
+            "is what `sdd config init`'s wizard produces) and the "
+            "wizard's own _integrations_template() omitted the "
+            "'constitution' key entirely, even though the full "
+            "integrations.yml.example reference file already had it -- "
+            "confirmed by that file's own comment on the key ('this key "
+            "only controls whether a bare sdd confluence push includes "
+            "it'). A clean drift bug: the .example file was updated for "
+            "this reason at some point, the other two definitions of "
+            "the default doc set never were",
+            "Fixed by adding 'constitution' to both _DEFAULT_PAGE_MAP "
+            "(sdd/utils/integrations.py) and the wizard template's "
+            "page_map block (sdd/commands/config.py's "
+            "_integrations_template())",
+            "This Node CLI has no Jira/Confluence integration at all "
+            "(scaffolding-only by design) and is unaffected by either "
+            "fix -- this migration entry exists so both CLIs report the "
+            "same sdd_version chain",
+            "Added 11 new tests: 9 in tests/test_config_and_integrations.py "
+            "(TestJiraConfigRobustness -- duplicate-key detection at "
+            "load time incl. the exact reported shape, the line-number "
+            "and suggested-fix message, a duplicate key elsewhere in the "
+            "file, wrong-shape project_key/parent_field values, the "
+            "epic/feature alias in both directions including that an "
+            "explicit 'feature' entry isn't overridden by an 'epic' one, "
+            "and a well-formed file loading completely unaffected by the "
+            "stricter loader) plus updated EXPECTED_DOC_KEYS coverage; "
+            "2 in tests/test_confluence_push_cli.py (a bare push now "
+            "creates the Constitution page from a wizard-shaped "
+            "integrations.yml with no page_map override, and explicit "
+            "--doc constitution continues to work)",
+            "Verified: cli-python pytest 869/869 (858 pre-existing + 11 "
+            "new); ruff check/format clean; mypy --ignore-missing-imports "
+            "(matching CI's exact invocation) clean with no issues in 31 "
+            "source files; manually reproduced the exact reported "
+            "duplicate-key YAML shape and confirmed it now raises a "
+            "clear IntegrationsConfigError instead of crashing",
+        ],
+    },
 ]
 
 

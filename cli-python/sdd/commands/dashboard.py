@@ -186,12 +186,12 @@ def _fetch_review_links(feature: str) -> dict:
     from sdd.commands.review import _extract_text, _get_review_status
     from sdd.utils.atlassian_auth import load_confluence_session, load_jira_session
     from sdd.utils.confluence_client import ConfluenceClient
-    from sdd.utils.integrations import load_integrations
+    from sdd.utils.integrations import IntegrationsConfigError, load_integrations
     from sdd.utils.jira_client import JiraClient
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IntegrationsConfigError) as e:
         return {"error": str(e)}
     if not cfg.jira and not cfg.confluence:
         return {
@@ -294,12 +294,12 @@ def _jira_client_for_comments():
     """Build (client, cfg) for posting a Jira comment, or None if Jira isn't
     configured. Never raises — callers treat None as 'skip, not an error'."""
     from sdd.utils.atlassian_auth import load_jira_session
-    from sdd.utils.integrations import load_integrations
+    from sdd.utils.integrations import IntegrationsConfigError, load_integrations
     from sdd.utils.jira_client import JiraClient
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError:
+    except (FileNotFoundError, IntegrationsConfigError):
         return None
     if not cfg.jira:
         return None

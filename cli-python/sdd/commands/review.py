@@ -13,7 +13,11 @@ from sdd.utils.atlassian_auth import load_confluence_session, load_jira_session
 from sdd.utils.atomic_write import atomic_write_text
 from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.dashboard_comments import acknowledge, unacknowledged
-from sdd.utils.integrations import IntegrationsConfig, load_integrations
+from sdd.utils.integrations import (
+    IntegrationsConfig,
+    IntegrationsConfigError,
+    load_integrations,
+)
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.manifest import read_manifest
 from sdd.utils.md_to_cf import md_to_storage
@@ -164,7 +168,7 @@ def _push_doc_page(
     instead of having to check Jira separately."""
     try:
         cfg = load_integrations()
-    except FileNotFoundError:
+    except (FileNotFoundError, IntegrationsConfigError):
         return None
     if not cfg.confluence:
         return None
@@ -802,7 +806,7 @@ def review_submit(doc, profile, feature):
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IntegrationsConfigError) as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
@@ -1034,7 +1038,7 @@ def review_push_questions(doc, profile, feature):
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IntegrationsConfigError) as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
@@ -1195,7 +1199,7 @@ def review_pull_answers(doc, profile, feature):
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError:
+    except (FileNotFoundError, IntegrationsConfigError):
         raise SystemExit(0)
 
     if doc not in cfg.document_reviews or not cfg.jira:
