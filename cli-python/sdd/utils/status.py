@@ -339,8 +339,19 @@ def _normalize_role_key(role_label: str) -> str:
     """'DevOps/SRE' / 'QA Lead' / 'Tech Lead' -> 'devops_sre' / 'qa_lead' /
     'tech_lead' -- matches roles.yml's snake_case key convention so a
     document's human-readable Approvals-table Role column can be looked
-    up directly, without a second hardcoded mapping to keep in sync."""
-    return re.sub(r"[^a-z0-9]+", "_", role_label.strip().lower()).strip("_")
+    up directly, without a second hardcoded mapping to keep in sync.
+
+    Every real template's Approvals table Role cell carries a RACI
+    annotation in parentheses -- e.g. "Product Owner (accountable --
+    business objectives sign-off)" (brd-template.md) or "DevOps/SRE
+    (consulted -- deployment readiness)" (release-template.md), never
+    just the bare role name. That suffix must be stripped before
+    normalizing, or the result ("product_owner_accountable_business_..."
+    ) never matches any roles.yml key -- which used to mean every
+    project's Approvals detail panel showed "not set in roles.yml" for
+    every role, even with roles.yml fully filled in."""
+    label = re.split(r"\s*\(", role_label.strip(), maxsplit=1)[0]
+    return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
 
 
 def _resolve_expected_approver(role_label: str, roles_map: dict) -> str | None:
@@ -1493,6 +1504,15 @@ def _constitution_status(root: Path) -> dict:
     # by design (GATE-1 confirmation happens in chat) — infer from whether any
     # downstream feature doc exists, since the workflow can't produce those
     # before GATE-1 passes.
+    #
+    # token-usage.md is NOT such a doc, despite living in the same directory
+    # — it's opt-in telemetry (token-pricing.yml.example) appended to by
+    # every command including /specify itself and even /create-context,
+    # which both run before GATE-1 can possibly pass. Same for tasks.md
+    # (already excluded below) and *.summary.md. Without this exclusion,
+    # any project with token logging enabled shows GATE-1 as "passed" the
+    # instant /specify finishes, before the user has reviewed a single row.
+    _NON_DOWNSTREAM_NAMES = {"tasks.md", "token-usage.md"}
     features_dir = root / ".specify" / "features"
     any_downstream = False
     if features_dir.is_dir():
@@ -1500,7 +1520,8 @@ def _constitution_status(root: Path) -> dict:
             if not feature_dir.is_dir():
                 continue
             if any(
-                p.name != "tasks.md" and not p.name.endswith(".summary.md")
+                p.name not in _NON_DOWNSTREAM_NAMES
+                and not p.name.endswith(".summary.md")
                 for p in feature_dir.glob("*.md")
             ):
                 any_downstream = True
@@ -1521,12 +1542,12 @@ def _local_base_url() -> str | None:
     on every dashboard poll. Returns None if unconfigured/ambiguous."""
     try:
         from sdd.utils.atlassian_auth import load_profile
-        from sdd.utils.integrations import load_integrations
+        from sdd.utils.integrations import IntegrationsConfigError, load_integrations
 
         profile_name = None
         try:
             profile_name = load_integrations().profile
-        except FileNotFoundError:
+        except (FileNotFoundError, IntegrationsConfigError):
             pass
         return load_profile(profile_name).base_url
     except Exception:

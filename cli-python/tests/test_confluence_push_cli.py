@@ -137,3 +137,59 @@ class TestConfluencePushSummaryFlag:
         assert "brd.summary.md" in result.output
         assert "— Summary" in result.output
         assert cf_client.pages_by_title == {}
+
+
+class TestConfluencePushIncludesConstitutionByDefault:
+    """Regression coverage for a real user-reported bug: a bare `sdd
+    confluence push` (no --doc) run right after `create-context` never
+    created the Constitution page. Root cause: `_DEFAULT_PAGE_MAP` (the
+    code fallback used when integrations.yml has no explicit page_map:
+    override -- the common case for anyone who ran the `sdd config
+    init` wizard rather than hand-copying integrations.yml.example) had
+    no "constitution" entry, so it was never in `keys_to_try` for a bulk
+    push -- even though `sdd confluence draft --doc constitution` (and
+    `push --doc constitution` explicitly) both worked fine on their own,
+    since --doc bypasses page_map entirely."""
+
+    @pytest.fixture()
+    def bare_project(self, tmp_path, monkeypatch):
+        """No explicit page_map: override in integrations.yml -- this is
+        what actually exercises _DEFAULT_PAGE_MAP, unlike this file's
+        `project` fixture above (which pins page_map to brd only)."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".specify" / "memory").mkdir(parents=True)
+        (tmp_path / ".specify" / "manifest.yml").write_text(
+            yaml.dump({"project": {"name": "Demo", "feature": "auth"}})
+        )
+        (tmp_path / ".specify" / "integrations.yml").write_text(
+            "profile: default\nconfluence:\n  space_key: ENG\n"
+        )
+        (tmp_path / ".specify" / "memory" / "constitution.md").write_text(
+            "# Constitution\n\nPart 1: universal rules.\n"
+        )
+        return tmp_path
+
+    def test_bare_push_creates_the_constitution_page(self, bare_project, runner):
+        cf_client = FakeConfluenceClient()
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
+            result = runner.invoke(confluence.confluence_command, ["push"])
+
+        assert result.exit_code == 0, result.output
+        assert "Demo — Constitution" in cf_client.pages_by_title
+        assert "universal rules" in cf_client.body_by_title["Demo — Constitution"]
+
+    def test_explicit_doc_constitution_also_works(self, bare_project, runner):
+        """Was never broken -- --doc bypasses page_map lookup entirely
+        (see _resolve_page_title's early return for "constitution").
+        Included here so a future regression in either path is caught
+        by the same test class."""
+        cf_client = FakeConfluenceClient()
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
+            result = runner.invoke(
+                confluence.confluence_command, ["push", "--doc", "constitution"]
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "Demo — Constitution" in cf_client.pages_by_title

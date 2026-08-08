@@ -8,6 +8,50 @@ import yaml
 
 INTEGRATIONS_PATH = ".specify/integrations.yml"
 
+
+class _DuplicateKeyLoader(yaml.SafeLoader):
+    """SafeLoader that errors on a duplicate mapping key instead of
+    silently keeping the last occurrence (PyYAML's default behavior).
+
+    Root-caused from a real user report: a hand-edited integrations.yml
+    had a second `project_key:` block under `jira:` (that one should
+    have been `project_keys:` -- plural, for the per-level override
+    section right below it in integrations.yml.example, whose own
+    comment says so). Because YAML mappings silently keep the last
+    duplicate key, the plain string project_key from the first block
+    was clobbered by the dict from the second, and jira.project_key
+    resolved to {"story": "...", "task": "..."} instead of a string --
+    which then crashed three call frames away in jira_client.py's
+    find_by_label() with a bare `AttributeError: 'dict' object has no
+    attribute 'replace'`, nowhere near the actual mistake. Catching the
+    duplicate key right here, at parse time, points at the exact line
+    instead."""
+
+
+def _construct_mapping_no_duplicates(
+    loader: yaml.SafeLoader, node: yaml.MappingNode, deep: bool = False
+) -> dict:
+    mapping: dict = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            hint = ""
+            if key == "project_key":
+                hint = ' (did you mean "project_keys" -- plural -- for the second one?)'
+            raise yaml.YAMLError(
+                f'Duplicate key "{key}" at line {key_node.start_mark.line + 1} '
+                f"in .specify/integrations.yml{hint} -- YAML silently keeps only "
+                f"the LAST occurrence of a duplicate key, so this replaced the "
+                f"earlier value instead of raising an error on its own."
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_DuplicateKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_mapping_no_duplicates
+)
+
 _PAGE_ID_URL_PATTERNS = [
     re.compile(
         r"/pages/(\d+)(?:/|$)"
@@ -47,6 +91,20 @@ _DEFAULT_PAGE_MAP = {
     "adr": "{project} — Architecture Decisions",
     "lld": "{project} — Low-Level Design",
     "runbook": "{project} — Runbook",
+    # The title value here is actually ignored -- _resolve_page_title()
+    # in confluence.py special-cases "constitution" to always use
+    # "{project} — Constitution" regardless of what's mapped here (same
+    # as integrations.yml.example's own comment on this key explains).
+    # Its only real job is *presence*: a bare `sdd confluence push` (no
+    # --doc) iterates page_map.keys(), so omitting this key (as this
+    # dict did until this fix) means a bulk push silently never attempts
+    # the constitution page at all -- reported by a user who ran the
+    # normal create-context -> confluence push flow and found the
+    # Constitution page was never created. `sdd confluence draft --doc
+    # constitution` was unaffected (it takes --doc directly, bypassing
+    # page_map entirely) -- only the no --doc bulk-push default set had
+    # this gap.
+    "constitution": "{project} — Constitution",
 }
 
 _DEFAULT_PRIORITY_MAP = {
@@ -55,6 +113,63 @@ _DEFAULT_PRIORITY_MAP = {
     "could-have": "Low",
     "wont-have": "Lowest",
 }
+
+# The CLI's public `sdd jira push --level` flag calls the top-level
+# issue "epic" (see jira.py's _LEVELS); every config-facing lookup
+# (project_keys, custom_fields_by_level, parent_field_by_level,
+# issue_hierarchy) keys off "feature" instead, per the "Valid keys"
+# list in integrations.yml.example -- and jira.py's own call sites
+# always resolve via key_for("feature"), never key_for("epic"). So the
+# alias has to work in BOTH directions: a caller resolving "feature"
+# must also find an override written under "epic" (the natural thing
+# for a user to write, matching the CLI's own terminology), not just
+# the reverse. A one-way dict (only mapping "epic" -> "feature") looks
+# right but is dead code in practice, since nothing ever looks up
+# "epic" -- it would never actually find a user's `epic:` override.
+_LEVEL_ALIASES = {"epic": "feature", "feature": "epic"}
+
+
+def _level_lookup(mapping: dict, level: str, default):
+    """Look up `level` in `mapping`, then its alias (see _LEVEL_ALIASES),
+    then fall back to `default` -- the exact key actually present in
+    `mapping` wins if both the level and its alias happen to be set."""
+    if level in mapping:
+        return mapping[level]
+    alias = _LEVEL_ALIASES.get(level)
+    if alias is not None and alias in mapping:
+        return mapping[alias]
+    return default
+
+
+def _level_source_key(mapping: dict, level: str) -> str | None:
+    """Which literal key in `mapping` a _level_lookup() call actually
+    resolved through (for error messages) -- None if it fell through to
+    the default (mapping has neither the level nor its alias)."""
+    if level in mapping:
+        return level
+    alias = _LEVEL_ALIASES.get(level)
+    if alias is not None and alias in mapping:
+        return alias
+    return None
+
+
+class IntegrationsConfigError(Exception):
+    """Raised for a structural or type problem in integrations.yml that
+    isn't "file missing" (that's FileNotFoundError) -- a duplicate YAML
+    key silently clobbering an earlier value, or a value with the wrong
+    shape for what it's used for. Callers of load_integrations() and of
+    JiraConfig's key_for()/parent_field_for() should let this propagate
+    to a top-level error print, not swallow it alongside
+    FileNotFoundError; it exists specifically to replace a cryptic
+    AttributeError several call frames deep in jira_client.py with a
+    message that names the actual bad YAML key."""
+
+
+class JiraConfigError(IntegrationsConfigError):
+    """IntegrationsConfigError specifically from resolving a JiraConfig
+    value (key_for()/parent_field_for()) to the wrong type -- e.g. a
+    mapping where a plain project-key or field-name string was
+    expected."""
 
 
 @dataclass
@@ -115,8 +230,40 @@ class JiraConfig:
         (feature/story/task/chg/review), honoring project_keys overrides
         and falling back to the single project_key otherwise -- the
         common case, and the only case for every project until this
-        field is explicitly set."""
-        return self.project_keys.get(level, self.project_key)
+        field is explicitly set.
+
+        Accepts "epic" as an alias for "feature" in both directions --
+        the CLI's own `--level epic` flag uses that name, but
+        project_keys / custom_fields_by_level / parent_field_by_level /
+        issue_hierarchy all key off "feature" instead (see the "Valid
+        keys" comment in integrations.yml.example), and jira.py always
+        calls this with level="feature", never "epic". Without the
+        alias working in the "feature" -> also-check-"epic" direction,
+        a project_keys entry written as `epic: SUN` -- the natural
+        thing to write given the CLI's own terminology -- is silently
+        ignored: .get() just falls through to the base project_key with
+        no error at all.
+
+        Raises JiraConfigError if the resolved value isn't a plain
+        string -- most commonly an accidental YAML mapping under
+        project_key/project_keys in integrations.yml (e.g. copying the
+        `{key: "..."}` shape Jira's own REST payloads use, instead of a
+        bare string). Left unvalidated, that value propagates three call
+        frames deep into jira_client.py's find_by_label(), which fails
+        with a bare `AttributeError: 'dict' object has no attribute
+        'replace'` -- true but useless for tracing back to the actual
+        misconfigured YAML key."""
+        value = _level_lookup(self.project_keys, level, self.project_key)
+        if not isinstance(value, str):
+            source_key = _level_source_key(self.project_keys, level)
+            source = f"project_keys.{source_key}" if source_key else "project_key"
+            raise JiraConfigError(
+                f"jira.{source} in .specify/integrations.yml must be a plain "
+                f'string project key (e.g. "MYPROJ"), not a '
+                f"{type(value).__name__} ({value!r}). Check for accidental "
+                f"YAML nesting under {source}."
+            )
+        return value
 
     def fields_for(self, level: str) -> dict:
         """Custom field ID mapping (logical name -> Jira field ID) to use
@@ -124,16 +271,32 @@ class JiraConfig:
         override over the common custom_fields mapping (override wins
         per-key). Mirrors key_for()'s fallback semantics -- every project
         with no custom_fields_by_level entries behaves exactly as before
-        this field existed."""
-        return {**self.custom_fields, **self.custom_fields_by_level.get(level, {})}
+        this field existed. Also accepts "epic" as an alias for
+        "feature" (both directions) -- see key_for()'s docstring."""
+        by_level = _level_lookup(self.custom_fields_by_level, level, {})
+        return {**self.custom_fields, **by_level}
 
     def parent_field_for(self, level: str) -> str:
         """The parent-link field to use when linking a *child issue at
         this level* to its parent (e.g. level="story" when linking a
         Story under its Epic) -- honors parent_field_by_level overrides
         and falls back to the single parent_field otherwise. Mirrors
-        key_for()/fields_for()'s fallback semantics."""
-        return self.parent_field_by_level.get(level, self.parent_field)
+        key_for()/fields_for()'s fallback semantics, including the
+        "epic"/"feature" alias (both directions) and the same type
+        validation (a parent-field name must be a plain string)."""
+        value = _level_lookup(self.parent_field_by_level, level, self.parent_field)
+        if not isinstance(value, str):
+            source_key = _level_source_key(self.parent_field_by_level, level)
+            source = (
+                f"parent_field_by_level.{source_key}" if source_key else "parent_field"
+            )
+            raise JiraConfigError(
+                f"jira.{source} in .specify/integrations.yml must be a plain "
+                f'string field name (e.g. "parent" or "customfield_10014"), '
+                f"not a {type(value).__name__} ({value!r}). Check for "
+                f"accidental YAML nesting under {source}."
+            )
+        return value
 
 
 @dataclass
@@ -246,7 +409,10 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             f"{path} not found. Run 'sdd config init' or copy "
             ".specify/integrations.yml.example to .specify/integrations.yml"
         )
-    raw = yaml.safe_load(p.read_text()) or {}
+    try:
+        raw = yaml.load(p.read_text(), Loader=_DuplicateKeyLoader) or {}
+    except yaml.YAMLError as e:
+        raise IntegrationsConfigError(str(e)) from None
 
     jira: JiraConfig | None = None
     jira_raw = raw.get("jira")

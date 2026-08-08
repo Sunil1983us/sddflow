@@ -14,7 +14,7 @@ from sdd.utils.git_host import (
     detect_host,
     get_provider,
 )
-from sdd.utils.integrations import load_integrations
+from sdd.utils.integrations import IntegrationsConfigError, load_integrations
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.manifest import read_manifest
 from sdd.utils.sdd_parser import parse_tasks
@@ -56,7 +56,7 @@ def pr_create(task, base, profile, feature):
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IntegrationsConfigError) as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 

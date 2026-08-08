@@ -4,6 +4,231 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.26] — 2026-08-08 (Fix: "Error loading the extension!" on Confluence after Jira approval)
+
+Reported by a user right after approving a BRD: its Confluence page showed
+**"Error loading the extension!"** where the "Jira review: VALT-1 —
+Approved" status banner should have been.
+
+`review.py`'s `_jira_status_banner()` maps review status to a Confluence
+panel macro name — `{"APPROVED": "success", "NEEDS_REVISION": "warning"}`,
+default `"info"`. Confluence's built-in panel macros are only `info`, `tip`,
+`note`, and `warning` — **there is no `success` macro** — so the page tried
+to render an unregistered extension. This was invisible until now because
+`PENDING` (the only status a fresh review ticket starts in) correctly used
+`info`; the bug only fires once a real document reaches `APPROVED`.
+
+### Fixed
+
+- `APPROVED` now maps to `tip` (a real Confluence panel macro, renders as a
+  green highlighted box) instead of the nonexistent `success`.
+
+### Verified
+
+- `cli-python` pytest 874/874 — updated `test_banner_for_approved_status` to
+  assert the real macro name and that the invalid one is gone.
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+
+---
+
+## [2.8.25] — 2026-08-08 (Fix: dashboard "not set in roles.yml" false negative)
+
+Reported by a user right after filling in `roles.yml` with real names for
+every role: the dashboard's Approvals detail panel still showed nothing for
+any pending row — as if `roles.yml` were empty, when it wasn't.
+
+`status.py` normalizes a document's Approvals-table **Role** cell text to
+`roles.yml`'s snake_case key convention (`"Product Owner"` → `product_owner`)
+to match the two up. But every shipped template's actual Role cell carries a
+RACI annotation in parentheses — e.g. `brd-template.md`'s real text is
+`"Product Owner (accountable — business objectives sign-off)"`, never the
+bare role name. Normalizing the full string (including the parenthetical)
+never matched any `roles.yml` key — **a 100% miss rate**, across every role,
+every document, every project, no matter how completely `roles.yml` was
+filled in. Pre-existing tests never caught this because they only ever
+exercised bare role labels, not the real template shape.
+
+### Fixed
+
+- `sdd/utils/status.py`'s `_normalize_role_key()` now strips everything from
+  the first `(` onward before normalizing, so `"Product Owner (accountable —
+  ...)"` and `"DevOps/SRE (consulted — ...)"` resolve exactly like their bare
+  forms always did.
+
+### Verified
+
+- `cli-python` pytest 874/874 (871 pre-existing + 3 new: a unit-level test
+  covering every real Role-cell shape from the shipped templates, a resolver
+  test, and an end-to-end test through `build_feature_status` with a real
+  `roles.yml` and a real BRD-shaped Approvals table — the exact reported
+  scenario).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+
+---
+
+## [2.8.24] — 2026-08-08 (Fix: dashboard GATE-1 false positive)
+
+Found via real user testing, right after the 2.8.23 fixes: the dashboard
+showed a checkmark next to **"GATE-1 — Constitution Finalized"** immediately
+after `/specify` generated the constitution DRAFT — before the user had ever
+told the agent "Constitution Part 2 finalized" in chat.
+
+`constitution.md` has no machine-readable Draft/Finalized flag by design
+(GATE-1 confirmation happens in chat, not in the file), so the dashboard
+infers GATE-1 status from whether any real downstream spec doc already
+exists in `.specify/features/{feature}/` — since the workflow can't produce
+BRD/use-cases/SRD/etc. before GATE-1 passes. But `token-usage.md` lives in
+that same directory and is appended to by `/specify` itself (and even
+`/create-context`, which runs before `/specify`) whenever
+`token-pricing.yml` is configured — both commands run *before* GATE-1 can
+possibly pass. The inference's exclusion list only ever accounted for
+`tasks.md` and `*.summary.md`, so any project with token logging enabled
+hit this false positive on every single run.
+
+### Fixed
+
+- `sdd/utils/status.py`'s `_constitution_status()`: `token-usage.md` now
+  joins `tasks.md` in the set of filenames excluded from the
+  `any_downstream` check that infers `gate1_inferred`.
+
+### Verified
+
+- `cli-python` pytest 871/871 (869 pre-existing + 2 new regression tests:
+  one reproducing the exact false positive — `token-usage.md` alone in the
+  feature directory — and one confirming a real downstream doc still
+  correctly reports `passed` alongside it).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+
+---
+
+## [2.8.23] — 2026-08-08 (Fix: Jira config resolution crash + Confluence bulk push missing the Constitution page)
+
+**Two bug fixes**, both found via real user testing.
+
+**1. `sdd jira push --level epic` crashed with a raw `AttributeError`.**
+Root-caused by the reporting user: a hand-edited `integrations.yml` had a
+second `project_key:` block under `jira:` that should have been
+`project_keys:` (plural, for the per-level override section right below
+it). YAML silently keeps only the *last* occurrence of a duplicate mapping
+key, so the plain string from the first block was clobbered by a dict from
+the second — and `jira.project_key` resolved to a dict, which then crashed
+`jira_client.py`'s `find_by_label()` three call frames away with `'dict'
+object has no attribute 'replace'`.
+
+### Fixed
+
+- `load_integrations()` now parses `integrations.yml` with a custom PyYAML
+  loader that rejects a duplicate mapping key anywhere in the file at parse
+  time — naming the exact line number, and suggesting the fix when the key
+  is `project_key` specifically.
+- `JiraConfig.key_for()`/`parent_field_for()` now validate the resolved
+  value is actually a string, raising a new `JiraConfigError` that names
+  the exact bad YAML key, instead of letting a malformed value silently
+  propagate into a low-level HTTP helper.
+- **Related gap found during investigation:** the CLI's own `--level epic`
+  flag has no relationship to the config-facing level key `feature` used
+  throughout `project_keys`/`custom_fields_by_level`/`parent_field_by_level`
+  — so a user writing `project_keys: {epic: SUN}` (the natural thing to
+  write, matching the CLI's own terminology) was silently ignored with no
+  error at all. `epic` is now accepted as a bidirectional alias for
+  `feature` everywhere a level name is resolved.
+- Every `load_integrations()` call site (jira.py, confluence.py, cr.py,
+  review.py, pr.py, dashboard.py, config.py, status.py) updated to catch
+  the new `IntegrationsConfigError` alongside the existing
+  `FileNotFoundError` handling.
+
+**2. A bare `sdd confluence push` (no `--doc`) never included the
+Constitution page.** `sdd confluence draft --doc constitution` worked fine
+on its own (its title/path resolution is fully special-cased), but a bulk
+push iterates the configured `page_map` — and both the code's default
+`page_map` fallback and the `sdd config init` wizard's generated template
+omitted the `constitution` key entirely, even though the full
+`integrations.yml.example` reference file already had it (with a comment
+explaining exactly this). A clean drift bug: the `.example` file was
+updated for this reason at some point; the other two definitions of the
+default doc set never were.
+
+### Fixed
+
+- Added `constitution` to `_DEFAULT_PAGE_MAP`
+  (`sdd/utils/integrations.py`) and to the wizard template's `page_map`
+  block (`sdd/commands/config.py`'s `_integrations_template()`).
+
+### Added
+
+- 11 new tests: 9 in `tests/test_config_and_integrations.py`
+  (`TestJiraConfigRobustness`) covering duplicate-key detection (including
+  the exact reported shape), wrong-shape `project_key`/`parent_field`
+  values, the `epic`/`feature` alias in both directions, and a well-formed
+  file loading completely unaffected by the stricter loader; 2 in
+  `tests/test_confluence_push_cli.py` confirming a bare push now creates
+  the Constitution page and that explicit `--doc constitution` continues
+  to work.
+
+### Verified
+
+- `cli-python` pytest 869/869 (858 pre-existing + 11 new)
+- ruff check/format clean
+- `mypy --ignore-missing-imports` (matching CI's exact invocation) clean
+  with no issues in 31 source files
+- Manually reproduced the exact reported duplicate-key YAML shape and
+  confirmed it now raises a clear error instead of crashing
+
+---
+
+## [2.8.22] — 2026-08-08 (Fix: `sdd confluence pull` flattened every markdown table into one run-on line)
+
+**Bug fix.** Reported by a user testing the Confluence review round-trip on
+a real project: create a draft via `sdd confluence draft`, edit it in
+Confluence, then `sdd confluence pull` to bring the edits back. Every
+markdown table in the pulled-back document came back as a single run-on
+line with no row or column structure — silently corrupting any table-heavy
+doc (the Tech Stack table in `context.md`, and BRD/SRD/design docs
+generally, since `/specify` parses the Tech Stack table specifically).
+
+### Fixed
+
+- `cli-python/sdd/utils/cf_to_md.py` (the Confluence-storage-format-to-
+  Markdown converter behind `sdd confluence pull`) had no `<table>`
+  handling at all — Confluence storage format renders a table as an
+  unbroken `<table><tbody><tr><th>...</th></tr>...</tbody></table>` string
+  with no whitespace between tags, and with no table-aware step, the
+  converter's final "strip any remaining HTML tags" pass just deleted the
+  table/row/cell tags and left the cell text jammed together.
+- Added a `_table_to_md()` converter: reconstructs a GFM pipe table from
+  the Confluence markup — header row, an alignment-marker separator row
+  from any `style="text-align:..."` on the header cells, body rows padded
+  to the header's column count, and literal `|` characters in cell text
+  re-escaped to `\|` so they aren't mistaken for a column boundary.
+- This is the same bug class the *push* direction (`md_to_cf.py`) already
+  had fixed once before — the *pull* direction just never got the
+  equivalent treatment, and there was no test file for `cf_to_md.py` at
+  all before this fix to have caught it.
+
+### Added
+
+- `cli-python/tests/test_cf_to_md.py` (new file, 10 tests) — full
+  `md_to_storage()` → `cf_to_md()` round-trip coverage: simple tables, wide
+  multi-row tables (the exact shape reported broken), alignment markers,
+  inline formatting inside cells, an escaped literal pipe in a cell, a
+  ragged body row shorter than the header, a table followed by a
+  paragraph, a heading before a table, two tables in one document, and a
+  table-free document (regression guard against the new table regex
+  misfiring on unrelated content).
+
+### Verified
+
+- `cli-python` pytest 858/858 (848 pre-existing + 10 new)
+- ruff check/format and mypy all clean
+- Manual round-trip test through the real `md_to_storage()`/`cf_to_md()`
+  pair confirmed byte-for-byte table fidelity including alignment, inline
+  code, bold, links, and an escaped literal pipe
+
+---
+
 ## [2.8.21] — 2026-08-07 (Fix severe Node CLI bug: `sdd init` crashed on every interactive run)
 
 **Bug fix — severe, affects the already-published npm package.** The Node

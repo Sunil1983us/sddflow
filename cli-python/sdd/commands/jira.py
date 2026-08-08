@@ -9,7 +9,13 @@ import yaml
 from rich.console import Console
 
 from sdd.utils.atlassian_auth import load_jira_session, load_profile
-from sdd.utils.integrations import IntegrationsConfig, JiraConfig, load_integrations
+from sdd.utils.integrations import (
+    IntegrationsConfig,
+    IntegrationsConfigError,
+    JiraConfig,
+    JiraConfigError,
+    load_integrations,
+)
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.manifest import read_manifest
 from sdd.utils.sdd_parser import (
@@ -488,10 +494,12 @@ def _print_push_banner(level: str, dry_run: bool) -> None:
 def _load_jira_push_config() -> IntegrationsConfig:
     """Loads .specify/integrations.yml and confirms a jira: section exists
     -- printed error + SystemExit(1) on either failure, matching every
-    other validation step in jira_push()."""
+    other validation step in jira_push(). IntegrationsConfigError covers
+    a malformed file -- most commonly a duplicate YAML key silently
+    clobbering an earlier value (see _DuplicateKeyLoader's docstring)."""
     try:
         cfg = load_integrations()
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IntegrationsConfigError) as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
@@ -685,32 +693,42 @@ def jira_push(profile, feature, level, cr, dry_run):
 
     client = JiraClient(session, prof.base_url)
 
-    if level == "uc-draft":
-        epic_key = _find_feature_key(client, jira_cfg.key_for("feature"), feature_name)
-        if not epic_key:
-            console.print(
-                "  [yellow]!  Feature/Epic not found — draft Stories will be created "
-                "without a parent link. Run --level epic first (normally already done by /specify).[/yellow]"
+    try:
+        if level == "uc-draft":
+            epic_key = _find_feature_key(
+                client, jira_cfg.key_for("feature"), feature_name
             )
-        _push_uc_draft_stories(client, feature_name, use_cases, jira_cfg, epic_key)
-        console.print()
-        console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-        console.print("  [bold green]Jira push complete![/bold green]")
-        console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
-        console.print()
-        return
+            if not epic_key:
+                console.print(
+                    "  [yellow]!  Feature/Epic not found — draft Stories will be created "
+                    "without a parent link. Run --level epic first (normally already done by /specify).[/yellow]"
+                )
+            _push_uc_draft_stories(client, feature_name, use_cases, jira_cfg, epic_key)
+            console.print()
+            console.print(
+                "[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]"
+            )
+            console.print("  [bold green]Jira push complete![/bold green]")
+            console.print(
+                "[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]"
+            )
+            console.print()
+            return
 
-    _push(
-        client,
-        feature_name,
-        features_dir,
-        stories,
-        tasks,
-        jira_cfg,
-        level=level,
-        cr=cr,
-        confluence_base_url=_resolve_confluence_base_url(cfg),
-    )
+        _push(
+            client,
+            feature_name,
+            features_dir,
+            stories,
+            tasks,
+            jira_cfg,
+            level=level,
+            cr=cr,
+            confluence_base_url=_resolve_confluence_base_url(cfg),
+        )
+    except JiraConfigError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
 
 
 def _print_dry_run(

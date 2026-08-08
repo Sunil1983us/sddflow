@@ -13,7 +13,11 @@ from sdd.utils.atlassian_auth import load_confluence_session, load_jira_session
 from sdd.utils.atomic_write import atomic_write_text
 from sdd.utils.confluence_client import ConfluenceClient
 from sdd.utils.dashboard_comments import acknowledge, unacknowledged
-from sdd.utils.integrations import IntegrationsConfig, load_integrations
+from sdd.utils.integrations import (
+    IntegrationsConfig,
+    IntegrationsConfigError,
+    load_integrations,
+)
 from sdd.utils.jira_client import JiraClient
 from sdd.utils.manifest import read_manifest
 from sdd.utils.md_to_cf import md_to_storage
@@ -127,10 +131,14 @@ def _mark_md_approved(md_path: Path) -> bool:
 def _jira_status_banner(issue_key: str, issue_url: str, status: str, role: str) -> str:
     """Confluence storage-format panel summarizing the Jira review ticket's
     link and current status, prepended to the page body on every push so a
-    reviewer can see review state without leaving Confluence."""
-    macro_type = {"APPROVED": "success", "NEEDS_REVISION": "warning"}.get(
-        status, "info"
-    )
+    reviewer can see review state without leaving Confluence.
+
+    Confluence's built-in panel macros are only "info", "tip", "note", and
+    "warning" -- there is no "success" macro. Using an unregistered macro
+    name renders as "Error loading the extension!" instead of the panel,
+    which only became visible once a real document reached APPROVED (the
+    PENDING/default "info" case was always valid)."""
+    macro_type = {"APPROVED": "tip", "NEEDS_REVISION": "warning"}.get(status, "info")
     label = {
         "APPROVED": "Approved",
         "NEEDS_REVISION": "Needs Revision",
@@ -164,7 +172,7 @@ def _push_doc_page(
     instead of having to check Jira separately."""
     try:
         cfg = load_integrations()
-    except FileNotFoundError:
+    except (FileNotFoundError, IntegrationsConfigError):
         return None
     if not cfg.confluence:
         return None
@@ -802,7 +810,7 @@ def review_submit(doc, profile, feature):
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IntegrationsConfigError) as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
@@ -1034,7 +1042,7 @@ def review_push_questions(doc, profile, feature):
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IntegrationsConfigError) as e:
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
@@ -1195,7 +1203,7 @@ def review_pull_answers(doc, profile, feature):
 
     try:
         cfg = load_integrations()
-    except FileNotFoundError:
+    except (FileNotFoundError, IntegrationsConfigError):
         raise SystemExit(0)
 
     if doc not in cfg.document_reviews or not cfg.jira:

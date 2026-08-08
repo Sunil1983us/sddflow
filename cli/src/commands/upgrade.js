@@ -3251,6 +3251,179 @@ export const MIGRATIONS = [
       "cli-python pytest 848/848",
     ],
   },
+  {
+    from: '2.8.21',
+    to:   '2.8.22',
+    description: "Fix a real Confluence-review-loop bug: `sdd confluence " +
+      "pull` flattened every markdown table into one run-on line",
+    notes: [
+      "Reported by a user testing the Confluence review round-trip on a " +
+      "real project: create a draft via `sdd confluence draft`, edit it " +
+      "in Confluence, then `sdd confluence pull` to bring the edits " +
+      "back. Every markdown table in the pulled-back document came " +
+      "back as a single line of concatenated cell text with no row or " +
+      "column structure -- silently corrupting any table-heavy doc " +
+      "(Tech Stack in context.md, and BRD/SRD/design docs generally)",
+      "Root cause: cli-python's sdd/utils/cf_to_md.py (the Confluence-" +
+      "storage-format-to-Markdown converter used by `confluence pull`) " +
+      "had no <table> handling at all -- with no table-aware step, its " +
+      "final 'strip any remaining HTML tags' pass just deleted the " +
+      "table/row/cell tags and left the cell text jammed together, " +
+      "since it never inserted a newline or delimiter for table " +
+      "structure the way it does for <li> and <p>",
+      "This is the same bug class the push direction (md_to_cf.py) " +
+      "already had fixed once before -- the pull direction just never " +
+      "got the equivalent treatment",
+      "This Node CLI has no Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "Verified: cli-python pytest 858/858 (848 pre-existing + 10 new " +
+      "regression tests in tests/test_cf_to_md.py); ruff check/format " +
+      "and mypy both clean",
+    ],
+  },
+  {
+    from: '2.8.22',
+    to:   '2.8.23',
+    description: "Fix two real integrations.yml bugs: `sdd jira push " +
+      "--level epic` crashed with a raw AttributeError on a malformed " +
+      "config value, and a bare `sdd confluence push` never included " +
+      "the Constitution page",
+    notes: [
+      "Bug 1 -- reported by a user: `sdd jira push --level epic` " +
+      "crashed with `AttributeError: 'dict' object has no attribute " +
+      "'replace'` deep inside jira_client.py's find_by_label(). Root " +
+      "cause (found by the user): a hand-edited integrations.yml had a " +
+      "second `project_key:` block under `jira:` that should have been " +
+      "`project_keys:` (plural) -- YAML silently keeps only the LAST " +
+      "occurrence of a duplicate mapping key, so a plain string was " +
+      "clobbered by a dict",
+      "Fixed with two hardening layers in cli-python's " +
+      "sdd/utils/integrations.py: a custom PyYAML loader that rejects " +
+      "duplicate mapping keys at parse time (naming the exact line and " +
+      "suggesting the likely fix for 'project_key'), and type " +
+      "validation in JiraConfig.key_for()/parent_field_for() that " +
+      "raises a clear error naming the bad YAML key instead of letting " +
+      "a malformed value crash a low-level HTTP helper three call " +
+      "frames later",
+      "Also fixed a related naming gap: the CLI's own `--level epic` " +
+      "flag has no relationship to the config-facing level key " +
+      "'feature' used throughout project_keys/custom_fields_by_level/ " +
+      "parent_field_by_level, so `project_keys: {epic: SUN}` -- the " +
+      "natural thing to write -- was silently ignored. 'epic' is now a " +
+      "bidirectional alias for 'feature'",
+      "Bug 2 -- a bare `sdd confluence push` (no --doc, the normal flow " +
+      "right after create-context) never included the Constitution " +
+      "page: both the code's default page_map fallback and the " +
+      "`sdd config init` wizard's generated page_map omitted the " +
+      "'constitution' key, even though the full " +
+      "integrations.yml.example reference file already had it. Fixed " +
+      "by adding it to both",
+      "This Node CLI has no Jira/Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected by either fix -- " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: cli-python pytest 869/869 (858 pre-existing + 11 new); " +
+      "ruff check/format clean; mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) clean with no issues in 31 source files",
+    ],
+  },
+  {
+    from: '2.8.23',
+    to:   '2.8.24',
+    description: "Fix dashboard GATE-1 false positive: token-usage.md " +
+      "alone in a feature directory was mistaken for a real downstream " +
+      "spec doc, showing 'GATE-1 -- Constitution Finalized' as passed " +
+      "immediately after /specify, before the user ever confirmed " +
+      "finalization in chat",
+    notes: [
+      "Reported by a user: the dashboard showed a checkmark next to " +
+      "'GATE-1 -- Constitution Finalized' right after /specify created " +
+      "the constitution DRAFT, even though they had never told the " +
+      "agent 'Constitution Part 2 finalized' in chat",
+      "Root cause: constitution.md has no machine-readable Draft/" +
+      "Finalized flag by design (GATE-1 confirmation is chat-only), so " +
+      "cli-python's status.py infers gate1_inferred purely from whether " +
+      "any file besides tasks.md/*.summary.md exists in " +
+      ".specify/features/{feature}/. But token-usage.md is written into " +
+      "that same directory by /specify itself (and even /create-context, " +
+      "which runs before /specify) whenever token-pricing.yml is " +
+      "configured -- both commands run before GATE-1 can possibly pass. " +
+      "A project with token logging enabled hit a false positive on " +
+      "every single run",
+      "Fixed in cli-python's sdd/utils/status.py: token-usage.md now " +
+      "joins tasks.md in the set of filenames excluded from the " +
+      "any_downstream check",
+      "This Node CLI has no dashboard at all (scaffolding-only by " +
+      "design) and is unaffected -- this migration entry exists so both " +
+      "CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 871/871 (869 pre-existing + 2 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files",
+    ],
+  },
+  {
+    from: '2.8.24',
+    to:   '2.8.25',
+    description: "Fix dashboard 'not set in roles.yml' false negative: a " +
+      "fully filled-in roles.yml still showed no expected approver, " +
+      "because every real template's Approvals table Role cell carries " +
+      "a RACI annotation the role-key matcher never stripped",
+    notes: [
+      "Reported by a user: filled in every role in roles.yml (real " +
+      "names for product_owner, business_analyst, etc.), but the " +
+      "dashboard's BRD Approvals detail panel still showed nothing for " +
+      "the pending rows",
+      "Root cause: cli-python's status.py normalizes a document's " +
+      "Approvals-table Role cell text to roles.yml's snake_case key " +
+      "convention ('Product Owner' -> 'product_owner') to match the " +
+      "two up. But every shipped template's actual Role cell carries a " +
+      "RACI annotation in parentheses -- e.g. brd-template.md's real " +
+      "text is 'Product Owner (accountable -- business objectives " +
+      "sign-off)', not bare 'Product Owner'. Normalizing the full " +
+      "string never matched any roles.yml key -- a 100% miss rate " +
+      "across every role, in every document, in every project",
+      "Fixed in cli-python's sdd/utils/status.py: the role-key " +
+      "normalizer now strips everything from the first '(' onward " +
+      "before matching",
+      "This Node CLI has no dashboard at all (scaffolding-only by " +
+      "design) and is unaffected -- this migration entry exists so " +
+      "both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 874/874 (871 pre-existing + 3 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files",
+    ],
+  },
+  {
+    from: '2.8.25',
+    to:   '2.8.26',
+    description: "Fix 'Error loading the extension!' on Confluence: the " +
+      "Jira review status banner used a macro name Confluence doesn't " +
+      "actually have",
+    notes: [
+      "Reported by a user: right after approving a BRD, its Confluence " +
+      "page showed 'Error loading the extension!' where the 'Jira " +
+      "review: VALT-1 -- Approved' banner should be",
+      "Root cause: cli-python's review.py maps review status to a " +
+      "Confluence panel macro name -- {'APPROVED': 'success', " +
+      "'NEEDS_REVISION': 'warning'}, default 'info'. Confluence's " +
+      "built-in panel macros are only info/tip/note/warning -- there is " +
+      "no 'success' macro, so the page tried to render an unregistered " +
+      "extension. Invisible until now because PENDING (the only status " +
+      "a fresh review ticket starts in) correctly used 'info' -- the " +
+      "bug only fires once a real document reaches APPROVED",
+      "Fixed by mapping APPROVED to 'tip' (a real Confluence panel " +
+      "macro, renders as a green highlighted box) instead of the " +
+      "nonexistent 'success'",
+      "This Node CLI has no Jira/Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 874/874; ruff check/format clean; " +
+      "mypy --ignore-missing-imports (matching CI's exact invocation) " +
+      "clean on the changed files",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

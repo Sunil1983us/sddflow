@@ -1033,10 +1033,15 @@ class TestJiraStatusBanner:
         assert "Product Owner" in html
 
     def test_banner_for_approved_status(self):
+        """Regression: Confluence has no built-in 'success' macro (only
+        info/tip/note/warning) -- using one rendered as 'Error loading the
+        extension!' on the page instead of the banner, visible only once a
+        real document reached APPROVED. Must use a real macro name."""
         html = review._jira_status_banner(
             "PROJ-1", "https://x/browse/PROJ-1", "APPROVED", "Architect"
         )
-        assert 'ac:name="success"' in html
+        assert 'ac:name="tip"' in html
+        assert 'ac:name="success"' not in html
         assert "Approved" in html
 
     def test_banner_for_needs_revision_status(self):
