@@ -3507,6 +3507,39 @@ export const MIGRATIONS = [
       "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
     ],
   },
+  {
+    from: '2.8.28',
+    to:   '2.8.29',
+    description: "Fix bare `sdd confluence push` (no --doc) never " +
+      "including the context.md page -- the same gap as v2.8.23's " +
+      "constitution fix, found while auditing integrations.yml.example " +
+      "at a user's request to confirm everything was documented",
+    notes: [
+      "User asked to double-check integrations.yml.example documented " +
+      "everything discussed in the previous round. While re-reading it " +
+      "end to end, found 'context' was missing entirely -- not in " +
+      "page_map, not in the code's default page map -- the exact same " +
+      "bug class as v2.8.23's constitution fix, just never caught for " +
+      "context.md at the time",
+      "Root cause: cli-python's confluence.py special-cases 'context' " +
+      "to always resolve to '{feature} -- Context' regardless of " +
+      "page_map -- so `sdd confluence draft --doc context` (what " +
+      "/create-context actually calls) worked fine on its own. But a " +
+      "bare `sdd confluence push` (no --doc) iterates page_map.keys(), " +
+      "and 'context' was never in that set",
+      "Fixed by adding 'context' to _DEFAULT_PAGE_MAP, the wizard's " +
+      "minimal fallback template, and integrations.yml.example's " +
+      "page_map",
+      "This Node CLI has no Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 882/882 (880 pre-existing + 2 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files; " +
+      "check-cross-references.py clean across all 6 packs; " +
+      "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

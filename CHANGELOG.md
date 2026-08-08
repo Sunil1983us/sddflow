@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.29] — 2026-08-08 (Fix: bare Confluence push missing the context.md page)
+
+Prompted by a user asking to double-check `integrations.yml.example`
+documented everything discussed in the previous round. Re-reading it end to
+end turned up a real gap: **`context` was missing entirely** — not in
+`page_map`, not in the code's default page map — the exact same bug class
+fixed for `constitution` back in v2.8.23, just never caught for `context.md`
+at the time.
+
+`confluence.py` special-cases `"context"` to always resolve to `"{feature}
+— Context"` regardless of `page_map`, so `sdd confluence draft --doc
+context` (what `/create-context` actually calls) always worked fine on its
+own. But a bare `sdd confluence push` (no `--doc`) iterates
+`page_map.keys()`, and `"context"` was never in that set — so a bulk push
+silently never attempted the context page.
+
+### Fixed
+
+- Added `"context"` to `_DEFAULT_PAGE_MAP` (`sdd/utils/integrations.py`),
+  the wizard's minimal fallback template (`_integrations_template()` in
+  `sdd/commands/config.py`), and `integrations.yml.example`'s `page_map`
+  (with the same "value is ignored, only presence matters" comment already
+  on the `constitution` entry).
+
+### Verified
+
+- `cli-python` pytest 882/882 (880 pre-existing + 2 new:
+  `TestConfluencePushIncludesContextByDefault`, mirroring the existing
+  constitution regression test class).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+- `check-cross-references.py` clean across all 6 packs; `test-setup.sh`
+  (19/19) and `test-setup-micro.sh` (12/12) both pass.
+
+---
+
 ## [2.8.28] — 2026-08-08 (Jira issue-type overrides, CR parent linking, constitution draft push)
 
 Prompted by a user request: `project_keys` already lets you override the

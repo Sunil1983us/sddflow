@@ -5549,6 +5549,53 @@ MIGRATIONS: list[Migration] = [
             "pass",
         ],
     },
+    {
+        "from": "2.8.28",
+        "to": "2.8.29",
+        "description": (
+            "Fix bare `sdd confluence push` (no --doc) never including "
+            "the context.md page -- the same gap as v2.8.23's "
+            "constitution fix, found while auditing integrations.yml.example "
+            "at a user's request to confirm everything was documented"
+        ),
+        "notes": [
+            "User asked to double-check integrations.yml.example "
+            "documented everything discussed in the previous round "
+            "(issue_hierarchy, hierarchy diagram, cr/chg). While "
+            "re-reading it end to end, found 'context' was missing "
+            "entirely -- not in page_map, not in _DEFAULT_PAGE_MAP -- "
+            "the exact same bug class as v2.8.23's constitution fix, "
+            "just never caught for context.md at the time",
+            "Root cause: _resolve_page_title() in confluence.py "
+            "special-cases 'context' to always resolve to '{feature} -- "
+            "Context' regardless of what's in page_map -- so `sdd "
+            "confluence draft --doc context` (what /create-context "
+            "actually calls) worked fine on its own. But a bare `sdd "
+            "confluence push` (no --doc) iterates page_map.keys(), and "
+            "'context' was never in that set, so a bulk push silently "
+            "never attempted the context page",
+            "Fixed by adding 'context' to _DEFAULT_PAGE_MAP "
+            "(sdd/utils/integrations.py), the wizard's minimal fallback "
+            "template (_integrations_template() in "
+            "sdd/commands/config.py), and integrations.yml.example's "
+            "page_map (with the same 'value is ignored, only presence "
+            "matters' comment already on the constitution entry)",
+            "This Node CLI has no Confluence integration at all "
+            "(scaffolding-only by design) and is unaffected -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Added TestConfluencePushIncludesContextByDefault (2 tests) "
+            "in test_confluence_push_cli.py mirroring the existing "
+            "constitution regression class; added 'context' to "
+            "EXPECTED_DOC_KEYS in test_config_and_integrations.py",
+            "Verified: cli-python pytest 882/882 (880 pre-existing + 2 "
+            "new); ruff check/format and mypy --ignore-missing-imports "
+            "(matching CI's exact invocation) both clean on the changed "
+            "files; check-cross-references.py clean across all 6 packs; "
+            "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both "
+            "pass",
+        ],
+    },
 ]
 
 

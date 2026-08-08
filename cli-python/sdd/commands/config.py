@@ -667,6 +667,10 @@ confluence:
     # key's only job is making a bare "sdd confluence push" (no --doc)
     # include the Constitution page; remove the line to opt out
     constitution: "{project_name} — Constitution"
+    # Same deal as constitution above -- title ignored (always
+    # "{{feature}} — Context"), this key only controls whether a bare
+    # push includes it; remove the line to opt out
+    context: "{project_name} — Context"
 
 # For the Jira review workflow (sdd review submit/check/apply), add a
 # document_reviews: section — see .specify/integrations.yml.example for the

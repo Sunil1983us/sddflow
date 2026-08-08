@@ -285,6 +285,12 @@ confluence:
                              # is actually ignored (title is always "{project} — Constitution"),
                              # this key only controls whether a bare `sdd confluence push`
                              # (no --doc) includes it; remove the line to opt out
+    context:   "Context"                     # same deal as constitution above — the value
+                             # here is ignored (title is always "{feature} — Context"), this
+                             # key only controls whether a bare `sdd confluence push` (no
+                             # --doc) includes it; remove the line to opt out. `sdd confluence
+                             # draft --doc context` (what /create-context actually calls) is
+                             # unaffected either way — it takes --doc directly
     release:   "{feature} — Release Notes"
 
   # Diagram rendering: Confluence has NO native Mermaid or PlantUML

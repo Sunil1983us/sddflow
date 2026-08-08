@@ -105,6 +105,14 @@ _DEFAULT_PAGE_MAP = {
     # page_map entirely) -- only the no --doc bulk-push default set had
     # this gap.
     "constitution": "{project} — Constitution",
+    # Same story as "constitution" above -- _resolve_page_title() also
+    # special-cases "context" to always use "{feature} — Context"
+    # regardless of what's mapped here; this key's only job is presence
+    # in page_map.keys() so a bare `sdd confluence push` (no --doc)
+    # includes it. `sdd confluence draft --doc context` (what
+    # /create-context actually calls) was never affected -- found while
+    # auditing this file for the same gap after fixing "constitution".
+    "context": "{feature} — Context",
 }
 
 _DEFAULT_PRIORITY_MAP = {

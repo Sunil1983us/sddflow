@@ -32,6 +32,7 @@ EXPECTED_DOC_KEYS = [
     "lld",
     "runbook",
     "constitution",
+    "context",
 ]
 
 
