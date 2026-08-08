@@ -6031,6 +6031,51 @@ MIGRATIONS: list[Migration] = [
             "(zero diffs after the first)",
         ],
     },
+    {
+        "from": "2.8.35",
+        "to": "2.8.36",
+        "description": (
+            "Fix a real bug reported from live use: brd.md's Stakeholders "
+            "table never actually got its ACT-NNN identifiers filled in "
+            "by /specify-uc -- the instruction existed but was too easy "
+            "for an agent to skip"
+        ),
+        "notes": [
+            "User report: 'after the BRD is created, the ACT-NNN was "
+            "never assigned after /specify-uc'",
+            "Root cause: specify-uc.prompt.md's 'Back-fill BRD "
+            "Stakeholders' instruction existed and was structurally "
+            "correct (right after Save/Write, before drafting Jira "
+            "stories), but had almost no structural weight -- a single "
+            "bolded inline paragraph with no heading, sandwiched between "
+            "two 'Save to:'/'Write:' bullets and the 'Draft Jira Stories' "
+            "paragraph, and never mentioned again in the command's own "
+            "completion message ('Use Cases generated. Review and "
+            "approve...') -- nothing in the output even hinted the "
+            "back-fill had (or hadn't) happened. This is the same "
+            "failure mode as v2.8.34's brd.md Build Effort field, fixed "
+            "the same way there by giving the step its own heading",
+            "Fix: promoted the instruction to its own '### Back-fill BRD "
+            "Stakeholders (mandatory -- do not skip)' heading with "
+            "explicit numbered steps (open brd.md, match each remaining "
+            "placeholder row to its real actor by role, resolve every "
+            "cell to either a real ACT-NNN or _(N/A)_, save + "
+            "regenerate brd.summary.md), and added a line to the "
+            "completion message confirming the back-fill happened by "
+            "name, so a skipped back-fill is now visible in the "
+            "command's own output rather than silent",
+            "specify-uc.prompt.md is a _shared/full/ source -- edited "
+            "once, synced to all 5 packs via sync-blocks.sh",
+            "This Node CLI has no Jira/Confluence integration and no "
+            "review-approval flow of its own (scaffolding-only by "
+            "design) and is unaffected by any of this -- this migration "
+            "entry exists so both CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 904/904; check-cross-"
+            "references.py clean across all 6 packs; test-setup.sh "
+            "(19/19) and test-setup-micro.sh (12/12) both pass; "
+            "sync-blocks.sh confirmed idempotent",
+        ],
+    },
 ]
 
 

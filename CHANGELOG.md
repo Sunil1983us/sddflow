@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.36] — 2026-08-08 (Fix: brd.md's ACT-NNN stakeholder IDs never got back-filled by `/specify-uc`)
+
+Found by a user: after the BRD is created and `/specify-uc` runs, `brd.md`
+§3 Stakeholders table still showed `_(set by /specify-uc)_` placeholders
+instead of real `ACT-NNN` values.
+
+### Fixed
+
+`specify-uc.prompt.md`'s instruction to back-fill `brd.md` §3 existed and
+was in the right place, but had almost no structural weight — a single
+bolded inline paragraph with no heading, sandwiched between the
+"Save to:"/"Write:" bullets and the "Draft Jira Stories" paragraph, never
+referenced again in the command's own completion message. Nothing in the
+command's output confirmed whether the back-fill had actually happened —
+the same failure mode as v2.8.34's `brd.md` Build Effort field, which was
+fixed the same way there.
+
+Promoted it to its own `### Back-fill BRD Stakeholders (mandatory — do
+not skip)` heading with explicit numbered steps (match each remaining
+placeholder row to its actor by role, resolve every cell to a real
+`ACT-NNN` or `_(N/A)_`, save + regenerate `brd.summary.md`), and added a
+line to the completion message confirming it happened by name.
+
+### Verified
+
+- cli-python pytest 904/904
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `sync-blocks.sh` confirmed idempotent
+
+---
+
 ## [2.8.35] — 2026-08-08 (Audit: review-gate consistency across every living and feature document — 2 behavioural gaps + 1 sync-tooling bug)
 
 Requested audit: check that every living document (Data Model, Security
