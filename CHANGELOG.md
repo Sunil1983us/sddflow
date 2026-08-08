@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.30] — 2026-08-08 (Add: document_reviews examples for living/service-level docs)
+
+Follow-up to the previous round's `issue_hierarchy`/`page_map` audit: a user
+asked to double-check `data-model`, `security-design`, `api-spec`, and
+`component-library` were fully documented in `integrations.yml.example`.
+They had a `page_map` entry (Confluence) each, but no `document_reviews`
+entry (Jira) anywhere in the shipped example — confirmed as by-design
+(`specify-doc.prompt.md`'s documented fallback: `sdd review submit` fails
+with no `document_reviews` entry, falls through to `sdd confluence draft`
+instead of silently dropping to chat mode), but a team that *does* want a
+formal Jira gate on one of these had nothing to copy from.
+
+### Added
+
+- Commented-out `document_reviews` example entries for all four living/
+  service-level docs. Each gets its **own single-entry phase** (e.g.
+  `phase: data-model, sequence: 1`) rather than sharing one with each other
+  or with `design` — they're independent (any order, no dependency between
+  them), and the predecessor check gates strictly on matching phase +
+  `sequence - 1`, so sharing a phase would wrongly block one doc on
+  another's approval.
+
+All four entries stay fully commented out by default — active
+`document_reviews`/`page_map` keys, and every existing project's behavior,
+are completely unaffected.
+
+### Verified
+
+- `cli-python` pytest 882/882 (no change — inert commented content); the
+  file still parses as valid YAML and the active key sets are unchanged.
+- `check-cross-references.py` clean across all 6 packs; `test-setup.sh`
+  (19/19) and `test-setup-micro.sh` (12/12) both pass.
+
+---
+
 ## [2.8.29] — 2026-08-08 (Fix: bare Confluence push missing the context.md page)
 
 Prompted by a user asking to double-check `integrations.yml.example`

@@ -3540,6 +3540,36 @@ export const MIGRATIONS = [
       "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
     ],
   },
+  {
+    from: '2.8.29',
+    to:   '2.8.30',
+    description: "Add commented-out document_reviews example entries " +
+      "for the living/service-level docs (data-model, security-design, " +
+      "api-spec, component-library) to integrations.yml.example",
+    notes: [
+      "User request, following up on the previous round's " +
+      "issue_hierarchy/page_map audit: these four docs had a page_map " +
+      "entry (Confluence) but no document_reviews entry (Jira) anywhere " +
+      "in the shipped example -- by design (specify-doc.prompt.md's " +
+      "documented fallback), but a team that DOES want a formal Jira " +
+      "gate on one had no template to copy from",
+      "Each gets its OWN single-entry phase (e.g. phase: data-model, " +
+      "sequence: 1) rather than sharing one with each other or with " +
+      "design -- they're independent (any order, no dependency between " +
+      "them), and the predecessor check gates strictly on matching " +
+      "phase + sequence-1, so sharing a phase would wrongly block one " +
+      "doc on another's approval",
+      "All four entries stay fully commented out by default -- active " +
+      "document_reviews / page_map keys are completely unaffected",
+      "This Node CLI has no Jira/Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this migration " +
+      "entry exists so both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 882/882 (no change -- inert " +
+      "commented content); check-cross-references.py clean across all " +
+      "6 packs; test-setup.sh (19/19) and test-setup-micro.sh (12/12) " +
+      "both pass",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
