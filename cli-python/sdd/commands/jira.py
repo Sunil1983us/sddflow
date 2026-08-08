@@ -544,7 +544,6 @@ def _print_push_summary(
     chg_tasks: list[dict] | None = None,
     cr: str | None = None,
 ) -> None:
-    h = jira_cfg.issue_hierarchy
     console.print(f"  Project  : [cyan]{project_name}[/cyan]")
     console.print(f"  Feature  : [cyan]{feature_name}[/cyan]")
     if level == "uc-draft":
@@ -561,7 +560,9 @@ def _print_push_summary(
         console.print(f"  CHG      : [cyan]{len(chg_tasks)}[/cyan]  [dim]({cr})[/dim]")
     console.print(
         f"  Jira     : [cyan]{jira_cfg.project_key}[/cyan]  "
-        f"[dim]{h['feature']} → {h['story']} → {h['task']}[/dim]"
+        f"[dim]{jira_cfg.issue_type_for('feature')} → "
+        f"{jira_cfg.issue_type_for('story')} → "
+        f"{jira_cfg.issue_type_for('task')}[/dim]"
     )
     if jira_cfg.project_keys:
         overrides = ", ".join(
@@ -653,7 +654,6 @@ def jira_push(profile, feature, level, cr, dry_run):
         return
 
     jira_cfg = cfg.jira
-    h = jira_cfg.issue_hierarchy
     _print_push_summary(
         project_name,
         feature_name,
@@ -671,7 +671,8 @@ def jira_push(profile, feature, level, cr, dry_run):
             console.print("  [bold]Would create draft Stories (one per UC):[/bold]")
             for uc in use_cases:
                 console.print(
-                    f"  ├── [{h['story']}] {uc.id} — {uc.title}  [dim](draft)[/dim]"
+                    f"  ├── [{jira_cfg.issue_type_for('story')}] {uc.id} — {uc.title}"
+                    f"  [dim](draft)[/dim]"
                 )
             console.print()
             return
@@ -739,11 +740,10 @@ def _print_dry_run(
     level: str,
     chg_tasks: list[dict] | None,
 ) -> None:
-    h = cfg.issue_hierarchy
     console.print("  [bold]Would create:[/bold]")
 
     if level == "chg":
-        console.print(f"  ┌── [{h.get('chg', h['task'])}] CHG tasks")
+        console.print(f"  ┌── [{cfg.issue_type_for('chg')}] CHG tasks")
         for chg in chg_tasks or []:
             console.print(
                 f"  │   └── {chg['sdd_id']} — {chg['description']}  "
@@ -753,27 +753,28 @@ def _print_dry_run(
         return
 
     if level == "epic":
-        console.print(f"  └── [{h['feature']}] {feature_name}")
+        console.print(f"  └── [{cfg.issue_type_for('feature')}] {feature_name}")
         console.print()
         return
 
-    console.print(f"  ┌── [{h['feature']}] {feature_name}")
+    console.print(f"  ┌── [{cfg.issue_type_for('feature')}] {feature_name}")
     if level in ("story", "all"):
         for story in stories:
             pts = f"  {story.story_points}sp" if story.story_points else ""
             console.print(
-                f"  │   ├── [{h['story']}] {story.id} — {story.title} "
+                f"  │   ├── [{cfg.issue_type_for('story')}] {story.id} — {story.title} "
                 f"[dim]({story.moscow}{pts})[/dim]"
             )
             if level == "all":
                 for task in [t for t in tasks if t.story_id == story.id]:
                     console.print(
-                        f"  │   │   └── [{h['task']}] {task.id} — {task.title}"
+                        f"  │   │   └── [{cfg.issue_type_for('task')}] "
+                        f"{task.id} — {task.title}"
                     )
     if level == "task":
         for task in tasks:
             console.print(
-                f"  │   └── [{h['task']}] {task.id} — {task.title}  "
+                f"  │   └── [{cfg.issue_type_for('task')}] {task.id} — {task.title}  "
                 f"[dim](Story: {task.story_id or '—'})[/dim]"
             )
     if level == "all":
@@ -783,7 +784,7 @@ def _print_dry_run(
             console.print("  │   [yellow](orphaned — no matching Story):[/yellow]")
             for task in orphans:
                 console.print(
-                    f"  │   └── [{h['task']}] {task.id} — {task.title}  "
+                    f"  │   └── [{cfg.issue_type_for('task')}] {task.id} — {task.title}  "
                     f"[dim](Story: {task.story_id})[/dim]"
                 )
     console.print()
@@ -903,16 +904,17 @@ def _push_epic(
     feature_extra = feature_extra_fields(
         features_dir, cfg, feature_name, confluence_base_url
     )
+    issue_type = cfg.issue_type_for("feature")
     key, created = _upsert_issue(
         client,
         cfg.key_for("feature"),
-        cfg.issue_hierarchy["feature"],
+        issue_type,
         feature_name,
         feature_extra,
         f"sdd-feature:{feature_name}",
         cfg.labels,
     )
-    _log(cfg.issue_hierarchy["feature"], key, feature_name, created)
+    _log(issue_type, key, feature_name, created)
     return key
 
 
@@ -959,10 +961,11 @@ def _push_stories(
             if story.derived_uc
             else _item_label(feature_name, story.id)
         )
+        story_issue_type = cfg.issue_type_for("story")
         key, created = _upsert_issue(
             client,
             cfg.key_for("story"),
-            cfg.issue_hierarchy["story"],
+            story_issue_type,
             f"{story.id} — {story.title}",
             extra,
             id_label,
@@ -978,7 +981,7 @@ def _push_stories(
 
         pts = f"  {story.story_points}sp" if story.story_points else ""
         _log(
-            cfg.issue_hierarchy["story"],
+            story_issue_type,
             key,
             f"{story.id}: {story.title} ({story.moscow}{pts})",
             created,
@@ -1013,10 +1016,11 @@ def _push_uc_draft_stories(
             ),
         }
         _apply_team_field(extra, cfg, "story")
+        story_issue_type = cfg.issue_type_for("story")
         key, created = _upsert_issue(
             client,
             cfg.key_for("story"),
-            cfg.issue_hierarchy["story"],
+            story_issue_type,
             f"{uc.id} — {uc.title} (draft)",
             extra,
             _item_label(feature_name, uc.id),
@@ -1030,7 +1034,7 @@ def _push_uc_draft_stories(
             except Exception as e:
                 _warn_parent_link_failed(client, key, epic_key, cfg.key_for("story"), e)
 
-        _log(cfg.issue_hierarchy["story"], key, f"{uc.id}: {uc.title} (draft)", created)
+        _log(story_issue_type, key, f"{uc.id}: {uc.title} (draft)", created)
 
     return uc_key_map
 
@@ -1060,10 +1064,11 @@ def _push_tasks(
             extra[fields["fr_reference"]] = ", ".join(task.satisfies)
         _apply_team_field(extra, cfg, "task", fields)
 
+        task_issue_type = cfg.issue_type_for("task")
         key, created = _upsert_issue(
             client,
             cfg.key_for("task"),
-            cfg.issue_hierarchy["task"],
+            task_issue_type,
             f"{task.id} — {task.title}",
             extra,
             _item_label(feature_name, task.id),
@@ -1082,7 +1087,7 @@ def _push_tasks(
 
         story_ref = f"  [dim]→ {parent_key or '?'}[/dim]" if task.story_id else ""
         _log(
-            cfg.issue_hierarchy["task"],
+            task_issue_type,
             key,
             f"{task.id}: {task.title}{story_ref}",
             created,
@@ -1112,7 +1117,7 @@ def _push_chg(
             for fr in s.satisfies:
                 fr_to_story[fr] = key
 
-    chg_issue_type = cfg.issue_hierarchy.get("chg", cfg.issue_hierarchy["task"])
+    chg_issue_type = cfg.issue_type_for("chg")
     chg_key_map: dict[str, str] = {}
 
     for chg in chg_tasks:

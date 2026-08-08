@@ -5466,6 +5466,89 @@ MIGRATIONS: list[Migration] = [
             "packs' CLAUDE.md",
         ],
     },
+    {
+        "from": "2.8.27",
+        "to": "2.8.28",
+        "description": (
+            "Per-level Jira issue type overrides (review/chg/cr) now "
+            "actually work; cr.py's Change Request review ticket now "
+            "gets a parent Epic link like every other issue type; "
+            "constitution.md's DRAFT now pushes to Confluence "
+            "immediately at /specify, not only after GATE-1 finalizes"
+        ),
+        "notes": [
+            "User request: project_keys already supports per-level "
+            "overrides for feature/story/task/review/chg/cr -- asked for "
+            "the same on issue_hierarchy (the Jira issue TYPE per "
+            "level), and for the hierarchy/parent-linking model to be "
+            "explained and documented",
+            "Investigating found issue_hierarchy per-level overrides for "
+            "review/chg/cr were completely non-functional even though "
+            "jira.py's own `.get('chg', ...)` fallback code implied they "
+            "worked: load_integrations() built JiraConfig with only "
+            "feature/story/task hardcoded, silently dropping any "
+            "review/chg/cr entry the user wrote in integrations.yml. "
+            "Fixed with a new JiraConfig.issue_type_for(level) method "
+            "(mirrors key_for()'s alias/fallback semantics, including "
+            "the 'epic' <-> 'feature' bidirectional alias) that every "
+            "issue-creation call site in jira.py/review.py/cr.py now "
+            "routes through, replacing all direct issue_hierarchy[...] "
+            "dict indexing",
+            "Design note: issue_hierarchy's dataclass default and "
+            "load_integrations() construction deliberately stay EMPTY "
+            "by default (all resolution happens in issue_type_for(), "
+            "same pattern as project_keys/key_for()) -- an earlier "
+            "version of this fix pre-filled every level's default into "
+            "the stored dict, which broke the 'epic' alias (since "
+            "'feature' was then always present, the alias fallback "
+            "never got a chance to fire for an `issue_hierarchy: {epic: "
+            "...}` override). Caught by the fix's own test suite before "
+            "shipping",
+            "Also fixed while investigating: cr.py's 'sdd cr submit' "
+            "created the CR-NNN review ticket as a fully standalone "
+            "issue with no parent link at all -- the only Jira issue "
+            "type this CLI ever created that way (Epic/Story/Task/"
+            "review tickets all link up under the Epic). It now "
+            "self-bootstraps the Epic (reusing review.py's "
+            "_ensure_epic()) and links the CR review ticket under it, "
+            "same as review.submit's own review tickets do",
+            "Documented the full parent-child hierarchy and the cr-vs-"
+            "chg distinction (cr = the Change Request's own approval "
+            "ticket, one per CR-NNN; chg = individual dev tasks "
+            "implementing one line of an approved CR's plan, one per "
+            "CHG-NNN row, parented to whichever Story satisfies its "
+            "FR-NNN reference) directly in integrations.yml.example's "
+            "issue_hierarchy comment block -- the single canonical "
+            "source synced to every pack -- and in cli-python/README.md",
+            "Separately: constitution.md's DRAFT now pushes to "
+            "Confluence immediately when /specify first generates it "
+            "(same as context.md's own draft push in /create-context), "
+            "not only when GATE-1 finalization pushes it later -- a "
+            "reviewer can now comment on the constitution in Confluence "
+            "before finalizing, matching how context.md already worked. "
+            "Applied to all 5 packs' specify.prompt.md (Action 1, right "
+            "after saving the DRAFT) individually, since specify.prompt.md "
+            "differs per pack (different tech stack rows) and isn't part "
+            "of the shared-block sync system",
+            "This Node CLI has no Jira/Confluence integration at all "
+            "(scaffolding-only by design) and is unaffected by any of "
+            "this -- this migration entry exists so both CLIs report "
+            "the same sdd_version chain",
+            "Added tests: TestIssueTypeFor (5 tests) in "
+            "test_config_and_integrations.py covering default behavior, "
+            "independent review/chg/cr overrides, the epic alias, and "
+            "end-to-end usage from review.py/cr.py; TestCrSubmitParentLink "
+            "(1 test) in test_cr.py verifying the new Epic self-"
+            "bootstrap + parent link; updated FakeJiraClient in test_cr.py "
+            "to track set_parent() calls and return unique issue keys",
+            "Verified: cli-python pytest 880/880 (874 pre-existing + 6 "
+            "new); ruff check/format and mypy --ignore-missing-imports "
+            "(matching CI's exact invocation) both clean on the changed "
+            "files; check-cross-references.py clean across all 6 packs; "
+            "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both "
+            "pass",
+        ],
+    },
 ]
 
 

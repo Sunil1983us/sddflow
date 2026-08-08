@@ -743,11 +743,10 @@ def _ensure_epic(
         extra = feature_extra_fields(
             features_dir, jira_cfg, feature_name, confluence_base_url
         )
-        h = jira_cfg.issue_hierarchy
         key, _ = _upsert_issue(
             jira_client,
             jira_cfg.key_for("feature"),
-            h["feature"],
+            jira_cfg.issue_type_for("feature"),
             feature_name,
             extra,
             f"sdd-feature:{feature_name}",
@@ -908,9 +907,11 @@ def review_submit(doc, profile, feature):
     epic_key = _ensure_epic(jira_client, cfg.jira, feature_name, cf_prof.base_url)
 
     # ── Create / update Jira review story ─────────────────────────────────────
-    # Issue type is "story" (not "task") so review tickets sit at the same
-    # hierarchy level as dev Stories under the Epic -- Epic -> Story -> Task
-    # throughout, review tickets included, not a separate shape.
+    # Issue type defaults to "Story" (not "Task") so review tickets sit at
+    # the same hierarchy level as dev Stories under the Epic -- Epic ->
+    # Story -> Task throughout, review tickets included, not a separate
+    # shape -- but is independently overridable via issue_hierarchy.review
+    # in integrations.yml (see JiraConfig.issue_type_for()).
     # Label is feature-qualified for the same reason Story/Task labels are
     # (see jira.py's _item_label): an un-qualified "sdd-doc:brd" would let
     # a second feature's BRD review submission find and silently overwrite
@@ -927,7 +928,7 @@ def review_submit(doc, profile, feature):
     )
     fields: dict = {
         "project": {"key": review_project_key},
-        "issuetype": {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
+        "issuetype": {"name": cfg.jira.issue_type_for("review")},
         "summary": story_summary,
         # cfg.jira.labels (base_fields.labels, e.g. "sdd-generated") is
         # applied here the same way _upsert_issue() applies it to every
@@ -1133,7 +1134,7 @@ def review_push_questions(doc, profile, feature):
     )
     fields: dict = {
         "project": {"key": review_project_key},
-        "issuetype": {"name": cfg.jira.issue_hierarchy.get("story", "Story")},
+        "issuetype": {"name": cfg.jira.issue_type_for("review")},
         "summary": f"Open Questions: {project_name} — {doc.upper()}",
         "labels": cfg.jira.labels
         + ["sdd-review", "sdd-open-questions", idempotency_label],

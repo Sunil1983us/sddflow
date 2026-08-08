@@ -92,6 +92,17 @@ Never Do — extract from:
 - Add standard rules: logic in controller, hardcode values, skip tests
 
 Save updated constitution.md (Part 1 unchanged, Part 2 is a DRAFT).
+If `.specify/integrations.yml` has a `confluence:` section, push this
+DRAFT now too — same as context.md's own draft push in
+`/create-context`, so a reviewer can comment on the constitution in
+Confluence before GATE-1, not only after it:
+```bash
+sdd confluence push --doc constitution
+```
+Skip silently if `confluence:` is not configured, or the command
+fails (this is a convenience push, not a gate — GATE-1 finalization's
+own push below re-syncs the page regardless of whether this one
+succeeded).
 Confirm: "Constitution Part 2 generated from context — DRAFT.
 Review and finalize every row (GATE-1) before /validate."
 

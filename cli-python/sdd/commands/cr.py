@@ -164,6 +164,19 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
         cr_project_key = cfg.jira.key_for("cr")
         existing = jira_client.find_by_label(cr_project_key, idempotency_label)
 
+        # So this CR review ticket nests under the same Epic every other
+        # ticket for this feature does -- previously this was the only
+        # Jira issue type sdd ever created with no parent link at all
+        # (Epic/Story/Task/review tickets all link up; this one just sat
+        # standalone in the project). Never blocks the review submission
+        # -- _ensure_epic prints a warning and returns None on failure.
+        from sdd.commands.review import _ensure_epic
+
+        confluence_base_url = cf_prof.base_url if cfg.confluence else None
+        epic_key = _ensure_epic(
+            jira_client, cfg.jira, feature_name, confluence_base_url
+        )
+
         reviewer_id = reviewer or getattr(cfg, "cr_reviewer", None)
 
         desc_text = (
@@ -175,7 +188,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
         )
         fields: dict = {
             "project": {"key": cr_project_key},
-            "issuetype": {"name": cfg.jira.issue_hierarchy.get("task", "Task")},
+            "issuetype": {"name": cfg.jira.issue_type_for("cr")},
             "summary": f"Review: {project_name} — {cr_id}",
             # cfg.jira.labels (base_fields.labels, e.g. "sdd-generated") is
             # applied here the same way _upsert_issue() applies it to every
@@ -214,6 +227,17 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
                 console.print(
                     f"  [green]✓[/green]  Jira task created: [cyan]{task_key}[/cyan]"
                 )
+            if epic_key:
+                from sdd.commands.jira import _warn_parent_link_failed
+
+                try:
+                    jira_client.set_parent(
+                        task_key, epic_key, cfg.jira.parent_field_for("cr")
+                    )
+                except Exception as e:
+                    _warn_parent_link_failed(
+                        jira_client, task_key, epic_key, cr_project_key, e
+                    )
         except Exception as e:
             console.print(f"  [yellow]⚠  Jira error: {e}[/yellow]")
     else:

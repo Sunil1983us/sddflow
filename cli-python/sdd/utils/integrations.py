@@ -114,6 +114,26 @@ _DEFAULT_PRIORITY_MAP = {
     "wont-have": "Lowest",
 }
 
+# Every level this CLI ever creates a Jira issue for, and the built-in
+# Jira issue type it uses unless overridden. "review" and "cr" default to
+# the same type "story"/"task" always used before this map covered them
+# explicitly (see jira.py's _push_uc_draft_stories docstring on why
+# review tickets sit at Story level, and cr.py's cr_submit on the CR
+# review task), so an unconfigured project behaves identically to before
+# -- the only change is that a user can now override review/chg/cr
+# independently instead of them silently riding along with story/task's
+# type. Keys match project_keys' -- feature/story/task/review/chg/cr
+# (plus "epic" as a bidirectional alias for "feature", same as
+# project_keys -- see _level_lookup/_level_source_key below).
+_DEFAULT_ISSUE_HIERARCHY = {
+    "feature": "Feature",
+    "story": "Story",
+    "task": "Task",
+    "review": "Story",
+    "chg": "Task",
+    "cr": "Task",
+}
+
 # The CLI's public `sdd jira push --level` flag calls the top-level
 # issue "epic" (see jira.py's _LEVELS); every config-facing lookup
 # (project_keys, custom_fields_by_level, parent_field_by_level,
@@ -192,13 +212,18 @@ class JiraConfig:
     # linking issues across projects, so overriding this can produce
     # issues that exist but aren't actually linked to their parent.
     project_keys: dict = field(default_factory=dict)
-    issue_hierarchy: dict = field(
-        default_factory=lambda: {
-            "feature": "Feature",
-            "story": "Story",
-            "task": "Task",
-        }
-    )
+    # Per-level Jira issue type overrides -- e.g. {"chg": "Change"}.
+    # Empty by default, exactly like project_keys above -- every call
+    # site must resolve through issue_type_for() below, never index this
+    # dict directly. (An earlier version of this field pre-filled full
+    # defaults here so raw dict access stayed safe; that broke the
+    # "epic" alias, since "feature" was then always present in the dict
+    # and the alias fallback never got a chance to fire for a user's
+    # `issue_hierarchy: {epic: ...}` override -- same class of bug
+    # key_for()'s docstring describes for project_keys, avoided the same
+    # way: never merge defaults into the stored dict, only at lookup
+    # time.)
+    issue_hierarchy: dict = field(default_factory=dict)
     parent_field: str = "parent"
     # Optional per-level overrides for parent_field -- e.g.
     # {"feature": "customfield_10014"} when the Epic's project (see
@@ -264,6 +289,26 @@ class JiraConfig:
                 f"YAML nesting under {source}."
             )
         return value
+
+    def issue_type_for(self, level: str) -> str:
+        """The Jira issue type name to use for a given hierarchy level
+        (feature/story/task/review/chg/cr), honoring issue_hierarchy
+        overrides and falling back to _DEFAULT_ISSUE_HIERARCHY otherwise.
+        Mirrors key_for()'s alias semantics -- also accepts "epic" as an
+        alias for "feature" (both directions).
+
+        Before this method existed, only "feature"/"story"/"task" were
+        ever loaded from integrations.yml's issue_hierarchy section at
+        all (load_integrations() built the JiraConfig with those three
+        keys hardcoded) -- a user writing `issue_hierarchy: {review:
+        "Task"}` or `{chg: "Change"}` had it silently discarded, with
+        review/chg/cr always riding along on story's/task's/task's type
+        with no way to override them independently, contrary to what the
+        per-call-site `.get("chg", ...)` fallback code implied was
+        possible."""
+        return _level_lookup(
+            self.issue_hierarchy, level, _DEFAULT_ISSUE_HIERARCHY.get(level, "Task")
+        )
 
     def fields_for(self, level: str) -> dict:
         """Custom field ID mapping (logical name -> Jira field ID) to use
@@ -423,11 +468,12 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             project_key=jira_raw["project_key"],
             profile=jira_raw.get("profile"),
             project_keys=jira_raw.get("project_keys", {}),
-            issue_hierarchy={
-                "feature": hierarchy.get("feature", "Feature"),
-                "story": hierarchy.get("story", "Story"),
-                "task": hierarchy.get("task", "Task"),
-            },
+            # Passed through as-written -- previously this hardcoded only
+            # feature/story/task, so a "review"/"chg"/"cr" override was
+            # silently discarded no matter what was written in
+            # integrations.yml. Resolution (including defaults and the
+            # "epic" alias) happens entirely in issue_type_for().
+            issue_hierarchy=hierarchy,
             parent_field=jira_raw.get("parent_field", "parent"),
             parent_field_by_level=jira_raw.get("parent_field_by_level", {}),
             priority_map=bf.get("priority_map", dict(_DEFAULT_PRIORITY_MAP)),

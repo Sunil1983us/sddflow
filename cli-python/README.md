@@ -1038,6 +1038,16 @@ jira:
     feature: Feature    # or "Epic" if your project has no Feature type
     story: Story
     task: Task
+    # review: Bug        # optional: give review-gate tickets their own type
+    # chg: Change         # optional: give CHG-NNN tasks their own type
+    # cr: "Change Request" # optional: give CR-NNN review tickets their own type
+  # Parent-child linking: feature (top) -> story -> task; review and cr
+  # both parent directly to feature; chg parents to whichever story
+  # satisfies its FR-NNN reference (falls back to feature). See
+  # integrations.yml.example's own comment on issue_hierarchy for the
+  # full diagram and what distinguishes "cr" (the Change Request's own
+  # approval ticket) from "chg" (the individual dev tasks implementing
+  # an approved CR).
   parent_field: parent  # "parent" for next-gen; "customfield_10014" for classic
   # Optional: per-level overrides for parent_field, for the same reason
   # project_keys exists -- the level here is the CHILD being linked (e.g.

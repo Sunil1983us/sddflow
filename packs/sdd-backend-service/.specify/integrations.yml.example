@@ -60,18 +60,70 @@ jira:
   #   story: SUNT
   #   task: SUNT
 
-  # Issue type names for the Feature → Story → Task hierarchy.
+  # Issue type names, one per level -- same keys as project_keys above
+  # (feature/story/task/review/chg/cr), same parent-key fallback rule
+  # (an unlisted level falls back to whatever "task"/"story" resolve to
+  # by default below -- see JiraConfig.issue_type_for()). Uncomment a
+  # level to give it its own issue type instead of riding along on its
+  # default.
   #
   # These must exactly match the issue type names in your Jira project.
   # Common alternatives:
-  #   feature: Epic       (if your project has no "Feature" type)
-  #   task:    Sub-task   (for classic company-managed projects)
+  #   feature: Epic              (if your project has no "Feature" type)
+  #   task:    Sub-task          (for classic company-managed projects)
+  #   review:  Task, Bug         (if you don't want review tickets at Story level)
+  #   cr:      "Change Request"  (if your project has a dedicated type)
   #
   # Run: Jira → Project Settings → Issue Types to see your type names.
   issue_hierarchy:
     feature: Feature
     story: Story
     task: Task
+    # review: Story          # the review-gate ticket sdd review submit creates
+    # chg: Task               # CHG-NNN implementation tasks (see change_requests below)
+    # cr: Task                 # the CR-NNN review ticket sdd cr submit creates
+
+  # Parent-child linking -- who nests under whom, and why:
+  #
+  #   feature (Epic)                  — top level, no parent
+  #   ├── story                       — parent: feature. Includes both
+  #   │                                 real Stories (from stories.md)
+  #   │                                 and the placeholder Story
+  #   │                                 `sdd jira push --level uc-draft`
+  #   │                                 creates right after /specify-uc,
+  #   │                                 before stories.md exists.
+  #   │   └── task                    — parent: the story listed in its
+  #   │                                 STORY-NNN reference (tasks.md);
+  #   │                                 no parent if it has none.
+  #   ├── review                      — parent: feature. One per spec doc
+  #   │                                 (BRD/SRD/etc.) reviewed via
+  #   │                                 `sdd review submit` -- sits at the
+  #   │                                 same hierarchy depth as a dev
+  #   │                                 Story, not nested under one.
+  #   └── cr                          — parent: feature. The CR-NNN
+  #       │                             Change Request's own review
+  #       │                             ticket (`sdd cr submit`) -- this
+  #       │                             is where reviewers approve/reject
+  #       │                             the CHANGE ITSELF, before any
+  #       │                             chg implementation task exists.
+  #       └── chg (via story, not cr) — parent: whichever Story satisfies
+  #                                     the FR-NNN the CHG-NNN task
+  #                                     references (parsed from the CR's
+  #                                     §4 table); falls back to feature
+  #                                     if no matching Story is found.
+  #                                     NOT parented under its own cr
+  #                                     ticket -- a chg task is dev work
+  #                                     against the existing Story tree,
+  #                                     the cr ticket is a separate,
+  #                                     parallel approval record for the
+  #                                     change proposal that produced it.
+  #
+  # In short: cr = "should we make this change?" (one review ticket per
+  # CR-NNN, approved/rejected as a whole). chg = "here's the actual dev
+  # task implementing one line of an approved CR's plan" (one per
+  # CHG-NNN row in the CR's §4 table, tracked like any other dev Task).
+  # A CR can produce several chg tasks; a chg task always traces back to
+  # exactly one CR (see the CR-NNN mentioned in its Jira description).
 
   # How child issues link to their parent.
   #

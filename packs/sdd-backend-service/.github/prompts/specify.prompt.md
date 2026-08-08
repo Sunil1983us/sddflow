@@ -77,6 +77,17 @@ Never Do — extract from:
 - List any remaining `[MISSING — ask user]` rows as "Open Items for
   GATE-1" ({N} items, by row name) — or state "No open items — Part 2
   ready for GATE-1 review" if none remain.
+- If `.specify/integrations.yml` has a `confluence:` section, push this
+  DRAFT now too — same as context.md's own draft push in
+  `/create-context`, so a reviewer can comment on the constitution in
+  Confluence before GATE-1, not only after it:
+  ```bash
+  sdd confluence push --doc constitution
+  ```
+  Skip silently if `confluence:` is not configured, or the command
+  fails (this is a convenience push, not a gate — GATE-1 finalization's
+  own push below re-syncs the page regardless of whether this one
+  succeeded).
 - Confirm: "Constitution Part 2 generated from context — DRAFT.
   Review and finalize every row (GATE-1) before /validate."
 

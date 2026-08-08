@@ -4,6 +4,63 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.28] — 2026-08-08 (Jira issue-type overrides, CR parent linking, constitution draft push)
+
+Prompted by a user request: `project_keys` already lets you override the
+Jira **project** per level (`feature`/`story`/`task`/`review`/`chg`/`cr`) —
+they asked for the same on the Jira **issue type**, plus a clear explanation
+of the parent-child hierarchy and what distinguishes `chg` from `cr`.
+
+Investigating found the issue-type overrides didn't actually work at all:
+`load_integrations()` built the Jira config with only `feature`/`story`/
+`task` hardcoded, silently dropping any `review`/`chg`/`cr` entry written
+under `issue_hierarchy:` — even though the per-call-site fallback code
+implied it was supported. Also found, while tracing the hierarchy: `sdd cr
+submit`'s Change Request review ticket was the only Jira issue type this
+CLI ever created with **no parent link at all** — every other type (Epic,
+Story, Task, review tickets) nests under the Epic; CR review tickets just
+sat standalone.
+
+### Added
+
+- `JiraConfig.issue_type_for(level)` — resolves the Jira issue type for
+  `feature`/`story`/`task`/`review`/`chg`/`cr` (plus the `epic` alias for
+  `feature`), honoring `issue_hierarchy:` overrides. Every issue-creation
+  call site in `jira.py`/`review.py`/`cr.py` now routes through it.
+- `sdd cr submit` now self-bootstraps the Epic and links the CR review
+  ticket under it, matching every other issue type.
+- Documented the full parent-child hierarchy and the `cr`-vs-`chg`
+  distinction directly in `integrations.yml.example`'s `issue_hierarchy`
+  comment block (the canonical source synced to every pack) and in
+  `cli-python/README.md`: **`cr`** is the Change Request's own approval
+  ticket (one per CR-NNN); **`chg`** is an individual dev task implementing
+  one line of an already-approved CR's plan (one per CHG-NNN row, parented
+  to whichever Story satisfies its FR-NNN reference — not to its own `cr`
+  ticket).
+- `constitution.md`'s DRAFT now pushes to Confluence immediately when
+  `/specify` first generates it — same as `context.md`'s own draft push in
+  `/create-context` — instead of only once GATE-1 finalization pushes it.
+  A reviewer can now comment on the constitution in Confluence before
+  finalizing, not only after.
+
+### Fixed
+
+- `issue_hierarchy: {review: ..., chg: ..., cr: ...}` overrides in
+  `integrations.yml` are no longer silently discarded.
+
+### Verified
+
+- `cli-python` pytest 880/880 (874 pre-existing + 6 new: `TestIssueTypeFor`
+  covering defaults, independent review/chg/cr overrides, and the epic
+  alias; `TestCrSubmitParentLink` verifying the Epic self-bootstrap +
+  parent link).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+- `check-cross-references.py` clean across all 6 packs; `test-setup.sh`
+  (19/19) and `test-setup-micro.sh` (12/12) both pass.
+
+---
+
 ## [2.8.27] — 2026-08-08 (Fix: {Feature Name} document header had no defined source)
 
 Reported by a user: a generated BRD's `# Feature: {Feature Name}` header

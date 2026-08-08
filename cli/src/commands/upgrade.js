@@ -3458,6 +3458,55 @@ export const MIGRATIONS = [
       "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
     ],
   },
+  {
+    from: '2.8.27',
+    to:   '2.8.28',
+    description: "Per-level Jira issue type overrides (review/chg/cr) " +
+      "now actually work; cr.py's Change Request review ticket now " +
+      "gets a parent Epic link like every other issue type; " +
+      "constitution.md's DRAFT now pushes to Confluence immediately at " +
+      "/specify, not only after GATE-1 finalizes",
+    notes: [
+      "User request: project_keys already supports per-level overrides " +
+      "for feature/story/task/review/chg/cr -- asked for the same on " +
+      "issue_hierarchy (the Jira issue TYPE per level), and for the " +
+      "hierarchy/parent-linking model to be explained and documented",
+      "Investigating found issue_hierarchy per-level overrides for " +
+      "review/chg/cr were completely non-functional: cli-python's " +
+      "load_integrations() built JiraConfig with only feature/story/task " +
+      "hardcoded, silently dropping any review/chg/cr entry the user " +
+      "wrote in integrations.yml. Fixed with a new " +
+      "JiraConfig.issue_type_for(level) method every issue-creation call " +
+      "site now routes through, replacing all direct issue_hierarchy[...] " +
+      "dict indexing",
+      "Also fixed: cr.py's 'sdd cr submit' created the CR-NNN review " +
+      "ticket as a fully standalone issue with no parent link at all -- " +
+      "the only Jira issue type this CLI ever created that way. It now " +
+      "self-bootstraps the Epic and links the CR review ticket under it, " +
+      "same as review submit's own review tickets do",
+      "Documented the full parent-child hierarchy and the cr-vs-chg " +
+      "distinction (cr = the Change Request's own approval ticket, one " +
+      "per CR-NNN; chg = individual dev tasks implementing one line of " +
+      "an approved CR's plan, one per CHG-NNN row, parented to whichever " +
+      "Story satisfies its FR-NNN reference) directly in " +
+      "integrations.yml.example's issue_hierarchy comment block and in " +
+      "cli-python/README.md",
+      "Separately: constitution.md's DRAFT now pushes to Confluence " +
+      "immediately when /specify first generates it (same as " +
+      "context.md's own draft push in /create-context), not only when " +
+      "GATE-1 finalization pushes it later. Applied to all 5 packs' " +
+      "specify.prompt.md individually",
+      "This Node CLI has no Jira/Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected by any of this -- " +
+      "this migration entry exists so both CLIs report the same " +
+      "sdd_version chain",
+      "Verified: cli-python pytest 880/880 (874 pre-existing + 6 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files; " +
+      "check-cross-references.py clean across all 6 packs; " +
+      "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
