@@ -3649,6 +3649,63 @@ export const MIGRATIONS = [
       "clean; node --check on app.js clean",
     ],
   },
+  {
+    from: '2.8.32',
+    to:   '2.8.33',
+    description: "Fix a real document-corrupting bug in `sdd review " +
+      "approve --local` (a blind 'Status: Draft' find-replace could " +
+      "mangle enum content anywhere in a document's body), a severe " +
+      "Confluence-pull data-loss bug (mismatched ac: tag closing could " +
+      "delete whole sections), an HTML-comment mangling bug on both " +
+      "push and pull, and the security/security-design doc-key naming " +
+      "inconsistency -- all found by a user during a real living-" +
+      "document review cycle",
+    notes: [
+      "Bug 1 (data corruption) -- cli-python's review.py flipped a " +
+      "document's Status: header via an unanchored regex-replace across " +
+      "the ENTIRE document, not scoped to the real header. Reported by " +
+      "a user: data-model.md's own template (unlike every other spec " +
+      "template) had NO Status: header field at all, so the regex's " +
+      "first (and only) match was a §3 enum field written as " +
+      "'RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED, RETIRED' -- " +
+      "silently mangled into 'RuleVersionStatus: Approved, SUBMITTED, " +
+      "PUBLISHED, RETIRED'. Fixed by scoping the flip to the document's " +
+      "front matter (before the first '## ' heading)",
+      "Root-caused further: data-model-template.md and security-design-" +
+      "template.md never had a Status: header field to begin with -- " +
+      "added 'Status: Draft' to both, across all 5 packs, restoring " +
+      "correct Draft/Approved status tracking for these living docs",
+      "Bug 2 (severe data loss) -- cf_to_md.py's 'strip remaining ac:* " +
+      "elements' cleanup paired an opening ac: tag with the NEXT ac: " +
+      "closing tag of ANY name, not necessarily its own. Reported by a " +
+      "user: a page with a local-svg diagram, followed later by " +
+      "another unhandled/nested ac: element, had everything between " +
+      "them silently deleted -- 6 tables and an entire numbered section " +
+      "in their case. Fixed with a backreference so a match can only " +
+      "ever span exactly one element's own content",
+      "Bug 3 (data loss + visible garbage) -- HTML comments (e.g. the " +
+      "security-sign-off marker specify-doc.prompt.md requires) fell " +
+      "through to the paragraph branch on push, getting HTML-escaped " +
+      "into VISIBLE garbage text on the actual Confluence page, then " +
+      "deleted outright by the generic tag-stripper on pull. Fixed on " +
+      "both sides: push passes a comment-only line through literally; " +
+      "pull stashes comments into placeholders before any other " +
+      "processing and restores them verbatim at the end",
+      "Bug 4 (naming inconsistency) -- specify-doc.prompt.md's own " +
+      "prose calls it `/specify-doc security`, but every sdd CLI " +
+      "command actually requires the doc key `security-design`. Added " +
+      "an explicit resolution rule right after the Input section",
+      "This Node CLI has no Jira/Confluence integration and no review-" +
+      "approval flow of its own (scaffolding-only by design) and is " +
+      "unaffected by any of this -- this migration entry exists so " +
+      "both CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 904/904 (892 pre-existing + 12 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files; " +
+      "check-cross-references.py clean across all 6 packs; " +
+      "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both pass",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

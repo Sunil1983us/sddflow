@@ -1,7 +1,7 @@
 # Security Design
 # Service: {Service Name}
-> Version: 1.0 | Date: {date: YYYY-MM-DD} | Generated at ALL scopes — depth scales
-> with scope (see section markers)
+> Version: 1.0 | Status: Draft | Date: {date: YYYY-MM-DD} | Generated at ALL
+> scopes — depth scales with scope (see section markers)
 > Covers: Server-side / backend (OWASP Top 10, ASVS) AND
 > Client-side / frontend (XSS, CSRF, token storage, SCA) — see subsections
 >

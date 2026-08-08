@@ -5785,6 +5785,97 @@ MIGRATIONS: list[Migration] = [
             "an Approvals table) before wiring the frontend",
         ],
     },
+    {
+        "from": "2.8.32",
+        "to": "2.8.33",
+        "description": (
+            "Fix a real document-corrupting bug in `sdd review approve "
+            "--local` (a blind 'Status: Draft' find-replace could mangle "
+            "enum content anywhere in a document's body), a severe "
+            "Confluence-pull data-loss bug (mismatched ac: tag closing "
+            "could delete whole sections), an HTML-comment mangling bug "
+            "on both push and pull, and the security/security-design "
+            "doc-key naming inconsistency -- all found by a user during "
+            "a real living-document review cycle"
+        ),
+        "notes": [
+            "Bug 1 (data corruption) -- _mark_md_approved() in review.py "
+            "flipped a document's Status: header via "
+            "`re.sub(r'Status:\\\\s*(Draft|Proposed)\\\\b', 'Status: "
+            "Approved', text, count=1)` -- unanchored across the ENTIRE "
+            "document, not scoped to the real header. Reported by a "
+            "user: data-model.md's own template (unlike every other "
+            "spec template) had NO Status: header field at all, so the "
+            "regex's first (and only) match was a §3 enum field written "
+            "as 'RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED, "
+            "RETIRED' -- silently mangled into 'RuleVersionStatus: "
+            "Approved, SUBMITTED, PUBLISHED, RETIRED'. Fixed by scoping "
+            "the flip to the document's front matter (before the first "
+            "'## ' heading), where every template's real header line "
+            "lives, in both its 'Version: ... | Status: ...' shape (most "
+            "templates) and its 'Status: ... | ...' shape (adr.md)",
+            "Root-caused further: data-model-template.md and security-"
+            "design-template.md never had a Status: header field to "
+            "begin with -- added 'Status: Draft' to both, across all 5 "
+            "packs, matching every other template's convention and "
+            "giving the (now-safe) header-flip regex a real target to "
+            "find, restoring correct Draft/Approved status tracking for "
+            "these two living docs (which the dashboard's new Living "
+            "Documents section, shipped last round, depends on)",
+            "Bug 2 (severe data loss) -- cf_to_md.py's 'strip remaining "
+            "ac:* elements' cleanup used `<ac:[^>]+>.*?</ac:[^>]+>`, "
+            "pairing an opening ac: tag with the NEXT ac: closing tag of "
+            "ANY name, not necessarily its own. Reported by a user: a "
+            "page with a local-svg <ac:image> diagram, followed later by "
+            "another unhandled/nested ac: element, had everything "
+            "between the <ac:image> and that unrelated LATER closing tag "
+            "silently deleted -- 6 tables and an entire numbered section "
+            "in their case. Fixed with a backreference "
+            "(`<ac:([a-zA-Z-]+)[^>]*>.*?</ac:\\\\1>`) so a match can only "
+            "ever span exactly one element's own content",
+            "Bug 3 (data loss + visible garbage) -- HTML comments (e.g. "
+            "specify-doc.prompt.md's '<!-- security-sign-off: ... -->' "
+            "marker) fell through md_to_cf.py's paragraph branch on "
+            "push, which HTML-escaped them into VISIBLE garbage text on "
+            "the actual Confluence page ('&lt;!-- ... --&gt;'), and then "
+            "cf_to_md.py's final 'strip any remaining HTML tags' step "
+            "deleted them outright on pull (a bare <!-- ... --> matches "
+            "that step's generic <[^>]+> pattern, which has no notion of "
+            "comments vs. tags). Fixed on both sides: push now passes a "
+            "comment-only line through literally instead of escaping it; "
+            "pull now stashes comments into placeholders before any "
+            "other processing and restores them verbatim at the very "
+            "end, immune to every intermediate regex pass including the "
+            "ac: stripping fix above",
+            "Bug 4 (naming inconsistency) -- specify-doc.prompt.md's own "
+            "prose and command syntax call it `/specify-doc security`, "
+            "but `sdd review submit --doc security` and `sdd confluence "
+            "draft --doc security` both fail outright -- the only doc "
+            "key any sdd command accepts is `security-design` (the real "
+            "filename). The prompt referenced `{doc_key}` in six-plus "
+            "places without ever DEFINING it in terms of the raw `{doc}` "
+            "argument -- added an explicit resolution rule right after "
+            "the Input section: `security` normalizes to `security-"
+            "design` immediately, before any template read, file save, "
+            "or CLI invocation",
+            "This Node CLI has no Jira/Confluence integration and no "
+            "review-approval flow of its own (scaffolding-only by "
+            "design) and is unaffected by any of this -- this migration "
+            "entry exists so both CLIs report the same sdd_version chain",
+            "Added regression tests: TestMarkMdApproved (+3, exact "
+            "reported enum-corruption shape, a lookalike body field "
+            "alongside a real header, and adr.md's Status-first header "
+            "shape) in test_review_helpers.py; TestAcTagStripping (+3) "
+            "in test_cf_to_md.py; TestHtmlComments (+3) in each of "
+            "test_md_to_cf.py and test_cf_to_md.py",
+            "Verified: cli-python pytest 904/904 (892 pre-existing + 12 "
+            "new); ruff check/format and mypy --ignore-missing-imports "
+            "(matching CI's exact invocation) both clean on the changed "
+            "files; check-cross-references.py clean across all 6 packs; "
+            "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both "
+            "pass",
+        ],
+    },
 ]
 
 

@@ -4,6 +4,58 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.33] — 2026-08-08 (Fix: 4 real bugs found during a living-document review cycle — one a genuine data-corruption bug)
+
+Found by a user actually testing the framework — approving a Data Model
+document, then generating and reviewing a Security Design document.
+
+### Fixed
+
+**1. Document corruption in `sdd review approve --local`.** The Status-header
+flip used an unanchored regex-replace across the **entire** document, not
+just the real header. `data-model.md`'s own template (unlike every other
+spec template) had no `Status: Draft` header field at all, so the regex's
+first — and only — match was a §3 enum field written as `RuleVersionStatus:
+DRAFT, SUBMITTED, PUBLISHED, RETIRED`, silently mangled into
+`RuleVersionStatus: Approved, SUBMITTED, PUBLISHED, RETIRED`. Fixed by
+scoping the flip to the document's front matter (before the first `## `
+heading). Root cause addressed too: added a missing `Status: Draft` header
+field to `data-model-template.md` and `security-design-template.md` across
+all 5 packs, restoring correct Draft/Approved tracking for these two living
+docs.
+
+**2. Severe Confluence-pull data loss.** `cf_to_md.py`'s "strip remaining
+`ac:*` elements" cleanup paired an opening `ac:` tag with the *next* `ac:`
+closing tag of any name, not necessarily its own. A page with a `local-svg`
+diagram, followed later by another unhandled/nested `ac:` element, had
+everything between them silently deleted — 6 tables and an entire numbered
+section, in the reporting user's case. Fixed with a backreference so a
+match can only ever span exactly one element's own content.
+
+**3. HTML comments mangled on both push and pull.** A comment like
+`specify-doc.prompt.md`'s required `<!-- security-sign-off: ... -->` marker
+fell through to the paragraph branch on push, HTML-escaping it into
+*visible* garbage text on the actual Confluence page, then got deleted
+outright by the generic tag-stripper on pull. Fixed on both sides.
+
+**4. `security` vs `security-design` doc-key inconsistency.** `specify-doc.prompt.md`'s
+own prose calls it `/specify-doc security`, but `sdd review submit --doc
+security` and `sdd confluence draft --doc security` both fail — every `sdd`
+command actually requires `security-design`. Added an explicit resolution
+rule right after the command's Input section.
+
+### Verified
+
+- `cli-python` pytest 904/904 (892 pre-existing + 12 new regression tests
+  covering all four bugs, including the exact reported corruption/data-loss
+  shapes).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean.
+- `check-cross-references.py` clean across all 6 packs; `test-setup.sh`
+  (19/19) and `test-setup-micro.sh` (12/12) both pass.
+
+---
+
 ## [2.8.32] — 2026-08-08 (Add: project-level "Living Documents" dashboard section)
 
 Reported by a user: they couldn't find **Data Model** on the dashboard at

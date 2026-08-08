@@ -112,15 +112,33 @@ def _mark_md_approved(md_path: Path) -> bool:
     net for direct CLI/dashboard usage (the AI approval flow normally does
     both edits itself in chat) — running it again also self-heals a doc
     whose header was flipped before this function updated the Approvals
-    table too."""
+    table too.
+
+    The header flip is scoped to the document's front matter (everything
+    before the first '## ' section heading) -- every template's own
+    '> Version: ... | Status: Draft | ...' line (or, for adr.md, '>
+    Status: Proposed | ...') lives there, in the first few lines. This
+    used to search/replace across the ENTIRE document unanchored, which
+    matched -- and corrupted -- any content anywhere in the body
+    containing the literal substring 'Status: Draft'/'Status: Proposed',
+    not just the real header. Reported by a user: a data-model.md enum
+    field written as 'RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED,
+    RETIRED' (data-model.md's own template has no Status: header field
+    at all -- see data-model-template.md -- so that enum line was the
+    FIRST, and only, match in the whole document) got silently mangled
+    into 'RuleVersionStatus: Approved, SUBMITTED, PUBLISHED, RETIRED'."""
     text = md_path.read_text()
-    new = re.sub(
+    heading = re.search(r"^## ", text, flags=re.MULTILINE)
+    front_matter_end = heading.start() if heading else len(text)
+    front_matter = text[:front_matter_end]
+    new_front_matter = re.sub(
         r"Status:\s*(Draft|Proposed)\b",
         "Status: Approved",
-        text,
+        front_matter,
         count=1,
         flags=re.IGNORECASE,
     )
+    new = new_front_matter + text[front_matter_end:]
     new = _mark_approvals_table(new, str(date.today()))  # noqa: DTZ011 -- local calendar date by design
     if new == text:
         return False

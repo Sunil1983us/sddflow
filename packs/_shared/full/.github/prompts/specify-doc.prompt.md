@@ -16,6 +16,18 @@ Document name passed as argument — e.g.:
 
 > **Note:** `api-spec` has moved to `/plan-design` (§3 API Design). Do not generate it here.
 
+**Resolve `{doc}` before doing anything else.** `security` is the only
+argument whose value differs from the real doc key: normalize it to
+`security-design` immediately (matching the actual filename,
+`security-design-template.md`/`security-design.md`, and the only doc key
+every `sdd` command below actually accepts — `sdd review submit --doc
+security` and `sdd confluence draft --doc security` both fail outright).
+Every `{doc}` reference for the rest of this command — template path,
+save path, and every `sdd` CLI invocation — uses this resolved value.
+Every other argument (`data-model`, `component-spec`, `ux-flow`,
+`screen-spec`, `resilience`, `investigation`) already equals its own doc
+key unchanged.
+
 If no argument given — read the Action 2 doc-set table in
 `.github/prompts/specify.prompt.md`, filter it to this project's
 `manifest.project.scope` (and `project_type` for sdd-universal), check

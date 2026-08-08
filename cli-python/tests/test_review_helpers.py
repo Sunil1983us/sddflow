@@ -62,6 +62,57 @@ class TestMarkMdApproved:
         p.write_text("> Status: Drafted |\n")
         assert review._mark_md_approved(p) is False
 
+    def test_does_not_corrupt_enum_content_when_doc_has_no_status_header(self, project):
+        """Regression, reported by a user: data-model-template.md (unlike
+        every other spec template) had no 'Status: Draft' header field at
+        all -- so the old unanchored `re.sub(..., count=1)` found its
+        FIRST match wherever 'Status:' + 'Draft'/'Proposed' happened to
+        appear anywhere in the body, and silently corrupted it. Their
+        actual document had a §3 enum field written as
+        'RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED, RETIRED', which
+        got mangled into 'RuleVersionStatus: Approved, SUBMITTED, ...'.
+        The fix scopes the header-flip search to the document's own
+        front matter (before the first '## ' heading) -- this enum line
+        lives in a numbered section well past that boundary, so it must
+        now be left completely untouched, header-flip or not."""
+        p = project / ".specify" / "features" / "auth" / "data-model.md"
+        p.write_text(
+            "# Data Model\n"
+            "> Version: 1.0 | Date: x\n\n"
+            "## 3. Enums\n\n"
+            "RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED, RETIRED\n"
+        )
+        review._mark_md_approved(p)
+        text = p.read_text()
+        assert "RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED, RETIRED" in text
+        assert "Approved" not in text
+
+    def test_flips_header_even_when_body_has_a_lookalike_status_field(self, project):
+        """The real header must still flip correctly even when the body
+        contains a field that would have been the old code's accidental
+        target -- front-matter scoping must find the true header, not
+        just avoid corrupting the body."""
+        p = project / ".specify" / "features" / "auth" / "data-model.md"
+        p.write_text(
+            "# Data Model\n"
+            "> Version: 1.0 | Status: Draft | Date: x\n\n"
+            "## 3. Enums\n\n"
+            "RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED, RETIRED\n"
+        )
+        assert review._mark_md_approved(p) is True
+        text = p.read_text()
+        assert "> Version: 1.0 | Status: Approved | Date: x" in text
+        assert "RuleVersionStatus: DRAFT, SUBMITTED, PUBLISHED, RETIRED" in text
+
+    def test_adr_style_header_with_status_first_still_flips(self, project):
+        """adr.md's header puts Status: first ('> Status: Proposed | Date:
+        ...'), unlike every other template's 'Version: ... | Status: ...'
+        -- both shapes live in the front matter, so both must still work."""
+        p = project / ".specify" / "features" / "auth" / "adr.md"
+        p.write_text("# ADR\n> Status: Proposed | Date: x | Author: y\n\nbody\n")
+        assert review._mark_md_approved(p) is True
+        assert "> Status: Approved | Date: x" in p.read_text()
+
 
 class TestMarkApprovalsTable:
     def _doc_with_approvals(self, project, rows):
