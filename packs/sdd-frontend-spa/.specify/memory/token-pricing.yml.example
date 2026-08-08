@@ -8,35 +8,35 @@
 # appending rows to token-usage.md once the real (non-.example) file
 # exists here.
 #
-# IMPORTANT — prices below are NOT filled in. They change over time and
-# vary by provider, and this framework has no way to fetch them live.
-# Fill in current rates from each provider's own pricing page before
-# trusting the "Est. Cost" column for anything. Re-verify periodically —
-# a stale rate produces a confidently wrong-looking number, which is
-# worse than "n/a". Set last_verified so staleness is visible at a glance.
+# IMPORTANT — prices change over time and vary by provider, and this
+# framework has no way to fetch them live. The rates below were filled in
+# from Anthropic's own published pricing (see last_verified per model) —
+# re-verify periodically against anthropic.com/pricing before trusting
+# the "Est. Cost" column for anything. A stale rate produces a
+# confidently wrong-looking number, which is worse than "n/a".
 #
 # Rate unit: USD per 1,000,000 tokens.
 
 models:
   claude-sonnet-5:
-    input_per_million:  null   # [FILL IN — see anthropic.com/pricing]
-    output_per_million: null   # [FILL IN]
-    last_verified: null        # [FILL IN — e.g. "2026-07-01"]
+    input_per_million:  3.00   # $2.00 introductory rate through 2026-08-31, then $3.00
+    output_per_million: 15.00  # $10.00 introductory rate through 2026-08-31, then $15.00
+    last_verified: "2026-08-08"
 
   claude-opus-4-8:
-    input_per_million:  null
-    output_per_million: null
-    last_verified: null
+    input_per_million:  5.00
+    output_per_million: 25.00
+    last_verified: "2026-08-08"
 
   claude-haiku-4-5:
-    input_per_million:  null
-    output_per_million: null
-    last_verified: null
+    input_per_million:  1.00
+    output_per_million: 5.00
+    last_verified: "2026-08-08"
 
   claude-fable-5:
-    input_per_million:  null
-    output_per_million: null
-    last_verified: null
+    input_per_million:  10.00
+    output_per_million: 50.00
+    last_verified: "2026-08-08"
 
   # Add one row per model you actually use with this framework — copy the
   # shape above. Common examples (uncomment and fill in if you use them):
