@@ -662,6 +662,45 @@ def test_constitution_gate1_passed_when_downstream_doc_exists(tmp_path, monkeypa
     assert status["constitution"]["gate1_inferred"] == "passed"
 
 
+def test_constitution_gate1_pending_when_only_token_usage_file_exists(
+    tmp_path, monkeypatch
+):
+    """Regression: token-usage.md is appended to by every command including
+    /specify itself (and even /create-context) whenever token-pricing.yml
+    is configured -- both run before GATE-1 can possibly pass. Its mere
+    presence in the feature directory must not be mistaken for a real
+    downstream spec doc and flip GATE-1 to "passed" before the user has
+    reviewed anything."""
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "memory").mkdir(parents=True)
+    (tmp_path / ".specify" / "memory" / "constitution.md").write_text(
+        "# Constitution\n"
+    )
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "token-usage.md").write_text("## Running Totals\n")
+    status = build_project_status(".")
+    assert status["constitution"]["gate1_inferred"] == "pending_or_unknown"
+
+
+def test_constitution_gate1_passed_when_downstream_doc_exists_alongside_token_usage(
+    tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    _write_manifest(tmp_path)
+    (tmp_path / ".specify" / "memory").mkdir(parents=True)
+    (tmp_path / ".specify" / "memory" / "constitution.md").write_text(
+        "# Constitution\n"
+    )
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "token-usage.md").write_text("## Running Totals\n")
+    (feature_dir / "brd.md").write_text("> Status: Draft\n")
+    status = build_project_status(".")
+    assert status["constitution"]["gate1_inferred"] == "passed"
+
+
 def test_constitution_gate1_passed_for_micro_style_tasks_only(tmp_path, monkeypatch):
     """sdd-micro never writes a per-feature spec doc besides tasks.md —
     GATE-1 must still be inferred as passed once tasks.md exists, since

@@ -1493,6 +1493,15 @@ def _constitution_status(root: Path) -> dict:
     # by design (GATE-1 confirmation happens in chat) — infer from whether any
     # downstream feature doc exists, since the workflow can't produce those
     # before GATE-1 passes.
+    #
+    # token-usage.md is NOT such a doc, despite living in the same directory
+    # — it's opt-in telemetry (token-pricing.yml.example) appended to by
+    # every command including /specify itself and even /create-context,
+    # which both run before GATE-1 can possibly pass. Same for tasks.md
+    # (already excluded below) and *.summary.md. Without this exclusion,
+    # any project with token logging enabled shows GATE-1 as "passed" the
+    # instant /specify finishes, before the user has reviewed a single row.
+    _NON_DOWNSTREAM_NAMES = {"tasks.md", "token-usage.md"}
     features_dir = root / ".specify" / "features"
     any_downstream = False
     if features_dir.is_dir():
@@ -1500,7 +1509,8 @@ def _constitution_status(root: Path) -> dict:
             if not feature_dir.is_dir():
                 continue
             if any(
-                p.name != "tasks.md" and not p.name.endswith(".summary.md")
+                p.name not in _NON_DOWNSTREAM_NAMES
+                and not p.name.endswith(".summary.md")
                 for p in feature_dir.glob("*.md")
             ):
                 any_downstream = True

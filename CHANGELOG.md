@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.24] — 2026-08-08 (Fix: dashboard GATE-1 false positive)
+
+Found via real user testing, right after the 2.8.23 fixes: the dashboard
+showed a checkmark next to **"GATE-1 — Constitution Finalized"** immediately
+after `/specify` generated the constitution DRAFT — before the user had ever
+told the agent "Constitution Part 2 finalized" in chat.
+
+`constitution.md` has no machine-readable Draft/Finalized flag by design
+(GATE-1 confirmation happens in chat, not in the file), so the dashboard
+infers GATE-1 status from whether any real downstream spec doc already
+exists in `.specify/features/{feature}/` — since the workflow can't produce
+BRD/use-cases/SRD/etc. before GATE-1 passes. But `token-usage.md` lives in
+that same directory and is appended to by `/specify` itself (and even
+`/create-context`, which runs before `/specify`) whenever
+`token-pricing.yml` is configured — both commands run *before* GATE-1 can
+possibly pass. The inference's exclusion list only ever accounted for
+`tasks.md` and `*.summary.md`, so any project with token logging enabled
+hit this false positive on every single run.
+
+### Fixed
+
+- `sdd/utils/status.py`'s `_constitution_status()`: `token-usage.md` now
+  joins `tasks.md` in the set of filenames excluded from the
+  `any_downstream` check that infers `gate1_inferred`.
+
+### Verified
+
+- `cli-python` pytest 871/871 (869 pre-existing + 2 new regression tests:
+  one reproducing the exact false positive — `token-usage.md` alone in the
+  feature directory — and one confirming a real downstream doc still
+  correctly reports `passed` alongside it).
+- `ruff check`/`ruff format` and `mypy --ignore-missing-imports` (matching
+  CI's exact invocation) both clean on the changed files.
+
+---
+
 ## [2.8.23] — 2026-08-08 (Fix: Jira config resolution crash + Confluence bulk push missing the Constitution page)
 
 **Two bug fixes**, both found via real user testing.

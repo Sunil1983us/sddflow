@@ -5273,6 +5273,57 @@ MIGRATIONS: list[Migration] = [
             "clear IntegrationsConfigError instead of crashing",
         ],
     },
+    {
+        "from": "2.8.23",
+        "to": "2.8.24",
+        "description": (
+            "Fix dashboard GATE-1 false positive: token-usage.md alone "
+            "in a feature directory was mistaken for a real downstream "
+            "spec doc, showing 'GATE-1 -- Constitution Finalized' as "
+            "passed immediately after /specify, before the user ever "
+            "confirmed finalization in chat"
+        ),
+        "notes": [
+            "Reported by a user: the dashboard showed a checkmark next "
+            "to 'GATE-1 -- Constitution Finalized' right after /specify "
+            "created the constitution DRAFT, even though they had never "
+            "told the agent 'Constitution Part 2 finalized' in chat. "
+            "Confirmed via direct question -- they answered 'Never "
+            "confirmed -- straight after /specify'",
+            "Root cause: constitution.md has no machine-readable Draft/"
+            "Finalized flag by design (GATE-1 confirmation is chat-only, "
+            "per specify.prompt.md), so status.py's "
+            "_constitution_status() infers gate1_inferred purely from "
+            "whether any file besides tasks.md/*.summary.md exists in "
+            ".specify/features/{feature}/. But token-usage.md is written "
+            "into that same directory by /specify itself (and even "
+            "/create-context, which runs before /specify) whenever "
+            "token-pricing.yml is configured -- both commands run before "
+            "GATE-1 can possibly pass. The heuristic's exclusion list "
+            "only ever accounted for tasks.md and *.summary.md, so a "
+            "project with token logging enabled hit a false positive on "
+            "every single run",
+            "Fixed in sdd/utils/status.py's _constitution_status(): "
+            "token-usage.md now joins tasks.md in the set of filenames "
+            "excluded from the any_downstream check",
+            "This Node CLI has no dashboard at all (scaffolding-only by "
+            "design) and is unaffected -- this migration entry exists "
+            "so both CLIs report the same sdd_version chain",
+            "Added 2 new tests to tests/test_status.py: "
+            "test_constitution_gate1_pending_when_only_token_usage_file_exists "
+            "(the exact reported false positive) and "
+            "test_constitution_gate1_passed_when_downstream_doc_exists_alongside_token_usage "
+            "(confirms a real downstream doc still correctly reports "
+            "'passed' even with token-usage.md present alongside it)",
+            "Verified: cli-python pytest 871/871 (869 pre-existing + 2 "
+            "new); ruff check/format and mypy --ignore-missing-imports "
+            "(matching CI's exact invocation) both clean on the changed "
+            "files -- the pre-existing E741/E402 ruff hits and the "
+            "'Library stubs not installed' mypy notes elsewhere in the "
+            "codebase were confirmed present on a clean checkout before "
+            "this change too, unrelated to it",
+        ],
+    },
 ]
 
 

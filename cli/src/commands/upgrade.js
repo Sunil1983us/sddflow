@@ -3329,6 +3329,40 @@ export const MIGRATIONS = [
       "CI's exact invocation) clean with no issues in 31 source files",
     ],
   },
+  {
+    from: '2.8.23',
+    to:   '2.8.24',
+    description: "Fix dashboard GATE-1 false positive: token-usage.md " +
+      "alone in a feature directory was mistaken for a real downstream " +
+      "spec doc, showing 'GATE-1 -- Constitution Finalized' as passed " +
+      "immediately after /specify, before the user ever confirmed " +
+      "finalization in chat",
+    notes: [
+      "Reported by a user: the dashboard showed a checkmark next to " +
+      "'GATE-1 -- Constitution Finalized' right after /specify created " +
+      "the constitution DRAFT, even though they had never told the " +
+      "agent 'Constitution Part 2 finalized' in chat",
+      "Root cause: constitution.md has no machine-readable Draft/" +
+      "Finalized flag by design (GATE-1 confirmation is chat-only), so " +
+      "cli-python's status.py infers gate1_inferred purely from whether " +
+      "any file besides tasks.md/*.summary.md exists in " +
+      ".specify/features/{feature}/. But token-usage.md is written into " +
+      "that same directory by /specify itself (and even /create-context, " +
+      "which runs before /specify) whenever token-pricing.yml is " +
+      "configured -- both commands run before GATE-1 can possibly pass. " +
+      "A project with token logging enabled hit a false positive on " +
+      "every single run",
+      "Fixed in cli-python's sdd/utils/status.py: token-usage.md now " +
+      "joins tasks.md in the set of filenames excluded from the " +
+      "any_downstream check",
+      "This Node CLI has no dashboard at all (scaffolding-only by " +
+      "design) and is unaffected -- this migration entry exists so both " +
+      "CLIs report the same sdd_version chain",
+      "Verified: cli-python pytest 871/871 (869 pre-existing + 2 new); " +
+      "ruff check/format and mypy --ignore-missing-imports (matching " +
+      "CI's exact invocation) both clean on the changed files",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
