@@ -3251,6 +3251,38 @@ export const MIGRATIONS = [
       "cli-python pytest 848/848",
     ],
   },
+  {
+    from: '2.8.21',
+    to:   '2.8.22',
+    description: "Fix a real Confluence-review-loop bug: `sdd confluence " +
+      "pull` flattened every markdown table into one run-on line",
+    notes: [
+      "Reported by a user testing the Confluence review round-trip on a " +
+      "real project: create a draft via `sdd confluence draft`, edit it " +
+      "in Confluence, then `sdd confluence pull` to bring the edits " +
+      "back. Every markdown table in the pulled-back document came " +
+      "back as a single line of concatenated cell text with no row or " +
+      "column structure -- silently corrupting any table-heavy doc " +
+      "(Tech Stack in context.md, and BRD/SRD/design docs generally)",
+      "Root cause: cli-python's sdd/utils/cf_to_md.py (the Confluence-" +
+      "storage-format-to-Markdown converter used by `confluence pull`) " +
+      "had no <table> handling at all -- with no table-aware step, its " +
+      "final 'strip any remaining HTML tags' pass just deleted the " +
+      "table/row/cell tags and left the cell text jammed together, " +
+      "since it never inserted a newline or delimiter for table " +
+      "structure the way it does for <li> and <p>",
+      "This is the same bug class the push direction (md_to_cf.py) " +
+      "already had fixed once before -- the pull direction just never " +
+      "got the equivalent treatment",
+      "This Node CLI has no Confluence integration at all " +
+      "(scaffolding-only by design) and is unaffected -- this " +
+      "migration entry exists so both CLIs report the same sdd_version " +
+      "chain",
+      "Verified: cli-python pytest 858/858 (848 pre-existing + 10 new " +
+      "regression tests in tests/test_cf_to_md.py); ruff check/format " +
+      "and mypy both clean",
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

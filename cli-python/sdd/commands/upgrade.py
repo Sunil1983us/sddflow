@@ -5112,6 +5112,72 @@ MIGRATIONS: list[Migration] = [
             "(27 pre-existing + 1 new); cli-python pytest 848/848",
         ],
     },
+    {
+        "from": "2.8.21",
+        "to": "2.8.22",
+        "description": (
+            "Fix a real Confluence-review-loop bug: `sdd confluence pull` "
+            "flattened every markdown table into one run-on line"
+        ),
+        "notes": [
+            "Reported by a user testing the Confluence review round-trip "
+            "on a real project: create a draft via `sdd confluence "
+            "draft`, edit it in Confluence, then `sdd confluence pull` "
+            "to bring the edits back. Every markdown table in the "
+            "pulled-back document came back as a single line of "
+            "concatenated cell text with no row or column structure -- "
+            "silently corrupting any table-heavy doc (Tech Stack in "
+            "context.md, and BRD/SRD/design docs generally)",
+            "Root cause: sdd/utils/cf_to_md.py (the Confluence-storage-"
+            "format-to-Markdown converter used by `confluence pull`) had "
+            "no <table> handling at all. Confluence storage format "
+            "renders a table as an unbroken "
+            "<table><tbody><tr><th>...</th></tr>...</tbody></table> "
+            "string with no whitespace between tags (see "
+            "md_to_cf.py's _render_table(), the push-direction "
+            "counterpart) -- with no table-aware step, cf_to_md.py's "
+            "final 'strip any remaining HTML tags' pass just deleted "
+            "the table/row/cell tags and left the cell text jammed "
+            "together, since (unlike its handling for <li> and <p>) it "
+            "never inserted a newline or delimiter for table structure",
+            "This is the same bug class md_to_cf.py (the push direction) "
+            "already had fixed once before, per test_md_to_cf.py's "
+            "TestTables -- the pull direction just never got the "
+            "equivalent treatment, and there was no cf_to_md.py test "
+            "file at all before this fix to have caught it",
+            "Fixed by adding a _table_to_md() converter to cf_to_md.py: "
+            "extracts <table>...</table>, reconstructs a GFM pipe table "
+            "(header row, alignment-marker separator row from any "
+            "style=\"text-align:...\" on the header cells, body rows), "
+            "re-escapes any literal '|' in cell text back to '\\|' "
+            "(the inverse of the push side's unescape), and pads a "
+            "body row that has fewer cells than the header. Inserted "
+            "into the pipeline after the existing bold/italic/inline-"
+            "code/link conversions (so cell content is already "
+            "markdown-formatted) and before the generic tag-stripping "
+            "step",
+            "This Node CLI has no Confluence integration at all "
+            "(scaffolding-only by design) and is unaffected -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Added tests/test_cf_to_md.py (new file, 10 tests): full "
+            "md_to_storage() -> cf_to_md() round-trip coverage for "
+            "simple tables, wide multi-row tables (the exact shape "
+            "reported broken), alignment markers, inline formatting "
+            "inside cells, an escaped literal pipe in a cell, a ragged "
+            "body row shorter than the header, a table followed by a "
+            "paragraph, a heading before a table, two tables in one "
+            "document, and a table-free document (regression guard "
+            "against the new table regex misfiring on unrelated "
+            "content)",
+            "Verified: cli-python pytest 858/858 (848 pre-existing + 10 "
+            "new); ruff check/format and mypy both clean; manual "
+            "round-trip test through the real md_to_storage()/cf_to_md() "
+            "pair confirmed byte-for-byte table fidelity including "
+            "alignment, inline code, bold, links, and an escaped "
+            "literal pipe",
+        ],
+    },
 ]
 
 

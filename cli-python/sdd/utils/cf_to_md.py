@@ -2,7 +2,7 @@
 
 Best-effort round-trip for SDD documents. Handles the same subset that
 md_to_cf.py produces: headings, bold, italic, inline code, fenced code
-macros, unordered/ordered lists, paragraphs, hr, and links.
+macros, unordered/ordered lists, paragraphs, hr, links, and tables.
 """
 
 from __future__ import annotations
@@ -63,6 +63,14 @@ def cf_to_md(storage_xml: str) -> str:
         r'<a href="([^"]*)"[^>]*>(.*?)</a>', r"[\2](\1)", text, flags=re.DOTALL
     )
 
+    # Tables -- round-trip counterpart to _render_table() in md_to_cf.py.
+    # Must run after the bold/italic/inline-code/link passes above (so
+    # cell content is already markdown by the time we extract it) and
+    # before the generic tag-stripping below, which has no notion of
+    # rows or columns and would otherwise concatenate every cell in the
+    # table into one run-on line with no delimiters at all.
+    text = re.sub(r"<table>.*?</table>", _table_to_md, text, flags=re.DOTALL)
+
     # Horizontal rule
     text = re.sub(r"<hr\s*/?>", "\n---", text)
 
@@ -87,3 +95,54 @@ def cf_to_md(storage_xml: str) -> str:
 def _plain(html_fragment: str) -> str:
     """Strip all tags from an HTML snippet (used for heading text)."""
     return re.sub(r"<[^>]+>", "", html_fragment).strip()
+
+
+_CELL_RE = re.compile(
+    r'<t[hd](?:\s+style="text-align:(left|center|right)")?[^>]*>(.*?)</t[hd]>',
+    re.DOTALL,
+)
+_ALIGN_SEP = {"left": ":---", "center": ":---:", "right": "---:"}
+
+
+def _table_to_md(m: re.Match) -> str:
+    """Convert one <table>...</table> match to a GFM pipe table.
+
+    Mirrors md_to_cf.py's _render_table() shape exactly (<tr> rows of
+    <th>/<td>, first row is the header, optional
+    style="text-align:..." for alignment) so the round trip is lossless
+    for anything this CLI itself produced."""
+    row_htmls = re.findall(r"<tr>(.*?)</tr>", m.group(0), flags=re.DOTALL)
+    if not row_htmls:
+        return ""
+
+    def _cell_text(raw: str) -> str:
+        # Collapse any stray newlines (a cell must stay on one line in a
+        # GFM table) and escape literal pipes so they aren't mistaken
+        # for a column boundary -- the inverse of _split_table_row()'s
+        # unescape on the push side.
+        return re.sub(r"\s+", " ", raw).strip().replace("|", r"\|")
+
+    rows: list[list[str]] = []
+    aligns: list[str] = []
+    for i, row_html in enumerate(row_htmls):
+        cells = _CELL_RE.findall(row_html)
+        if i == 0:
+            aligns = [a for a, _text in cells]
+        rows.append([_cell_text(text) for _align, text in cells])
+
+    if not rows or not rows[0]:
+        return ""
+
+    header, body = rows[0], rows[1:]
+    sep = [
+        _ALIGN_SEP.get(aligns[i], "---") if i < len(aligns) else "---"
+        for i in range(len(header))
+    ]
+
+    lines = ["| " + " | ".join(header) + " |", "|" + "|".join(sep) + "|"]
+    for row in body:
+        row = row + [""] * max(0, len(header) - len(row))
+        row = row[: len(header)]
+        lines.append("| " + " | ".join(row) + " |")
+
+    return "\n\n" + "\n".join(lines) + "\n\n"
