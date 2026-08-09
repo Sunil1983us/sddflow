@@ -17,13 +17,22 @@ integrations.yml` — the Jira review-story gate needs a reviewer assigned
 per doc, configured separately from `jira:`/`confluence:` themselves),
 say so briefly, **do not silently drop all the way to chat mode** — a
 `confluence:` section still means the document should land in
-Confluence. Fall through to the "Only `confluence:` configured" branch
-below instead (push a draft there); only fall all the way to chat mode
-if `confluence:` itself is absent too.
+Confluence. Fall through to the "`confluence:` configured" branch below
+instead (push a draft there); only fall all the way to chat mode if
+`confluence:` itself is absent too.
 
-**Only `confluence:` configured (no `jira:`, or `jira:` present but
-`sdd review submit` failed above)** — no formal Jira gate exists (yet, or
-for this doc); push a draft for informal stakeholder comments instead:
+**`jira:` configured alone (no `confluence:` at all)** — `sdd review
+submit` requires both sections and will refuse outright ("Both jira: and
+confluence: sections required in integrations.yml"); there is no
+Confluence page to draft either, so this is not actually a distinct
+workflow — go straight to the "Neither configured (chat mode)" branch at
+the bottom of this block. Do not attempt `sdd review submit` here — it
+cannot succeed with `confluence:` absent, and retrying it wastes a call.
+
+**`confluence:` configured (with or without `jira:` — covers both "only
+confluence: configured" and "both configured but `sdd review submit`
+failed above")** — no formal Jira gate exists (yet, or for this doc, or
+at all); push a draft for informal stakeholder comments instead:
 ```bash
 sdd confluence draft --doc {doc_key}
 ```

@@ -4,6 +4,54 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.40] — 2026-08-08 (Audit: Jira/Confluence review-flow consistency across every prompt in all 5 packs)
+
+Requested audit, following the prior round of live-testing fixes: check
+every prompt for deviations, confirm where Confluence/Jira checks happen,
+and verify approval correctly falls back to local chat or the dashboard
+when neither is configured. Found and fixed 4 findings — two real
+functional gaps in standalone utility commands, two documentation-accuracy
+gaps in the canonical shared blocks themselves.
+
+### Fixed
+
+**1. `/submit-review` had no confluence-only branch at all.** It was a
+third, independently hand-written "submit for review" implementation,
+never synced from the canonical `submit-for-review-step` block — it
+branched only on `jira:` presence. In a confluence-only project, running
+`/submit-review` directly skipped straight to chat mode; the document
+never reached Confluence. Fixed by rewriting it to delegate directly to
+the same shared blocks every document-generation command already uses.
+
+**2. `/check-review` bypassed the CLI's own graceful no-Jira handling,
+losing dashboard comments.** Its "No-Jira fallback" explicitly skipped
+calling `sdd review check` when `jira:` was absent — but that command
+already handles the no-Jira case gracefully, surfacing unacknowledged
+dashboard comments even with zero Jira/Confluence configured. Fixed with
+a precisely-targeted change: always call the CLI; only fall back to a
+hand-written local check when the `sdd` tool itself isn't installed.
+
+**3. `review-decision-step`'s own prose understated dashboard-comment
+capability**, saying comments surface "when Jira is configured" when
+they actually surface in pure-local mode too. Rewrote the exit-code
+branches to state this correctly.
+
+**4. `submit-for-review-step`'s three branch headings didn't literally
+enumerate a jira-only (no confluence:) configuration** — the correct
+outcome (fall to chat) was only reachable by inference. Added an explicit
+fourth branch naming this case directly.
+
+### Verified
+
+- cli-python pytest 934/934 (no Python code touched, only markdown/prompt
+  files)
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `assert-output.sh` clean against `examples/todo-api` (33/33)
+- `sync-blocks.sh` confirmed idempotent
+
+---
+
 ## [2.8.39] — 2026-08-08 (Fix: Confluence page push could get stuck on a 409 Conflict, even after a manual retry)
 
 A user hit a `409 Conflict` while `/plan-lld` pushed a 19-diagram

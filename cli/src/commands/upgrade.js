@@ -4068,6 +4068,75 @@ export const MIGRATIONS = [
       'packs; test-setup.sh (19/19) passes',
     ],
   },
+  {
+    from: '2.8.39',
+    to:   '2.8.40',
+    description: 'Full audit of every prompt across all 5 packs for ' +
+      'Jira/Confluence review-flow consistency, requested after the ' +
+      'prior round of live-testing fixes -- found and fixed 4 findings: ' +
+      'two standalone utility commands (/submit-review, /check-review) ' +
+      'had their own hand-written, never-synced review logic that ' +
+      'silently regressed behind the canonical shared blocks, plus two ' +
+      'documentation-accuracy gaps in those canonical blocks themselves',
+    notes: [
+      'Audit method: enumerated all 36 prompts x 5 packs, confirmed the ' +
+      '27 _shared/full/-sourced ones are byte-identical everywhere, ' +
+      'diffed the 9 per-pack-authored ones (cosmetic-only differences, ' +
+      'confirmed), then swept every prompt for jira:/confluence: ' +
+      'references OUTSIDE the two canonical shared blocks (submit-for-' +
+      'review-step, review-decision-step) to find hand-rolled logic ' +
+      'that could have drifted -- the same bug class already fixed ' +
+      'twice this session',
+      'Finding 1 (High) -- submit-review.prompt.md was a third, ' +
+      'independently hand-written \'submit for review\' implementation, ' +
+      'never synced from the canonical block. It branched only on ' +
+      'jira: presence with no confluence-only draft-push branch at all ' +
+      '-- in a confluence-only project, running /submit-review directly ' +
+      'skipped straight to chat mode, the document never reaching ' +
+      'Confluence, even though every document-generation command\'s own ' +
+      'inline flow correctly pushes a draft in that exact config. Fixed ' +
+      'by rewriting it to delegate directly to submit-for-review-step + ' +
+      'review-decision-step (the same blocks every other document ' +
+      'uses), keeping only its own Persona/Input/Sequence-rule content',
+      'Finding 2 (Medium) -- check-review.prompt.md\'s own \'No-Jira ' +
+      'fallback\' explicitly said \'do NOT run the CLI command\' when ' +
+      'jira: was absent, then did its own simplified local check (doc ' +
+      'header + .local-approvals.yml only). But `sdd review check` ' +
+      'already handles the no-jira case gracefully -- confirmed via ' +
+      '_print_local_comments_if_any\'s own docstring: \'Pure-local-mode ' +
+      'fallback for sdd review check when no jira: section exists to ' +
+      'poll,\' which surfaces unacknowledged DASHBOARD comments even ' +
+      'with zero Jira/Confluence configured. Fixed with a precisely-' +
+      'targeted change: always call `sdd review check`, and only fall ' +
+      'back to a hand-written local check when the sdd tool itself ' +
+      'isn\'t installed at all',
+      'Finding 3 (Low, doc-accuracy) -- review-decision-step.md\'s own ' +
+      'Exit 1 (NEEDS REVISION) prose said dashboard comments surface ' +
+      '\'when Jira is configured\' -- understating reality, since they ' +
+      'surface in pure-local mode too via the same CLI call. Rewrote ' +
+      'the exit-code branches to state this correctly',
+      'Finding 4 (Low, doc-accuracy) -- submit-for-review-step.md\'s ' +
+      'own three branch headings didn\'t literally enumerate a jira-' +
+      'only (no confluence:) config -- the correct outcome (fall to ' +
+      'chat) was only reachable via inference. Added an explicit fourth ' +
+      'branch naming this case directly',
+      'submit-for-review-step.md and review-decision-step.md are ' +
+      '_shared/blocks/ sources; submit-review.prompt.md and check-' +
+      'review.prompt.md are _shared/full/ sources -- all four edited ' +
+      'once, propagated to all 5 packs, plus the 10 _shared/full/ files ' +
+      'embedding these two blocks had their own copies refreshed for ' +
+      'hygiene',
+      'This Node CLI has no Jira/Confluence integration and no review-' +
+      'approval flow of its own (scaffolding-only by design) and is ' +
+      'unaffected by any of this -- this migration entry exists so ' +
+      'both CLIs report the same sdd_version chain',
+      'Verified: cli-python pytest 934/934 (no Python code touched, ' +
+      'only markdown/prompt files); check-cross-references.py clean ' +
+      'across all 6 packs; test-setup.sh (19/19) and test-setup-' +
+      'micro.sh (12/12) both pass; assert-output.sh clean against ' +
+      'examples/todo-api (33/33); sync-blocks.sh confirmed idempotent',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

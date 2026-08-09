@@ -111,13 +111,22 @@ integrations.yml` — the Jira review-story gate needs a reviewer assigned
 per doc, configured separately from `jira:`/`confluence:` themselves),
 say so briefly, **do not silently drop all the way to chat mode** — a
 `confluence:` section still means the document should land in
-Confluence. Fall through to the "Only `confluence:` configured" branch
-below instead (push a draft there); only fall all the way to chat mode
-if `confluence:` itself is absent too.
+Confluence. Fall through to the "`confluence:` configured" branch below
+instead (push a draft there); only fall all the way to chat mode if
+`confluence:` itself is absent too.
 
-**Only `confluence:` configured (no `jira:`, or `jira:` present but
-`sdd review submit` failed above)** — no formal Jira gate exists (yet, or
-for this doc); push a draft for informal stakeholder comments instead:
+**`jira:` configured alone (no `confluence:` at all)** — `sdd review
+submit` requires both sections and will refuse outright ("Both jira: and
+confluence: sections required in integrations.yml"); there is no
+Confluence page to draft either, so this is not actually a distinct
+workflow — go straight to the "Neither configured (chat mode)" branch at
+the bottom of this block. Do not attempt `sdd review submit` here — it
+cannot succeed with `confluence:` absent, and retrying it wastes a call.
+
+**`confluence:` configured (with or without `jira:` — covers both "only
+confluence: configured" and "both configured but `sdd review submit`
+failed above")** — no formal Jira gate exists (yet, or for this doc, or
+at all); push a draft for informal stakeholder comments instead:
 ```bash
 sdd confluence draft --doc {doc_key}
 ```
@@ -149,30 +158,37 @@ comments or feedback, or a general check-in ("check", "any updates?", "did
 they review it?"). Don't wait specifically for the word "approved" — any of
 these should trigger this step.
 
-1. If the `sdd` CLI is configured, run `sdd review check --doc {doc_key}`
-   and follow its exit code:
+1. If the `sdd` CLI is **installed** (`pip install sddflow` — this is
+   about the tool being present, not about `jira:`/`confluence:` being
+   configured; `sdd review check` runs and is useful even with neither
+   configured, see Exit 1 and Exit 3 below), run `sdd review check --doc
+   {doc_key}` and follow its exit code:
    - **Exit 0 (APPROVED)** — note that this approval came from Jira (used
      in step 4 below), then continue to step 2.
    - **Exit 1 (NEEDS REVISION)** — the command prints the reviewer's
-     comments (this also surfaces comments left via the dashboard when
-     Jira is configured — dashboard comments mirror to the doc's Jira
-     review ticket). Read each one, edit the document to address the
-     feedback, apply **Revision Logging** below, then run
-     `sdd review apply --doc {doc_key}`. Tell the user the document has
-     been updated per the review comments and the reviewer has been
-     notified — then **STOP**. Do not continue to step 2; wait for the
-     user to check back in.
+     comments. This includes dashboard comments in **both** sub-cases:
+     with `jira:` configured, dashboard comments mirror to the doc's
+     Jira review ticket and print from there; with no `jira:` at all,
+     `sdd review check` still runs successfully (it does not require
+     Jira) and surfaces any unacknowledged dashboard comments directly
+     — this is not a chat-only fallback, the CLI call itself covers it.
+     Read each one, edit the document to address the feedback, apply
+     **Revision Logging** below, then run `sdd review apply --doc
+     {doc_key}`. Tell the user the document has been updated per the
+     review comments and the reviewer has been notified — then **STOP**.
+     Do not continue to step 2; wait for the user to check back in.
    - **Exit 2 (PENDING)** — tell the user the document is still awaiting
      review by the accountable role (see roles.yml) — **STOP**, do not
      continue to step 2.
-   - **CLI not configured, or the command is unavailable** — this is
-     chat-mode review: if the user's message was an explicit approval
-     signal, note that this approval came from chat (used in step 4
-     below), then continue to step 2. Otherwise treat their message as
-     direct feedback (including feedback the user relays from a
-     local-mode dashboard comment, which has no Jira ticket to poll) —
-     apply **Revision Logging** below, then ask for re-review; do not
-     continue to step 2.
+   - **Exit 3 (NOT SUBMITTED) or the `sdd` CLI is not installed at all**
+     — this is chat-mode review: if the user's message was an explicit
+     approval signal, note that this approval came from chat (used in
+     step 4 below), then continue to step 2. Otherwise treat their
+     message as direct feedback — apply **Revision Logging** below, then
+     ask for re-review; do not continue to step 2. (Exit 3 means no
+     Jira ticket and no local approval record exist yet for this doc —
+     genuinely different from Exit 1's dashboard-comment case above,
+     which the CLI call already handles on its own.)
 
 **Revision Logging** — every time reviewer feedback causes a content edit,
 regardless of which mode surfaced it (a Jira comment via `sdd review
@@ -213,8 +229,8 @@ you answered without editing the document).
      this one ticket. If no row matches that role text at all (a config/
      wording mismatch), fall back to flipping every row instead, same as
      chat mode below, and mention the mismatch to the user.
-   - **Approval came from chat** (step 1's CLI-not-configured branch): all
-     Pending rows → `Approved` + today's date, Approver column filled with
+   - **Approval came from chat** (step 1's Exit 3 / not-installed branch):
+     all Pending rows → `Approved` + today's date, Approver column filled with
      the name from step 2 — chat mode has only one approval signal for the
      whole document, not one per RACI row, so every row is flipped
      together, matching the document-level `Status: Approved` header
