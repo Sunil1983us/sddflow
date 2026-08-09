@@ -4,6 +4,58 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.17] — 2026-08-09 (New: `sdd project-type migrate` — guided project_type migration for sdd-universal)
+
+Prompted directly by live-testing: a user's real project (a `validation-service`
+backend on `sdd-universal`, `project_type: backend-service`) needed a second
+feature of a genuinely different kind — an admin UI to manage its rules. After
+working through why that calls for `project_type: fullstack` rather than a
+per-feature type field (`constitution.md` is one document for the whole
+project, not per-feature — see the discussion that led here), the user asked
+for a real, guided migration path instead of "hand-edit `project_type` and
+remember to separately run `/change`" with no guardrails at all.
+
+### Added
+
+- `cli-python/sdd/utils/project_type.py` — `EXTENDED_DOCS_BY_TYPE` (which of
+  `component-spec`/`ux-flow`/`screen-spec` each `project_type` uses —
+  promoted out of `sdd/utils/status.py`, which now imports it instead of
+  keeping its own private copy, so the two can never drift), plus
+  `classify_migration()`, which compares two `project_type`s' extended-doc
+  applicability and flags a migration "lossy" if it would drop a doc type
+  already in use.
+- `cli-python/sdd/commands/project_type.py` — `sdd project-type show` and
+  `sdd project-type migrate --to <type>`. Dry-run by default: prints the
+  compatibility report and writes nothing. `--apply` writes
+  `manifest.yml`'s `project_type`; on a lossy migration it refuses unless
+  `--force` is also passed. Deliberately never touches `constitution.md` —
+  Tech Stack row compatibility can't be determined mechanically, so
+  extending the constitution for the new type is always left to `/change`
+  (change type Technical), which the command's own output points to.
+- "Migrating project_type" section in `packs/sdd-universal/CLAUDE.md`
+  (right after "Upgrading Scope") with the full 4-step guided procedure,
+  and a matching short section in `HOW-TO-USE.md`. sdd-universal-only —
+  the other 4 packs each have one fixed tech stack baked into their own
+  constitution and no `project_type` field to migrate at all.
+- `### sdd project-type` entry in `cli-python/README.md`'s CLI command
+  reference.
+
+### Verified
+
+- `cli-python` pytest: 968/968 (945 pre-existing + 23 new).
+- `ruff check`/`format`: clean. `mypy --ignore-missing-imports sdd/`:
+  error count unchanged before/after (same 15 pre-existing errors,
+  confirmed via diff against a stashed baseline).
+- Manually smoke-tested the CLI end-to-end: dry-run doesn't write;
+  `--apply` on a safe migration writes; `--apply` on a lossy migration
+  without `--force` refuses (exit 1); `--apply --force` writes; an
+  invalid target type is rejected (exit 2).
+- `check-cross-references.py`: clean across all 6 packs. `sync-blocks.sh`:
+  confirmed only `sdd-universal`'s own `CLAUDE.md`/`HOW-TO-USE.md`
+  changed. `test-setup.sh`: 19/19.
+
+---
+
 ## [2.9.16] — 2026-08-09 (New: Feature Drift Check — guards against two chat sessions sharing one project.feature)
 
 Prompted by a live-testing question: a user running two chat sessions

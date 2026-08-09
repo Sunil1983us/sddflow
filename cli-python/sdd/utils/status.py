@@ -16,6 +16,7 @@ from pathlib import Path
 import yaml
 
 from sdd.utils.manifest import read_manifest
+from sdd.utils.project_type import applicable_extended_docs
 
 # Best-effort generic pipeline order. Not every pack/scope/plan_mode
 # generates every doc — this is used only to order what *does* exist and
@@ -610,7 +611,7 @@ def _service_level_docs(
 # hardcoding pack names. This works for the 4 single-type packs (each ships
 # only the templates its own type needs) but NOT for sdd-universal, which
 # ships every template up front and branches at runtime by `project_type`
-# instead -- see _UNIVERSAL_TYPE_EXTENDED_DOCS below for that case.
+# instead -- see sdd.utils.project_type.EXTENDED_DOCS_BY_TYPE for that case.
 _EXTENDED_TEMPLATE_MAP = {
     "component-spec": "component-spec-template.md",
     "ux-flow": "ux-flow-template.md",
@@ -619,17 +620,14 @@ _EXTENDED_TEMPLATE_MAP = {
 
 # sdd-universal only: which of the type-specific extended docs apply per
 # project_type, mirroring the Action 2 doc-set matrix in sdd-universal's
-# own specify.prompt.md. cli/library/iac are deliberately absent (not
-# mapped to {}) -- the framework doesn't cleanly define UI-doc
+# own specify.prompt.md. Sourced from sdd.utils.project_type -- the single
+# canonical copy of this mapping, also used by `sdd project-type migrate`
+# to report what changes when a project's type is switched -- so the two
+# can never drift apart. cli/library/iac are deliberately absent from that
+# map (not mapped to {}) -- the framework doesn't cleanly define UI-doc
 # applicability for those types either; template-presence detection would
 # wrongly say "yes" for universal (it ships every template), so they fall
 # through to no type-specific docs shown rather than a guessed answer.
-_UNIVERSAL_TYPE_EXTENDED_DOCS: dict[str, set[str]] = {
-    "frontend-spa": {"component-spec", "ux-flow"},
-    "desktop": {"component-spec", "ux-flow"},
-    "mobile": {"screen-spec", "ux-flow"},
-    "fullstack": {"component-spec", "ux-flow"},
-}
 
 
 def _applicable_extended_docs(root: Path, project_type: str | None) -> set[str]:
@@ -638,7 +636,7 @@ def _applicable_extended_docs(root: Path, project_type: str | None) -> set[str]:
     (data-model, security-design) aren't here -- they're scope-gated only,
     applicable regardless of project type."""
     if project_type:
-        return set(_UNIVERSAL_TYPE_EXTENDED_DOCS.get(project_type, set()))
+        return set(applicable_extended_docs(project_type))
     templates_dir = root / ".specify" / "templates"
     return {
         key

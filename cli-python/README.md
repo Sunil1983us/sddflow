@@ -738,6 +738,36 @@ appended, never used to rewrite old ones.
 
 ---
 
+### `sdd project-type`
+
+sdd-universal only (the other 4 packs each have one fixed tech stack baked
+into their own constitution.md and no `project_type` field to migrate).
+Guided migration when a project genuinely outgrows the type it was
+scaffolded with — e.g. a `backend-service` project takes on an admin UI as
+a second feature and should become `fullstack`. See CLAUDE.md → "Migrating
+project_type" for the full guided procedure.
+
+```bash
+sdd project-type show                            # print current project_type
+sdd project-type migrate --to fullstack           # dry-run: report only, writes nothing
+sdd project-type migrate --to fullstack --apply   # writes manifest.yml
+sdd project-type migrate --to fullstack --apply --force  # required if the
+                                                   # migration is lossy (see below)
+```
+
+`migrate` never touches `constitution.md` — Tech Stack row compatibility
+can't be determined mechanically, so extending the constitution for the new
+type is always a separate step (`/change`, change type Technical). This
+command's job is narrower: report which type-specific extended docs
+(`component-spec`/`ux-flow`/`screen-spec`) the target type adds or drops
+relative to the current one, then — only once reviewed, and with `--force`
+if anything would be dropped — update the one `project_type` field.
+Already-generated documents for existing features are never touched,
+regenerated, or deleted; this only changes which templates apply to future
+work.
+
+---
+
 ### `sdd pr create`
 
 Create a git branch and a PR for a task, linked back to its Jira issue — on

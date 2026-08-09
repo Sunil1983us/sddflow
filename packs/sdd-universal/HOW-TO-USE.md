@@ -1035,6 +1035,30 @@ pr_rules:
 
 ---
 
+## Migrating project_type
+
+`project_type` (sdd-universal only — the other 4 packs each ship one fixed
+tech stack and have no such field) can outgrow what it was scaffolded with —
+e.g. a `backend-service` project takes on an admin UI as a second feature
+and should become `fullstack`. See CLAUDE.md → "Migrating project_type" for
+the full guided procedure. Short version:
+
+```bash
+sdd project-type migrate --to fullstack              # dry-run: report only
+# ... extend constitution.md via /change (Technical) ...
+sdd project-type migrate --to fullstack --apply       # writes manifest.yml
+```
+
+Nothing is ever silently overwritten: the dry-run report shows exactly which
+type-specific extended docs (`component-spec`/`ux-flow`/`screen-spec`)
+the target type adds or drops relative to the current one before anything
+is written; a migration that would drop a doc type already in use requires
+an explicit `--force` to apply. Already-generated documents for existing
+features are never touched, regenerated, or deleted by this — `project_type`
+only changes which templates apply to *future* work.
+
+---
+
 ## Working on Multiple Features (or Multiple Chat Sessions)
 
 One project can have several features side by side — each gets its own

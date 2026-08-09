@@ -4190,6 +4190,66 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.9.16',
+    to:   '2.9.17',
+    description: "New `sdd project-type migrate` command -- guided migration of an sdd-universal project's project_type (e.g. backend-service -> fullstack) after initial setup",
+    notes: [
+      'Prompted directly by live-testing: a user\'s real project (a ' +
+      'validation-service backend, sdd-universal, project_type: backend-' +
+      'service) needed a second feature of a genuinely different kind ' +
+      'added -- an admin UI to manage its rules. After walking through ' +
+      'why that needs project_type: fullstack rather than a per-feature ' +
+      'type field (constitution.md is one document for the whole ' +
+      'project, not per-feature), the user asked for a real, guided ' +
+      'migration path instead of the previous answer of \'hand-edit ' +
+      'project_type + remember to separately run /change\' with no ' +
+      'guardrails',
+      'New sdd/utils/project_type.py: EXTENDED_DOCS_BY_TYPE (which of ' +
+      'component-spec/ux-flow/screen-spec each project_type uses -- ' +
+      'promoted out of sdd/utils/status.py, which now imports it ' +
+      'instead of keeping its own private copy, so the two can never ' +
+      'drift), applicable_extended_docs(), and classify_migration() -- ' +
+      'compares two project_types\' extended-doc applicability and ' +
+      'flags a migration \'lossy\' if it would drop a doc type already ' +
+      'in use',
+      'New sdd/commands/project_type.py: `sdd project-type show` and ' +
+      '`sdd project-type migrate --to <type>` -- dry-run by default ' +
+      '(prints the classify_migration() report, writes nothing); ' +
+      '`--apply` writes manifest.yml\'s project_type; `--apply` on a ' +
+      'lossy migration refuses with exit 1 unless `--force` is also ' +
+      'passed. Deliberately never touches constitution.md -- Tech ' +
+      'Stack row compatibility can\'t be determined mechanically, so ' +
+      'extending the constitution for the new type is always left to ' +
+      '/change (change type Technical), which the command\'s own ' +
+      'guidance text points to',
+      'Added \'Migrating project_type\' to packs/sdd-universal/CLAUDE.md ' +
+      '(right after \'Upgrading Scope\') with the full 4-step guided ' +
+      'procedure, and a matching short section to HOW-TO-USE.md -- ' +
+      'sdd-universal-only, since the other 4 packs each have one fixed ' +
+      'tech stack and no project_type field to migrate at all; nothing ' +
+      'in their CLAUDE.md/HOW-TO-USE.md changed. Also added a `sdd ' +
+      'project-type` entry to cli-python/README.md\'s CLI command ' +
+      'reference',
+      'This Node CLI has no `sdd project-type` equivalent and no ' +
+      'project_type concept of its own (scaffolding-only by design) ' +
+      'and is unaffected by any of this -- this migration entry exists ' +
+      'so both CLIs report the same sdd_version chain',
+      'Verified: cli-python pytest 968/968 (945 pre-existing + 23 new); ' +
+      'ruff check/format clean; mypy --ignore-missing-imports sdd/ ' +
+      'error count unchanged before/after (same 15 pre-existing errors, ' +
+      'confirmed via diff against a stashed baseline); manually smoke-' +
+      'tested the CLI end-to-end (dry-run vs --apply, lossy migration ' +
+      'refusal without --force, invalid type rejection); check-cross-' +
+      'references.py clean across all 6 packs; sync-blocks.sh confirmed ' +
+      'only sdd-universal\'s own CLAUDE.md/HOW-TO-USE.md changed; ' +
+      'test-setup.sh 19/19 passed',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.9.17';
+      return manifest;
+    },
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

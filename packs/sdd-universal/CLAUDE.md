@@ -172,6 +172,52 @@ To upgrade `pilot → mvp` or `mvp → full` after initial delivery:
 
 Scope upgrade is a **Major amendment** to constitution Part 2 (version bump X.0).
 
+## Migrating project_type
+
+Only relevant when the project genuinely outgrows the type it was scaffolded
+with — e.g. a `backend-service` project takes on an admin UI as a second
+feature and should become `fullstack`. This is **not** the same as adding an
+ordinary new feature of the same type (see CLAUDE.md "Feature Drift Check" —
+most new features just get their own `.specify/features/{feature}/` folder
+under the existing `project_type`, no migration needed). Only migrate when a
+new feature's tech stack genuinely isn't describable by the current
+`project_type` at all.
+
+1. **Report what changes, before touching anything:**
+   ```bash
+   sdd project-type migrate --to {target-type}
+   ```
+   Dry-run by default — prints which type-specific extended docs
+   (`component-spec`/`ux-flow`/`screen-spec`) the target type adds or drops
+   relative to the current one, and writes nothing. Present this report to
+   the user. If it reports dropped docs, that means a doc type already in
+   use for this project (e.g. `screen-spec` under `mobile`) would stop being
+   listed as an expected pipeline step under the target type — already
+   generated files are never touched or deleted, only future applicability
+   changes. Confirm with the user this is intentional before continuing.
+2. **Extend the constitution for the new stack** via `/change`, change type
+   **Technical** — walks `context.md → constitution.md → design.md →
+   lld.md` with its own Change Impact Matrix (existing `brd.md`/`use-cases.md`/
+   `validate.md` for prior features are rated LOW probability and are not
+   touched unless something in them genuinely needs to change). This is
+   where the new type's Tech Stack rows actually get added — `sdd
+   project-type migrate` itself never edits constitution.md.
+3. **Apply the manifest change**, once the constitution amendment from step 2
+   is approved:
+   ```bash
+   sdd project-type migrate --to {target-type} --apply
+   ```
+   Add `--force` if step 1's report showed dropped docs and the user
+   confirmed that's intentional — without `--force` this refuses to write a
+   lossy migration.
+4. Start the new feature normally (switch `project.feature`, run
+   `/create-context` or `/specify-brd`) — it goes through the pipeline
+   fresh, now with the target type's extended docs available.
+
+Existing features and their already-approved documents are never
+regenerated or overwritten by this — `project_type` only changes which
+templates/extended docs apply going forward.
+
 <!-- shared:scope-reference:start -->
 ## Scope Reference — What Each Scope Produces
 
