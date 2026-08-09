@@ -189,7 +189,10 @@ def _mark_md_approved(
     )
     new = new_front_matter + text[front_matter_end:]
     new = _mark_approvals_table(
-        new, str(date.today()), approver_name=approver_name, role_filter=role_filter
+        new,
+        str(date.today()),  # noqa: DTZ011 -- local calendar date by design
+        approver_name=approver_name,
+        role_filter=role_filter,
     )
     if new == text:
         return False
