@@ -181,7 +181,7 @@ class TestTransitionIssue:
         assert body == {"transition": {"id": "21"}}
 
     def test_match_is_case_insensitive(self):
-        client, session = self._client_with_transitions(
+        client, _session = self._client_with_transitions(
             [{"id": "21", "to": {"name": "in review"}}]
         )
         assert client.transition_issue("PROJ-1", "In Review") is True

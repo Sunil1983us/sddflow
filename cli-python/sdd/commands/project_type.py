@@ -99,7 +99,7 @@ def project_type_migrate(to_type: str, apply: bool, force: bool):
     result = _current_project_type()
     if result is None:
         raise SystemExit(2)
-    manifest, current = result
+    _manifest, current = result
 
     report = classify_migration(current, to_type)
     console.print(report.render())

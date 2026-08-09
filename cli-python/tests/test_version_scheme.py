@@ -91,7 +91,7 @@ class TestCappedVersionScheme:
             (5, 0, 24),
         ]
         for x, y, z in cases:
-            nx, ny, nz = next_version(x, y, z)
+            _nx, ny, nz = next_version(x, y, z)
             assert 0 <= nz <= 24, f"next_version({x},{y},{z}) -> patch={nz}"
             assert 0 <= ny <= 9, f"next_version({x},{y},{z}) -> minor={ny}"
 

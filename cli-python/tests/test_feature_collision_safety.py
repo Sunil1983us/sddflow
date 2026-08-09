@@ -26,8 +26,8 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from sdd.commands.confluence import confluence_command, feature_collision_warning
 from sdd.commands.config import _integrations_template
+from sdd.commands.confluence import confluence_command, feature_collision_warning
 from sdd.commands.cr import cr_command
 from sdd.utils.atlassian_auth import Profile
 from sdd.utils.integrations import _DEFAULT_PAGE_MAP
