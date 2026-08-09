@@ -4457,6 +4457,46 @@ export const MIGRATIONS = [
       'drift; test-setup.sh 19/19 passed',
     ],
   },
+  {
+    from: '2.9.21',
+    to:   '2.9.22',
+    description: "validate.prompt.md's CHECKLIST GATE now actually blocks at mvp/full scope, matching what CLAUDE.md already claimed -- found via a live dashboard report ('Next: Run /checklist' shown even though Validate/Analyze/Clarify/Design/LLD/Stories were all already approved)",
+    notes: [
+      'Root cause: CLAUDE.md\'s Scope Reference table and the ' +
+      '/checklist section both document /checklist as \'Mandatory for ' +
+      'mvp and full scope ... All CRITICAL items must be resolved ' +
+      'before /validate can proceed\' -- but every pack\'s ' +
+      'validate.prompt.md Step 0 (\'CHECKLIST GATE (advisory)\') was ' +
+      'hard-coded to never block, regardless of scope (\'Do NOT block ' +
+      'validate -- /checklist is optional\'). A project could sail from ' +
+      'SRD straight through /validate/-analyze/-clarify/-design/' +
+      '-plan-lld/-task, all approved, without /checklist ever running ' +
+      '-- exactly contradicting the pack\'s own documented policy. The ' +
+      'dashboard\'s \'Next: Run /checklist\' was accurate the whole ' +
+      'time; the framework just never enforced what it claimed',
+      'Fixed in all 5 packs\' validate.prompt.md Step 0: now ' +
+      'scope-aware -- pilot stays advisory (warn, don\'t block), ' +
+      'mvp/full now genuinely BLOCK when checklists/ is missing (never ' +
+      'run) or has open CRITICAL items. sdd-micro excluded (no ' +
+      '/checklist in that pack by design)',
+      'Fixed all 5 packs\' CLAUDE.md: the self-contradictory section ' +
+      'heading \'/checklist -- Optional Spec-Quality Gate\' (directly ' +
+      'contradicted the next line, \'Mandatory for mvp and full ' +
+      'scope\') is now just \'/checklist -- Spec-Quality Gate\'',
+      'Real behavior change for existing mvp/full-scope projects: a ' +
+      'project that previously skipped /checklist and already has ' +
+      'Validate approved will now be BLOCKED on its next /validate run ' +
+      'until /checklist is run and CRITICAL items resolved -- catching ' +
+      'up late is expected and intended, not a regression',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain',
+      'No .py/.js files touched (pure prompt/CLAUDE.md content); ' +
+      'check-cross-references.py clean across all 6 packs; ' +
+      'sync-blocks.sh run twice consecutively with zero unexpected ' +
+      'drift; test-setup.sh 19/19 passed',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

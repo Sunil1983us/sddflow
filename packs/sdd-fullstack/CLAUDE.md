@@ -392,7 +392,7 @@ PLAN adapts to your `plan_mode` setting in `manifest.yml` (set during `setup.sh`
   - Unified gate: design.md approved
   - Separate gate: adr.md approved (mvp+) or hld.md approved (pilot)
 
-## /checklist — Optional Spec-Quality Gate (after GATE-1, before /validate)
+## /checklist — Spec-Quality Gate (after GATE-1, before /validate)
 
 **Mandatory for `mvp` and `full` scope. Optional for `pilot`.**
 Run `/checklist` after `/specify` + GATE-1 to catch spec quality issues

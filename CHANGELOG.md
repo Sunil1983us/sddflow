@@ -4,6 +4,51 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.22] — 2026-08-09 (`/checklist` now actually blocks at mvp/full scope)
+
+Found via a live dashboard report: "Next: Run `/checklist`" was still
+showing even though Validate, Analyze, Clarify, Design, LLD, and Stories
+were all already approved for an `mvp`-scope feature. The dashboard turned
+out to be right the whole time — `/checklist` really was never run — but
+the framework never actually enforced its own documented policy.
+
+`CLAUDE.md`'s Scope Reference table and `/checklist` section both say
+`/checklist` is **Mandatory for `mvp` and `full` scope** and that "All
+CRITICAL items must be resolved before `/validate` can proceed." But every
+pack's `validate.prompt.md` Step 0 ("CHECKLIST GATE (advisory)") was
+hard-coded to never block, regardless of scope — a project could sail
+straight from SRD through `/validate` → `/analyze` → `/clarify` →
+`/plan-design` → `/plan-lld` → `/task`, all approved, without `/checklist`
+ever running.
+
+### Fixed
+
+- All 5 packs' `.github/prompts/validate.prompt.md` Step 0 is now
+  scope-aware: `pilot` stays advisory (warns, doesn't block); `mvp`/`full`
+  now genuinely **block** `/validate` when `checklists/` is missing (never
+  run) or still has open CRITICAL items. `sdd-micro` excluded — it has no
+  `/checklist` step at all, by design.
+- All 5 packs' `CLAUDE.md` — fixed the self-contradictory section heading
+  "`/checklist` — Optional Spec-Quality Gate" (it directly contradicted
+  the very next line, "Mandatory for `mvp` and `full` scope") to just
+  "`/checklist` — Spec-Quality Gate".
+
+### Verified
+
+- `check-cross-references.py` clean across all 6 packs.
+- `sync-blocks.sh` run twice consecutively, zero unexpected drift.
+- `test-setup.sh` 19/19 passed.
+- No `.py`/`.js` files touched — pure prompt/`CLAUDE.md` content, so no
+  pytest/`node --test` re-run needed for this specific change.
+
+**Note for existing `mvp`/`full`-scope projects:** if `/checklist` was
+skipped, your next `/validate` run will now block until it's run and any
+CRITICAL findings are resolved. That's the intended fix, not a
+regression — it's catching up on a gate that should have applied all
+along.
+
+---
+
 ## [2.9.21] — 2026-08-09 (Docs: `--feature` added to every CR example)
 
 Direct follow-up: "does the CR resolve based on manifest feature?" —
