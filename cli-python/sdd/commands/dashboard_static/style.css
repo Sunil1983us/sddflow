@@ -176,3 +176,65 @@
   .network-banner-readonly {
     background: color-mix(in srgb, var(--muted) 14%, transparent); border: 1px solid var(--border); color: var(--muted);
   }
+
+  /* Feature tab strip — replaces the old "Features Overview" table AND the
+     full stack of every feature's block one after another (see app.js
+     renderFeatureTabs()). Pill-style rather than an underline strip like
+     .tab-strip (the doc-detail Approvals/Comments/Content tabs) since these
+     carry more at-a-glance info per tab (stage + tasks%) and read better as
+     small cards than as thin text labels. */
+  .feature-tab-strip {
+    display: flex; gap: .5rem; flex-wrap: wrap;
+  }
+  .feature-tab {
+    display: flex; flex-direction: column; align-items: flex-start; gap: .1rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: .5rem .9rem; cursor: pointer; font: inherit; color: var(--fg);
+    min-width: 150px; text-align: left;
+  }
+  .feature-tab:hover { border-color: var(--accent); }
+  .feature-tab.active {
+    border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .feature-tab-name { font-weight: 600; font-size: .92rem; }
+  .feature-tab-stage { font-size: .74rem; }
+  .feature-tab-pct { font-size: .74rem; color: var(--accent); font-weight: 600; }
+  .feature-tab.active .feature-tab-pct { color: var(--accent); }
+
+  /* Stat-tile widget row — shown at the top of the active feature's block
+     (renderFeatureStats()), the same three numbers that used to require
+     scanning three separate cards further down the page. */
+  .stat-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .stat-tile {
+    flex: 1; min-width: 140px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: .75rem 1rem;
+  }
+  .stat-value { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+  .stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-top: .1rem; }
+
+  /* Thin inline progress bar for a single Business Objective row's Progress
+     cell — same visual language as .bar (the Tasks card's segmented bar)
+     but sized for a table cell rather than a full card. */
+  .bo-bar { display: block; height: 5px; border-radius: 3px; overflow: hidden; background: var(--border); margin: .3rem 0 .2rem; max-width: 140px; }
+  .bo-bar span { display: block; height: 100%; background: var(--accent); }
+
+  /* Collapsible section cards (Living Documents, Business Objectives
+     Overview) — a <details class="card collapsible"> with its <h2> swapped
+     for a <summary>, so the same project-wide sections that get long on a
+     multi-feature/multi-BO project can be tucked away without losing them
+     entirely. Open by default; mirrors .info-box's chevron treatment. */
+  .card.collapsible > summary {
+    cursor: pointer; font-size: 1rem; font-weight: 600; color: var(--muted);
+    list-style: none; display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem;
+  }
+  .card.collapsible > summary::-webkit-details-marker { display: none; }
+  .card.collapsible > summary::before { content: "▸"; color: var(--dim); transition: transform .15s; flex-shrink: 0; }
+  .card.collapsible[open] > summary::before { transform: rotate(90deg); }
+
+  /* Tasks card pagination (see app.js renderTasks()) — a real project's
+     tasks.md routinely runs to 50-200+ entries; only one page of rows is
+     ever in the DOM at once. */
+  .pager {
+    display: flex; align-items: center; gap: .6rem; margin-top: .6rem;
+    padding-top: .6rem; border-top: 1px solid var(--border);
+  }

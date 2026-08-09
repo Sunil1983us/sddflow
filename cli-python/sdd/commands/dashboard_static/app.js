@@ -4,10 +4,41 @@
 // openDocs / docTab replace three separate expand-toggles (View, 👤
 // Approvals, 💬 Comments) with one "Details" panel that has tabs -- see
 // renderDocDetailsPanel(). docTab defaults to 'content' when a doc key
-// has no entry yet.
-const state = { openDocs: new Set(), docTab: {}, docContents: {}, reviewLinks: {}, commentDrafts: {} };
+// has no entry yet. activeFeature is which feature's full block is
+// showing under the feature tab strip (see renderFeatureTabs()) — null
+// means "not chosen yet", resolved to a real default the first time
+// render() sees feature data (see resolveActiveFeature()).
+const state = {
+  openDocs: new Set(), docTab: {}, docContents: {}, reviewLinks: {}, commentDrafts: {},
+  activeFeature: null, taskPage: {}, jiraExportExpanded: {}, collapsed: {},
+};
+
+// #root is rebuilt wholesale on every 5s poll (see render()), which would
+// otherwise silently snap every <details class="collapsible"> back to its
+// default open/closed state the moment a user toggled it -- collapsed
+// tracks each section's user-chosen state explicitly by a stable id so it
+// survives the rebuild. Absent from the map = no explicit choice yet, so
+// the caller's own default applies (see the smart per-section defaults in
+// renderLivingDocuments()/renderBusinessObjectivesOverview()). The actual
+// open/close itself is handled natively by the browser (no re-render
+// needed) -- the capture-phase 'toggle' listener below just records what
+// happened for next time.
+function sectionOpenAttr(id, defaultOpen) {
+  const explicitlyClosed = state.collapsed[id];
+  const isOpen = explicitlyClosed === undefined ? defaultOpen : !explicitlyClosed;
+  return isOpen ? 'open' : '';
+}
 let lastData = null;
 let dashboardInfo = { is_local: true, writes_enabled: true }; // overwritten by fetchDashboardInfo() below
+
+// Deep-link support: a URL opened as .../#feature-payments (e.g. bookmarked,
+// shared, or a link from an external tool) should land straight on that
+// feature's tab rather than the default — read it once at load, before the
+// hash gets consumed/replaced by anything else.
+const _initialFeatureHash = (() => {
+  const h = window.location.hash;
+  return h.startsWith('#feature-') ? decodeURIComponent(h.slice('#feature-'.length)) : null;
+})();
 
 // The server hands the write-access token to THIS browser via a one-time
 // ?token= query param on the URL it auto-opens (see dashboard_command()) --
@@ -121,24 +152,48 @@ function renderLivingDocuments(docs, localLinks, feature) {
     .map(d => renderDocRow(d, feature, links.confluence, links.jira_review, null))
     .join('');
   return `
-    <div class="card card-wide" style="margin-bottom:1.5rem">
-      <h2>Living Documents <span class="sub">(project-wide, not per-feature)</span></h2>
+    <details class="card card-wide collapsible" data-section-id="living-documents"
+      ${sectionOpenAttr('living-documents', true)} style="margin-bottom:1.5rem">
+      <summary>Living Documents <span class="sub">(project-wide, not per-feature)</span></summary>
       <div class="sub" style="margin-bottom:.5rem">Generated once for the whole
         project via <code>/specify-doc {name}</code>, then extended/amended by
         every later feature — never regenerated per feature, and not tied to
         any one feature card below.</div>
       <table><thead><tr><th>Document</th><th>Status</th><th>Links</th></tr></thead><tbody>${rows}</tbody></table>
-    </div>`;
+    </details>`;
 }
 
-function renderTasks(tasks) {
+// A real project's tasks.md routinely runs to 50-200+ TASK-NNN entries --
+// rendering every row was exactly what made the Tasks card (and the page
+// overall) unmanageably tall. Paginated client-side: the bar/summary line
+// always reflects the FULL list (it's an aggregate, not tied to any one
+// page), only the table itself is sliced. state.taskPage is keyed by
+// feature so switching tabs and back doesn't lose your place, and clamped
+// every render in case the underlying list shrinks/grows between polls.
+const TASKS_PAGE_SIZE = 20;
+
+function renderTasks(tasks, feature) {
   if (!tasks || tasks.total === 0) {
     return '<div class="empty">No tasks.md yet.</div>';
   }
   const pct = n => tasks.total ? (100 * n / tasks.total).toFixed(0) : 0;
-  const rows = tasks.items.map(t => `
+  const pageCount = Math.max(1, Math.ceil(tasks.items.length / TASKS_PAGE_SIZE));
+  const page = Math.min(state.taskPage[feature] || 0, pageCount - 1);
+  state.taskPage[feature] = page;
+  const start = page * TASKS_PAGE_SIZE;
+  const pageItems = tasks.items.slice(start, start + TASKS_PAGE_SIZE);
+  const rows = pageItems.map(t => `
     <tr><td>${t.id}</td><td>${t.title}</td><td>${badge(t.status, 'task')}</td></tr>
   `).join('');
+  const pager = tasks.items.length > TASKS_PAGE_SIZE ? `
+    <div class="pager">
+      <button type="button" class="link-btn" data-action="tasks-page" data-feature="${feature}"
+        data-dir="prev" ${page === 0 ? 'disabled' : ''}>‹ Prev</button>
+      <span class="sub">Showing ${start + 1}–${Math.min(start + TASKS_PAGE_SIZE, tasks.items.length)}
+        of ${tasks.items.length} · page ${page + 1}/${pageCount}</span>
+      <button type="button" class="link-btn" data-action="tasks-page" data-feature="${feature}"
+        data-dir="next" ${page >= pageCount - 1 ? 'disabled' : ''}>Next ›</button>
+    </div>` : '';
   return `
     <div class="bar">
       <span style="width:${pct(tasks.done)}%;background:var(--ok)"></span>
@@ -147,6 +202,7 @@ function renderTasks(tasks) {
     </div>
     <div class="sub">${tasks.done} done · ${tasks.in_progress} in progress · ${tasks.not_started} not started · format: ${tasks.format}</div>
     <table><thead><tr><th>ID</th><th>Title</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+    ${pager}
   `;
 }
 
@@ -165,10 +221,11 @@ function renderBusinessObjectives(bos, opts) {
   const rows = bos.map(bo => {
     const ucCell = (bo.uc_ids && bo.uc_ids.length) ? escapeHtml(bo.uc_ids.join(', ')) : '<span class="sub">none linked</span>';
     const progressCell = bo.task_count
-      ? `${bo.percent_done}% <span class="sub">(${bo.tasks_done}/${bo.task_count})</span>`
+      ? `<div class="bo-bar"><span style="width:${bo.percent_done}%"></span></div>
+         <span class="sub">${bo.percent_done}% (${bo.tasks_done}/${bo.task_count})</span>`
       : '<span class="sub">no tasks linked</span>';
     const featureCell = opts.showFeature
-      ? `<td><a href="#${featureAnchorId(bo.feature)}">${escapeHtml(bo.feature)}</a></td>`
+      ? `<td>${featureLink(bo.feature, bo.feature)}</td>`
       : '';
     const outcomeCell = `${outcomeBadge(bo.outcome)}${bo.measured_result ? `<div class="sub">${escapeHtml(bo.measured_result)}</div>` : ''}`;
     return `
@@ -187,14 +244,25 @@ function renderBusinessObjectives(bos, opts) {
     <table><thead><tr><th>BO</th><th>Objective</th>${featureHeader}<th>Use Cases</th><th>Status</th><th>Progress</th><th>Business Outcome</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+// Small projects (a handful of BOs) benefit from seeing this open by
+// default; a large multi-feature project's rolled-up BO table can run to
+// dozens of rows, which is exactly the "page is very high" complaint this
+// whole pass is addressing -- so it starts closed once it's actually big
+// enough to be part of the problem. Either way it's just the DEFAULT: a
+// user's own explicit toggle (tracked in state.collapsed, see
+// sectionOpenAttr()) always wins on the next poll.
+const BO_OVERVIEW_AUTO_COLLAPSE_THRESHOLD = 8;
+
 function renderBusinessObjectivesOverview(businessObjectives) {
   if (!businessObjectives || businessObjectives.length === 0) return '';
+  const defaultOpen = businessObjectives.length <= BO_OVERVIEW_AUTO_COLLAPSE_THRESHOLD;
   return `
-    <div class="card card-wide" style="margin-bottom:1.5rem">
-      <h2>Business Objectives</h2>
+    <details class="card card-wide collapsible" data-section-id="bo-overview"
+      ${sectionOpenAttr('bo-overview', defaultOpen)} style="margin-bottom:1.5rem">
+      <summary>Business Objectives</summary>
       <div class="sub" style="margin-bottom:.5rem">Rolled up from each feature's brd.md (§2 Business Objectives → §5 Serves BO) through srd.md and tasks.md — which use cases implement each objective, and how much of that work is done.</div>
       ${renderBusinessObjectives(businessObjectives, {showFeature: true})}
-    </div>`;
+    </details>`;
 }
 
 function linkPill(kind, link) {
@@ -434,7 +502,14 @@ function renderDocs(docs, stage, feature, localConfluence, localJiraReview) {
 // for the Epic/Story/Task tickets, fetched by the same "Check Jira/
 // Confluence status" click/auto-refresh as the review-gate tickets (see
 // _fetch_export_ticket_statuses). null/undefined until that's run once.
-function renderJiraExport(jira, exportEntry) {
+// A comma-joined list of every ticket key isn't a table, so it doesn't add
+// rows the way Tasks does — but with a 100-task feature it's still a wall
+// of ~100 links wrapping across many lines inside one small card. Truncate
+// past JIRA_EXPORT_LIST_LIMIT with a "+N more" toggle (state.jiraExportExpanded,
+// keyed by feature+'|'+field so Stories and Tasks expand independently).
+const JIRA_EXPORT_LIST_LIMIT = 12;
+
+function renderJiraExport(jira, exportEntry, feature) {
   if (!jira || (!jira.epic && jira.stories.length === 0 && jira.tasks.length === 0)) {
     return '<div class="empty">No progressive Jira export yet (run /jira-push or sdd jira push).</div>';
   }
@@ -444,14 +519,26 @@ function renderJiraExport(jira, exportEntry) {
     const status = statuses && statuses[x.key];
     return status ? `${label} <span class="sub">(${escapeHtml(status)})</span>` : label;
   };
-  const list = arr => arr.length ? arr.map(itemLabel).join(', ') : '—';
+  const list = (arr, field) => {
+    if (!arr.length) return '—';
+    const key = feature + '|' + field;
+    const expanded = state.jiraExportExpanded[key];
+    const shown = expanded ? arr : arr.slice(0, JIRA_EXPORT_LIST_LIMIT);
+    const rest = arr.length - shown.length;
+    const toggle = rest > 0
+      ? ` <button type="button" class="link-btn" data-action="toggle-jira-list" data-feature="${feature}" data-field="${field}">+${rest} more</button>`
+      : (expanded && arr.length > JIRA_EXPORT_LIST_LIMIT
+          ? ` <button type="button" class="link-btn" data-action="toggle-jira-list" data-feature="${feature}" data-field="${field}">show less</button>`
+          : '');
+    return shown.map(itemLabel).join(', ') + toggle;
+  };
   const errLine = exportEntry && exportEntry.error
     ? `<div class="sub" style="color:var(--bad)">${escapeHtml(exportEntry.error)}</div>` : '';
   return `
     ${errLine}
-    <div class="kv"><span>Epic</span><span>${jira.epic ? list([jira.epic]) : '—'}</span></div>
-    <div class="kv"><span>Stories (${jira.stories.length})</span><span>${list(jira.stories)}</span></div>
-    <div class="kv"><span>Tasks (${jira.tasks.length})</span><span>${list(jira.tasks)}</span></div>
+    <div class="kv"><span>Epic</span><span>${jira.epic ? list([jira.epic], 'epic') : '—'}</span></div>
+    <div class="kv"><span>Stories (${jira.stories.length})</span><span>${list(jira.stories, 'stories')}</span></div>
+    <div class="kv"><span>Tasks (${jira.tasks.length})</span><span>${list(jira.tasks, 'tasks')}</span></div>
   `;
 }
 
@@ -569,43 +656,121 @@ function renderFeature(f, project) {
   <div class="feature-block" id="${featureAnchorId(f.name)}">
     <div class="feature-title">${f.name}</div>
     ${renderReviewLinksControl(f.name)}
+    ${renderFeatureStats(f)}
     <div class="grid feature-grid">
       <div class="card card-wide"><h2>Full Pipeline</h2>${renderPipelineFlow(f, project)}</div>
-      <div class="card card-wide"><h2>Documents</h2>${renderDocs(f.docs, f.current_stage, f.name, local.confluence, local.jira_review)}</div>
-      <div class="card card-wide"><h2>Business Objectives</h2>${renderBusinessObjectives(f.business_objectives)}</div>
+      <details class="card card-wide collapsible" data-section-id="${f.name}|documents"
+        ${sectionOpenAttr(f.name + '|documents', true)}>
+        <summary>Documents</summary>
+        ${renderDocs(f.docs, f.current_stage, f.name, local.confluence, local.jira_review)}
+      </details>
+      <details class="card card-wide collapsible" data-section-id="${f.name}|bo"
+        ${sectionOpenAttr(f.name + '|bo', (f.business_objectives || []).length <= BO_OVERVIEW_AUTO_COLLAPSE_THRESHOLD)}>
+        <summary>Business Objectives</summary>
+        ${renderBusinessObjectives(f.business_objectives)}
+      </details>
       <div class="card"><h2>Timeline</h2>${renderTimeline(f.timeline)}</div>
-      <div class="card"><h2>Tasks</h2>${renderTasks(f.tasks)}</div>
+      <div class="card"><h2>Tasks</h2>${renderTasks(f.tasks, f.name)}</div>
       <div class="card"><h2>Token Usage</h2>${renderTokenUsage(f.token_usage)}</div>
-      <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira, exportEntry)}</div>
+      <div class="card"><h2>Jira Export</h2>${renderJiraExport(local.jira, exportEntry, f.name)}</div>
     </div>
   </div>`;
 }
 
-// Only worth showing once there's more than one feature to scan through —
-// for a single-feature project it would just duplicate the block below it.
-function renderFeatureOverview(features) {
+function featureStageLabel(f) {
+  const steps = (f.pipeline && f.pipeline.steps) || [];
+  const current = steps.find(s => s.state === 'current');
+  if (current) return current.label;
+  return steps.length && steps.every(s => s.state === 'done' || s.state === 'skipped') ? 'Complete' : '—';
+}
+
+function featureTaskPct(f) {
+  const tasks = f.tasks || {};
+  return tasks.total ? Math.round(100 * tasks.done / tasks.total) : null;
+}
+
+// A link that switches the active feature tab (see renderFeatureTabs()) and
+// scrolls the (already-rendered, since it's the one becoming active) feature
+// block into view — a plain `<a href="#feature-x">` anchor only works while
+// EVERY feature's full block is in the DOM at once, which stops being true
+// once features are tab-switched (only the active one renders — see
+// render()). Used anywhere a feature name links out to its own section:
+// the tab strip itself, and the Business Objectives Overview's Feature
+// column.
+function featureLink(name, label) {
+  return `<a href="#${featureAnchorId(name)}" data-action="switch-feature" data-feature="${escapeHtml(name)}">${escapeHtml(label)}</a>`;
+}
+
+// Which feature's full block is showing under the tab strip. Prefers
+// whatever's already selected (state.activeFeature) as long as it still
+// exists in this data (a feature can vanish from a stale selection if
+// someone deletes its folder), then a one-time deep-link from the URL hash
+// this page was opened with, then the project's own "current" feature
+// (manifest.project.feature — the one every /specify-* etc. command
+// actually targets right now), then simply the first feature alphabetically
+// — status.py always returns `features` pre-sorted, so this is stable
+// across polls rather than picking a different "first" on every refresh.
+function resolveActiveFeature(features, project) {
+  const names = features.map(f => f.name);
+  if (state.activeFeature && names.includes(state.activeFeature)) return state.activeFeature;
+  if (_initialFeatureHash && names.includes(_initialFeatureHash)) return _initialFeatureHash;
+  if (project && project.current_feature && names.includes(project.current_feature)) return project.current_feature;
+  return names[0] || null;
+}
+
+// Only worth showing once there's more than one feature to switch between —
+// for a single-feature project it would just add a click for no reason, so
+// render() skips straight to that one feature's block instead (see below).
+// Doubles as the old "Features Overview" table (same at-a-glance stage/
+// tasks/next-action info) and the navigation control, so a multi-feature
+// project doesn't carry both a long static table AND a full block per
+// feature stacked one after another down the page.
+function renderFeatureTabs(features, activeName) {
   if (!features || features.length < 2) return '';
-  const rows = features.map(f => {
-    const steps = (f.pipeline && f.pipeline.steps) || [];
-    const current = steps.find(s => s.state === 'current');
-    const stageLabel = current ? current.label : (steps.every(s => s.state === 'done' || s.state === 'skipped') ? 'Complete' : '—');
-    const tasks = f.tasks || {};
-    const pct = tasks.total ? Math.round(100 * tasks.done / tasks.total) : null;
-    const tasksCell = pct !== null ? `${pct}% <span class="sub">(${tasks.done}/${tasks.total})</span>` : '<span class="sub">no tasks.md</span>';
-    const nextAction = f.pipeline ? mdInlineCode(f.pipeline.next_action) : '—';
+  const tabs = features.map(f => {
+    const pct = featureTaskPct(f);
+    const pctLabel = pct === null ? 'no tasks.md' : `${pct}% tasks`;
+    const active = f.name === activeName;
     return `
-      <tr>
-        <td><a href="#${featureAnchorId(f.name)}">${escapeHtml(f.name)}</a></td>
-        <td>${escapeHtml(stageLabel)}</td>
-        <td>${tasksCell}</td>
-        <td>${nextAction}</td>
-      </tr>`;
+      <button type="button" class="feature-tab${active ? ' active' : ''}" data-action="switch-feature"
+        data-feature="${escapeHtml(f.name)}" aria-selected="${active}">
+        <span class="feature-tab-name">${escapeHtml(f.name)}</span>
+        <span class="feature-tab-stage sub">${escapeHtml(featureStageLabel(f))}</span>
+        <span class="feature-tab-pct">${escapeHtml(pctLabel)}</span>
+      </button>`;
   }).join('');
-  return `
-    <div class="card card-wide" style="margin-bottom:1.5rem">
-      <h2>Features Overview</h2>
-      <table><thead><tr><th>Feature</th><th>Current Step</th><th>Tasks</th><th>Next Action</th></tr></thead><tbody>${rows}</tbody></table>
+  return `<div class="feature-tab-strip" role="tablist" aria-label="Features" style="margin-bottom:1.5rem">${tabs}</div>`;
+}
+
+// Compact at-a-glance widgets for the active feature, shown above its Full
+// Pipeline card — the same three numbers (tasks/BOs/docs) that used to
+// require scanning three separate cards further down, now visible without
+// scrolling the moment a tab is opened.
+function renderFeatureStats(f) {
+  const taskPct = featureTaskPct(f);
+  const taskTile = taskPct === null
+    ? { value: '—', label: 'Tasks', sub: 'no tasks.md' }
+    : { value: `${taskPct}%`, label: 'Tasks', sub: `${f.tasks.done}/${f.tasks.total} done` };
+
+  const bos = f.business_objectives || [];
+  const bosMet = bos.filter(b => b.outcome === 'met').length;
+  const boTile = bos.length === 0
+    ? { value: '—', label: 'Business Objectives', sub: 'no BOs yet' }
+    : { value: `${bosMet}/${bos.length}`, label: 'Business Objectives', sub: 'outcomes met' };
+
+  const docs = (f.docs || []).filter(d => d.exists && !d.skip);
+  const docsApproved = docs.filter(d => (d.status || '').toLowerCase().includes('approved')).length;
+  const docTile = docs.length === 0
+    ? { value: '—', label: 'Documents', sub: 'none yet' }
+    : { value: `${docsApproved}/${docs.length}`, label: 'Documents', sub: 'approved' };
+
+  const tile = t => `
+    <div class="stat-tile">
+      <div class="stat-value">${t.value}</div>
+      <div class="stat-label">${t.label}</div>
+      <div class="sub">${t.sub}</div>
     </div>`;
+  return `<div class="stat-row">${tile(taskTile)}${tile(boTile)}${tile(docTile)}</div>`;
 }
 
 function render() {
@@ -615,11 +780,29 @@ function render() {
   const livingDocs = renderLivingDocuments(
     data.living_documents, data.living_local_links, data.project.current_feature || ''
   );
-  const overview = renderFeatureOverview(data.features);
   const boOverview = renderBusinessObjectivesOverview(data.business_objectives);
-  const features = data.features.length
-    ? data.features.map(f => renderFeature(f, data.project)).join('')
-    : '<div class="empty">No features under .specify/features/ yet — run <code>/specify</code> (or <code>sdd specify</code>) to create your first one.</div>';
+
+  // Only the ACTIVE feature's full block renders — with several features
+  // each carrying a Full Pipeline + Documents + BOs + Timeline + Tasks +
+  // Token Usage + Jira Export card, stacking all of them was exactly what
+  // made the page unmanageably long on a multi-feature project. The tab
+  // strip (renderFeatureTabs()) replaces both the old "Features Overview"
+  // table and the full stack — one compact widget for both comparing and
+  // switching. A single-feature project skips tabs entirely and just shows
+  // that one feature, unchanged from before.
+  let tabs = '';
+  let features;
+  if (!data.features.length) {
+    features = '<div class="empty">No features under .specify/features/ yet — run <code>/specify</code> (or <code>sdd specify</code>) to create your first one.</div>';
+  } else if (data.features.length === 1) {
+    features = renderFeature(data.features[0], data.project);
+  } else {
+    const activeName = resolveActiveFeature(data.features, data.project);
+    state.activeFeature = activeName;
+    tabs = renderFeatureTabs(data.features, activeName);
+    const activeFeature = data.features.find(f => f.name === activeName);
+    features = activeFeature ? renderFeature(activeFeature, data.project) : '';
+  }
 
   // Rebuilding #root wholesale (below) would otherwise steal focus and reset
   // the caret out from under anyone actively typing in a comment field —
@@ -642,7 +825,7 @@ function render() {
     };
   }
 
-  root.innerHTML = renderNetworkBanner() + renderProject(data.project, data.constitution) + livingDocs + overview + boOverview + features;
+  root.innerHTML = renderNetworkBanner() + renderProject(data.project, data.constitution) + livingDocs + boOverview + tabs + features;
 
   if (focus) {
     const selector = `.${focus.cls}[data-feature="${CSS.escape(focus.feature)}"][data-doc="${CSS.escape(focus.doc)}"]`;
@@ -694,6 +877,24 @@ async function refresh() {
   }
 }
 
+// Delegated 'toggle' listener for every <details class="collapsible">
+// (Living Documents, both Business Objectives cards, per-feature
+// Documents) -- records the user's open/closed choice in state.collapsed
+// so sectionOpenAttr() can restore it across the 5s poll's innerHTML
+// rebuild. The 'toggle' event does NOT bubble per the HTML spec (unlike
+// 'click'/'input' above), so a normal bubble-phase delegated listener on
+// #root would never see it -- the third argument (`true`) registers this
+// in the CAPTURE phase instead, which fires top-down regardless of
+// bubbling and still reaches every <details> under #root. No render()
+// call needed here: the browser has already applied the open/closed state
+// natively by the time this fires, this just remembers it for next time.
+document.getElementById('root').addEventListener('toggle', (e) => {
+  const el = e.target;
+  const id = el.dataset && el.dataset.sectionId;
+  if (!id) return;
+  state.collapsed[id] = !el.open;
+}, true);
+
 // Delegated 'input' listener: fires on every keystroke in a comment field
 // and stashes the value in state.commentDrafts, keyed by feature+doc — so
 // when the 5s poll rebuilds #root (see render()'s innerHTML swap above),
@@ -718,7 +919,40 @@ document.getElementById('root').addEventListener('click', async (e) => {
   if (!btn) return;
   const feature = btn.dataset.feature;
 
-  if (btn.dataset.action === 'toggle-details') {
+  if (btn.dataset.action === 'switch-feature') {
+    // Both trigger shapes (the tab strip's <button> and the Business
+    // Objectives Overview's <a href="#feature-...">) land here — prevent
+    // the <a>'s default navigation so this always goes through
+    // history.replaceState below instead. Otherwise the native anchor jump
+    // would push a new history entry per tab switch, and a user who
+    // tabbed through several features would need that many Back presses
+    // just to leave the page.
+    e.preventDefault();
+    state.activeFeature = feature;
+    render();
+    history.replaceState({}, '', '#' + featureAnchorId(feature));
+    const el = document.getElementById(featureAnchorId(feature));
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+
+  } else if (btn.dataset.action === 'tasks-page') {
+    const pageCount = Math.max(1, Math.ceil(
+      (lastData.features.find(f => f.name === feature) || { tasks: { items: [] } }).tasks.items.length / TASKS_PAGE_SIZE
+    ));
+    const current = state.taskPage[feature] || 0;
+    state.taskPage[feature] = btn.dataset.dir === 'next'
+      ? Math.min(current + 1, pageCount - 1)
+      : Math.max(current - 1, 0);
+    render();
+    return;
+
+  } else if (btn.dataset.action === 'toggle-jira-list') {
+    const key = feature + '|' + btn.dataset.field;
+    state.jiraExportExpanded[key] = !state.jiraExportExpanded[key];
+    render();
+    return;
+
+  } else if (btn.dataset.action === 'toggle-details') {
     const doc = btn.dataset.doc;
     const key = feature + '|' + doc;
     if (state.openDocs.has(key)) {

@@ -4,6 +4,147 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.24] — 2026-08-09 (Dashboard: task pagination, more toggles, a real persistence bug fix)
+
+Direct follow-up to v2.9.23, after the user pushed back: "do you have the
+toggle for other sections also, like Tasks — if it has 100 tasks the page
+will be very high, so we can have a limit and click next button, same
+Documents section also toggle... review all the design... think as a UX
+designer for dashboard."
+
+### Changed
+
+- **Tasks pagination.** A real project's `tasks.md` can run to 50–200+
+  entries. `renderTasks()` now paginates at 20 rows/page with Prev/Next
+  buttons and a "Showing X–Y of N · page P/C" indicator — the aggregate
+  progress bar above the table always reflects the *full* list, not just
+  the current page. Position is kept per-feature so switching tabs doesn't
+  lose your place.
+- **Documents and Business Objectives (per-feature)** are now collapsible,
+  matching the project-wide sections from v2.9.23. Documents defaults open
+  (bounded list); Business Objectives defaults open only at ≤8 BOs,
+  auto-collapsing past that — the same smart threshold was retrofitted onto
+  the existing project-wide BO Overview, which previously always defaulted
+  open regardless of size.
+- **Jira Export's** Stories/Tasks lists now truncate at 12 items with a
+  "+N more" / "show less" toggle — a comma-joined list of ~100 ticket keys
+  was still a wall of wrapped links even though it isn't a table.
+
+### Fixed
+
+- **Real bug, found while reviewing the whole design end-to-end**: none of
+  v2.9.23's collapsible sections actually survived the dashboard's 5-second
+  poll. `#root` is rebuilt wholesale on every poll, so any manual
+  open/close toggle silently snapped back to its hardcoded default every 5
+  seconds. Fixed with an explicit `state.collapsed` map plus a
+  capture-phase `toggle` listener (native `toggle` events don't bubble, so
+  capture phase is required for delegation to reach them) — a user's choice
+  now persists across every poll, and only falls back to the smart default
+  when they haven't chosen yet.
+
+### Verified
+
+- `cli-python` pytest 993/993 (992 unchanged + 1 updated for
+  `renderJiraExport()`'s new parameter); `ruff check`/`format` clean;
+  `mypy` clean; `node --check app.js` valid syntax.
+- Manually verified end-to-end with a real HTTP server against a synthetic
+  87-task/14-BO/87-Jira-key fixture, screenshotted via Playwright/Chromium:
+  pagination transitions correctly, the 14-BO section auto-collapsed as
+  designed, the Jira Export toggle works — and the persistence fix was
+  directly verified by opening a collapsed section, calling the app's own
+  `refresh()` to simulate a poll, and confirming it stayed open (it would
+  have silently reverted before this fix).
+
+---
+
+## [2.9.23] — 2026-08-09 (Dashboard: feature tabs, collapsible sections, stat widgets)
+
+Requested directly by a user who attached a real dashboard PDF snapshot and
+pointed out the obvious problem: on a multi-feature project, the page just
+kept growing — every feature's full block (Full Pipeline, Documents,
+Business Objectives, Timeline, Tasks, Token Usage, Jira Export) stacked one
+after another, with no way to jump around or collapse anything.
+
+### Changed
+
+- **Feature tab strip.** Only the *active* feature's full block renders now.
+  A compact tab strip (one pill per feature, showing stage + tasks%)
+  replaces both the old always-stacked layout and the old static "Features
+  Overview" table — it's the quick-compare view and the navigation control
+  in one. Single-feature projects are unaffected; tabs only appear once
+  there are 2+ features, same threshold the old overview table used.
+- **Collapsible sections.** Living Documents and the project-wide Business
+  Objectives Overview are now collapsible (open by default, same chevron
+  treatment as the existing "Where this data comes from" box) — measured a
+  ~22% page-height reduction when collapsed on a 3-feature/9-BO test
+  fixture.
+- **Stat-tile widgets.** A 3-tile row (Tasks %, Business Objectives
+  outcomes-met, Documents approved) now sits at the top of the active
+  feature's block — no more scanning three separate cards further down.
+  Business Objectives rows also gained a thin inline progress bar instead
+  of plain "67% (2/3)" text.
+
+Pure client-side change (`dashboard_static/app.js` + `style.css`, served
+verbatim by `dashboard.py`) — no server-side or API changes.
+
+### Verified
+
+- `cli-python` pytest 993/993 (no `.py` files touched); `ruff check`/
+  `format` clean; `mypy` clean; `node --check app.js` valid syntax.
+- Manually verified end-to-end: a real HTTP server against a synthetic
+  3-feature fixture with the full BO→BR→FR→Task rollup chain wired,
+  screenshotted via Playwright/Chromium in light and dark theme — tab
+  switching, stat tiles, BO progress bars, and the collapse toggle all
+  confirmed working; dark mode colors adapt correctly through the existing
+  CSS variable system.
+
+---
+
+## [2.9.22] — 2026-08-09 (`/checklist` now actually blocks at mvp/full scope)
+
+Found via a live dashboard report: "Next: Run `/checklist`" was still
+showing even though Validate, Analyze, Clarify, Design, LLD, and Stories
+were all already approved for an `mvp`-scope feature. The dashboard turned
+out to be right the whole time — `/checklist` really was never run — but
+the framework never actually enforced its own documented policy.
+
+`CLAUDE.md`'s Scope Reference table and `/checklist` section both say
+`/checklist` is **Mandatory for `mvp` and `full` scope** and that "All
+CRITICAL items must be resolved before `/validate` can proceed." But every
+pack's `validate.prompt.md` Step 0 ("CHECKLIST GATE (advisory)") was
+hard-coded to never block, regardless of scope — a project could sail
+straight from SRD through `/validate` → `/analyze` → `/clarify` →
+`/plan-design` → `/plan-lld` → `/task`, all approved, without `/checklist`
+ever running.
+
+### Fixed
+
+- All 5 packs' `.github/prompts/validate.prompt.md` Step 0 is now
+  scope-aware: `pilot` stays advisory (warns, doesn't block); `mvp`/`full`
+  now genuinely **block** `/validate` when `checklists/` is missing (never
+  run) or still has open CRITICAL items. `sdd-micro` excluded — it has no
+  `/checklist` step at all, by design.
+- All 5 packs' `CLAUDE.md` — fixed the self-contradictory section heading
+  "`/checklist` — Optional Spec-Quality Gate" (it directly contradicted
+  the very next line, "Mandatory for `mvp` and `full` scope") to just
+  "`/checklist` — Spec-Quality Gate".
+
+### Verified
+
+- `check-cross-references.py` clean across all 6 packs.
+- `sync-blocks.sh` run twice consecutively, zero unexpected drift.
+- `test-setup.sh` 19/19 passed.
+- No `.py`/`.js` files touched — pure prompt/`CLAUDE.md` content, so no
+  pytest/`node --test` re-run needed for this specific change.
+
+**Note for existing `mvp`/`full`-scope projects:** if `/checklist` was
+skipped, your next `/validate` run will now block until it's run and any
+CRITICAL findings are resolved. That's the intended fix, not a
+regression — it's catching up on a gate that should have applied all
+along.
+
+---
+
 ## [2.9.21] — 2026-08-09 (Docs: `--feature` added to every CR example)
 
 Direct follow-up: "does the CR resolve based on manifest feature?" —

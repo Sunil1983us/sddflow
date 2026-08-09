@@ -4457,6 +4457,147 @@ export const MIGRATIONS = [
       'drift; test-setup.sh 19/19 passed',
     ],
   },
+  {
+    from: '2.9.21',
+    to:   '2.9.22',
+    description: "validate.prompt.md's CHECKLIST GATE now actually blocks at mvp/full scope, matching what CLAUDE.md already claimed -- found via a live dashboard report ('Next: Run /checklist' shown even though Validate/Analyze/Clarify/Design/LLD/Stories were all already approved)",
+    notes: [
+      'Root cause: CLAUDE.md\'s Scope Reference table and the ' +
+      '/checklist section both document /checklist as \'Mandatory for ' +
+      'mvp and full scope ... All CRITICAL items must be resolved ' +
+      'before /validate can proceed\' -- but every pack\'s ' +
+      'validate.prompt.md Step 0 (\'CHECKLIST GATE (advisory)\') was ' +
+      'hard-coded to never block, regardless of scope (\'Do NOT block ' +
+      'validate -- /checklist is optional\'). A project could sail from ' +
+      'SRD straight through /validate/-analyze/-clarify/-design/' +
+      '-plan-lld/-task, all approved, without /checklist ever running ' +
+      '-- exactly contradicting the pack\'s own documented policy. The ' +
+      'dashboard\'s \'Next: Run /checklist\' was accurate the whole ' +
+      'time; the framework just never enforced what it claimed',
+      'Fixed in all 5 packs\' validate.prompt.md Step 0: now ' +
+      'scope-aware -- pilot stays advisory (warn, don\'t block), ' +
+      'mvp/full now genuinely BLOCK when checklists/ is missing (never ' +
+      'run) or has open CRITICAL items. sdd-micro excluded (no ' +
+      '/checklist in that pack by design)',
+      'Fixed all 5 packs\' CLAUDE.md: the self-contradictory section ' +
+      'heading \'/checklist -- Optional Spec-Quality Gate\' (directly ' +
+      'contradicted the next line, \'Mandatory for mvp and full ' +
+      'scope\') is now just \'/checklist -- Spec-Quality Gate\'',
+      'Real behavior change for existing mvp/full-scope projects: a ' +
+      'project that previously skipped /checklist and already has ' +
+      'Validate approved will now be BLOCKED on its next /validate run ' +
+      'until /checklist is run and CRITICAL items resolved -- catching ' +
+      'up late is expected and intended, not a regression',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain',
+      'No .py/.js files touched (pure prompt/CLAUDE.md content); ' +
+      'check-cross-references.py clean across all 6 packs; ' +
+      'sync-blocks.sh run twice consecutively with zero unexpected ' +
+      'drift; test-setup.sh 19/19 passed',
+    ],
+  },
+  {
+    from: '2.9.22',
+    to:   '2.9.23',
+    description: "sdd dashboard: feature tab strip, collapsible section toggles, and stat-tile widgets for multi-feature projects -- requested directly after a user attached a real dashboard PDF snapshot showing the page had grown very long with several features stacked one after another",
+    notes: [
+      'Client-side only (dashboard_static/app.js + style.css, served ' +
+      'verbatim by dashboard.py) -- no Python/server-side changes, no ' +
+      'API shape changes, all 74 existing dashboard pytest tests pass ' +
+      'unchanged since they only exercise the HTTP handler / JSON API, ' +
+      'not the JS/CSS',
+      'Feature tab strip (renderFeatureTabs()): only the ACTIVE ' +
+      'feature\'s full block (Full Pipeline + Documents + BOs + ' +
+      'Timeline + Tasks + Token Usage + Jira Export -- 7 cards) renders ' +
+      'now, replacing both the old always-stacked layout and the old ' +
+      '\'Features Overview\' table with one compact widget that shows ' +
+      'stage + tasks% per feature and switches the active one on click. ' +
+      'Single-feature projects are unaffected -- tabs only appear at 2+ ' +
+      'features, same threshold the old overview table used',
+      'Collapsible section toggles: Living Documents and the ' +
+      'project-wide Business Objectives Overview are now <details ' +
+      'class="collapsible"> (open by default, same chevron treatment as ' +
+      'the existing \'Where this data comes from\' info box) instead of ' +
+      'plain cards -- measured a ~22% page-height reduction when ' +
+      'collapsed on a 3-feature/9-BO test fixture',
+      'Stat-tile widgets: a 3-tile row (Tasks %, Business Objectives ' +
+      'outcomes-met, Documents approved) now sits at the top of the ' +
+      'active feature\'s block -- previously required scanning three ' +
+      'separate cards further down. Business Objectives rows also ' +
+      'gained a thin inline progress bar in the Progress cell instead ' +
+      'of plain text',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no dashboard of its own -- ' +
+      'scaffolding-only by design -- so nothing here actually applies ' +
+      'to it beyond the version stamp)',
+      'Verified: cli-python pytest 993/993; ruff check/format clean; ' +
+      'mypy clean; node --check app.js valid syntax. Manually verified ' +
+      'end-to-end with a real HTTP server against a synthetic ' +
+      '3-feature fixture with the full BO->BR->FR->Task rollup chain ' +
+      'wired, screenshotted via Playwright/Chromium in light and dark ' +
+      'theme: tab switching, stat tiles, BO progress bars, and the ' +
+      'collapse toggle all confirmed working; dark mode colors adapt ' +
+      'correctly through the existing CSS variable system',
+    ],
+  },
+  {
+    from: '2.9.23',
+    to:   '2.9.24',
+    description: "sdd dashboard: Tasks pagination, Documents/BO toggles extended to per-feature cards, and a real bug fix -- none of v2.9.23's collapsible sections actually survived the 5s poll -- found via direct user follow-up asking for a full UX review of the dashboard",
+    notes: [
+      'Client-side only (dashboard_static/app.js + style.css), plus ' +
+      'one test updated in test_dashboard.py for renderJiraExport()\'s ' +
+      'new third parameter -- no other Python/server-side changes',
+      'Tasks pagination: a real project\'s tasks.md can run to ' +
+      '50-200+ entries -- renderTasks() now paginates at 20 rows/page ' +
+      '(TASKS_PAGE_SIZE) with Prev/Next buttons and a \'Showing X-Y of ' +
+      'N - page P/C\' indicator, state.taskPage kept per-feature so ' +
+      'switching tabs preserves position. The aggregate progress ' +
+      'bar/summary line above the table always reflects the FULL ' +
+      'list, not just the current page',
+      'Documents (per-feature) and Business Objectives (per-feature) ' +
+      'are now collapsible like the project-wide sections already ' +
+      'were -- Documents defaults open (bounded list), Business ' +
+      'Objectives defaults open only at <=8 BOs ' +
+      '(BO_OVERVIEW_AUTO_COLLAPSE_THRESHOLD, also retrofitted onto the ' +
+      'existing project-wide BO Overview, which previously always ' +
+      'defaulted open regardless of size)',
+      'Jira Export\'s Stories/Tasks lists (comma-joined ticket keys, ' +
+      'not a table, but still a wall of ~100 links on a big feature) ' +
+      'truncate at 12 items with a \'+N more\'/\'show less\' toggle ' +
+      '(JIRA_EXPORT_LIST_LIMIT)',
+      'Real bug found and fixed while reviewing the whole design: ' +
+      'NONE of v2.9.23\'s <details class="collapsible"> sections ' +
+      'actually persisted a user\'s open/closed choice -- #root is ' +
+      'rebuilt wholesale on every 5s poll, so a manual toggle silently ' +
+      'snapped back to its hardcoded default every 5 seconds. Fixed ' +
+      'with state.collapsed (keyed by a stable data-section-id per ' +
+      '<details>) plus a capture-phase \'toggle\' listener on #root -- ' +
+      'native \'toggle\' events don\'t bubble, so capture phase is ' +
+      'required for delegation to reach them at all -- and a new ' +
+      'sectionOpenAttr(id, defaultOpen) helper that only falls back to ' +
+      'the smart default when the user hasn\'t chosen explicitly yet. ' +
+      'Applied to all four collapsible sections',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (no dashboard of its own, unaffected beyond the version ' +
+      'stamp)',
+      'Verified: cli-python pytest 993/993 (992 unchanged + 1 fixed ' +
+      'for renderJiraExport\'s new signature); ruff check/format ' +
+      'clean; mypy clean; node --check app.js valid syntax. Manually ' +
+      'verified end-to-end with a real HTTP server against a ' +
+      'synthetic 87-task/14-BO/87-Jira-key fixture, screenshotted via ' +
+      'Playwright/Chromium: pagination page 1/5 -> 2/5 transitions ' +
+      'correctly, the 14-BO section auto-collapsed as designed, Jira ' +
+      'Export\'s \'+75 more\' toggle works, and the persistence fix ' +
+      'was directly verified by manually opening a collapsed section ' +
+      'then calling the app\'s own refresh() (simulating the 5s poll) ' +
+      'and confirming it stayed open -- it would have silently ' +
+      'reverted before this fix',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

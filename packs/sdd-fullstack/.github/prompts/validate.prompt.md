@@ -29,15 +29,26 @@ Part 2 before /validate."
 ## Your Task
 Produce a business sign-off report:
 
-0. CHECKLIST GATE (advisory)
-   If `.specify/features/{manifest.project.feature}/checklists/` exists,
-   check if the checklist file contains any open `[ ]` CRITICAL items.
-   If open CRITICAL CHK-NNN items found: warn:
-   "WARNING: {N} CRITICAL spec-quality items still open (from /checklist).
-   These should be resolved before sign-off — proceeding anyway will risk
-   finding ambiguities during /plan-design."
-   (Do NOT block validate — /checklist is optional. Only NEEDS CLARIFICATION
-   markers from Item 0a below are hard-blocking.)
+0. CHECKLIST GATE (advisory at pilot, mandatory at mvp/full)
+   Check whether `.specify/features/{manifest.project.feature}/checklists/`
+   exists and, if so, whether the checklist file contains any open `[ ]`
+   CRITICAL items.
+
+   - `manifest.scope` is `pilot`: /checklist is optional. If the folder is
+     missing, or open CRITICAL CHK-NNN items are found, warn but continue:
+     "WARNING: {N} CRITICAL spec-quality items still open (from /checklist).
+     These should be resolved before sign-off — proceeding anyway will risk
+     finding ambiguities during /plan-design."
+   - `manifest.scope` is `mvp` or `full`: /checklist is mandatory. If the
+     folder is missing (never run) or open CRITICAL CHK-NNN items remain,
+     **block**:
+     "BLOCKED: /checklist has not been completed for this feature (or still
+     has {N} open CRITICAL items). /checklist is mandatory at {scope} scope
+     — run it and resolve CRITICAL findings, then re-run /validate."
+     Stop here; do not continue to step 0a.
+
+   Only NEEDS CLARIFICATION markers from Item 0a below are hard-blocking
+   independent of this gate.
 
 0a. NEEDS CLARIFICATION SCAN (blocking)
    **Before scanning**: if `.specify/integrations.yml` has `document_reviews.validate`

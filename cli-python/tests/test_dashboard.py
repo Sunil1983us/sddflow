@@ -339,7 +339,7 @@ def test_page_renders_jira_status_suffix_on_link_pill():
 
 def test_page_wires_export_status_into_jira_export_card():
     assert "exportEntry" in _PAGE
-    assert "renderJiraExport(local.jira, exportEntry)" in _PAGE
+    assert "renderJiraExport(local.jira, exportEntry, f.name)" in _PAGE
 
 
 def _scaffold_export_keys(
