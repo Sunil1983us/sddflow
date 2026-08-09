@@ -91,9 +91,10 @@ Python template (`upgrade.py`):
             "sdd_version chain",
             "Verified: cli-python pytest N/N (M pre-existing + K new)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "NEW_VERSION"},
     },
 ```
+
+Do **not** add a `"migrate"` key to the dict literal. Both `upgrade.py` and `upgrade.js` document (see the comment above their `MIGRATIONS`/`Migration` definitions) that every entry only ever stamps `sdd_version` — `_migrate_fn()` / `migrateFn()` supplies that lambda automatically for every entry, and the actual apply code never reads a per-entry `"migrate"` key at all. An explicit `"migrate": lambda ...` here is dead code that mypy's `Migration` TypedDict also rejects as an unknown key (`typeddict-unknown-key`) — this exact mistake shipped across 6 entries in one session before being caught by a red CI badge. Only touch `_CUSTOM_MIGRATE`/`CUSTOM_MIGRATE` directly in `upgrade.py`/`upgrade.js` for the rare entry that truly needs to transform manifest content beyond stamping the version.
 
 JS template (`upgrade.js`) — same content, JS object syntax, string concatenation instead of adjacent-literal concatenation for the notes:
 ```javascript
@@ -106,10 +107,6 @@ JS template (`upgrade.js`) — same content, JS object syntax, string concatenat
       "continued on the next line if long",
       "Second note -- ...",
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = 'NEW_VERSION';
-      return manifest;
-    },
   },
 ```
 

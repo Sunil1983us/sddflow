@@ -129,7 +129,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install ruff and mypy
-        run: pip install ruff mypy
+        run: pip install ruff mypy types-PyYAML types-requests
       - name: Run ruff check
         working-directory: cli-python
         run: ruff check .

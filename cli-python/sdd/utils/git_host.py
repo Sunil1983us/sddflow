@@ -321,7 +321,7 @@ class GitLabProvider:
             if code != 0:
                 raise PrCreateError(f"glab mr create failed: {err}")
             # glab prints progress lines then the MR URL last
-            lines = [l for l in out.splitlines() if l.strip()]
+            lines = [line for line in out.splitlines() if line.strip()]
             return lines[-1] if lines else out
 
         token = os.environ.get("GITLAB_TOKEN")

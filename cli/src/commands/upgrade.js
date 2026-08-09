@@ -4185,10 +4185,6 @@ export const MIGRATIONS = [
       '(idempotent); cli-python pytest suite green after this ' +
       'migration entry was added',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.9.16';
-      return manifest;
-    },
   },
   {
     from: '2.9.16',
@@ -4245,10 +4241,6 @@ export const MIGRATIONS = [
       'only sdd-universal\'s own CLAUDE.md/HOW-TO-USE.md changed; ' +
       'test-setup.sh 19/19 passed',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.9.17';
-      return manifest;
-    },
   },
   {
     from: '2.9.17',
@@ -4302,10 +4294,6 @@ export const MIGRATIONS = [
       'all 5 packs\' manifest.yml template parses as valid YAML with ' +
       'feature_display_name present and empty by default',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.9.18';
-      return manifest;
-    },
   },
   {
     from: '2.9.18',
@@ -4374,10 +4362,6 @@ export const MIGRATIONS = [
       'collision before/after the fix (COLLISION -> distinct titles for ' +
       'brd/use-cases/srd)',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.9.19';
-      return manifest;
-    },
   },
   {
     from: '2.9.19',
@@ -4433,10 +4417,6 @@ export const MIGRATIONS = [
       'all; manually smoke-tested end-to-end against a hand-built ' +
       '2-feature project',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.9.20';
-      return manifest;
-    },
   },
   {
     from: '2.9.20',
@@ -4476,10 +4456,6 @@ export const MIGRATIONS = [
       '6 packs; sync-blocks.sh run twice consecutively with zero ' +
       'drift; test-setup.sh 19/19 passed',
     ],
-    migrate: (manifest) => {
-      manifest.sdd_version = '2.9.21';
-      return manifest;
-    },
   },
 ];
 

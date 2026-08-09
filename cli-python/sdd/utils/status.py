@@ -93,8 +93,8 @@ def _table_rows_after_heading(lines: list[str], contains: str) -> list[list[str]
     try:
         heading_idx = next(
             i
-            for i, l in enumerate(lines)
-            if l.strip().startswith("##") and contains in l
+            for i, line in enumerate(lines)
+            if line.strip().startswith("##") and contains in line
         )
     except StopIteration:
         return []
@@ -162,7 +162,7 @@ def _parse_approvals_table(path: Path) -> list[dict]:
     lines = text.splitlines()
     try:
         heading_idx = next(
-            i for i, l in enumerate(lines) if l.strip() == "## Approvals"
+            i for i, line in enumerate(lines) if line.strip() == "## Approvals"
         )
     except StopIteration:
         return []

@@ -275,7 +275,7 @@ def token_log_command(feature, command_name, dry_run):
         # the heading first, or a bare "any separator row" search would
         # silently find and insert into the wrong table.
         heading_idx = next(
-            i for i, l in enumerate(lines) if l.strip() == "## Per-Command Log"
+            i for i, line in enumerate(lines) if line.strip() == "## Per-Command Log"
         )
         sep_idx = next(
             i
