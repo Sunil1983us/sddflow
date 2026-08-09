@@ -6906,6 +6906,67 @@ MIGRATIONS: list[Migration] = [
             "reverted before this fix",
         ],
     },
+    {
+        "from": "2.9.24",
+        "to": "3.0.0",
+        "description": "Fixed the dashboard's Spec Quality Checklist "
+        "pipeline step, which could NEVER show done no matter how many "
+        "times /checklist actually ran -- found via direct user report, "
+        "confirmed against the user's own real filesystem path "
+        "(.../checklists/{feature}-spec-quality.md). Version rolled to "
+        "3.0.0 purely by the capped-counter carry rule (2.9.24 was at "
+        "both the patch and minor cap simultaneously) -- not a semver "
+        "breaking-change signal",
+        "notes": [
+            "Root cause, two compounding bugs in sdd/utils/status.py: "
+            "(1) _feature_docs()'s doc discovery only globs top-level "
+            ".md files directly under .specify/features/{feature}/, but "
+            "checklist.prompt.md actually saves to "
+            ".specify/features/{feature}/checklists/{feature}-spec-"
+            "quality.md -- a subdirectory, with a filename that doesn't "
+            "even match the 'checklist' doc_key -- so docs_by_key["
+            "'checklist'] was always absent regardless of how many "
+            "times /checklist was re-run. (2) Even if found, the "
+            "checklist template has no `> Status: Draft | ...` header "
+            "like every other spec doc -- it's a self-contained audit "
+            "report (a CHK-NNN findings table + a manual checkbox "
+            "section), not a document with a review-gated Draft/"
+            "Approved lifecycle, so the generic doc-kind 'done' check "
+            "(status string contains 'approved') could never have "
+            "matched it either",
+            "Fixed with a dedicated code path instead of forcing "
+            "checklist into the generic doc-review-gate model it "
+            "doesn't fit: new _checklist_info(root, feature) looks up "
+            "the real nested path and counts open CRITICAL-severity "
+            "rows in the CHK-NNN table (reusing the existing "
+            "_table_rows_after_heading() helper); the pipeline step's "
+            "kind changed from 'doc' to its own 'checklist'; "
+            "_step_state() and _next_action_sentence() both gained a "
+            "'checklist' branch -- done once the file exists with zero "
+            "open CRITICAL items, current (with an accurate "
+            "'N CRITICAL items still open' message) while they remain, "
+            "instead of the generic doc fallback which would have "
+            "wrongly suggested `sdd review check --doc checklist`, a "
+            "review-gate command that doesn't apply here",
+            "build_pipeline() gained a new checklist_info parameter "
+            "(defaults to 'never run' so every pre-existing call site, "
+            "including 125+ existing tests, keeps behaving exactly as "
+            "before); build_feature_status() computes it via "
+            "_checklist_info() and threads it through",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain (no dashboard of its own, unaffected "
+            "beyond the version stamp)",
+            "Verified: cli-python pytest 1000/1000 (993 unchanged + 7 "
+            "new regression tests, including one that reproduces the "
+            "exact user-reported scenario end-to-end through "
+            "build_feature_status() with a real file on disk at the "
+            "real nested path, confirming the pipeline step shows done "
+            "and next_action moves past it once downstream is already "
+            "ahead -- exactly the contradiction the user hit); ruff "
+            "check/format clean; mypy clean",
+        ],
+    },
 ]
 
 

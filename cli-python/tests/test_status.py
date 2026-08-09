@@ -5,6 +5,7 @@ from pathlib import Path
 
 import sdd.utils.status as status_mod
 from sdd.utils.status import (
+    _checklist_info,
     _doc_timing,
     _normalize_role_key,
     _parse_approvals_table,
@@ -1335,6 +1336,151 @@ def test_pipeline_optional_step_not_yet_reached_is_still_picked_as_next():
     )
     assert p["next_step_id"] == "checklist"
     assert "/checklist" in p["next_action"]
+
+
+# ── _checklist_info() / pipeline "checklist" step kind ───────────────────
+# Regression: user-reported. /checklist genuinely ran (checklist.prompt.md
+# confirmed: "created a checklist file .. still it is there in same") but
+# the dashboard's Full Pipeline kept showing "○ Quinn | Spec Quality
+# Checklist" as upcoming forever, and "Next: Run /checklist" never went
+# away no matter how many times it was re-run. Root cause: the checklist
+# file lives at .specify/features/{feature}/checklists/{feature}-spec-
+# quality.md (a subdirectory, filename NOT matching the doc_key) --
+# _feature_docs()'s feature_dir.glob("*.md") only scans the top-level
+# feature dir, so a doc keyed "checklist" never appeared in docs_by_key
+# regardless of how many times the file was regenerated. It also has no
+# `> Status: Draft/Approved` header like every other spec doc (it's an
+# audit report, not something reviewed and approved), so even a doc_key
+# match wouldn't have made the old generic "approved" check pass. Both
+# needed a dedicated code path -- _checklist_info() + build_pipeline()'s
+# new "checklist" step kind (see _step_state()/_next_action_sentence()).
+def test_checklist_info_missing_file_reports_not_exists(tmp_path):
+    info = _checklist_info(tmp_path, "payments")
+    assert info == {"exists": False, "critical_open": None}
+
+
+def test_checklist_info_finds_file_in_checklists_subdirectory(tmp_path):
+    """The exact path a user's own filesystem confirmed:
+    .specify/features/{feature}/checklists/{feature}-spec-quality.md --
+    not a flat .specify/features/{feature}/checklist.md."""
+    checklist_dir = tmp_path / ".specify" / "features" / "payments" / "checklists"
+    checklist_dir.mkdir(parents=True)
+    (checklist_dir / "payments-spec-quality.md").write_text(
+        "# Spec Quality Checklist\n"
+        "# Feature: Payments\n"
+        "> Version: 1.0 | Date: 2026-08-09 | Scope: mvp\n\n"
+        "## CHK-NNN Items\n\n"
+        "| ID | Dimension | Severity | Location | Finding | Action Required |\n"
+        "|---|---|---|---|---|---|\n"
+        "| CHK-001 | Measurability | HIGH | srd.md FR-3 | vague | add a number |\n"
+        "| CHK-002 | Completeness | MEDIUM | brd.md | missing | add section |\n\n"
+        "## Status\n[ ] All CRITICAL items resolved\n"
+    )
+    info = _checklist_info(tmp_path, "payments")
+    assert info == {"exists": True, "critical_open": 0}
+
+
+def test_checklist_info_counts_open_critical_rows(tmp_path):
+    checklist_dir = tmp_path / ".specify" / "features" / "payments" / "checklists"
+    checklist_dir.mkdir(parents=True)
+    (checklist_dir / "payments-spec-quality.md").write_text(
+        "# Spec Quality Checklist\n\n"
+        "## CHK-NNN Items\n\n"
+        "| ID | Dimension | Severity | Location | Finding | Action Required |\n"
+        "|---|---|---|---|---|---|\n"
+        "| CHK-001 | Measurability | CRITICAL | srd.md FR-3 | no NFR target | add a number |\n"
+        "| CHK-002 | Completeness | HIGH | brd.md | missing | add section |\n"
+        "| CHK-003 | Clarity | CRITICAL | use-cases.md UC-2 | no scenario | add one |\n"
+    )
+    info = _checklist_info(tmp_path, "payments")
+    assert info == {"exists": True, "critical_open": 2}
+
+
+def test_pipeline_checklist_done_once_file_exists_with_zero_critical():
+    p = build_pipeline(
+        [{"key": "srd", "status": "Approved"}],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="mvp",
+        checklist_info={"exists": True, "critical_open": 0},
+    )
+    assert _step(p, "checklist")["state"] == "done"
+
+
+def test_pipeline_checklist_current_while_critical_items_open():
+    p = build_pipeline(
+        [
+            {"key": "brd", "status": "Approved"},
+            {"key": "use-cases", "status": "Approved"},
+            {"key": "srd", "status": "Approved"},
+        ],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="mvp",
+        checklist_info={"exists": True, "critical_open": 2},
+    )
+    step = _step(p, "checklist")
+    assert step["state"] == "current"
+    assert p["next_step_id"] == "checklist"
+    assert "2 CRITICAL items" in p["next_action"]
+    assert "/checklist" in p["next_action"]
+
+
+def test_pipeline_checklist_still_upcoming_without_checklist_info():
+    """Default parameter regression guard: every call site that predates
+    this parameter (including every other test in this file) must keep
+    behaving exactly as before -- checklist perpetually "upcoming"."""
+    p = build_pipeline(
+        [{"key": "srd", "status": "Approved"}],
+        _NO_TASKS,
+        _GATE1_PASSED,
+        service_docs=_NO_SERVICE_DOCS,
+        plan_mode="unified",
+        scope="mvp",
+    )
+    assert _step(p, "checklist")["state"] == "upcoming"
+
+
+def test_build_feature_status_end_to_end_detects_checklist_past_later_steps(
+    tmp_path,
+):
+    """The full reported scenario end-to-end through build_feature_status():
+    mvp scope, checklist file exists with zero CRITICAL items, and later
+    steps (validate) are already approved -- the pipeline's checklist step
+    must show done and next_action must have moved past it, not keep
+    saying "Run /checklist" forever."""
+    feature_dir = tmp_path / ".specify" / "features" / "payments"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "srd.md").write_text(
+        "# SRD\n> Status: Approved | Date: 2026-08-01\n"
+    )
+    (feature_dir / "validate.md").write_text(
+        "# Validate\n> Status: Draft | Date: 2026-08-09\n"
+    )
+    checklist_dir = feature_dir / "checklists"
+    checklist_dir.mkdir()
+    (checklist_dir / "payments-spec-quality.md").write_text(
+        "# Spec Quality Checklist\n\n"
+        "## CHK-NNN Items\n\n"
+        "| ID | Dimension | Severity | Location | Finding | Action Required |\n"
+        "|---|---|---|---|---|---|\n"
+        "| CHK-001 | Completeness | MEDIUM | brd.md | missing | add section |\n"
+    )
+    status = build_feature_status(
+        tmp_path,
+        "payments",
+        constitution=_GATE1_PASSED,
+        plan_mode="unified",
+        scope="mvp",
+    )
+    checklist_step = _step(status["pipeline"], "checklist")
+    assert checklist_step["state"] == "done"
+    assert status["pipeline"]["next_step_id"] != "checklist"
+    assert "checklist" not in status["pipeline"]["next_action"].lower()
 
 
 def test_pipeline_pilot_scope_skips_lld_adr_runbook_qa():
