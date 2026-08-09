@@ -262,7 +262,7 @@ anything new:
    # Jira Epic — {Feature Name}
    > Source: brd.md | Stage: after-brd | Status: PUSHED
 
-   Summary: {Feature Name from manifest.yml project.name, or manifest.yml project.feature if absent}
+   Summary: {Feature Name from manifest.yml project.feature_display_name, else project.name, else project.feature}
    Project: {jira.project_key from .specify/integrations.yml — or TBD if not present}
    Issue Type: Epic
    Priority: High

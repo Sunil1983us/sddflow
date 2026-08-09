@@ -4,6 +4,7 @@ project:
   name: ""           # REQUIRED
   scope: "pilot"     # pilot | mvp | full  DEFAULT:pilot
   feature: ""        # REQUIRED — output folder name
+  feature_display_name: ""  # OPTIONAL — this feature's display name (doc headers/Confluence/Jira Epic); blank = falls back to project.name. See CLAUDE.md "Feature Drift Check".
   context_file: ""   # REQUIRED — file in .specify/contexts/
 
 pr_rules:
@@ -32,5 +33,5 @@ testing_style: "paired"
 # If using sdd-universal instead, set project_type: "fullstack" in its manifest.yml
 # project_type: "fullstack"
 
-sdd_version: "2.9.17"   # set by sdd init; used by sdd upgrade
+sdd_version: "2.9.18"   # set by sdd init; used by sdd upgrade
 ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other

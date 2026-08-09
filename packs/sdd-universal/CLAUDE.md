@@ -35,11 +35,25 @@ has a structured context.md.
 <!-- shared:feature-name-convention:start -->
 **`{Feature Name}` convention.** Every generated document's `{Feature Name}`
 placeholder (`# Feature: {Feature Name}`, `# Use Case Specification —
-{Feature Name}`, etc. — nearly every template header) resolves from
-`manifest.yml`'s `project.name`, falling back to `project.feature` only if
-`project.name` is empty. This matches the one place this was already
-defined explicitly (the Jira Epic Summary rule in specify-brd.prompt.md) —
-now it applies everywhere `{Feature Name}` appears.
+{Feature Name}`, etc. — nearly every template header, plus Confluence page
+titles and the Jira Epic Summary — see `specify-brd.prompt.md`'s Jira Epic
+Summary rule, which follows this same order) resolves in this order:
+1. `manifest.yml`'s `project.feature_display_name`, if present and non-empty
+   — this feature's own display name. Use this on any project with more
+   than one feature: `project.name` stays one stable identity for the
+   whole project, so if it were reused as every feature's document-header
+   name too, a second feature's BRD would header itself identically to the
+   first feature's, and their Confluence pages would collide on title
+   (page lookup is by title) — Jira Epic summaries would collide the same
+   way. `feature_display_name` is what actually varies per feature: update
+   it — not `project.name` — every time `project.feature` switches to a
+   different feature (see CLAUDE.md "Feature Drift Check").
+2. `manifest.yml`'s `project.name`, if `feature_display_name` is absent or
+   empty — the common case for a single-feature project, where the
+   project's identity and its one feature's identity are the same thing,
+   so no separate field is needed.
+3. `manifest.yml`'s `project.feature` (the slug), only if both of the above
+   are empty.
 Never substitute `context.md`'s own title/Service Name for this — that's
 free text the user may phrase more descriptively than the manifest (e.g.
 "NIPE Validation Service" vs. a manifest `name: Validation`), and using it
@@ -80,6 +94,16 @@ For genuinely parallel work on two features at once, two chats sharing one
 a separate working copy per feature (e.g. `git worktree add`), each with
 its own `.specify/manifest.yml`. See HOW-TO-USE.md → "Working on Multiple
 Features."
+
+**When you do intentionally switch `project.feature`** (not a drift — the
+user asked to move to a different feature), three fields move together,
+not just one: `project.feature` (the folder-path pointer), `project.
+context_file` (that feature's own context doc), and — once a project has
+more than one feature — `project.feature_display_name` (see CLAUDE.md
+"`{Feature Name}` convention"). Leaving `feature_display_name` stale means
+the new feature's documents, Confluence pages, and Jira Epic all carry the
+previous feature's name — a real collision (Confluence page titles must be
+unique), not just a cosmetic mismatch.
 <!-- shared:feature-drift-check:end -->
 
 ## AI-2 — Summary-First Rule (token economy)

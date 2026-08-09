@@ -6509,6 +6509,68 @@ MIGRATIONS: list[Migration] = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.9.17"},
     },
+    {
+        "from": "2.9.17",
+        "to": "2.9.18",
+        "description": "New manifest.yml field project.feature_display_name "
+        "-- fixes a real cross-feature naming collision in {Feature Name} "
+        "(document headers, Confluence page titles, Jira Epic summaries)",
+        "notes": [
+            "Direct follow-up from the project-type migration work: "
+            "{Feature Name} previously resolved only from project.name, "
+            "one project-wide field. On a project with more than one "
+            "feature -- exactly the scenario the prior two rounds this "
+            "session were built for -- every feature's documents would "
+            "carry the SAME {Feature Name}, and Confluence page titles/"
+            "Jira Epic summaries would collide (Confluence page lookup "
+            "is by title)",
+            "packs/_shared/blocks/feature-name-convention.md: new "
+            "resolution order -- project.feature_display_name (if "
+            "present/non-empty) -> project.name (single-feature "
+            "fallback) -> project.feature (slug, last resort). Synced "
+            "into all 5 packs' CLAUDE.md",
+            "packs/_shared/full/.github/prompts/specify-brd.prompt.md's "
+            "Jira Epic Summary line updated to match. Caught a real "
+            "staleness bug applying this: hand-editing the 5 pack "
+            "copies directly first, then running sync-blocks.sh, "
+            "silently reverted the edit back to the old wording -- "
+            "sync-blocks.sh regenerates full-file copies from this "
+            "canonical _shared/full/ source, exactly the documented "
+            "gotcha in packs/_shared/README.md. Fixed by editing the "
+            "canonical source instead and re-syncing",
+            "Added project.feature_display_name: \"\" (optional, "
+            "defaults empty -> falls back to project.name, so every "
+            "existing single-feature project needs zero changes) to "
+            "all 5 packs' .specify/manifest.yml template, right after "
+            "the feature field",
+            "packs/_shared/blocks/feature-drift-check.md: clarified "
+            "that an intentional project.feature switch should also "
+            "update project.context_file and (on a multi-feature "
+            "project) project.feature_display_name together, not just "
+            "project.feature alone",
+            "All 5 packs' HOW-TO-USE.md 'Working on Multiple Features' "
+            "section: corrected the single-chat-single-feature guidance "
+            "to mention feature_display_name explicitly, superseding a "
+            "weaker version from the prior round that only suggested "
+            "updating project.name 'if you want the docs to header "
+            "correctly' -- undersold the actual Confluence/Jira title-"
+            "collision risk",
+            "This Node CLI has no project_type/feature_display_name "
+            "concept of its own (scaffolding-only by design) and is "
+            "unaffected by any of this -- this migration entry exists "
+            "so both CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 968/968 (unaffected -- pure "
+            "prompt/template/manifest-template content, no Python code "
+            "touched); check-cross-references.py clean across all 6 "
+            "packs; sync-blocks.sh run three times consecutively with "
+            "zero drift after the specify-brd.prompt.md canonical-"
+            "source fix; test-setup.sh 19/19 and test-setup-micro.sh "
+            "12/12 passed; manually confirmed all 5 packs' manifest.yml "
+            "template parses as valid YAML with feature_display_name "
+            "present and empty by default",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.9.18"},
+    },
 ]
 
 

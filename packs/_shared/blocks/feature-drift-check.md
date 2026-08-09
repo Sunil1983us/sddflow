@@ -26,3 +26,13 @@ For genuinely parallel work on two features at once, two chats sharing one
 a separate working copy per feature (e.g. `git worktree add`), each with
 its own `.specify/manifest.yml`. See HOW-TO-USE.md → "Working on Multiple
 Features."
+
+**When you do intentionally switch `project.feature`** (not a drift — the
+user asked to move to a different feature), three fields move together,
+not just one: `project.feature` (the folder-path pointer), `project.
+context_file` (that feature's own context doc), and — once a project has
+more than one feature — `project.feature_display_name` (see CLAUDE.md
+"`{Feature Name}` convention"). Leaving `feature_display_name` stale means
+the new feature's documents, Confluence pages, and Jira Epic all carry the
+previous feature's name — a real collision (Confluence page titles must be
+unique), not just a cosmetic mismatch.

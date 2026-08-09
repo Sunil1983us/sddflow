@@ -1039,7 +1039,12 @@ never touches or hides any other feature's documents.
 
 **One chat, one project folder, working on one feature at a time** — the
 normal case — needs nothing special. Just switch `project.feature` when
-you start the next one.
+you start the next one. On a project with more than one feature, also set
+`project.feature_display_name` to that feature's own display name —
+otherwise its documents, Confluence pages, and Jira Epic keep carrying
+whichever feature's name was in `project.name` before (see CLAUDE.md
+"`{Feature Name}` convention"); a single-feature project can leave it
+blank, since it falls back to `project.name`.
 
 **Two chats open on the same project folder at the same time, each meant
 to work on a different feature — don't do this.** `project.feature` is one

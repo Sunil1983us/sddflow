@@ -4,6 +4,56 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.18] — 2026-08-09 (Fix: cross-feature naming collision in `{Feature Name}` — new `project.feature_display_name` field)
+
+Direct follow-up from the `sdd project-type migrate` work: `{Feature Name}`
+(used in every document header, Confluence page title, and Jira Epic
+Summary) previously resolved only from `project.name` — one project-wide
+field. On a project with more than one feature — exactly the scenario the
+prior two rounds this session were built to support — every feature's
+documents would carry the *same* `{Feature Name}`, and Confluence page
+titles/Jira Epic summaries would collide (Confluence page lookup is by
+title).
+
+### Added
+
+- `project.feature_display_name` — new optional `manifest.yml` field.
+  When present and non-empty, it fills `{Feature Name}` instead of
+  `project.name`. Empty by default, so every existing single-feature
+  project needs zero changes (falls straight back to `project.name`).
+  Added to all 5 packs' `.specify/manifest.yml` template, right after
+  `feature`.
+
+### Changed
+
+- `packs/_shared/blocks/feature-name-convention.md` — new resolution
+  order: `project.feature_display_name` → `project.name` →
+  `project.feature`. Synced into all 5 packs' `CLAUDE.md`.
+- `packs/_shared/full/.github/prompts/specify-brd.prompt.md`'s Jira Epic
+  Summary line updated to match.
+- `packs/_shared/blocks/feature-drift-check.md` — clarified that an
+  intentional `project.feature` switch should also move
+  `project.context_file` and (on a multi-feature project)
+  `project.feature_display_name` together, not just `project.feature`
+  alone.
+- All 5 packs' `HOW-TO-USE.md` "Working on Multiple Features" section —
+  corrected to mention `feature_display_name` explicitly, superseding a
+  weaker version from the previous round that undersold the actual
+  Confluence/Jira title-collision risk.
+
+### Verified
+
+- `cli-python` pytest: 968/968 (unaffected — pure prompt/template
+  content, no Python code touched).
+- `check-cross-references.py`: clean across all 6 packs. `sync-blocks.sh`
+  run three times consecutively with zero drift (after fixing a
+  real staleness bug caught mid-implementation — see commit for detail).
+- `test-setup.sh`: 19/19. `test-setup-micro.sh`: 12/12.
+- All 5 packs' `manifest.yml` template manually confirmed to parse as
+  valid YAML with `feature_display_name` present and empty by default.
+
+---
+
 ## [2.9.17] — 2026-08-09 (New: `sdd project-type migrate` — guided project_type migration for sdd-universal)
 
 Prompted directly by live-testing: a user's real project (a `validation-service`
