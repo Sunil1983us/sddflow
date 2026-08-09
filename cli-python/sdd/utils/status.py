@@ -526,6 +526,44 @@ def persona_for(step_id: str, feature: str, scope: str | None) -> dict | None:
     return _persona_hint(step_id, feature, scope)
 
 
+def _checklist_info(root: Path, feature: str) -> dict:
+    """Existence + open-CRITICAL-count for /checklist's output at
+    .specify/features/{feature}/checklists/{feature}-spec-quality.md.
+
+    Deliberately NOT discoverable via _feature_docs()'s
+    feature_dir.glob("*.md") -- checklist.prompt.md saves it inside a
+    checklists/ subdirectory, named "{feature}-spec-quality.md" rather
+    than "checklist.md", so the flat top-level glob never finds it. It
+    also has no `> Status: Draft | ...` header like every other spec doc
+    -- it's a self-contained audit report an agent generates for itself,
+    not a document someone reviews and approves. Both of those meant the
+    pipeline's Checklist step could never show "done" no matter how many
+    times /checklist actually ran -- a real bug, not the scope/mvp
+    enforcement question this looks similar to (see validate.prompt.md's
+    CHECKLIST GATE). "done" here means exists + zero open CRITICAL rows
+    in the CHK-NNN table, not a Status: header -- see build_pipeline()'s
+    "checklist" step kind."""
+    path = (
+        root
+        / ".specify"
+        / "features"
+        / feature
+        / "checklists"
+        / f"{feature}-spec-quality.md"
+    )
+    if not path.is_file():
+        return {"exists": False, "critical_open": None}
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return {"exists": False, "critical_open": None}
+    rows = _table_rows_after_heading(text.splitlines(), "CHK-NNN Items")
+    critical_open = sum(
+        1 for r in rows if len(r) > 2 and r[2].strip().upper() == "CRITICAL"
+    )
+    return {"exists": True, "critical_open": critical_open}
+
+
 def _service_doc_info(root: Path, key: str) -> dict:
     """Existence + Status: header for one specific living/service-level doc
     (data-model or security-design — see LIVING_SERVICE_DOCS in
@@ -850,13 +888,14 @@ def _standard_pipeline_steps(
         doc("use-cases", "/specify-uc", "Use Case Specification", "use-cases"),
         doc("srd", "/specify-srd", "Software Requirements Document", "srd"),
         *extended_steps,
-        doc(
-            "checklist",
-            "/checklist",
-            "Spec Quality Checklist",
-            "checklist",
-            optional=pilot,
-        ),
+        {
+            "id": "checklist",
+            "command": "/checklist",
+            "label": "Spec Quality Checklist",
+            "kind": "checklist",
+            "skip": None,
+            "optional": pilot,
+        },
         doc("validate", "/validate", "Validate", "validate"),
         doc("analyze", "/analyze", "Cross-Doc Analysis", "analyze"),
         doc("clarify", "/clarify", "Clarify Ambiguities", "clarify"),
@@ -967,7 +1006,12 @@ def _micro_pipeline_steps() -> list[dict]:
 
 
 def _step_state(
-    step: dict, docs_by_key: dict, tasks: dict, constitution: dict, service_docs: dict
+    step: dict,
+    docs_by_key: dict,
+    tasks: dict,
+    constitution: dict,
+    service_docs: dict,
+    checklist_info: dict | None = None,
 ) -> str:
     """done | current | upcoming — 'current' means either awaiting review
     (a doc exists but its Status: header isn't Approved yet) or actively
@@ -989,6 +1033,13 @@ def _step_state(
         if tasks["total"] == 0:
             return "upcoming"
         return "done" if tasks["done"] == tasks["total"] else "current"
+    if kind == "checklist":
+        # No Status: Draft/Approved header (see _checklist_info()) -- "done"
+        # is exists + zero open CRITICAL findings, not an approval.
+        info = checklist_info or {"exists": False, "critical_open": None}
+        if not info["exists"]:
+            return "upcoming"
+        return "done" if not info["critical_open"] else "current"
     doc = docs_by_key.get(step["doc_key"])
     if not doc:
         return "upcoming"
@@ -996,7 +1047,9 @@ def _step_state(
     return "done" if "approved" in status else "current"
 
 
-def _next_action_sentence(step: dict, state: str, tasks: dict) -> str:
+def _next_action_sentence(
+    step: dict, state: str, tasks: dict, checklist_info: dict | None = None
+) -> str:
     kind = step["kind"]
     if kind == "constitution":
         return "Run `/specify` to generate the project constitution."
@@ -1010,6 +1063,15 @@ def _next_action_sentence(step: dict, state: str, tasks: dict) -> str:
         if state == "upcoming":
             return "Run `/task` to break this feature into tasks, then `/implement` to start building."
         return f"Run `/implement` to continue — {tasks['done']}/{tasks['total']} tasks done."
+    if kind == "checklist":
+        if state == "current":
+            n = (checklist_info or {}).get("critical_open") or 0
+            plural = "s" if n != 1 else ""
+            return (
+                f"{n} CRITICAL item{plural} from `/checklist` still open — resolve "
+                "them in the spec documents, then re-run `/checklist` to confirm."
+            )
+        return "Run `/checklist` to generate the Spec Quality Checklist."
     if state == "current":
         return (
             f'"{step["label"]}" is generated and waiting on review — check with '
@@ -1040,6 +1102,7 @@ def build_pipeline(
     scope: str | None = "pilot",
     feature: str = "this feature",
     applicable_extended: frozenset[str] = frozenset(),
+    checklist_info: dict | None = None,
 ) -> dict:
     """The full command sequence for this feature (every step this scope/
     plan_mode can ever produce, including skipped ones with a reason),
@@ -1051,7 +1114,10 @@ def build_pipeline(
     each value {"exists": bool, "status": str | None} — see
     _service_doc_info(). `applicable_extended` is the set of type-specific
     extended docs (component-spec/ux-flow/screen-spec) this project's type
-    actually uses — see _applicable_extended_docs().
+    actually uses — see _applicable_extended_docs(). `checklist_info` is
+    {"exists": bool, "critical_open": int | None} — see _checklist_info();
+    defaults to "never run" so every existing call site (including tests)
+    that predates this parameter still behaves exactly as before.
     """
     steps = (
         _micro_pipeline_steps()
@@ -1059,6 +1125,7 @@ def build_pipeline(
         else _standard_pipeline_steps(scope, plan_mode, applicable_extended)
     )
     docs_by_key = {d["key"]: d for d in docs}
+    checklist_info = checklist_info or {"exists": False, "critical_open": None}
 
     resolved: list[dict] = []
     next_action: str | None = None
@@ -1069,7 +1136,9 @@ def build_pipeline(
         if step.get("skip"):
             resolved.append({**step, "state": "skipped", "persona": persona})
             continue
-        state = _step_state(step, docs_by_key, tasks, constitution, service_docs)
+        state = _step_state(
+            step, docs_by_key, tasks, constitution, service_docs, checklist_info
+        )
         resolved.append({**step, "state": state, "persona": persona})
         if state != "done" and next_action is None:
             # An *optional* step (e.g. checklist at pilot scope) whose doc
@@ -1085,7 +1154,7 @@ def build_pipeline(
                 and _later_doc_step_exists(steps[i + 1 :], docs_by_key)
             ):
                 continue
-            next_action = _next_action_sentence(step, state, tasks)
+            next_action = _next_action_sentence(step, state, tasks, checklist_info)
             next_step_id = step["id"]
             # A doc "current"/awaiting-review isn't waiting to be *created* --
             # the ask templates are all creation-phrased ("create the BRD"),
@@ -1757,6 +1826,7 @@ def build_feature_status(
             applicable_extended=frozenset(
                 _applicable_extended_docs(root, project_type)
             ),
+            checklist_info=_checklist_info(root, feature),
         ),
     }
 

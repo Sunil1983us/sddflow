@@ -4,6 +4,50 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.0.0] — 2026-08-09 (Fixed: Spec Quality Checklist could never show done)
+
+**Version note:** the jump to `3.0.0` is the capped-counter carry rule
+firing (`2.9.24` was at both the patch and minor cap simultaneously) — see
+`.claude/skills/version-bump/SKILL.md`. It is not a semver breaking-change
+signal; nothing about this release requires action beyond a normal upgrade.
+
+Found via direct user report, then confirmed against the user's own real
+filesystem path: `/checklist` genuinely ran — the checklist file existed —
+but the dashboard's "Spec Quality Checklist" pipeline step stayed stuck on
+"upcoming" and "Next: Run `/checklist`" never went away, no matter how many
+times it was re-run.
+
+### Fixed
+
+Two compounding bugs in `sdd/utils/status.py`:
+
+1. Document discovery only scanned `.md` files directly inside
+   `.specify/features/{feature}/`. `/checklist` actually saves to
+   `.specify/features/{feature}/checklists/{feature}-spec-quality.md` — a
+   subdirectory, with a filename that doesn't even match the `checklist`
+   key — so it was structurally invisible regardless of how many times it
+   ran.
+2. Even discovered, the checklist file has no `Status: Draft/Approved`
+   header like every other spec document — it's a self-contained audit
+   report (a findings table + a checkbox summary), not something with a
+   review-gated lifecycle. The generic "does the status say approved"
+   check could never have matched it either.
+
+Fixed with a dedicated code path: a new `_checklist_info()` looks up the
+real path and counts open CRITICAL findings; the pipeline step gained its
+own `checklist` kind with accurate `done`/`current`/`upcoming` states and
+next-action messaging, instead of being forced into the generic
+document-review model it never actually fit.
+
+### Verified
+
+- `cli-python` pytest 1000/1000 (993 unchanged + 7 new regression tests),
+  including one that reproduces the exact reported scenario end-to-end
+  with a real file on disk at the real nested path.
+- `ruff check`/`format` clean; `mypy` clean.
+
+---
+
 ## [2.9.24] — 2026-08-09 (Dashboard: task pagination, more toggles, a real persistence bug fix)
 
 Direct follow-up to v2.9.23, after the user pushed back: "do you have the
