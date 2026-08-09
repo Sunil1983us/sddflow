@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import requests
+
 from sdd.utils.confluence_client import ConfluenceClient
 
 
@@ -169,3 +171,112 @@ class TestUploadAttachmentUpdatesExisting:
         client.upload_attachment("12345", "diagram-2.svg", b"<svg/>", "image/svg+xml")
         _, kwargs = session.get.call_args
         assert kwargs["params"] == {"filename": "diagram-2.svg"}
+
+
+class TestUpsertPage409Retry:
+    """upsert_page() -- reported by a user during real /plan-lld testing:
+    a second push (review_submit's own "stamp the Jira status banner on"
+    re-push, right after a burst of ~19 diagram-attachment uploads on the
+    same page) got a 409 Conflict, and a manual retry hit the exact same
+    409 again -- because a blind resend carries the same stale version
+    number. The fix re-fetches the page's current version before
+    retrying, which these tests verify directly."""
+
+    def _conflict_response(self) -> MagicMock:
+        response = MagicMock()
+        response.status_code = 409
+        return response
+
+    def _get_response(self, page_id: str, version: int) -> MagicMock:
+        r = MagicMock()
+        r.json.return_value = {
+            "results": [{"id": page_id, "version": {"number": version}}]
+        }
+        return r
+
+    def _put_conflict(self) -> MagicMock:
+        r = MagicMock()
+        r.raise_for_status.side_effect = requests.HTTPError(
+            response=self._conflict_response()
+        )
+        return r
+
+    def _put_success(self, version: int) -> MagicMock:
+        r = MagicMock()
+        r.raise_for_status.return_value = None
+        r.json.return_value = {"id": "999", "version": {"number": version}}
+        return r
+
+    def test_retries_with_refetched_version_after_409(self):
+        session = MagicMock()
+        # Initial read sees version 1; the re-fetch after the 409 sees
+        # version 2 -- what actually moved server-side in between.
+        session.get.side_effect = [
+            self._get_response("999", 1),
+            self._get_response("999", 2),
+        ]
+        # First PUT (stale version 1 -> tries to write 2) conflicts;
+        # second PUT (re-fetched version 2 -> writes 3) succeeds.
+        session.put.side_effect = [self._put_conflict(), self._put_success(3)]
+
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+        page, created = client.upsert_page("ENG", "My Page", "<p>body</p>")
+
+        assert created is False
+        assert page["version"]["number"] == 3
+        assert session.get.call_count == 2
+        assert session.put.call_count == 2
+        # The retried PUT must carry the RE-FETCHED version (2 + 1 = 3),
+        # not a blind resend of the original stale one (1 + 1 = 2) --
+        # that distinction is the entire fix.
+        retried_body = session.put.call_args_list[1].kwargs["json"]
+        assert retried_body["version"]["number"] == 3
+
+    def test_exhausts_retries_and_raises_last_409(self):
+        session = MagicMock()
+        session.get.side_effect = [self._get_response("999", n) for n in (1, 2, 3, 4)]
+        session.put.side_effect = [self._put_conflict() for _ in range(3)]
+
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+        try:
+            client.upsert_page("ENG", "My Page", "<p>body</p>")
+            assert False, "expected an HTTPError"
+        except requests.HTTPError as e:
+            assert e.response.status_code == 409
+        assert session.put.call_count == 3  # max_attempts, no more
+
+    def test_non_409_error_is_not_retried(self):
+        """A generic HTTP-layer retry already covers 429/5xx (see
+        atlassian_auth.py); upsert_page's own retry loop must only ever
+        special-case 409 -- anything else should raise immediately, not
+        loop and re-fetch pointlessly."""
+        session = MagicMock()
+        session.get.return_value = self._get_response("999", 1)
+        server_error_response = MagicMock()
+        server_error_response.status_code = 500
+        put_fail = MagicMock()
+        put_fail.raise_for_status.side_effect = requests.HTTPError(
+            response=server_error_response
+        )
+        session.put.return_value = put_fail
+
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+        try:
+            client.upsert_page("ENG", "My Page", "<p>body</p>")
+            assert False, "expected an HTTPError"
+        except requests.HTTPError as e:
+            assert e.response.status_code == 500
+        assert session.put.call_count == 1  # no retry loop for this
+
+    def test_success_on_first_attempt_never_re_fetches(self):
+        session = MagicMock()
+        session.get.return_value = self._get_response("999", 1)
+        session.put.return_value = self._put_success(2)
+
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+        page, created = client.upsert_page("ENG", "My Page", "<p>body</p>")
+
+        assert created is False
+        assert page["version"]["number"] == 2
+        assert session.get.call_count == 1
+        assert session.put.call_count == 1

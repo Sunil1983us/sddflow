@@ -6242,6 +6242,65 @@ MIGRATIONS: list[Migration] = [
             "pass; sync-blocks.sh confirmed idempotent",
         ],
     },
+    {
+        "from": "2.8.38",
+        "to": "2.8.39",
+        "description": (
+            "Fix a real 409 Conflict a user hit during /plan-lld "
+            "testing: ConfluenceClient.upsert_page() had no retry-on-"
+            "version-conflict, so a page update racing Confluence's own "
+            "eventual-consistency lag failed outright -- and a manual "
+            "retry reproduced the identical 409, since it resent the "
+            "same stale version number"
+        ),
+        "notes": [
+            "User report: 'Could not stamp Jira status onto Confluence: "
+            "409 Conflict' during /plan-lld's review submission (a "
+            "19-diagram lld.md), then the identical 409 again on a "
+            "follow-up sdd review apply push, and again on a manual "
+            "retry -- correctly self-diagnosed as 'the page's stored "
+            "version number and what the CLI thinks it is have "
+            "diverged... not a transient blip'",
+            "Root cause: upsert_page() does one GET (read the page's "
+            "current version) then one PUT (write version+1) with no "
+            "conflict handling. review_submit calls it twice in one run "
+            "-- once for the initial push, again right after (once the "
+            "Jira ticket exists) to stamp its status banner onto the "
+            "page -- with a burst of diagram-attachment uploads on the "
+            "same page in between. Confluence Cloud's read path can lag "
+            "slightly behind its own just-completed write in that "
+            "window, so the second push's GET can return a version "
+            "that's already one behind the true current version by the "
+            "time its PUT reaches the server -- a 409",
+            "Confirmed this can't be fixed by the existing generic HTTP-"
+            "layer retry (atlassian_auth.py's _retrying_adapter, added "
+            "earlier for 429/5xx): it deliberately excludes 409, because "
+            "blindly resending the exact same PUT body with the exact "
+            "same stale version number reproduces the exact same 409 -- "
+            "exactly what happened when the user retried by hand",
+            "Fix: upsert_page() now catches a 409 from update_page(), "
+            "re-fetches the page's current version via get_page_by_title, "
+            "and retries the PUT with the corrected version number, up "
+            "to 3 attempts total. Any other status code (or a 409 on the "
+            "final attempt) still raises immediately, unchanged -- this "
+            "is deliberately narrow: only a genuine optimistic-locking "
+            "conflict gets the re-fetch-and-retry treatment",
+            "Fixes all 4 call sites that go through this shared method "
+            "(review.py's two review_submit pushes, cr.py's CR page "
+            "push, confluence.py's manual push/draft commands) with one "
+            "change, not four",
+            "This Node CLI has no Jira/Confluence integration and no "
+            "review-approval flow of its own (scaffolding-only by "
+            "design) and is unaffected by any of this -- this migration "
+            "entry exists so both CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 934/934 (930 pre-existing + 4 "
+            "new); ruff check/format clean; mypy --ignore-missing-"
+            "imports clean on the changed file (no new errors -- fixed "
+            "one it caught mid-change, an Optional exception re-raise); "
+            "check-cross-references.py clean across all 6 packs; "
+            "test-setup.sh (19/19) passes",
+        ],
+    },
 ]
 
 

@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.39] — 2026-08-08 (Fix: Confluence page push could get stuck on a 409 Conflict, even after a manual retry)
+
+A user hit a `409 Conflict` while `/plan-lld` pushed a 19-diagram
+`lld.md` to Confluence, then hit the *identical* 409 again on a manual
+retry — correctly diagnosing it as a real bug, not a transient blip.
+
+### Fixed
+
+`ConfluenceClient.upsert_page()` read a page's version once, then wrote
+`version + 1` with no handling for Confluence rejecting that write
+because the page had already moved past it (a real, observed race:
+`sdd review submit` pushes the same page twice in one run — the initial
+push, then again right after to stamp the Jira ticket's status banner
+on, with a burst of diagram-attachment uploads in between — and
+Confluence Cloud's read path can lag slightly behind its own
+just-completed write in that window). The existing generic HTTP retry
+layer (429/5xx, added in an earlier fix) deliberately doesn't cover 409
+for good reason: resending the exact same request with the exact same
+stale version number just reproduces the exact same 409 — precisely
+what happened when the user retried by hand.
+
+`upsert_page()` now catches a 409, re-fetches the page's actual current
+version, and retries the write with the corrected number — up to 3
+attempts. Any other error, or a 409 on the final attempt, still raises
+immediately. Fixes all 4 call sites that share this method in one
+change.
+
+### Verified
+
+- cli-python pytest 934/934 (930 pre-existing + 4 new)
+- ruff check/format clean; mypy clean on the changed file
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) passes
+
+---
+
 ## [2.8.38] — 2026-08-08 (Fix: the Approvals-table flip has never matched a single real document — plus role-scoped approval evidence)
 
 A user shared a live `design.md` approval transcript: an agent
