@@ -6643,6 +6643,68 @@ MIGRATIONS: list[Migration] = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.9.19"},
     },
+    {
+        "from": "2.9.19",
+        "to": "2.9.20",
+        "description": "New `sdd feature list`/`sdd feature status` "
+        "commands -- terminal views of feature status that work without "
+        "Jira configured",
+        "notes": [
+            "Follow-up on two direct requests: 'let us have feature "
+            "list' (after recommending against a manifest.yml "
+            "project.features list -- the filesystem is already the "
+            "source of truth, and a manifest list would be a second, "
+            "driftable copy of it -- a lightweight generated CLI "
+            "command was proposed instead and accepted), and 'is there "
+            "a sdd to check the status of a feature ... what is "
+            "approved and what is pending and who ... what we show in "
+            "dashboard' -- there wasn't one that works without Jira",
+            "sdd review status already existed but requires jira: "
+            "configured and only shows Jira-tracked document reviews. "
+            "The dashboard's own data (build_project_status/"
+            "build_feature_status in status.py) already works in every "
+            "review mode -- chat, local, jira -- by reading each "
+            "document's Status: header and Approvals table directly, "
+            "but was only ever exposed via the dashboard's HTTP "
+            "handler, no terminal/CLI equivalent",
+            "New sdd/commands/feature.py: `sdd feature list` (every "
+            "feature folder under .specify/features/, each with its "
+            "current pipeline stage, current-feature marker) and `sdd "
+            "feature status [--feature NAME]` (full pipeline -- done/"
+            "current/upcoming/skipped steps with who-to-ask-next hints; "
+            "per-document Approvals-table detail -- who's approved, "
+            "who's pending, by role; task progress; Business Objective "
+            "rollup -- the same picture sdd dashboard renders for one "
+            "feature, as terminal text, with zero integrations.yml/"
+            "Jira requirement)",
+            "Both call build_project_status()/build_feature_status() "
+            "directly -- no new data model, no manifest.yml schema "
+            "change, nothing that could drift from what the dashboard "
+            "shows, since it's the identical function computing both",
+            "Promoted status.py's private _list_feature_names() to a "
+            "public list_feature_names() (kept _list_feature_names as "
+            "an internal alias so every existing internal call site is "
+            "unchanged) -- feature.py and build_project_status() now "
+            "share the one canonical directory-scan implementation "
+            "instead of feature.py needing its own copy",
+            "Registered in sdd/__main__.py as `sdd feature`. Added a "
+            "`sdd feature` entry to cli-python/README.md's CLI command "
+            "reference, explicitly contrasting it with `sdd review "
+            "status` since the two look similar but serve different "
+            "scopes",
+            "This Node CLI has no feature-status concept of its own "
+            "(scaffolding-only by design) and is unaffected by any of "
+            "this -- this migration entry exists so both CLIs report "
+            "the same sdd_version chain",
+            "Verified: cli-python pytest 993/993 (983 pre-existing + 10 "
+            "new); ruff check/format clean (2 pre-existing E741 "
+            "warnings in status.py confirmed unrelated); mypy diff "
+            "against a stashed baseline shows zero new errors, "
+            "feature.py itself has none at all; manually smoke-tested "
+            "end-to-end against a hand-built 2-feature project",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.9.20"},
+    },
 ]
 
 

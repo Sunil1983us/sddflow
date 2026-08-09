@@ -5,6 +5,7 @@ from sdd.commands.config import config_command
 from sdd.commands.confluence import confluence_command
 from sdd.commands.cr import cr_command
 from sdd.commands.dashboard import dashboard_command
+from sdd.commands.feature import feature_command
 from sdd.commands.init import init_command
 from sdd.commands.jira import jira_command
 from sdd.commands.pr import pr_command
@@ -31,6 +32,7 @@ cli.add_command(pr_command, name="pr")
 cli.add_command(dashboard_command, name="dashboard")
 cli.add_command(token_log_command, name="token-log")
 cli.add_command(project_type_command, name="project-type")
+cli.add_command(feature_command, name="feature")
 
 
 if __name__ == "__main__":

@@ -360,11 +360,20 @@ def _resolve_expected_approver(role_label: str, roles_map: dict) -> str | None:
     return name if isinstance(name, str) and name.strip() else None
 
 
-def _list_feature_names(root: Path) -> list[str]:
+def list_feature_names(root: Path) -> list[str]:
+    """Every feature folder under .specify/features/, sorted. Public --
+    used both internally (build_project_status) and by `sdd feature list`/
+    `sdd feature status`, which need the exact same filesystem scan the
+    dashboard already uses as its source of truth, rather than a second,
+    separately-maintained list (see the "why not a manifest.yml features
+    list" design discussion this exists to avoid re-litigating)."""
     features_dir = root / ".specify" / "features"
     if not features_dir.is_dir():
         return []
     return sorted(p.name for p in features_dir.iterdir() if p.is_dir())
+
+
+_list_feature_names = list_feature_names  # internal call sites, unchanged
 
 
 _NON_PIPELINE_DOCS = {"token-usage"}

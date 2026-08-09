@@ -738,6 +738,36 @@ appended, never used to rewrite old ones.
 
 ---
 
+### `sdd feature`
+
+Read-only, filesystem-only views of a project's features — no
+`integrations.yml` required, works identically in chat/local/jira review
+mode. Doesn't add anything to `manifest.yml`: `list` scans
+`.specify/features/` directly (the same scan `sdd dashboard` already uses
+as its source of truth), and `status` calls the exact data
+`sdd dashboard` renders, as terminal text.
+
+```bash
+sdd feature list                              # every feature + its current stage
+sdd feature status                             # full pipeline for manifest.yml's project.feature
+sdd feature status --feature rule-management-ui
+```
+
+`sdd feature status` shows the pipeline (done/current/upcoming/skipped
+steps, who to ask next), each document's Approvals-table detail (who's
+approved, who's still pending, by role), task progress, and Business
+Objective rollup — the same picture `sdd dashboard` shows for one
+feature, without opening a browser.
+
+**Different from `sdd review status`**: that command requires `jira:`
+configured and shows only Jira-tracked document reviews. `sdd feature
+status` reads each document's own `Status:` header and `## Approvals`
+table directly, so it works with nothing configured at all — the
+authoritative gate in every review mode (see `HOW-TO-USE.md` → "Document
+Review Gates — Three Modes").
+
+---
+
 ### `sdd project-type`
 
 sdd-universal only (the other 4 packs each have one fixed tech stack baked

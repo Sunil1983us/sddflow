@@ -4,6 +4,55 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.20] — 2026-08-09 (New: `sdd feature list` / `sdd feature status`)
+
+Follow-up on two direct requests: "let us have feature list" (after
+recommending against a `manifest.yml` `project.features` list — the
+filesystem is already the source of truth, and a manifest list would be a
+second, driftable copy of it — a lightweight generated CLI command was
+proposed instead and accepted), and "is there a sdd to check the status
+of a feature ... what is approved and what is pending and who ... what we
+show in dashboard" — there wasn't one that works without Jira.
+
+`sdd review status` already existed but requires `jira:` configured and
+only shows Jira-tracked document reviews. The dashboard's own data
+(`build_project_status`/`build_feature_status` in `status.py`) already
+works in every review mode — chat, local, jira — by reading each
+document's `Status:` header and `## Approvals` table directly, but was
+only ever exposed via the dashboard's HTTP handler, with no terminal
+equivalent.
+
+### Added
+
+- `sdd feature list` — every feature folder under `.specify/features/`,
+  each with its current pipeline stage and a `(current)` marker.
+- `sdd feature status [--feature NAME]` — full pipeline (done/current/
+  upcoming/skipped steps with who-to-ask-next hints), per-document
+  Approvals-table detail (who's approved, who's pending, by role), task
+  progress, and Business Objective rollup — the same picture `sdd
+  dashboard` renders for one feature, as terminal text, with zero
+  `integrations.yml`/Jira requirement.
+
+Both call `build_project_status()`/`build_feature_status()` directly — no
+new data model, no `manifest.yml` schema change, nothing that could drift
+from what the dashboard shows.
+
+### Changed
+
+- Promoted `status.py`'s private `_list_feature_names()` to a public
+  `list_feature_names()` (kept as an internal alias too, so no existing
+  call site changed) — `sdd feature` and the dashboard now share the one
+  canonical directory scan.
+
+### Verified
+
+- `cli-python` pytest: 993/993 (983 pre-existing + 10 new).
+- `ruff check`/`format`: clean. `mypy`: zero new errors.
+- Manually smoke-tested end-to-end against a hand-built 2-feature
+  project.
+
+---
+
 ## [2.9.19] — 2026-08-09 (Fix: multi-feature Confluence page overwrites and Jira ticket-identity collisions)
 
 Prompted by a direct request to actually test whether multi-feature support
