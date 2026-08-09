@@ -76,16 +76,46 @@ def _doc_md_path(doc: str, feature: str | None) -> Path | None:
         return None
 
 
-def _mark_approvals_table(text: str, date_str: str) -> str:
-    """Flip every 'Pending' row inside the '## Approvals' section to
-    'Approved', filling the Date column. Scoped to that section only — a
-    coincidental 'Pending' cell anywhere else in the doc is left alone.
+def _mark_approvals_table(
+    text: str,
+    date_str: str,
+    approver_name: str = "",
+    role_filter: str | None = None,
+) -> str:
+    """Flip 'Pending' row(s) inside the '## Approvals' section to
+    'Approved', filling the Date column and the Approver column with
+    approver_name. Scoped to that section only — a coincidental 'Pending'
+    cell anywhere else in the doc is left alone.
 
-    Local-mode approval records a single approver for the whole document
-    (see _save_local_approval), not one per RACI row, so every Pending row
-    is flipped together — matching the document-level 'Status: Approved'
-    header rather than trying to attribute individual rows to reviewers
-    the CLI/dashboard were never told about."""
+    Every current template's Approvals table is 4 columns -- 'Role |
+    Approver | Status | Date' (verified against all 20 templates that
+    have an Approvals section) -- not the 3-column 'Role | Status | Date'
+    an earlier version of this regex assumed. That mismatch meant this
+    function never matched a single real row: it silently no-opped on
+    every document, including via the dashboard's "Approve" button
+    (dashboard.py's _do_approve -> _mark_md_approved, called with no
+    prior text edit) -- the Approvals table stayed 'Pending' forever
+    under an 'Approved' Status header. Never caught because the old unit
+    tests' own fixture invented the same wrong 3-column shape.
+
+    role_filter=None (default): flip every Pending row, filling each with
+    approver_name -- local-mode approval records a single approver for
+    the whole document (see _save_local_approval), not one per RACI row,
+    so every row is flipped together, matching the document-level
+    'Status: Approved' header rather than trying to attribute individual
+    rows to reviewers the CLI/dashboard were never told about.
+
+    role_filter=<text> (jira mode, e.g. the Jira ticket's configured
+    reviewer_role): only flip row(s) whose Role-column text contains
+    role_filter (case-insensitive substring). Every other row is left
+    Pending -- blanket-approving a Tech Lead/Stakeholder row on the
+    strength of one Architect's Jira sign-off would misrepresent evidence
+    nobody actually gave, same principle as validate.prompt.md's own
+    per-item confirmation checkboxes. Falls back to flipping every row
+    (role_filter effectively ignored) if it matches none of them -- a
+    configured reviewer_role that doesn't appear in this doc's Approvals
+    table at all is a config mismatch, not a reason to leave the table
+    permanently stuck on Pending."""
     heading = re.search(r"^## Approvals\s*$", text, flags=re.IGNORECASE | re.MULTILINE)
     if not heading:
         return text
@@ -93,18 +123,37 @@ def _mark_approvals_table(text: str, date_str: str) -> str:
     next_heading = re.search(r"^## ", text[start:], flags=re.MULTILINE)
     end = start + next_heading.start() if next_heading else len(text)
     section = text[start:end]
-    new_section = re.sub(
-        r"^\|([^|\n]*)\|\s*Pending\s*\|[^|\n]*\|[ \t]*$",
-        lambda m: f"|{m.group(1)}| Approved | {date_str} |",
-        section,
+
+    row_re = re.compile(
+        r"^\|([^|\n]*)\|([^|\n]*)\|\s*Pending\s*\|([^|\n]*)\|[ \t]*$",
         flags=re.MULTILINE | re.IGNORECASE,
     )
+
+    if role_filter and not row_re.search(section):
+        role_filter = None  # no Approvals table at all here -- nothing to scope
+    elif role_filter:
+        needle = role_filter.casefold()
+        if not any(needle in m.group(1).casefold() for m in row_re.finditer(section)):
+            role_filter = None  # no row matches -- fall back to blanket flip
+
+    def _flip(m: re.Match) -> str:
+        role_text = m.group(1)
+        if role_filter and role_filter.casefold() not in role_text.casefold():
+            return m.group(0)  # not this row's evidence -- leave it Pending
+        approver_cell = f" {approver_name} " if approver_name else " "
+        return f"|{role_text}|{approver_cell}| Approved | {date_str} |"
+
+    new_section = row_re.sub(_flip, section)
     return text[:start] + new_section + text[end:]
 
 
-def _mark_md_approved(md_path: Path) -> bool:
-    """Flip the document header to 'Status: Approved' and fill any
-    'Pending' rows in the '## Approvals' table with today's date.
+def _mark_md_approved(
+    md_path: Path, approver_name: str = "", role_filter: str | None = None
+) -> bool:
+    """Flip the document header to 'Status: Approved' and fill 'Pending'
+    row(s) in the '## Approvals' table with today's date and
+    approver_name. See _mark_approvals_table's own docstring for
+    approver_name/role_filter semantics (blanket flip vs role-scoped).
 
     Handles the pre-approval statuses case-insensitively: Draft (most docs)
     and Proposed (ADR lifecycle). Returns True if the file was changed by
@@ -139,9 +188,53 @@ def _mark_md_approved(md_path: Path) -> bool:
         flags=re.IGNORECASE,
     )
     new = new_front_matter + text[front_matter_end:]
-    new = _mark_approvals_table(new, str(date.today()))  # noqa: DTZ011 -- local calendar date by design
+    new = _mark_approvals_table(
+        new, str(date.today()), approver_name=approver_name, role_filter=role_filter
+    )
     if new == text:
         return False
+    atomic_write_text(md_path, new)
+    return True
+
+
+def _mark_md_needs_revision(md_path: Path) -> bool:
+    """Flip an Approved document's header back to a pre-approval status
+    the moment its content changes post-approval -- e.g. /clarify patches
+    an already-Approved document to apply a resolved item, or a
+    reviewer's NEEDS REVISION feedback is being addressed. Called from
+    `sdd review apply`, the single place every revision-driven prompt
+    step already calls after re-saving a document, so this fires
+    uniformly regardless of which command triggered the edit -- no
+    per-prompt discipline required.
+
+    Reverts to 'Proposed' for adr.md (its own lifecycle word) and
+    'Draft' for everything else -- both are already recognized by
+    _mark_md_approved's own regex (`Draft|Proposed` -> `Approved`), so
+    the existing re-approval flow works unchanged on a reverted document
+    with zero changes needed anywhere else.
+
+    Scoped to front matter only, mirroring _mark_md_approved exactly and
+    for the same corruption-safety reason -- see that function's
+    docstring. Only flips when the current status is exactly 'Approved';
+    a document still in Draft/Proposed (e.g. mid-review, addressing a
+    NEEDS REVISION comment before its first approval) is left untouched
+    -- there is nothing to revert for a document that was never approved
+    in the first place. Returns True if the file was changed."""
+    text = md_path.read_text()
+    heading = re.search(r"^## ", text, flags=re.MULTILINE)
+    front_matter_end = heading.start() if heading else len(text)
+    front_matter = text[:front_matter_end]
+    revert_to = "Proposed" if md_path.stem == "adr" else "Draft"
+    new_front_matter = re.sub(
+        r"Status:\s*Approved\b",
+        f"Status: {revert_to}",
+        front_matter,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    if new_front_matter == front_matter:
+        return False
+    new = new_front_matter + text[front_matter_end:]
     atomic_write_text(md_path, new)
     return True
 
@@ -209,13 +302,28 @@ def _push_doc_page(
     elif doc in cfg.document_reviews:
         title = cfg.document_reviews[doc].confluence_page
     else:
-        title = cfg.confluence.page_map.get(doc, f"{{project}} — {doc.upper()}")
+        # No prior explicit template to preserve for a doc key that isn't
+        # configured anywhere -- safe to include {feature} unconditionally
+        # (see confluence.py's _resolve_page_title, same reasoning).
+        title = cfg.confluence.page_map.get(
+            doc, f"{{project}} — {{feature}} — {doc.upper()}"
+        )
     # {feature} must always be substituted, not just {project} -- Confluence
     # enforces title uniqueness per SPACE, so two features pushing the same
     # doc type without {feature} in the title would silently overwrite each
     # other's page (this was the exact bug fixed for confluence.py's
     # page_map templates; document_reviews.confluence_page had the same gap).
     title = title.replace("{project}", project_name).replace("{feature}", feature_name)
+
+    from sdd.commands.confluence import feature_collision_warning
+
+    warning = feature_collision_warning(title, feature_name)
+    if warning:
+        # Non-blocking here (unlike sdd confluence push/draft's --force
+        # gate) -- this helper is called from contexts with no CLI flag
+        # surface of their own (the dashboard's HTTP approve endpoint
+        # among them), so it can only warn, not refuse.
+        console.print(f"  [yellow]⚠  {warning}[/yellow]")
 
     cf_prof, cf_session = load_confluence_session(cfg)
     cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
@@ -886,12 +994,18 @@ def review_submit(doc, profile, feature):
     page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace(
         "{feature}", feature_name
     )
-    body_html, attachments, diagram_warnings = md_to_storage(
-        md_path.read_text(), cfg.confluence.diagrams
-    )
     from sdd.commands.confluence import (
+        feature_collision_warning,
         resolve_doc_parent_id,
         upload_diagram_attachments,
+    )
+
+    _collision_warning = feature_collision_warning(page_title, feature_name)
+    if _collision_warning:
+        console.print(f"  [yellow]⚠  {_collision_warning}[/yellow]")
+
+    body_html, attachments, diagram_warnings = md_to_storage(
+        md_path.read_text(), cfg.confluence.diagrams
     )
 
     parent_id = resolve_doc_parent_id(
@@ -937,7 +1051,11 @@ def review_submit(doc, profile, feature):
     idempotency_label = f"sdd-doc:{feature_name}:{doc}"
     review_project_key = cfg.jira.key_for("review")
     existing = jira_client.find_by_label(review_project_key, idempotency_label)
-    story_summary = f"Review: {project_name} — {doc.upper()}"
+    # feature_name in the summary too -- ticket lookup above is already
+    # feature-safe via the label (no collision risk), but two features'
+    # review tickets showing the identical summary text is still a real
+    # usability problem: indistinguishable in Jira's own issue list/search.
+    story_summary = f"Review: {project_name} / {feature_name} — {doc.upper()}"
     desc_text = (
         f"Please review the {doc.upper()} document.\n\n"
         f"Confluence: {page_url}\n\n"
@@ -1153,7 +1271,7 @@ def review_push_questions(doc, profile, feature):
     fields: dict = {
         "project": {"key": review_project_key},
         "issuetype": {"name": cfg.jira.issue_type_for("review")},
-        "summary": f"Open Questions: {project_name} — {doc.upper()}",
+        "summary": f"Open Questions: {project_name} / {feature_name} — {doc.upper()}",
         "labels": cfg.jira.labels
         + ["sdd-review", "sdd-open-questions", idempotency_label],
         "description": {
@@ -1544,6 +1662,19 @@ def review_comments(doc, feature, ack):
 )
 @click.option("--by", default="chat", help="Who approved — defaults to 'chat'")
 @click.option(
+    "--role",
+    default=None,
+    help=(
+        "Scope the Approvals-table flip to the row(s) matching this role "
+        "text (case-insensitive substring, e.g. 'Architect') instead of "
+        "flipping every Pending row. Use this when the evidence is a "
+        "single reviewer's sign-off (e.g. one Jira ticket assignee) that "
+        "shouldn't be read as every RACI role having approved. Omit for "
+        "the default blanket flip (appropriate for chat/local mode, "
+        "where there's no per-role signal to scope to)."
+    ),
+)
+@click.option(
     "--note", default="", help="Optional note (e.g. 'approved in chat session')"
 )
 @click.option(
@@ -1555,7 +1686,7 @@ def review_comments(doc, feature, ack):
     default=False,
     help="Skip the Confluence page update even if confluence: is configured",
 )
-def review_approve(doc, local, by, note, feature, no_confluence):
+def review_approve(doc, local, by, role, note, feature, no_confluence):
     """Record a local approval for a document (used when Jira is not configured).
 
     The AI calls this automatically after the user says 'approved' in chat
@@ -1586,10 +1717,16 @@ def review_approve(doc, local, by, note, feature, no_confluence):
     # ── Mark the .md approved (safety net — AI flow usually did this) ────────
     md_path = _doc_md_path(doc, feature)
     if md_path and md_path.exists():
-        if _mark_md_approved(md_path):
+        if _mark_md_approved(md_path, approver_name=by, role_filter=role):
             console.print(
                 f"  [green]✓[/green]  {md_path} — header set to Status: Approved"
             )
+            if role:
+                console.print(
+                    f"  [dim]·[/dim]  Approvals table: only the '{role}' row(s) "
+                    f"marked Approved — other rows left Pending (no evidence "
+                    f"of their sign-off)."
+                )
         # ── Mirror the approved doc to its Confluence page ────────────────────
         if no_confluence:
             console.print("  [dim]·  Confluence update skipped (--no-confluence)[/dim]")
@@ -1645,6 +1782,26 @@ def review_apply(doc, profile, feature):
     feature_name = feature or proj.get("feature", "")
 
     try:
+        md_path = resolve_doc_path(doc, feature_name)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
+
+    # Revert an Approved document's header the instant it changes post-
+    # approval -- before anything below pushes/notifies, so Confluence and
+    # the reviewer both see the true current state, not a stale "Approved"
+    # header. Runs unconditionally, ahead of the integrations checks below,
+    # since it's a pure local-file operation with no Jira/Confluence
+    # dependency. No-op (returns False) for a document that isn't
+    # currently Approved -- e.g. this is a pre-approval NEEDS REVISION
+    # round, nothing to revert.
+    if md_path.exists() and _mark_md_needs_revision(md_path):
+        console.print(
+            f"  [green]✓[/green]  {doc.upper()} header reverted from Approved "
+            f"— pending re-review."
+        )
+
+    try:
         cfg = load_integrations()
         jira_prof, session = load_jira_session(cfg, profile)
     except Exception:
@@ -1672,12 +1829,6 @@ def review_apply(doc, profile, feature):
     # that may already be under review in either integration independently
     # -- confluence-only and jira-only configs both re-push/notify with
     # whatever's actually configured, rather than hard-requiring both.
-    try:
-        md_path = resolve_doc_path(doc, feature_name)
-    except ValueError as e:
-        console.print(f"  [red]✗  {e}[/red]")
-        raise SystemExit(1)
-
     page_url = ""
     if cfg.confluence:
         if md_path.exists():
@@ -1708,6 +1859,34 @@ def review_apply(doc, profile, feature):
                 f"  [green]✓[/green]  Reviewer notified on [cyan]{issue['key']}[/cyan]"
             )
             _record_review_link(doc, issue["key"])
+
+            # Best-effort: nudge a Done/Closed ticket back into an active
+            # workflow status so the re-review comment above doesn't sit
+            # unnoticed on a closed ticket. Opt-in via reopen_status
+            # (unset by default -- see IntegrationsConfig.reopen_status);
+            # silently a no-op if unset, if the ticket is already in that
+            # status, or if the project's workflow has no transition to it
+            # from the ticket's current state -- never blocks the rest of
+            # this command.
+            if cfg.reopen_status:
+                try:
+                    moved = jira_client.transition_issue(
+                        issue["key"], cfg.reopen_status
+                    )
+                    if moved:
+                        console.print(
+                            f"  [green]✓[/green]  {issue['key']} transitioned to "
+                            f"[cyan]{cfg.reopen_status}[/cyan]"
+                        )
+                    else:
+                        console.print(
+                            f"  [dim]·[/dim]  {issue['key']} already at (or has no "
+                            f"transition to) '{cfg.reopen_status}' — status left as is"
+                        )
+                except Exception as e:
+                    console.print(
+                        f"  [yellow]!  Could not transition {issue['key']}: {e}[/yellow]"
+                    )
         else:
             console.print(
                 f"  [yellow]·[/yellow]  No Jira review story found for {doc.upper()}"

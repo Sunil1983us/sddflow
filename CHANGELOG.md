@@ -4,6 +4,482 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.21] — 2026-08-09 (Docs: `--feature` added to every CR example)
+
+Direct follow-up: "does the CR resolve based on manifest feature?" —
+confirmed via code that `sdd cr submit`/`sdd cr check` resolve
+`feature_name = --feature or manifest.project.feature`, same as every
+other command — but no CR example anywhere in the docs actually showed
+`--feature`, exactly the drift risk this session's Feature Drift Check
+work has been guarding against elsewhere.
+
+### Changed
+
+- `packs/_shared/full/.github/prompts/change.prompt.md` (canonical
+  source) — Step 7's "Submit for Stakeholder Review" now runs `sdd cr
+  submit --cr CR-{NNN} --feature {feature}` (was bare), with a note
+  explaining why: CR numbering restarts per feature (each has its own
+  `changesets/` folder), so an implicit resolution risks acting on the
+  wrong feature's CR after a Feature Drift Check-class scenario. Same fix
+  applied to both `sdd cr check` mentions. Synced to all 5 packs.
+- The pre-existing `/jira-push chg CR-001` example (a different command)
+  also gained `--feature`, same reasoning.
+
+### Added
+
+- A "Change Requests (CR) — Submit for Review" subsection to all 5
+  packs' `HOW-TO-USE.md`.
+- A `### sdd cr` entry to `cli-python/README.md`'s CLI command
+  reference — this command had no entry there at all before now.
+
+### Verified
+
+- `cli-python` pytest: 993/993 (no `.py` files touched, pure prompt/doc
+  content). `check-cross-references.py`: clean across all 6 packs.
+  `sync-blocks.sh`: idempotent across two consecutive runs.
+  `test-setup.sh`: 19/19.
+
+---
+
+## [2.9.20] — 2026-08-09 (New: `sdd feature list` / `sdd feature status`)
+
+Follow-up on two direct requests: "let us have feature list" (after
+recommending against a `manifest.yml` `project.features` list — the
+filesystem is already the source of truth, and a manifest list would be a
+second, driftable copy of it — a lightweight generated CLI command was
+proposed instead and accepted), and "is there a sdd to check the status
+of a feature ... what is approved and what is pending and who ... what we
+show in dashboard" — there wasn't one that works without Jira.
+
+`sdd review status` already existed but requires `jira:` configured and
+only shows Jira-tracked document reviews. The dashboard's own data
+(`build_project_status`/`build_feature_status` in `status.py`) already
+works in every review mode — chat, local, jira — by reading each
+document's `Status:` header and `## Approvals` table directly, but was
+only ever exposed via the dashboard's HTTP handler, with no terminal
+equivalent.
+
+### Added
+
+- `sdd feature list` — every feature folder under `.specify/features/`,
+  each with its current pipeline stage and a `(current)` marker.
+- `sdd feature status [--feature NAME]` — full pipeline (done/current/
+  upcoming/skipped steps with who-to-ask-next hints), per-document
+  Approvals-table detail (who's approved, who's pending, by role), task
+  progress, and Business Objective rollup — the same picture `sdd
+  dashboard` renders for one feature, as terminal text, with zero
+  `integrations.yml`/Jira requirement.
+
+Both call `build_project_status()`/`build_feature_status()` directly — no
+new data model, no `manifest.yml` schema change, nothing that could drift
+from what the dashboard shows.
+
+### Changed
+
+- Promoted `status.py`'s private `_list_feature_names()` to a public
+  `list_feature_names()` (kept as an internal alias too, so no existing
+  call site changed) — `sdd feature` and the dashboard now share the one
+  canonical directory scan.
+
+### Verified
+
+- `cli-python` pytest: 993/993 (983 pre-existing + 10 new).
+- `ruff check`/`format`: clean. `mypy`: zero new errors.
+- Manually smoke-tested end-to-end against a hand-built 2-feature
+  project.
+
+---
+
+## [2.9.19] — 2026-08-09 (Fix: multi-feature Confluence page overwrites and Jira ticket-identity collisions)
+
+Prompted by a direct request to actually test whether multi-feature support
+works "all over the project — every prompt, jira, confluence." It didn't,
+fully. Tracing every `project_name`/`feature_name` usage through the real
+CLI code (not just prompts) and running `_resolve_page_title` against the
+actual default config confirmed: two features pushing the same doc type
+(brd, use-cases, srd, ...) would silently overwrite each other's Confluence
+page, since page lookup is by title and the default title had no
+`{feature}` in it anywhere.
+
+### Fixed
+
+- `config.py`'s `_integrations_template()` (what `sdd config init` actually
+  scaffolds) had **no `{feature}` placeholder at all** for any per-feature
+  doc key. Fixed to match the already-correct `integrations.yml.example`
+  ("feature-first" convention) — that fix had landed there in an earlier
+  round but never made it into this scaffold.
+- `integrations.py`'s `_DEFAULT_PAGE_MAP` fallback, and the generic inline
+  fallbacks in `confluence.py`/`review.py` (a doc key with no page_map
+  entry at all) — same gap, fixed.
+- `review.py`'s Jira review Story summary and Open Questions summary
+  omitted the feature name — ticket *lookup* was already feature-safe
+  (label-scoped), but two features' tickets showed identical summary text,
+  indistinguishable in Jira's own UI.
+- `cr.py`'s CR (Change Request) Jira idempotency label was **worse** — a
+  real functional bug, not just display: no feature qualifier at all, and
+  `CHG-NNN` numbering is per-feature, not globally unique, so two
+  features' own "CHG-001" resolved to the **same** Jira ticket — one
+  feature's CR review silently reusing/overwriting an unrelated feature's
+  ticket. `cr check` (which had no `--feature` resolution at all) fixed to
+  match.
+
+### Added
+
+- `feature_collision_warning()` in `confluence.py` — a safety net for
+  **existing** projects whose `integrations.yml` already has an explicit
+  title predating this fix (an explicit entry is never silently rewritten
+  by `sdd upgrade`). Wired into `sdd confluence push`/`draft` as a hard
+  block with a new `--force` flag to override; wired into `review.py`'s
+  push paths as a non-blocking warning where there's no CLI flag surface
+  to gate on (including the dashboard's HTTP approve endpoint).
+
+No `manifest.yml` schema changes — this is CLI code and a scaffold
+template. An already-scaffolded project's `integrations.yml` is never
+rewritten by `sdd upgrade`; add `{feature}` to its `page_map` entries by
+hand, or rely on the new warning in the meantime.
+
+### Verified
+
+- `cli-python` pytest: 983/983 (968 pre-existing + 15 new).
+- `ruff check`/`format`: clean. `mypy`: no new error classes.
+- Manually confirmed the actual collision before/after the fix — COLLISION
+  → distinct titles for brd/use-cases/srd.
+
+---
+
+## [2.9.18] — 2026-08-09 (Fix: cross-feature naming collision in `{Feature Name}` — new `project.feature_display_name` field)
+
+Direct follow-up from the `sdd project-type migrate` work: `{Feature Name}`
+(used in every document header, Confluence page title, and Jira Epic
+Summary) previously resolved only from `project.name` — one project-wide
+field. On a project with more than one feature — exactly the scenario the
+prior two rounds this session were built to support — every feature's
+documents would carry the *same* `{Feature Name}`, and Confluence page
+titles/Jira Epic summaries would collide (Confluence page lookup is by
+title).
+
+### Added
+
+- `project.feature_display_name` — new optional `manifest.yml` field.
+  When present and non-empty, it fills `{Feature Name}` instead of
+  `project.name`. Empty by default, so every existing single-feature
+  project needs zero changes (falls straight back to `project.name`).
+  Added to all 5 packs' `.specify/manifest.yml` template, right after
+  `feature`.
+
+### Changed
+
+- `packs/_shared/blocks/feature-name-convention.md` — new resolution
+  order: `project.feature_display_name` → `project.name` →
+  `project.feature`. Synced into all 5 packs' `CLAUDE.md`.
+- `packs/_shared/full/.github/prompts/specify-brd.prompt.md`'s Jira Epic
+  Summary line updated to match.
+- `packs/_shared/blocks/feature-drift-check.md` — clarified that an
+  intentional `project.feature` switch should also move
+  `project.context_file` and (on a multi-feature project)
+  `project.feature_display_name` together, not just `project.feature`
+  alone.
+- All 5 packs' `HOW-TO-USE.md` "Working on Multiple Features" section —
+  corrected to mention `feature_display_name` explicitly, superseding a
+  weaker version from the previous round that undersold the actual
+  Confluence/Jira title-collision risk.
+
+### Verified
+
+- `cli-python` pytest: 968/968 (unaffected — pure prompt/template
+  content, no Python code touched).
+- `check-cross-references.py`: clean across all 6 packs. `sync-blocks.sh`
+  run three times consecutively with zero drift (after fixing a
+  real staleness bug caught mid-implementation — see commit for detail).
+- `test-setup.sh`: 19/19. `test-setup-micro.sh`: 12/12.
+- All 5 packs' `manifest.yml` template manually confirmed to parse as
+  valid YAML with `feature_display_name` present and empty by default.
+
+---
+
+## [2.9.17] — 2026-08-09 (New: `sdd project-type migrate` — guided project_type migration for sdd-universal)
+
+Prompted directly by live-testing: a user's real project (a `validation-service`
+backend on `sdd-universal`, `project_type: backend-service`) needed a second
+feature of a genuinely different kind — an admin UI to manage its rules. After
+working through why that calls for `project_type: fullstack` rather than a
+per-feature type field (`constitution.md` is one document for the whole
+project, not per-feature — see the discussion that led here), the user asked
+for a real, guided migration path instead of "hand-edit `project_type` and
+remember to separately run `/change`" with no guardrails at all.
+
+### Added
+
+- `cli-python/sdd/utils/project_type.py` — `EXTENDED_DOCS_BY_TYPE` (which of
+  `component-spec`/`ux-flow`/`screen-spec` each `project_type` uses —
+  promoted out of `sdd/utils/status.py`, which now imports it instead of
+  keeping its own private copy, so the two can never drift), plus
+  `classify_migration()`, which compares two `project_type`s' extended-doc
+  applicability and flags a migration "lossy" if it would drop a doc type
+  already in use.
+- `cli-python/sdd/commands/project_type.py` — `sdd project-type show` and
+  `sdd project-type migrate --to <type>`. Dry-run by default: prints the
+  compatibility report and writes nothing. `--apply` writes
+  `manifest.yml`'s `project_type`; on a lossy migration it refuses unless
+  `--force` is also passed. Deliberately never touches `constitution.md` —
+  Tech Stack row compatibility can't be determined mechanically, so
+  extending the constitution for the new type is always left to `/change`
+  (change type Technical), which the command's own output points to.
+- "Migrating project_type" section in `packs/sdd-universal/CLAUDE.md`
+  (right after "Upgrading Scope") with the full 4-step guided procedure,
+  and a matching short section in `HOW-TO-USE.md`. sdd-universal-only —
+  the other 4 packs each have one fixed tech stack baked into their own
+  constitution and no `project_type` field to migrate at all.
+- `### sdd project-type` entry in `cli-python/README.md`'s CLI command
+  reference.
+
+### Verified
+
+- `cli-python` pytest: 968/968 (945 pre-existing + 23 new).
+- `ruff check`/`format`: clean. `mypy --ignore-missing-imports sdd/`:
+  error count unchanged before/after (same 15 pre-existing errors,
+  confirmed via diff against a stashed baseline).
+- Manually smoke-tested the CLI end-to-end: dry-run doesn't write;
+  `--apply` on a safe migration writes; `--apply` on a lossy migration
+  without `--force` refuses (exit 1); `--apply --force` writes; an
+  invalid target type is rejected (exit 2).
+- `check-cross-references.py`: clean across all 6 packs. `sync-blocks.sh`:
+  confirmed only `sdd-universal`'s own `CLAUDE.md`/`HOW-TO-USE.md`
+  changed. `test-setup.sh`: 19/19.
+
+---
+
+## [2.9.16] — 2026-08-09 (New: Feature Drift Check — guards against two chat sessions sharing one project.feature)
+
+Prompted by a live-testing question: a user running two chat sessions
+against the same project folder, one per feature, asked how a single
+`manifest.project.feature` field could possibly work for both at once.
+It can't, mechanically — every command's own "Before Starting" step
+re-reads `manifest.yml` fresh and substitutes `{manifest.project.feature}`
+directly into every save/read path, with no per-chat-session isolation.
+Whichever chat last changed the field "wins"; the other chat's next
+command silently follows the new value instead of the feature it had
+actually been working on — no error, no warning, just a silently wrong
+target folder.
+
+### Added
+
+- `packs/_shared/blocks/feature-drift-check.md` — new shared block,
+  inserted into all 5 packs' `CLAUDE.md` right after "Startup (every
+  session)": once a conversation has established which feature it's
+  working on, compare that against `project.feature` every time a
+  command re-reads `manifest.yml`; if they now disagree, STOP before
+  reading/writing anything and ask the user to confirm which feature to
+  use, rather than silently following the changed value. No effect on a
+  fresh conversation's first command — nothing yet to contradict.
+- A "Working on Multiple Features (or Multiple Chat Sessions)" section in
+  all 5 packs' `HOW-TO-USE.md` (before "File Ownership"): documents the
+  existing multi-feature-per-project model (each feature already gets
+  its own `.specify/features/{feature}/` folder; `sdd dashboard` already
+  shows every feature regardless of which is "current" — this was
+  already true, just previously undocumented), explains the new drift
+  check, and recommends `git worktree add` (a separate `manifest.yml`
+  per worktree) as the clean way to actually parallelize two chats on
+  two features, instead of sharing one `manifest.yml`.
+
+`sdd-micro` is intentionally excluded — its own `CLAUDE.md` already
+documents it as single-purpose by design, with no multi-feature split,
+so this concern doesn't apply there.
+
+### Verified
+
+- `check-cross-references.py --verbose`: all cross-references resolve
+  across 6 packs.
+- `test-setup.sh`: 19/19 passed. `test-setup-micro.sh`: 12/12 passed.
+- `sync-blocks.sh` run twice consecutively: only the intended 5
+  `CLAUDE.md` + 5 `HOW-TO-USE.md` + 1 new block file changed, no further
+  drift on the second run (idempotent).
+- `cli-python` pytest: 934/934.
+
+---
+
+## [2.8.40] — 2026-08-08 (Audit: Jira/Confluence review-flow consistency across every prompt in all 5 packs)
+
+Requested audit, following the prior round of live-testing fixes: check
+every prompt for deviations, confirm where Confluence/Jira checks happen,
+and verify approval correctly falls back to local chat or the dashboard
+when neither is configured. Found and fixed 4 findings — two real
+functional gaps in standalone utility commands, two documentation-accuracy
+gaps in the canonical shared blocks themselves.
+
+### Fixed
+
+**1. `/submit-review` had no confluence-only branch at all.** It was a
+third, independently hand-written "submit for review" implementation,
+never synced from the canonical `submit-for-review-step` block — it
+branched only on `jira:` presence. In a confluence-only project, running
+`/submit-review` directly skipped straight to chat mode; the document
+never reached Confluence. Fixed by rewriting it to delegate directly to
+the same shared blocks every document-generation command already uses.
+
+**2. `/check-review` bypassed the CLI's own graceful no-Jira handling,
+losing dashboard comments.** Its "No-Jira fallback" explicitly skipped
+calling `sdd review check` when `jira:` was absent — but that command
+already handles the no-Jira case gracefully, surfacing unacknowledged
+dashboard comments even with zero Jira/Confluence configured. Fixed with
+a precisely-targeted change: always call the CLI; only fall back to a
+hand-written local check when the `sdd` tool itself isn't installed.
+
+**3. `review-decision-step`'s own prose understated dashboard-comment
+capability**, saying comments surface "when Jira is configured" when
+they actually surface in pure-local mode too. Rewrote the exit-code
+branches to state this correctly.
+
+**4. `submit-for-review-step`'s three branch headings didn't literally
+enumerate a jira-only (no confluence:) configuration** — the correct
+outcome (fall to chat) was only reachable by inference. Added an explicit
+fourth branch naming this case directly.
+
+### Verified
+
+- cli-python pytest 934/934 (no Python code touched, only markdown/prompt
+  files)
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `assert-output.sh` clean against `examples/todo-api` (33/33)
+- `sync-blocks.sh` confirmed idempotent
+
+---
+
+## [2.8.39] — 2026-08-08 (Fix: Confluence page push could get stuck on a 409 Conflict, even after a manual retry)
+
+A user hit a `409 Conflict` while `/plan-lld` pushed a 19-diagram
+`lld.md` to Confluence, then hit the *identical* 409 again on a manual
+retry — correctly diagnosing it as a real bug, not a transient blip.
+
+### Fixed
+
+`ConfluenceClient.upsert_page()` read a page's version once, then wrote
+`version + 1` with no handling for Confluence rejecting that write
+because the page had already moved past it (a real, observed race:
+`sdd review submit` pushes the same page twice in one run — the initial
+push, then again right after to stamp the Jira ticket's status banner
+on, with a burst of diagram-attachment uploads in between — and
+Confluence Cloud's read path can lag slightly behind its own
+just-completed write in that window). The existing generic HTTP retry
+layer (429/5xx, added in an earlier fix) deliberately doesn't cover 409
+for good reason: resending the exact same request with the exact same
+stale version number just reproduces the exact same 409 — precisely
+what happened when the user retried by hand.
+
+`upsert_page()` now catches a 409, re-fetches the page's actual current
+version, and retries the write with the corrected number — up to 3
+attempts. Any other error, or a 409 on the final attempt, still raises
+immediately. Fixes all 4 call sites that share this method in one
+change.
+
+### Verified
+
+- cli-python pytest 934/934 (930 pre-existing + 4 new)
+- ruff check/format clean; mypy clean on the changed file
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) passes
+
+---
+
+## [2.8.38] — 2026-08-08 (Fix: the Approvals-table flip has never matched a single real document — plus role-scoped approval evidence)
+
+A user shared a live `design.md` approval transcript: an agent
+blanket-approved all three Approvals-table roles (Architect/Tech
+Lead/Stakeholder) off one Jira ticket assigned only to Architect, then
+self-corrected mid-session. Asked to make that discipline consistent
+across all documents, not luck-of-the-draw. Implementing that surfaced a
+much bigger, already-live bug.
+
+### Fixed
+
+**1. The Approvals-table `Pending → Approved` flip has never matched a
+single real document, on any template, ever.** Its regex expected a
+3-column `Role | Pending | Date` row shape. Every one of the 20 templates
+that have an `## Approvals` section is actually 4 columns — `Role |
+Approver | Status | Date`. Tested the regex against real rows from real
+templates: zero matches. The dashboard's Approve button calls this
+function directly, with no LLM pre-editing the file — so every
+dashboard-driven approval has flipped the `Status:` header correctly but
+left the Approvals table stuck on `Pending` underneath it, silently,
+this whole time. The bug never showed up in the normal chat-driven flow
+only because the agent edits the table text itself before this
+now-fixed CLI call runs (as a no-op safety net with nothing left to do).
+The existing unit test used the same wrong 3-column fixture, so nothing
+ever caught it.
+
+**2. The Approver column was never filled by the CLI path either.**
+`sdd review approve --by "..."` never actually passed that name through
+to the flip function — same gap in the dashboard's approve handler.
+
+**3. Added role-scoped evidence for Jira-driven approvals.** When a
+Jira ticket approves a document, that only speaks for its one assigned
+reviewer — not every role a multi-role Approvals table lists. A new
+`sdd review approve --role` flag (and matching logic in
+`review-decision-step`, the shared block every review-gated document
+uses) now flips only the Approvals-table row matching that reviewer's
+role when the approval came from Jira, leaving other RACI rows `Pending`
+— falling back to the old blanket-flip on a role/wording mismatch, and
+unchanged for pure chat/local approvals, which have no per-role signal
+to scope to in the first place.
+
+### Verified
+
+- cli-python pytest 930/930 (922 pre-existing + 8 new)
+- ruff check/format clean on all changed files
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `sync-blocks.sh` confirmed idempotent
+
+---
+
+## [2.8.37] — 2026-08-08 (Fix: `sdd review apply` never reverted a document's Approved status, and could never reopen a closed Jira ticket)
+
+A user asked how post-approval revisions actually work — does the status
+change, does it create a new Jira ticket, does a closed ticket get
+reopened? Tracing the actual code (not assuming) surfaced two real gaps,
+which the user then asked to have fixed.
+
+### Fixed
+
+**1. The document's own `Status: Approved` header was never reverted.**
+When `/clarify` (or reviewer feedback) patches an already-Approved
+document, only the version history got a new row — the header still
+claimed `Approved`. Added `_mark_md_needs_revision()`, the direct
+counterpart to the existing `_mark_md_approved()`: reverts `Status:
+Approved` back to `Draft` (or `Proposed` for `adr.md`), scoped to the
+document's front matter only, same corruption-safety reasoning as its
+counterpart. No-op for a document that was never Approved. Wired into
+`sdd review apply` unconditionally — fires the same way in every
+integration mode, including pure chat/local with no Jira/Confluence at
+all.
+
+**2. `JiraClient` had no way to reopen a ticket.** There was literally no
+transition/workflow-status capability in the codebase — a ticket already
+moved to Done/Closed stayed there forever; `sdd review apply` could only
+ever post a comment on it. Added `get_transitions()` and
+`transition_issue()` (the real Jira REST transitions API), wired into
+`sdd review apply`: after the existing re-review comment, it now attempts
+a transition to a new opt-in `reopen_status` setting in
+`integrations.yml` (unset by default — workflow status names vary too
+much across orgs to guess safely). Silently a no-op if the ticket's
+already there or the workflow has no path to it — never blocks the rest
+of the command.
+
+Documented the full actual behavior — what `sdd review apply` does to an
+Approved document, step by step — in the review-gates shared block
+(`CLAUDE.md`, all 5 packs), replacing what had only ever been described
+at the "push/notify" level.
+
+### Verified
+
+- cli-python pytest 922/922 (904 pre-existing + 18 new)
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `sync-blocks.sh` confirmed idempotent
+
+---
+
 ## [2.8.36] — 2026-08-08 (Fix: brd.md's ACT-NNN stakeholder IDs never got back-filled by `/specify-uc`)
 
 Found by a user: after the BRD is created and `/specify-uc` runs, `brd.md`

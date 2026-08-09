@@ -496,8 +496,12 @@ Populate:
 
 After saving the changeset record, run automatically:
 ```bash
-sdd cr submit --cr CR-{NNN}
+sdd cr submit --cr CR-{NNN} --feature {feature}
 ```
+Always pass `--feature` explicitly — it defaults to `manifest.project.feature` when omitted, and CR
+numbering (`CR-NNN`/`CHG-NNN`) restarts per feature (each feature has its own `changesets/` folder), so
+an implicit resolution risks acting on the wrong feature's CR if `project.feature` has drifted since this
+conversation started (see CLAUDE.md "Feature Drift Check").
 
 This pushes the CR record to Confluence (for stakeholder comments) and creates a Jira review task
 for formal approval — exactly like `sdd review submit` does for spec documents.
@@ -505,8 +509,9 @@ for formal approval — exactly like `sdd review submit` does for spec documents
 - If the command **succeeds**: note the Confluence URL and Jira task key for the Step 8 summary.
 - If the command **fails or is not configured**: state:
   > "CR-{NNN} saved locally at `.specify/features/{feature}/changesets/CR-{NNN}.md`.
-  > Share it with stakeholders for review. When they approve, run `sdd cr check --cr CR-{NNN}`
-  > to confirm, or reply **'approved'** (or 'yes', 'LGTM', 'looks good') here to continue."
+  > Share it with stakeholders for review. When they approve, run `sdd cr check --cr CR-{NNN}
+  > --feature {feature}` to confirm, or reply **'approved'** (or 'yes', 'LGTM', 'looks good') here
+  > to continue."
 
 ---
 
@@ -545,7 +550,7 @@ Changeset record: .specify/features/{feature}/changesets/CR-{NNN}.md
 Confluence review : {page URL}
 Jira review task  : {task key — e.g. PROJ-42}
 Stakeholders can comment on Confluence; reviewer approves in Jira.
-Check status: sdd cr check --cr CR-{NNN}
+Check status: sdd cr check --cr CR-{NNN} --feature {feature}
 {/if}
 ────────────────────────────────────
 Ready to continue from: {next command — e.g. /validate, /analyze, /plan-design, /implement}

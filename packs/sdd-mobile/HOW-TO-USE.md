@@ -691,7 +691,7 @@ Both work unattended from CI/CD — there's no separate script anymore.
 /jira-push epic          # after /specify-brd approval
 /jira-push story         # after /specify-uc or /specify-srd approval
 /jira-push task          # after /task approval
-/jira-push chg CR-001    # after /change approval
+/jira-push chg CR-001 --feature validation-service   # after /change approval
 /jira-push --level all --dry-run   # preview every level before pushing for real
 ```
 Or directly: `sdd jira push --level epic`, etc. Keys created/updated are
@@ -701,6 +701,22 @@ never overwrite each other's locally-tracked keys. This file is a
 human-readable summary only; it is never read back by `sdd jira push` — parent
 links and idempotency are always re-derived live from Jira labels, so a level
 can always be pushed on its own, in any order, and still link up correctly.
+
+---
+
+### Change Requests (CR) — Submit for Review
+
+After `/change` saves a changeset record
+(`.specify/features/{feature}/changesets/CR-NNN.md`):
+```bash
+sdd cr submit --cr CR-001 --feature validation-service   # push to Confluence + create a Jira review task
+sdd cr check  --cr CR-001 --feature validation-service    # poll approval status
+```
+`--feature` defaults to `manifest.yml`'s `project.feature` when omitted — **always pass it
+explicitly on a multi-feature project.** CR numbering (`CR-NNN`/`CHG-NNN`) restarts per feature
+(each feature has its own `changesets/` folder), so a bare `sdd cr submit --cr CR-001` with no
+`--feature` silently resolves to whichever feature `project.feature` currently points to, not
+necessarily the one you meant.
 
 ---
 
@@ -1032,6 +1048,43 @@ pr_rules:
 3. Generate new spec docs: `/specify-doc {name}` for each
 4. Run `/plan-lld` if upgrading from pilot
 5. Append `CHG-NNN` tasks to `tasks.md`
+
+---
+
+## Working on Multiple Features (or Multiple Chat Sessions)
+
+One project can have several features side by side — each gets its own
+`.specify/features/{feature}/` folder, and `sdd dashboard` shows every one
+of them at once, not just whichever is "current." `manifest.yml`'s
+`project.feature` is only a **default pointer**: it tells a command which
+feature folder to read/write when nothing else specifies one, nothing
+more. Switching it (by hand, or via `/create-context` for a new feature)
+never touches or hides any other feature's documents.
+
+**One chat, one project folder, working on one feature at a time** — the
+normal case — needs nothing special. Just switch `project.feature` when
+you start the next one. On a project with more than one feature, also set
+`project.feature_display_name` to that feature's own display name —
+otherwise its documents, Confluence pages, and Jira Epic keep carrying
+whichever feature's name was in `project.name` before (see CLAUDE.md
+"`{Feature Name}` convention"); a single-feature project can leave it
+blank, since it falls back to `project.name`.
+
+**Two chats open on the same project folder at the same time, each meant
+to work on a different feature — don't do this.** `project.feature` is one
+value in one file; whichever chat last changed it "wins," and the other
+chat's next command will silently follow the new value instead of the
+feature it was actually working on. Every command's startup instructions
+now include a **Feature Drift Check** (see CLAUDE.md) that catches this
+mid-conversation and stops to ask before reading or writing anything — but
+the safe way to avoid it entirely is to give each chat its **own working
+copy**:
+```bash
+git worktree add ../project-feature-b feature-b-branch
+```
+Each worktree has its own `.specify/manifest.yml`, so two chats — one per
+worktree — can each set `project.feature` to a different value and never
+collide. Plain separate clones work the same way.
 
 ---
 

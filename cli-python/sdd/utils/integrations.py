@@ -82,14 +82,20 @@ def parse_confluence_page_id(raw: str | None) -> str | None:
 
 
 _DEFAULT_PAGE_MAP = {
-    "brd": "{project} — Business Requirements",
-    "use-cases": "{project} — Use Cases",
-    "srd": "{project} — System Requirements",
-    "design": "{project} — Design",
-    "arch": "{project} — Architecture Overview",
-    "hld": "{project} — High-Level Design",
-    "adr": "{project} — Architecture Decisions",
-    "lld": "{project} — Low-Level Design",
+    # {feature} included for every per-feature key -- without it, two
+    # features sharing this fallback (no explicit confluence_page of
+    # their own) would upsert the same Confluence page and overwrite
+    # each other's content, since Confluence page lookup is by title
+    # (see confluence.py's _resolve_page_title docstring and the
+    # sdd_version migration that fixed this class of bug).
+    "brd": "{project} — {feature} — Business Requirements",
+    "use-cases": "{project} — {feature} — Use Cases",
+    "srd": "{project} — {feature} — System Requirements",
+    "design": "{project} — {feature} — Design",
+    "arch": "{project} — {feature} — Architecture Overview",
+    "hld": "{project} — {feature} — High-Level Design",
+    "adr": "{project} — {feature} — Architecture Decisions",
+    "lld": "{project} — {feature} — Low-Level Design",
     "runbook": "{project} — Runbook",
     # The title value here is actually ignored -- _resolve_page_title()
     # in confluence.py special-cases "constitution" to always use
@@ -437,6 +443,18 @@ class IntegrationsConfig:
             "confirmed",
         ]
     )
+    # Status to transition a review ticket to when `sdd review apply` fires
+    # (a document changed post-approval -- e.g. /clarify patched an
+    # Approved doc, or NEEDS REVISION feedback is being addressed). Must
+    # name a real status in the Jira project's workflow; None (the
+    # default -- unset in integrations.yml) skips the transition attempt
+    # entirely. Deliberately opt-in rather than defaulting to a guessed
+    # name like "In Review": workflow status names vary too much across
+    # orgs to guess safely, and a wrong guess would just 400 silently
+    # (transition_issue() no-ops instead of erroring either way, but an
+    # unset default avoids the wasted API call altogether for anyone who
+    # hasn't configured it).
+    reopen_status: str | None = None
     pr_automation: PrAutomation = field(default_factory=PrAutomation)
     code_review: CodeReviewConfig = field(default_factory=CodeReviewConfig)
 
@@ -549,6 +567,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             "approved_keywords",
             ["approved", "lgtm", "looks good", "go ahead", "confirmed"],
         ),
+        reopen_status=raw.get("reopen_status"),
         pr_automation=pr_automation,
         code_review=code_review,
     )

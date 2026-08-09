@@ -35,11 +35,25 @@ has a structured context.md.
 <!-- shared:feature-name-convention:start -->
 **`{Feature Name}` convention.** Every generated document's `{Feature Name}`
 placeholder (`# Feature: {Feature Name}`, `# Use Case Specification —
-{Feature Name}`, etc. — nearly every template header) resolves from
-`manifest.yml`'s `project.name`, falling back to `project.feature` only if
-`project.name` is empty. This matches the one place this was already
-defined explicitly (the Jira Epic Summary rule in specify-brd.prompt.md) —
-now it applies everywhere `{Feature Name}` appears.
+{Feature Name}`, etc. — nearly every template header, plus Confluence page
+titles and the Jira Epic Summary — see `specify-brd.prompt.md`'s Jira Epic
+Summary rule, which follows this same order) resolves in this order:
+1. `manifest.yml`'s `project.feature_display_name`, if present and non-empty
+   — this feature's own display name. Use this on any project with more
+   than one feature: `project.name` stays one stable identity for the
+   whole project, so if it were reused as every feature's document-header
+   name too, a second feature's BRD would header itself identically to the
+   first feature's, and their Confluence pages would collide on title
+   (page lookup is by title) — Jira Epic summaries would collide the same
+   way. `feature_display_name` is what actually varies per feature: update
+   it — not `project.name` — every time `project.feature` switches to a
+   different feature (see CLAUDE.md "Feature Drift Check").
+2. `manifest.yml`'s `project.name`, if `feature_display_name` is absent or
+   empty — the common case for a single-feature project, where the
+   project's identity and its one feature's identity are the same thing,
+   so no separate field is needed.
+3. `manifest.yml`'s `project.feature` (the slug), only if both of the above
+   are empty.
 Never substitute `context.md`'s own title/Service Name for this — that's
 free text the user may phrase more descriptively than the manifest (e.g.
 "NIPE Validation Service" vs. a manifest `name: Validation`), and using it
@@ -50,6 +64,47 @@ Confluence page titles, and the Jira Epic summary.
 9. If constitution Part 2 not generated → remind user to run /specify first
 10. If constitution Part 2 generated but NOT finalized (GATE-1 open) →
     remind user to review + finalize it before /validate can run
+
+<!-- shared:feature-drift-check:start -->
+## Feature Drift Check (multi-session safety)
+
+`manifest.project.feature` is one value in one shared file, not a per-chat
+setting. If a second chat session — another window open on the same project
+folder, or a teammate editing `manifest.yml` directly — switches it while
+*this* conversation is still active, every later command in this
+conversation would silently start reading and writing the new feature's
+`.specify/features/{feature}/` folder instead of the one this conversation
+has actually been working on. Nothing crashes; it just quietly does the
+wrong thing, which is worse.
+
+**Guard against it.** Once this conversation has established which feature
+it's working on — you generated or read a document for it, or the user
+named it explicitly — compare that against `project.feature` every time a
+command re-reads `manifest.yml`. If the two now disagree, **STOP before
+reading or writing any document** and ask: "manifest.yml's active feature
+is now **{new}**, but this conversation has been working on **{previous}**
+— did you (or another session) intend to switch? Reply with which one to
+continue, or confirm **{new}** is correct." Proceed only after the user
+answers. This has no effect on a fresh conversation's first command in a
+session — there is nothing yet to contradict, so whatever `project.feature`
+already says is simply where this conversation starts.
+
+For genuinely parallel work on two features at once, two chats sharing one
+`manifest.yml` is not the right setup regardless of this check — recommend
+a separate working copy per feature (e.g. `git worktree add`), each with
+its own `.specify/manifest.yml`. See HOW-TO-USE.md → "Working on Multiple
+Features."
+
+**When you do intentionally switch `project.feature`** (not a drift — the
+user asked to move to a different feature), three fields move together,
+not just one: `project.feature` (the folder-path pointer), `project.
+context_file` (that feature's own context doc), and — once a project has
+more than one feature — `project.feature_display_name` (see CLAUDE.md
+"`{Feature Name}` convention"). Leaving `feature_display_name` stale means
+the new feature's documents, Confluence pages, and Jira Epic all carry the
+previous feature's name — a real collision (Confluence page titles must be
+unique), not just a cosmetic mismatch.
+<!-- shared:feature-drift-check:end -->
 
 ## AI-2 — Summary-First Rule (token economy)
 For every command AFTER /specify, read `.summary.md` files for prior
@@ -140,6 +195,52 @@ To upgrade `pilot → mvp` or `mvp → full` after initial delivery:
 6. All new documents go through the same review gates as the original spec
 
 Scope upgrade is a **Major amendment** to constitution Part 2 (version bump X.0).
+
+## Migrating project_type
+
+Only relevant when the project genuinely outgrows the type it was scaffolded
+with — e.g. a `backend-service` project takes on an admin UI as a second
+feature and should become `fullstack`. This is **not** the same as adding an
+ordinary new feature of the same type (see CLAUDE.md "Feature Drift Check" —
+most new features just get their own `.specify/features/{feature}/` folder
+under the existing `project_type`, no migration needed). Only migrate when a
+new feature's tech stack genuinely isn't describable by the current
+`project_type` at all.
+
+1. **Report what changes, before touching anything:**
+   ```bash
+   sdd project-type migrate --to {target-type}
+   ```
+   Dry-run by default — prints which type-specific extended docs
+   (`component-spec`/`ux-flow`/`screen-spec`) the target type adds or drops
+   relative to the current one, and writes nothing. Present this report to
+   the user. If it reports dropped docs, that means a doc type already in
+   use for this project (e.g. `screen-spec` under `mobile`) would stop being
+   listed as an expected pipeline step under the target type — already
+   generated files are never touched or deleted, only future applicability
+   changes. Confirm with the user this is intentional before continuing.
+2. **Extend the constitution for the new stack** via `/change`, change type
+   **Technical** — walks `context.md → constitution.md → design.md →
+   lld.md` with its own Change Impact Matrix (existing `brd.md`/`use-cases.md`/
+   `validate.md` for prior features are rated LOW probability and are not
+   touched unless something in them genuinely needs to change). This is
+   where the new type's Tech Stack rows actually get added — `sdd
+   project-type migrate` itself never edits constitution.md.
+3. **Apply the manifest change**, once the constitution amendment from step 2
+   is approved:
+   ```bash
+   sdd project-type migrate --to {target-type} --apply
+   ```
+   Add `--force` if step 1's report showed dropped docs and the user
+   confirmed that's intentional — without `--force` this refuses to write a
+   lossy migration.
+4. Start the new feature normally (switch `project.feature`, run
+   `/create-context` or `/specify-brd`) — it goes through the pipeline
+   fresh, now with the target type's extended docs available.
+
+Existing features and their already-approved documents are never
+regenerated or overwritten by this — `project_type` only changes which
+templates/extended docs apply going forward.
 
 <!-- shared:scope-reference:start -->
 ## Scope Reference — What Each Scope Produces
@@ -386,6 +487,30 @@ sdd review status                # full dashboard for all documents
 When `sdd review check` exits 1 (NEEDS REVISION): read reviewer comments, update
 the document, then run `sdd review apply` and ask reviewer to re-review.
 Configure reviewers in `.specify/integrations.yml` — see `integrations.yml.example`.
+
+**What `sdd review apply` actually does to an already-Approved document.**
+This is the command every revision-driven step calls (a reviewer's NEEDS
+REVISION feedback being addressed, or `/clarify` patching a document that
+was already Approved) — it never creates a second Jira ticket for the
+same document; it always re-uses the one ticket found by that document's
+persistent label, updating it in place. On every call it also:
+1. **Reverts the document's own `Status:` header** from `Approved` back
+   to `Draft` (or `Proposed` for `adr.md`) — this happens unconditionally,
+   even in pure chat/local mode with no `jira:`/`confluence:` configured,
+   since it's a local-file operation. A document still mid-review (never
+   yet Approved) is left untouched — nothing to revert.
+2. Posts a "please re-review" comment on the existing Jira ticket, if one
+   exists for this doc.
+3. **Nudges the ticket's Jira workflow status**, only if `reopen_status`
+   is set in `integrations.yml` (unset by default — see
+   `integrations.yml.example`). The CLI cannot guess a real status name
+   for your workflow, so this is opt-in: without it, a ticket already
+   moved to Done/Closed stays there and only gets the comment above —
+   with it, `sdd review apply` attempts a transition to the configured
+   status (e.g. `"In Review"`) so the re-review request doesn't sit
+   unnoticed on a closed ticket. Silently a no-op if the ticket is
+   already in that status or the workflow has no path to it from the
+   current state — never blocks the rest of the command.
 
 **The `validate` phase is optional per-document.** Unlike the `specify`/
 `planning`/`tasks`/`release` phases, `validate`/`analyze`/`clarify` fall back

@@ -160,7 +160,14 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
     # ── Create / update Jira review task ─────────────────────────────────────
     if cfg.jira:
         jira_client = JiraClient(jira_session, jira_prof.base_url)
-        idempotency_label = f"sdd-cr:{cr_id.lower()}"
+        # feature_name included for the same reason page_title above is --
+        # cr_id alone (e.g. "CHG-001") is scoped per feature's own tasks.md
+        # counter, not globally unique across the project. Without it here,
+        # two features' own "CHG-001" would resolve to the SAME Jira ticket
+        # via this label lookup -- not just a display collision like the
+        # summary text below, but one feature's CR review silently reusing
+        # (and overwriting the fields of) an unrelated feature's ticket.
+        idempotency_label = f"sdd-cr:{feature_name}:{cr_id.lower()}"
         cr_project_key = cfg.jira.key_for("cr")
         existing = jira_client.find_by_label(cr_project_key, idempotency_label)
 
@@ -189,7 +196,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
         fields: dict = {
             "project": {"key": cr_project_key},
             "issuetype": {"name": cfg.jira.issue_type_for("cr")},
-            "summary": f"Review: {project_name} — {cr_id}",
+            "summary": f"Review: {project_name} / {feature_name} — {cr_id}",
             # cfg.jira.labels (base_fields.labels, e.g. "sdd-generated") is
             # applied here the same way _upsert_issue() applies it to every
             # Epic/Story/Task/CHG issue -- CR review tasks aren't a
@@ -256,7 +263,10 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
 @cr_command.command("check")
 @click.option("--cr", required=True)
 @click.option("--profile", default=None)
-def cr_check(cr, profile):
+@click.option(
+    "--feature", default=None, help="Feature name (default: from manifest.yml)"
+)
+def cr_check(cr, profile, feature):
     """Check approval status of a CR in Jira.
     Exit codes: 0=approved 1=needs-revision 2=pending 3=not-submitted.
     """
@@ -274,8 +284,16 @@ def cr_check(cr, profile):
         console.print("  [red]✗  No jira: section in integrations.yml[/red]")
         raise SystemExit(1)
 
+    manifest = read_manifest() or {}
+    proj = manifest.get("project") or {}
+    feature_name = feature or proj.get("feature", "")
+
     client = JiraClient(session, prof.base_url)
-    issue = client.find_by_label(cfg.jira.key_for("cr"), f"sdd-cr:{cr_id.lower()}")
+    # Must match cr_submit's idempotency_label exactly (feature-qualified) --
+    # otherwise this would never find the ticket cr_submit actually created.
+    issue = client.find_by_label(
+        cfg.jira.key_for("cr"), f"sdd-cr:{feature_name}:{cr_id.lower()}"
+    )
 
     if not issue:
         console.print(f"  [dim]·  {cr_id} — NOT SUBMITTED[/dim]")

@@ -114,12 +114,81 @@ class TestMarkMdApproved:
         assert "> Status: Approved | Date: x" in p.read_text()
 
 
+class TestMarkMdNeedsRevision:
+    """_mark_md_needs_revision() -- reverts an Approved document's header
+    the instant its content changes post-approval (called from `sdd
+    review apply`). Symmetric counterpart to _mark_md_approved above:
+    same front-matter scoping, same corruption-safety reasoning."""
+
+    def test_flips_approved_to_draft(self, project):
+        p = _write_doc(project, "brd", "Status: Approved")
+        assert review._mark_md_needs_revision(p) is True
+        assert "Status: Draft" in p.read_text()
+        assert "Approved" not in p.read_text()
+
+    def test_case_insensitive_match(self, project):
+        p = _write_doc(project, "brd", "Status: APPROVED")
+        assert review._mark_md_needs_revision(p) is True
+        assert "Status: Draft" in p.read_text()
+
+    def test_adr_reverts_to_proposed_not_draft(self, project):
+        """adr.md's own lifecycle word is 'Proposed', never 'Draft' --
+        see _mark_md_approved's docstring. Reverting it to 'Draft' would
+        break the existing Draft-or-Proposed -> Approved re-approval
+        regex on the next cycle for this doc type specifically."""
+        p = project / ".specify" / "features" / "auth" / "adr.md"
+        p.write_text("# ADR\n> Status: Approved | Date: x | Author: y\n\nbody\n")
+        assert review._mark_md_needs_revision(p) is True
+        assert "Status: Proposed" in p.read_text()
+
+    def test_not_yet_approved_is_noop(self, project):
+        """A document mid-review (still Draft/Proposed, never approved)
+        has nothing to revert -- e.g. addressing a NEEDS REVISION comment
+        before the first approval."""
+        p = _write_doc(project, "brd", "Status: Draft")
+        assert review._mark_md_needs_revision(p) is False
+        assert p.read_text().count("Status: Draft") == 1
+
+    def test_scoped_to_front_matter_only(self, project):
+        """Mirrors _mark_md_approved's own regression test: a body field
+        that happens to contain the literal substring 'Status: Approved'
+        must never be touched, only the real header."""
+        p = project / ".specify" / "features" / "auth" / "data-model.md"
+        p.write_text(
+            "# Data Model\n"
+            "> Version: 1.0 | Status: Approved | Date: x\n\n"
+            "## 3. Enums\n\n"
+            "RuleVersionStatus: DRAFT, SUBMITTED, APPROVED, RETIRED\n"
+        )
+        assert review._mark_md_needs_revision(p) is True
+        text = p.read_text()
+        assert "> Version: 1.0 | Status: Draft | Date: x" in text
+        assert "RuleVersionStatus: DRAFT, SUBMITTED, APPROVED, RETIRED" in text
+
+    def test_re_approval_regex_still_matches_after_revert(self, project):
+        """End-to-end symmetry check: after a revert, _mark_md_approved
+        must still be able to flip the document back to Approved on the
+        next review cycle, with zero special-casing needed anywhere."""
+        p = _write_doc(project, "brd", "Status: Approved")
+        review._mark_md_needs_revision(p)
+        assert review._mark_md_approved(p) is True
+        assert "Status: Approved" in p.read_text()
+
+
 class TestMarkApprovalsTable:
+    """Every real template's Approvals table is 4 columns -- 'Role |
+    Approver | Status | Date' (verified against all 20 templates that
+    have one). This fixture matches that shape exactly -- an earlier
+    version used an invented 3-column 'Role | Status | Date' shape that
+    doesn't exist in any real template, which is exactly why the
+    corresponding regex bug (never matched a single real row -- see
+    _mark_approvals_table's own docstring) went uncaught."""
+
     def _doc_with_approvals(self, project, rows):
-        table = "\n".join(f"| {role} | Pending | |" for role in rows)
+        table = "\n".join(f"| {role} | | Pending | |" for role in rows)
         text = (
             "# Doc\n> Version: 1.0 | Status: Draft | Date: x | Author: y\n\n"
-            f"## Approvals\n\n| Role | Status | Date |\n|---|---|---|\n{table}\n\n"
+            f"## Approvals\n\n| Role | Approver | Status | Date |\n|---|---|---|---|\n{table}\n\n"
             "## Version History\n\n| Version | Date |\n|---|---|\n| 1.0 | x |\n"
         )
         p = project / ".specify" / "features" / "auth" / "brd.md"
@@ -130,7 +199,7 @@ class TestMarkApprovalsTable:
         p = self._doc_with_approvals(project, ["Product Owner (accountable)"])
         review._mark_md_approved(p)
         text = p.read_text()
-        assert "| Product Owner (accountable) | Approved |" in text
+        assert "| Product Owner (accountable) | | Approved |" in text
         assert "| Pending |" not in text
 
     def test_all_rows_in_multi_row_table_flipped(self, project):
@@ -141,6 +210,15 @@ class TestMarkApprovalsTable:
         text = p.read_text()
         assert text.count("| Approved |") == 3
         assert "Pending" not in text
+
+    def test_approver_name_fills_approver_column(self, project):
+        """Regression: the CLI path never passed the approver's name
+        through at all, so the Approver column stayed blank even when
+        the row did flip to Approved."""
+        p = self._doc_with_approvals(project, ["Product Owner"])
+        review._mark_md_approved(p, approver_name="Sunil PM")
+        text = p.read_text()
+        assert "| Product Owner | Sunil PM | Approved |" in text
 
     def test_blank_line_before_next_heading_preserved(self, project):
         p = self._doc_with_approvals(project, ["Product Owner"])
@@ -178,6 +256,59 @@ class TestMarkApprovalsTable:
         assert p.read_text() == first
 
 
+class TestMarkApprovalsTableRoleFilter:
+    """role_filter -- scopes the flip to only the row(s) whose Role text
+    matches, instead of blanket-flipping every row. Used when the
+    evidence is a single reviewer's sign-off (e.g. one Jira ticket's
+    assignee) that shouldn't be read as every RACI role having approved."""
+
+    def _doc_with_approvals(self, project, rows):
+        table = "\n".join(f"| {role} | | Pending | |" for role in rows)
+        text = (
+            "# Design\n> Version: 1.0 | Status: Draft | Date: x | Author: y\n\n"
+            f"## Approvals\n\n| Role | Approver | Status | Date |\n|---|---|---|---|\n{table}\n\n"
+            "## Version History\n\n| Version | Date |\n|---|---|\n| 1.0 | x |\n"
+        )
+        p = project / ".specify" / "features" / "auth" / "design.md"
+        p.write_text(text)
+        return p
+
+    def test_only_matching_row_flipped(self, project):
+        p = self._doc_with_approvals(project, ["Architect", "Tech Lead", "Stakeholder"])
+        review._mark_md_approved(
+            p, approver_name="Sunil Architect", role_filter="Architect"
+        )
+        text = p.read_text()
+        assert "| Architect | Sunil Architect | Approved |" in text
+        assert "| Tech Lead | | Pending |" in text
+        assert "| Stakeholder | | Pending |" in text
+
+    def test_match_is_case_insensitive_substring(self, project):
+        p = self._doc_with_approvals(project, ["Architect (accountable)", "Tech Lead"])
+        review._mark_md_approved(p, role_filter="architect")
+        text = p.read_text()
+        assert "Architect (accountable) | | Approved |" in text
+        assert "| Tech Lead | | Pending |" in text
+
+    def test_no_matching_row_falls_back_to_blanket_flip(self, project):
+        """A configured reviewer_role that doesn't appear in this doc's
+        Approvals table at all is a config/wording mismatch -- must not
+        leave the table permanently stuck on Pending."""
+        p = self._doc_with_approvals(project, ["Architect", "Tech Lead"])
+        review._mark_md_approved(p, role_filter="Nonexistent Role")
+        text = p.read_text()
+        assert text.count("| Approved |") == 2
+        assert "Pending" not in text
+
+    def test_role_filter_none_is_unaffected_blanket_flip(self, project):
+        """Default behavior (chat/local mode, no per-role evidence
+        available) is unchanged: role_filter=None flips every row."""
+        p = self._doc_with_approvals(project, ["Architect", "Tech Lead"])
+        review._mark_md_approved(p, role_filter=None)
+        text = p.read_text()
+        assert text.count("| Approved |") == 2
+
+
 class TestLocalApprovals:
     def test_save_and_load_roundtrip(self, project):
         review._save_local_approval("brd", "Product Owner", "approved in chat")
@@ -198,6 +329,62 @@ class TestLocalApprovals:
         raw = Path(".specify/.local-approvals.yml").read_text()
         assert raw.startswith("#")
         assert yaml.safe_load(raw)["brd"]["approved_by"] == "PO"
+
+
+class TestReviewApproveRoleFlag:
+    """`sdd review approve --role` -- CLI wiring for the role-scoped
+    Approvals-table flip (used when a Jira ticket's single reviewer
+    approved, not the whole RACI table)."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+
+        return CliRunner()
+
+    def _write_design_with_approvals(self, project):
+        p = project / ".specify" / "features" / "auth" / "design.md"
+        p.write_text(
+            "# Design\n> Version: 1.0 | Status: Draft | Date: x | Author: y\n\n"
+            "## Approvals\n\n| Role | Approver | Status | Date |\n|---|---|---|---|\n"
+            "| Architect | | Pending | |\n| Tech Lead | | Pending | |\n"
+            "| Stakeholder | | Pending | |\n\n"
+            "## Version History\n\n| Version | Date |\n|---|---|\n| 1.0 | x |\n"
+        )
+        return p
+
+    def test_role_flag_scopes_the_flip(self, project, runner):
+        p = self._write_design_with_approvals(project)
+        result = runner.invoke(
+            review.review_command,
+            [
+                "approve",
+                "--doc",
+                "design",
+                "--local",
+                "--by",
+                "Sunil Architect",
+                "--role",
+                "Architect",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        text = p.read_text()
+        assert "| Architect | Sunil Architect | Approved |" in text
+        assert "| Tech Lead | | Pending |" in text
+        assert "| Stakeholder | | Pending |" in text
+        assert "only the 'Architect' row(s)" in result.output
+
+    def test_no_role_flag_blanket_flips_as_before(self, project, runner):
+        p = self._write_design_with_approvals(project)
+        result = runner.invoke(
+            review.review_command,
+            ["approve", "--doc", "design", "--local", "--by", "Team"],
+        )
+        assert result.exit_code == 0, result.output
+        text = p.read_text()
+        assert text.count("| Approved |") == 3
+        assert "Pending" not in text
 
 
 class TestDocMdPath:
@@ -243,12 +430,25 @@ class FakeJiraClient:
         self.comments_by_key: dict[str, list[dict]] = {}
         self.added_comments: list[tuple[str, str]] = []
         self._next_key = 1
+        # transition_issue() test surface -- set available_transitions
+        # (list of target-status names) before invoking to control which
+        # transitions "exist" for a given ticket; defaults to none.
+        self.available_transitions: list[str] = []
+        self.transitioned: list[tuple[str, str]] = []
 
     def find_by_label(self, project_key, label):
         return self.by_label.get(label)
 
     def add_comment(self, issue_key, text):
         self.added_comments.append((issue_key, text))
+
+    def transition_issue(self, issue_key, target_status_name):
+        if target_status_name.casefold() not in {
+            t.casefold() for t in self.available_transitions
+        }:
+            return False
+        self.transitioned.append((issue_key, target_status_name))
+        return True
 
     def create_issue(self, fields):
         key = f"PROJ-{self._next_key}"
@@ -604,6 +804,48 @@ class TestReviewSubmitFieldWiring:
         assert "org-required-label" in review_issue["labels"]
         assert review_issue["customfield_20000"] == "Team Phoenix"
 
+    def test_review_story_summary_includes_feature_name(self, review_project, runner):
+        """Regression: the Story summary used to be f"Review: {project} —
+        {DOC}" with no feature name at all. The ticket lookup itself was
+        already feature-safe (label is sdd-doc:{feature}:{doc}), so this
+        never caused a ticket collision -- but two features' review
+        tickets showed the identical summary text, indistinguishable in
+        Jira's own issue list/search."""
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            result = runner.invoke(
+                review.review_command,
+                ["submit", "--doc", "brd", "--feature", "auth"],
+            )
+
+        assert result.exit_code == 0, result.output
+        review_issue = next(
+            f for f in fake_jira.created if "sdd-review" in f.get("labels", [])
+        )
+        assert review_issue["summary"] == "Review: Demo / auth — BRD"
+
     def test_two_features_do_not_collide_on_the_same_confluence_page(
         self, project, runner
     ):
@@ -896,6 +1138,176 @@ class TestReviewApplyRecordsLink:
             ("PROJ-9", "Document updated per review comments. Please re-review:")
         ]
         assert "Confluence" not in result.output
+
+
+class TestReviewApplyRevertsStatusAndReopens:
+    """`sdd review apply` on an Approved document: reverts the doc's own
+    Status header (regardless of integration mode) and, when
+    reopen_status is configured, nudges a Done/Closed Jira ticket back
+    into an active workflow status."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+
+        return CliRunner()
+
+    def _write_approved_brd(self, project):
+        p = project / ".specify" / "features" / "auth" / "brd.md"
+        p.write_text(
+            "# BRD\n> Version: 1.1 | Status: Approved | Date: x | Author: y\n\nbody\n"
+        )
+        return p
+
+    def test_status_reverted_with_no_integrations_configured(self, project, runner):
+        """Pure local/chat mode -- no integrations.yml at all. The status
+        revert is a local-file-only operation and must still happen."""
+        p = self._write_approved_brd(project)
+        result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+        assert result.exit_code == 0, result.output
+        assert "Status: Draft" in p.read_text()
+        assert "header reverted from Approved" in result.output
+
+    def test_status_not_yet_approved_left_alone(self, project, runner):
+        """A brd.md still in Draft (never approved) has nothing to revert
+        -- e.g. addressing NEEDS REVISION feedback before first approval."""
+        p = project / ".specify" / "features" / "auth" / "brd.md"
+        p.write_text("# BRD\n> Version: 1.0 | Status: Draft | Date: x\n\nbody\n")
+        result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+        assert result.exit_code == 0, result.output
+        assert "Status: Draft" in p.read_text()
+        assert "header reverted" not in result.output
+
+    def test_reopen_status_not_configured_skips_transition(self, project, runner):
+        """reopen_status unset (default) -- no transition attempted, even
+        though a Jira ticket exists and a comment is posted."""
+        p = self._write_approved_brd(project)
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "document_reviews:\n"
+            "  brd:\n    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n    sequence: 1\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-3",
+            "fields": {"status": {"name": "Done"}},
+        }
+        fake_jira.available_transitions = ["In Review"]
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+        ):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert "Status: Draft" in p.read_text()
+        assert fake_jira.transitioned == []
+
+    def test_reopen_status_configured_transitions_closed_ticket(self, project, runner):
+        """reopen_status configured and a matching transition exists --
+        the ticket is nudged out of Done/Closed."""
+        self._write_approved_brd(project)
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "document_reviews:\n"
+            "  brd:\n    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n    sequence: 1\n"
+            "reopen_status: 'In Review'\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-4",
+            "fields": {"status": {"name": "Done"}},
+        }
+        fake_jira.available_transitions = ["In Review"]
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+        ):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert fake_jira.transitioned == [("PROJ-4", "In Review")]
+        assert "transitioned to" in result.output
+
+    def test_reopen_status_configured_but_no_matching_transition_is_silent(
+        self, project, runner
+    ):
+        """Workflow has no path to the configured status from the
+        ticket's current state -- must not error, just report it left
+        as-is (transition_issue()'s own False return, surfaced)."""
+        self._write_approved_brd(project)
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n  project_key: MYPROJ\n"
+            "document_reviews:\n"
+            "  brd:\n    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n    sequence: 1\n"
+            "reopen_status: 'Nonexistent Status'\n"
+        )
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        fake_jira.by_label["sdd-doc:auth:brd"] = {
+            "key": "PROJ-5",
+            "fields": {"status": {"name": "Done"}},
+        }
+        fake_jira.available_transitions = ["In Review"]  # no "Nonexistent Status"
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+        ):
+            result = runner.invoke(review.review_command, ["apply", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert fake_jira.transitioned == []
+        assert "already at (or has no transition to)" in result.output
 
 
 class TestValidatePhaseDocKeys:
@@ -2455,6 +2867,9 @@ class TestPushPullQuestionsCommands:
         # row) -- both docs' pages must be refreshed, not just brd's.
         # Titles come from integrations.py's _DEFAULT_PAGE_MAP, since this
         # fixture's integrations.yml only configures document_reviews.validate.
-        assert "Demo — Business Requirements" in fake_confluence.pages_by_title
-        assert "Demo — System Requirements" in fake_confluence.pages_by_title
+        # {feature} is included in the fallback title (see _DEFAULT_PAGE_MAP's
+        # own docstring) -- without it two features pushing the same doc type
+        # would silently overwrite each other's Confluence page.
+        assert "Demo — auth — Business Requirements" in fake_confluence.pages_by_title
+        assert "Demo — auth — System Requirements" in fake_confluence.pages_by_title
         assert "Confluence page refreshed" in result.output

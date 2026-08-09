@@ -1,6 +1,6 @@
 # Check Review
 
-Check the Jira review status of an SDD document and act on the outcome.
+Check the review status of an SDD document and act on the outcome.
 
 ## Persona
 
@@ -13,25 +13,30 @@ The document key to check: brd | use-cases | srd | design (unified) | arch | hld
 Which planning keys apply depends on `plan_mode` in `.specify/manifest.yml`:
 `design` for unified mode; `arch`, `hld`, `adr` for separate mode.
 
-## No-Jira fallback (check this FIRST)
+## Steps
 
-If `.specify/integrations.yml` does not exist, or it has no `jira:` section, do
-NOT run the CLI command. Determine the status from local state, in this order:
+Always run this — it works whether or not `jira:`/`confluence:` are configured.
+Unlike `sdd review submit` (which hard-requires both `jira:` and `confluence:`),
+`sdd review check` has no such prerequisite: with no `jira:` section at all it
+still checks `.specify/.local-approvals.yml` for a recorded approval and
+surfaces any unacknowledged dashboard comments directly (see the NEEDS
+REVISION note below) — this is not a chat-only fallback, the CLI call itself
+already covers it:
 
-1. `.specify/features/{feature}/{doc_key}.md` header shows `Status: Approved`
-   → treat as **APPROVED**.
-2. `.specify/.local-approvals.yml` has an entry for `{doc_key}`
-   → treat as **APPROVED**.
-3. Otherwise → treat as **PENDING**: "{DOC} is awaiting chat approval — share
-   it with {reviewer_role} (see roles.yml) and reply 'approved' when they
-   sign off."
-
-## Steps (Jira configured)
-
-Run:
 ```bash
 sdd review check --doc {doc_key}
 ```
+
+Only skip this call — and fall back to a purely local check — if the `sdd`
+CLI itself is **not installed at all** (`pip install sddflow`). That is a
+genuinely different situation from "no `jira:`/`confluence:` configured,"
+which the command above already handles on its own. In that not-installed
+case only, determine status directly: the document's own `Status:` header
+reading `Approved` → treat as **APPROVED**; otherwise
+`.specify/.local-approvals.yml` has an entry for `{doc_key}` → treat as
+**APPROVED**; otherwise → treat as **PENDING**: "{DOC} is awaiting chat
+approval — share it with {reviewer_role} (see roles.yml) and reply 'approved'
+when they sign off."
 
 Then follow the decision tree below.
 
@@ -57,7 +62,10 @@ Then advance — read `plan_mode` and `scope` from `.specify/manifest.yml` first
 
 ### NEEDS REVISION (exit code 1)
 
-The command prints the reviewer's comments. Apply them:
+The command prints the reviewer's comments — this includes dashboard comments
+in every mode: mirrored to the Jira review ticket and printed from there when
+`jira:` is configured; surfaced directly by the CLI's own local-mode fallback
+when it isn't. Apply them:
 
 1. Read each comment from the output
 2. Edit `.specify/features/{feature}/{doc_key}.md` to address the feedback

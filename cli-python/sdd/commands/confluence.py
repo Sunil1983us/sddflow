@@ -165,12 +165,58 @@ def _resolve_page_title(
         )
     if doc == "constitution":
         return _CONSTITUTION_PAGE_TITLE.replace("{project}", project_name)
-    template = page_map.get(doc, f"{{project}} — {doc.upper()}")
+    # The generic fallback (a doc key with no page_map entry at all -- not
+    # even from the old config.py-scaffolded default) has no prior
+    # behavior to preserve, unlike an explicit entry someone actually
+    # wrote -- so it includes {feature} unconditionally, safe by default.
+    template = page_map.get(doc, f"{{project}} — {{feature}} — {doc.upper()}")
     title = template.replace("{project}", project_name)
     if doc in LIVING_SERVICE_DOCS or doc == "runbook":
         title = title.replace(" — {feature}", "").replace("{feature}", "")
         return title.strip().rstrip("—").strip()
     return title.replace("{feature}", feature)
+
+
+def feature_collision_warning(
+    title: str, feature_name: str, root: Path = Path(".")
+) -> str | None:
+    """None if this push is safe; otherwise a warning explaining why it
+    isn't. "Safe" means either only one feature exists in this project, or
+    `title` already distinguishes the current feature from the others.
+
+    This exists for projects whose integrations.yml predates {feature}
+    being added to a doc's page_map/document_reviews.confluence_page entry
+    (an explicit entry someone wrote, or scaffolded by an older `sdd config
+    init`, is never silently rewritten -- see _resolve_page_title's
+    docstring) — the generic fallback used when a doc has NO entry at all
+    is safe by construction, but an existing explicit entry without
+    {feature} would upsert onto whatever page ANY other feature's same
+    doc type already created, since Confluence page lookup is by title,
+    not by feature. Never raises -- best-effort; a missing/unreadable
+    .specify/features/ just means nothing to warn about."""
+    if feature_name and feature_name in title:
+        return None
+    features_dir = root / ".specify" / "features"
+    try:
+        other_features = sorted(
+            p.name
+            for p in features_dir.iterdir()
+            if p.is_dir() and p.name != feature_name
+        )
+    except OSError:
+        return None
+    if not other_features:
+        return None
+    return (
+        f"'{title}' doesn't include the feature name ({feature_name!r}), "
+        f"but this project also has {', '.join(repr(f) for f in other_features)}. "
+        "Confluence page lookup is by title, not by feature -- pushing "
+        "now will upsert onto whichever of those other features' pages "
+        "already has this exact title, silently overwriting its content. "
+        "Add {feature} to this doc's page_map (or document_reviews."
+        "confluence_page) entry in integrations.yml to fix this "
+        "permanently, or pass --force to push anyway."
+    )
 
 
 @click.group()
@@ -196,7 +242,14 @@ def confluence_command():
 @click.option(
     "--dry-run", is_flag=True, help="Print page titles without calling the API"
 )
-def confluence_push(profile, feature, doc, summary, dry_run):
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Push even if a page title doesn't distinguish this feature from "
+    "others in the project (risk of overwriting another feature's page)",
+)
+def confluence_push(profile, feature, doc, summary, dry_run, force):
     """Publish SDD documents to Confluence pages (create or update)."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
@@ -256,9 +309,30 @@ def confluence_push(profile, feature, doc, summary, dry_run):
     console.print(f"  Docs     : [cyan]{len(available)}[/cyan]")
     console.print()
 
+    collisions = [
+        (key, title, feature_collision_warning(title, feature_name))
+        for key, _md_path, title in available
+    ]
+    collisions = [(key, title, w) for key, title, w in collisions if w]
+    if collisions and not dry_run:
+        for key, _title, warning in collisions:
+            console.print(f"  [yellow]⚠  {key}: {warning}[/yellow]")
+        if not force:
+            console.print()
+            console.print(
+                "  [red]✗  Refusing to push — re-run with --force once "
+                "you've reviewed the warning(s) above.[/red]"
+            )
+            raise SystemExit(1)
+        console.print()
+
     if dry_run:
         for key, md_path, title in available:
-            console.print(f"  [dim]would push[/dim]  [cyan]{title}[/cyan]  ← {md_path}")
+            warning = feature_collision_warning(title, feature_name)
+            flag = "  [yellow]⚠  collision risk[/yellow]" if warning else ""
+            console.print(
+                f"  [dim]would push[/dim]  [cyan]{title}[/cyan]  ← {md_path}{flag}"
+            )
         console.print()
         return
 
@@ -311,7 +385,15 @@ def confluence_push(profile, feature, doc, summary, dry_run):
 @click.option(
     "--dry-run", is_flag=True, help="Print title and path without calling the API"
 )
-def confluence_draft(doc, profile, feature, dry_run):
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Push even if the page title doesn't distinguish this feature "
+    "from others in the project (risk of overwriting another feature's "
+    "page)",
+)
+def confluence_draft(doc, profile, feature, dry_run, force):
     """Push a draft SDD document to Confluence and print the edit URL.
 
     The page URL is printed so the user can open it, fill in any
@@ -364,7 +446,21 @@ def confluence_draft(doc, profile, feature, dry_run):
     console.print(f"  Space    : [cyan]{cf_cfg.space_key}[/cyan]")
     console.print()
 
+    warning = feature_collision_warning(title, feature_name)
+    if warning and not dry_run:
+        console.print(f"  [yellow]⚠  {warning}[/yellow]")
+        if not force:
+            console.print()
+            console.print(
+                "  [red]✗  Refusing to push — re-run with --force once "
+                "you've reviewed the warning above.[/red]"
+            )
+            raise SystemExit(1)
+        console.print()
+
     if dry_run:
+        if warning:
+            console.print(f"  [yellow]⚠  {warning}[/yellow]")
         console.print("  [dim]would push draft page to Confluence[/dim]")
         console.print()
         return

@@ -231,15 +231,53 @@ class ConfluenceClient:
     def upsert_page(
         self, space_key: str, title: str, body_html: str, parent_id: str | None = None
     ) -> tuple[dict, bool]:
-        """Create or update a page. Returns (page_dict, was_created)."""
+        """Create or update a page. Returns (page_dict, was_created).
+
+        Retries the update on a 409 Conflict -- Confluence's optimistic-
+        locking response when the page's actual current version has moved
+        past what get_page_by_title() just read (real, observed race:
+        e.g. `sdd review submit` calls upsert_page twice in one run --
+        once for the initial push, again right after to stamp the Jira
+        status banner on once the ticket exists -- with a burst of
+        diagram-attachment uploads on the same page in between; Confluence
+        Cloud's read path can lag slightly behind its own just-completed
+        write in that window). A 409 here is never a body/payload problem
+        -- Confluence rejected the write purely because the version number
+        we supplied is already stale.
+
+        This can't be fixed by the generic HTTP-layer retry (see
+        atlassian_auth.py's _retrying_adapter, which deliberately excludes
+        409 from its status_forcelist): resending the exact same PUT body
+        with the exact same stale version number just reproduces the exact
+        same 409 -- confirmed by a user who hit this and retried by hand,
+        got the identical error. The only real fix is to re-read the
+        page's current version and retry the PUT with the corrected
+        number, which is what this loop does."""
         existing = self.get_page_by_title(space_key, title)
-        if existing:
-            page = self.update_page(
-                existing["id"],
-                existing["version"]["number"],
-                title,
-                body_html,
-            )
-            return page, False
-        page = self.create_page(space_key, title, body_html, parent_id)
-        return page, True
+        if not existing:
+            page = self.create_page(space_key, title, body_html, parent_id)
+            return page, True
+
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                page = self.update_page(
+                    existing["id"],
+                    existing["version"]["number"],
+                    title,
+                    body_html,
+                )
+                return page, False
+            except requests.HTTPError as e:
+                is_conflict = e.response is not None and e.response.status_code == 409
+                if not is_conflict or attempt == max_attempts - 1:
+                    raise
+                # Re-read the page's now-current version before retrying --
+                # a blind resend would just repeat the same 409. Fall back
+                # to the stale `existing` (and let update_page's own 409
+                # surface again next loop) only in the unlikely case the
+                # page has vanished between our GET and PUT.
+                existing = self.get_page_by_title(space_key, title) or existing
+        raise RuntimeError(  # pragma: no cover -- loop always returns or raises above
+            "upsert_page: retry loop exited without returning or raising"
+        )

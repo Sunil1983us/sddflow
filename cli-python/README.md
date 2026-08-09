@@ -738,6 +738,89 @@ appended, never used to rewrite old ones.
 
 ---
 
+### `sdd cr`
+
+Change Request review lifecycle — submit a `/change`-generated changeset
+record for stakeholder review, then poll its approval status.
+
+```bash
+sdd cr submit --cr CR-001 --feature validation-service   # push to Confluence + create a Jira review task
+sdd cr check  --cr CR-001 --feature validation-service    # exit 0=approved 1=needs-revision 2=pending 3=not-submitted
+```
+
+**Always pass `--feature` explicitly on a multi-feature project.** It
+defaults to `manifest.yml`'s `project.feature` when omitted, but CR
+numbering (`CR-NNN`/`CHG-NNN`) restarts per feature — each feature has its
+own `.specify/features/{feature}/changesets/` folder — so an implicit
+resolution risks acting on the wrong feature's CR if `project.feature` has
+drifted since you last checked (see the Feature Drift Check in each
+pack's `CLAUDE.md`). `sdd cr check`'s lookup label must match `sdd cr
+submit`'s exactly (both are feature-qualified), so a mismatched
+`--feature` between the two calls will report "NOT SUBMITTED" even after
+a real submission.
+
+---
+
+### `sdd feature`
+
+Read-only, filesystem-only views of a project's features — no
+`integrations.yml` required, works identically in chat/local/jira review
+mode. Doesn't add anything to `manifest.yml`: `list` scans
+`.specify/features/` directly (the same scan `sdd dashboard` already uses
+as its source of truth), and `status` calls the exact data
+`sdd dashboard` renders, as terminal text.
+
+```bash
+sdd feature list                              # every feature + its current stage
+sdd feature status                             # full pipeline for manifest.yml's project.feature
+sdd feature status --feature rule-management-ui
+```
+
+`sdd feature status` shows the pipeline (done/current/upcoming/skipped
+steps, who to ask next), each document's Approvals-table detail (who's
+approved, who's still pending, by role), task progress, and Business
+Objective rollup — the same picture `sdd dashboard` shows for one
+feature, without opening a browser.
+
+**Different from `sdd review status`**: that command requires `jira:`
+configured and shows only Jira-tracked document reviews. `sdd feature
+status` reads each document's own `Status:` header and `## Approvals`
+table directly, so it works with nothing configured at all — the
+authoritative gate in every review mode (see `HOW-TO-USE.md` → "Document
+Review Gates — Three Modes").
+
+---
+
+### `sdd project-type`
+
+sdd-universal only (the other 4 packs each have one fixed tech stack baked
+into their own constitution.md and no `project_type` field to migrate).
+Guided migration when a project genuinely outgrows the type it was
+scaffolded with — e.g. a `backend-service` project takes on an admin UI as
+a second feature and should become `fullstack`. See CLAUDE.md → "Migrating
+project_type" for the full guided procedure.
+
+```bash
+sdd project-type show                            # print current project_type
+sdd project-type migrate --to fullstack           # dry-run: report only, writes nothing
+sdd project-type migrate --to fullstack --apply   # writes manifest.yml
+sdd project-type migrate --to fullstack --apply --force  # required if the
+                                                   # migration is lossy (see below)
+```
+
+`migrate` never touches `constitution.md` — Tech Stack row compatibility
+can't be determined mechanically, so extending the constitution for the new
+type is always a separate step (`/change`, change type Technical). This
+command's job is narrower: report which type-specific extended docs
+(`component-spec`/`ux-flow`/`screen-spec`) the target type adds or drops
+relative to the current one, then — only once reviewed, and with `--force`
+if anything would be dropped — update the one `project_type` field.
+Already-generated documents for existing features are never touched,
+regenerated, or deleted; this only changes which templates apply to future
+work.
+
+---
+
 ### `sdd pr create`
 
 Create a git branch and a PR for a task, linked back to its Jira issue — on
