@@ -56,6 +56,37 @@ Confluence page titles, and the Jira Epic summary.
    remind user to review + finalize it before /validate can run
 <!-- shared:gate1-reminders:end -->
 
+<!-- shared:feature-drift-check:start -->
+## Feature Drift Check (multi-session safety)
+
+`manifest.project.feature` is one value in one shared file, not a per-chat
+setting. If a second chat session — another window open on the same project
+folder, or a teammate editing `manifest.yml` directly — switches it while
+*this* conversation is still active, every later command in this
+conversation would silently start reading and writing the new feature's
+`.specify/features/{feature}/` folder instead of the one this conversation
+has actually been working on. Nothing crashes; it just quietly does the
+wrong thing, which is worse.
+
+**Guard against it.** Once this conversation has established which feature
+it's working on — you generated or read a document for it, or the user
+named it explicitly — compare that against `project.feature` every time a
+command re-reads `manifest.yml`. If the two now disagree, **STOP before
+reading or writing any document** and ask: "manifest.yml's active feature
+is now **{new}**, but this conversation has been working on **{previous}**
+— did you (or another session) intend to switch? Reply with which one to
+continue, or confirm **{new}** is correct." Proceed only after the user
+answers. This has no effect on a fresh conversation's first command in a
+session — there is nothing yet to contradict, so whatever `project.feature`
+already says is simply where this conversation starts.
+
+For genuinely parallel work on two features at once, two chats sharing one
+`manifest.yml` is not the right setup regardless of this check — recommend
+a separate working copy per feature (e.g. `git worktree add`), each with
+its own `.specify/manifest.yml`. See HOW-TO-USE.md → "Working on Multiple
+Features."
+<!-- shared:feature-drift-check:end -->
+
 ## AI-2 — Summary-First Rule (token economy)
 For every command AFTER /specify, read `.summary.md` files for prior
 documents. Behaviour is governed by `reading_mode` (set in manifest.yml,

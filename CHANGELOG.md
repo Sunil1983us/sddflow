@@ -4,6 +4,55 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.16] — 2026-08-09 (New: Feature Drift Check — guards against two chat sessions sharing one project.feature)
+
+Prompted by a live-testing question: a user running two chat sessions
+against the same project folder, one per feature, asked how a single
+`manifest.project.feature` field could possibly work for both at once.
+It can't, mechanically — every command's own "Before Starting" step
+re-reads `manifest.yml` fresh and substitutes `{manifest.project.feature}`
+directly into every save/read path, with no per-chat-session isolation.
+Whichever chat last changed the field "wins"; the other chat's next
+command silently follows the new value instead of the feature it had
+actually been working on — no error, no warning, just a silently wrong
+target folder.
+
+### Added
+
+- `packs/_shared/blocks/feature-drift-check.md` — new shared block,
+  inserted into all 5 packs' `CLAUDE.md` right after "Startup (every
+  session)": once a conversation has established which feature it's
+  working on, compare that against `project.feature` every time a
+  command re-reads `manifest.yml`; if they now disagree, STOP before
+  reading/writing anything and ask the user to confirm which feature to
+  use, rather than silently following the changed value. No effect on a
+  fresh conversation's first command — nothing yet to contradict.
+- A "Working on Multiple Features (or Multiple Chat Sessions)" section in
+  all 5 packs' `HOW-TO-USE.md` (before "File Ownership"): documents the
+  existing multi-feature-per-project model (each feature already gets
+  its own `.specify/features/{feature}/` folder; `sdd dashboard` already
+  shows every feature regardless of which is "current" — this was
+  already true, just previously undocumented), explains the new drift
+  check, and recommends `git worktree add` (a separate `manifest.yml`
+  per worktree) as the clean way to actually parallelize two chats on
+  two features, instead of sharing one `manifest.yml`.
+
+`sdd-micro` is intentionally excluded — its own `CLAUDE.md` already
+documents it as single-purpose by design, with no multi-feature split,
+so this concern doesn't apply there.
+
+### Verified
+
+- `check-cross-references.py --verbose`: all cross-references resolve
+  across 6 packs.
+- `test-setup.sh`: 19/19 passed. `test-setup-micro.sh`: 12/12 passed.
+- `sync-blocks.sh` run twice consecutively: only the intended 5
+  `CLAUDE.md` + 5 `HOW-TO-USE.md` + 1 new block file changed, no further
+  drift on the second run (idempotent).
+- `cli-python` pytest: 934/934.
+
+---
+
 ## [2.8.40] — 2026-08-08 (Audit: Jira/Confluence review-flow consistency across every prompt in all 5 packs)
 
 Requested audit, following the prior round of live-testing fixes: check

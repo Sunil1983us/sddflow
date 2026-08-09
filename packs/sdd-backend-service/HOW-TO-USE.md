@@ -1027,6 +1027,38 @@ pr_rules:
 
 ---
 
+## Working on Multiple Features (or Multiple Chat Sessions)
+
+One project can have several features side by side — each gets its own
+`.specify/features/{feature}/` folder, and `sdd dashboard` shows every one
+of them at once, not just whichever is "current." `manifest.yml`'s
+`project.feature` is only a **default pointer**: it tells a command which
+feature folder to read/write when nothing else specifies one, nothing
+more. Switching it (by hand, or via `/create-context` for a new feature)
+never touches or hides any other feature's documents.
+
+**One chat, one project folder, working on one feature at a time** — the
+normal case — needs nothing special. Just switch `project.feature` when
+you start the next one.
+
+**Two chats open on the same project folder at the same time, each meant
+to work on a different feature — don't do this.** `project.feature` is one
+value in one file; whichever chat last changed it "wins," and the other
+chat's next command will silently follow the new value instead of the
+feature it was actually working on. Every command's startup instructions
+now include a **Feature Drift Check** (see CLAUDE.md) that catches this
+mid-conversation and stops to ask before reading or writing anything — but
+the safe way to avoid it entirely is to give each chat its **own working
+copy**:
+```bash
+git worktree add ../project-feature-b feature-b-branch
+```
+Each worktree has its own `.specify/manifest.yml`, so two chats — one per
+worktree — can each set `project.feature` to a different value and never
+collide. Plain separate clones work the same way.
+
+---
+
 ## File Ownership
 
 | File | Owner | Changes |

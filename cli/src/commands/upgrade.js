@@ -4137,6 +4137,59 @@ export const MIGRATIONS = [
       'examples/todo-api (33/33); sync-blocks.sh confirmed idempotent',
     ],
   },
+  {
+    from: '2.8.40',
+    to:   '2.9.16',
+    description: "New Feature Drift Check safety rule, closing a real multi-session collision found during live testing on a project with two features",
+    notes: [
+      'manifest.project.feature is a single value in one shared file, ' +
+      'not per-chat-session state -- every command\'s own \'Before ' +
+      'Starting\' step re-reads manifest.yml fresh at the start of that ' +
+      'command and substitutes {manifest.project.feature} directly into ' +
+      'save/read paths. A user reported running two chat sessions ' +
+      'against the same project folder, one per feature, and asked how ' +
+      'manifest.yml\'s single project.feature field could possibly work ' +
+      'for both at once -- it can\'t: whichever chat last changed it ' +
+      '\'wins\', and the other chat\'s next command silently follows the ' +
+      'new value instead of the feature it had actually been working ' +
+      'on. No error, no warning, just a silently wrong target folder',
+      'Added a new standing instruction (packs/_shared/blocks/feature-' +
+      'drift-check.md) to all 5 packs\' CLAUDE.md, right after the ' +
+      '\'Startup (every session)\' section: once a conversation has ' +
+      'established which feature it\'s working on, compare that against ' +
+      'project.feature every time a command re-reads manifest.yml; if ' +
+      'they now disagree, STOP before reading/writing any document and ' +
+      'ask the user to confirm which feature to use, instead of ' +
+      'silently following the changed value. No effect on a fresh ' +
+      'conversation\'s first command -- nothing yet to contradict',
+      'Also added a \'Working on Multiple Features (or Multiple Chat ' +
+      'Sessions)\' section to all 5 packs\' HOW-TO-USE.md (before \'File ' +
+      'Ownership\'): explains the existing multi-feature-per-project ' +
+      'model (each feature already gets its own .specify/features/' +
+      '{feature}/ folder; sdd dashboard already shows every feature ' +
+      'regardless of which is \'current\' -- this was already true, ' +
+      'just undocumented), documents the new drift check, and ' +
+      'recommends `git worktree add` (separate manifest.yml per ' +
+      'worktree) as the clean way to actually parallelize two chats on ' +
+      'two features rather than sharing one manifest.yml',
+      'sdd-micro intentionally excluded -- its own CLAUDE.md already ' +
+      'documents it as single-purpose by design with no multi-feature ' +
+      'split, so this concern doesn\'t apply there',
+      'Pure prompt/doc content shipped via the shared-block sync ' +
+      'system (packs/_shared/blocks/, packs/_shared/sync-blocks.sh) -- ' +
+      'no manifest schema changes, no CLI code changes',
+      'Verified: check-cross-references.py clean across all 6 packs; ' +
+      'test-setup.sh (19/19) and test-setup-micro.sh (12/12) both ' +
+      'pass; sync-blocks.sh run twice consecutively with only the 5 ' +
+      'CLAUDE.md + 5 HOW-TO-USE.md + 1 new block file changed ' +
+      '(idempotent); cli-python pytest suite green after this ' +
+      'migration entry was added',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.9.16';
+      return manifest;
+    },
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
