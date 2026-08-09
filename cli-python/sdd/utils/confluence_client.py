@@ -170,7 +170,7 @@ class ConfluenceClient:
         """
         r = self._s.get(
             self._api(f"/content/{page_id}/child/comment"),
-            params={"expand": "body.view,version,ancestors", "limit": 100},
+            params={"expand": "body.view,version,ancestors", "limit": "100"},
         )
         r.raise_for_status()
         results = r.json().get("results", [])
@@ -197,7 +197,7 @@ class ConfluenceClient:
             self._api(f"/content/{page_id}/child/comment"),
             params={
                 "expand": "body.view,version,extensions.inlineProperties",
-                "limit": 100,
+                "limit": "100",
                 "location": "inline",
             },
         )

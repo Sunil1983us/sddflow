@@ -8,10 +8,15 @@ from sdd.utils.status import (
     _doc_timing,
     _normalize_role_key,
     _parse_approvals_table,
+    _parse_brd_bo,
     _parse_iso_date,
+    _parse_release_bo_closure,
+    _parse_srd_fr,
+    _parse_uc_traces,
     _parse_version_history_table,
     _resolve_expected_approver,
     _service_level_docs,
+    build_bo_rollup,
     build_feature_status,
     build_pipeline,
     build_project_status,
@@ -1739,14 +1744,6 @@ def test_persona_for_public_wrapper_matches_internal_lookup():
 # "Satisfies:" field + completion status. use-cases.md/srd.md UC Trace
 # columns are display-only (which UCs implement a BO), not part of the
 # completion count.
-
-from sdd.utils.status import (
-    _parse_brd_bo,
-    _parse_release_bo_closure,
-    _parse_srd_fr,
-    _parse_uc_traces,
-    build_bo_rollup,
-)
 
 
 def _write_brd_bo(feature_dir: Path, four_col_objectives: bool = False) -> None:

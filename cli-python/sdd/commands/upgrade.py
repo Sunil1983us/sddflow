@@ -6447,7 +6447,6 @@ MIGRATIONS: list[Migration] = [
             "file changed (idempotent); cli-python pytest suite green "
             "after this migration entry was added",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.9.16"},
     },
     {
         "from": "2.9.16",
@@ -6507,7 +6506,6 @@ MIGRATIONS: list[Migration] = [
             "sdd-universal's own CLAUDE.md/HOW-TO-USE.md changed; "
             "test-setup.sh 19/19 passed",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.9.17"},
     },
     {
         "from": "2.9.17",
@@ -6569,7 +6567,6 @@ MIGRATIONS: list[Migration] = [
             "template parses as valid YAML with feature_display_name "
             "present and empty by default",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.9.18"},
     },
     {
         "from": "2.9.18",
@@ -6641,7 +6638,6 @@ MIGRATIONS: list[Migration] = [
             "manually confirmed the actual collision before/after the "
             "fix (COLLISION -> distinct titles for brd/use-cases/srd)",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.9.19"},
     },
     {
         "from": "2.9.19",
@@ -6703,7 +6699,6 @@ MIGRATIONS: list[Migration] = [
             "feature.py itself has none at all; manually smoke-tested "
             "end-to-end against a hand-built 2-feature project",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.9.20"},
     },
     {
         "from": "2.9.20",
@@ -6748,7 +6743,6 @@ MIGRATIONS: list[Migration] = [
             "across all 6 packs; sync-blocks.sh run twice consecutively "
             "with zero drift; test-setup.sh 19/19 passed",
         ],
-        "migrate": lambda m: {**m, "sdd_version": "2.9.21"},
     },
 ]
 
