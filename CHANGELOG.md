@@ -4,6 +4,59 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.24] — 2026-08-09 (Dashboard: task pagination, more toggles, a real persistence bug fix)
+
+Direct follow-up to v2.9.23, after the user pushed back: "do you have the
+toggle for other sections also, like Tasks — if it has 100 tasks the page
+will be very high, so we can have a limit and click next button, same
+Documents section also toggle... review all the design... think as a UX
+designer for dashboard."
+
+### Changed
+
+- **Tasks pagination.** A real project's `tasks.md` can run to 50–200+
+  entries. `renderTasks()` now paginates at 20 rows/page with Prev/Next
+  buttons and a "Showing X–Y of N · page P/C" indicator — the aggregate
+  progress bar above the table always reflects the *full* list, not just
+  the current page. Position is kept per-feature so switching tabs doesn't
+  lose your place.
+- **Documents and Business Objectives (per-feature)** are now collapsible,
+  matching the project-wide sections from v2.9.23. Documents defaults open
+  (bounded list); Business Objectives defaults open only at ≤8 BOs,
+  auto-collapsing past that — the same smart threshold was retrofitted onto
+  the existing project-wide BO Overview, which previously always defaulted
+  open regardless of size.
+- **Jira Export's** Stories/Tasks lists now truncate at 12 items with a
+  "+N more" / "show less" toggle — a comma-joined list of ~100 ticket keys
+  was still a wall of wrapped links even though it isn't a table.
+
+### Fixed
+
+- **Real bug, found while reviewing the whole design end-to-end**: none of
+  v2.9.23's collapsible sections actually survived the dashboard's 5-second
+  poll. `#root` is rebuilt wholesale on every poll, so any manual
+  open/close toggle silently snapped back to its hardcoded default every 5
+  seconds. Fixed with an explicit `state.collapsed` map plus a
+  capture-phase `toggle` listener (native `toggle` events don't bubble, so
+  capture phase is required for delegation to reach them) — a user's choice
+  now persists across every poll, and only falls back to the smart default
+  when they haven't chosen yet.
+
+### Verified
+
+- `cli-python` pytest 993/993 (992 unchanged + 1 updated for
+  `renderJiraExport()`'s new parameter); `ruff check`/`format` clean;
+  `mypy` clean; `node --check app.js` valid syntax.
+- Manually verified end-to-end with a real HTTP server against a synthetic
+  87-task/14-BO/87-Jira-key fixture, screenshotted via Playwright/Chromium:
+  pagination transitions correctly, the 14-BO section auto-collapsed as
+  designed, the Jira Export toggle works — and the persistence fix was
+  directly verified by opening a collapsed section, calling the app's own
+  `refresh()` to simulate a poll, and confirming it stayed open (it would
+  have silently reverted before this fix).
+
+---
+
 ## [2.9.23] — 2026-08-09 (Dashboard: feature tabs, collapsible sections, stat widgets)
 
 Requested directly by a user who attached a real dashboard PDF snapshot and

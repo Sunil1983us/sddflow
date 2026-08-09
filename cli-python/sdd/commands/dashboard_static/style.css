@@ -230,3 +230,11 @@
   .card.collapsible > summary::-webkit-details-marker { display: none; }
   .card.collapsible > summary::before { content: "▸"; color: var(--dim); transition: transform .15s; flex-shrink: 0; }
   .card.collapsible[open] > summary::before { transform: rotate(90deg); }
+
+  /* Tasks card pagination (see app.js renderTasks()) — a real project's
+     tasks.md routinely runs to 50-200+ entries; only one page of rows is
+     ever in the DOM at once. */
+  .pager {
+    display: flex; align-items: center; gap: .6rem; margin-top: .6rem;
+    padding-top: .6rem; border-top: 1px solid var(--border);
+  }
