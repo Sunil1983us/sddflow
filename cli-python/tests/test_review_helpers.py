@@ -176,11 +176,19 @@ class TestMarkMdNeedsRevision:
 
 
 class TestMarkApprovalsTable:
+    """Every real template's Approvals table is 4 columns -- 'Role |
+    Approver | Status | Date' (verified against all 20 templates that
+    have one). This fixture matches that shape exactly -- an earlier
+    version used an invented 3-column 'Role | Status | Date' shape that
+    doesn't exist in any real template, which is exactly why the
+    corresponding regex bug (never matched a single real row -- see
+    _mark_approvals_table's own docstring) went uncaught."""
+
     def _doc_with_approvals(self, project, rows):
-        table = "\n".join(f"| {role} | Pending | |" for role in rows)
+        table = "\n".join(f"| {role} | | Pending | |" for role in rows)
         text = (
             "# Doc\n> Version: 1.0 | Status: Draft | Date: x | Author: y\n\n"
-            f"## Approvals\n\n| Role | Status | Date |\n|---|---|---|\n{table}\n\n"
+            f"## Approvals\n\n| Role | Approver | Status | Date |\n|---|---|---|---|\n{table}\n\n"
             "## Version History\n\n| Version | Date |\n|---|---|\n| 1.0 | x |\n"
         )
         p = project / ".specify" / "features" / "auth" / "brd.md"
@@ -191,7 +199,7 @@ class TestMarkApprovalsTable:
         p = self._doc_with_approvals(project, ["Product Owner (accountable)"])
         review._mark_md_approved(p)
         text = p.read_text()
-        assert "| Product Owner (accountable) | Approved |" in text
+        assert "| Product Owner (accountable) | | Approved |" in text
         assert "| Pending |" not in text
 
     def test_all_rows_in_multi_row_table_flipped(self, project):
@@ -202,6 +210,15 @@ class TestMarkApprovalsTable:
         text = p.read_text()
         assert text.count("| Approved |") == 3
         assert "Pending" not in text
+
+    def test_approver_name_fills_approver_column(self, project):
+        """Regression: the CLI path never passed the approver's name
+        through at all, so the Approver column stayed blank even when
+        the row did flip to Approved."""
+        p = self._doc_with_approvals(project, ["Product Owner"])
+        review._mark_md_approved(p, approver_name="Sunil PM")
+        text = p.read_text()
+        assert "| Product Owner | Sunil PM | Approved |" in text
 
     def test_blank_line_before_next_heading_preserved(self, project):
         p = self._doc_with_approvals(project, ["Product Owner"])
@@ -239,6 +256,59 @@ class TestMarkApprovalsTable:
         assert p.read_text() == first
 
 
+class TestMarkApprovalsTableRoleFilter:
+    """role_filter -- scopes the flip to only the row(s) whose Role text
+    matches, instead of blanket-flipping every row. Used when the
+    evidence is a single reviewer's sign-off (e.g. one Jira ticket's
+    assignee) that shouldn't be read as every RACI role having approved."""
+
+    def _doc_with_approvals(self, project, rows):
+        table = "\n".join(f"| {role} | | Pending | |" for role in rows)
+        text = (
+            "# Design\n> Version: 1.0 | Status: Draft | Date: x | Author: y\n\n"
+            f"## Approvals\n\n| Role | Approver | Status | Date |\n|---|---|---|---|\n{table}\n\n"
+            "## Version History\n\n| Version | Date |\n|---|---|\n| 1.0 | x |\n"
+        )
+        p = project / ".specify" / "features" / "auth" / "design.md"
+        p.write_text(text)
+        return p
+
+    def test_only_matching_row_flipped(self, project):
+        p = self._doc_with_approvals(project, ["Architect", "Tech Lead", "Stakeholder"])
+        review._mark_md_approved(
+            p, approver_name="Sunil Architect", role_filter="Architect"
+        )
+        text = p.read_text()
+        assert "| Architect | Sunil Architect | Approved |" in text
+        assert "| Tech Lead | | Pending |" in text
+        assert "| Stakeholder | | Pending |" in text
+
+    def test_match_is_case_insensitive_substring(self, project):
+        p = self._doc_with_approvals(project, ["Architect (accountable)", "Tech Lead"])
+        review._mark_md_approved(p, role_filter="architect")
+        text = p.read_text()
+        assert "Architect (accountable) | | Approved |" in text
+        assert "| Tech Lead | | Pending |" in text
+
+    def test_no_matching_row_falls_back_to_blanket_flip(self, project):
+        """A configured reviewer_role that doesn't appear in this doc's
+        Approvals table at all is a config/wording mismatch -- must not
+        leave the table permanently stuck on Pending."""
+        p = self._doc_with_approvals(project, ["Architect", "Tech Lead"])
+        review._mark_md_approved(p, role_filter="Nonexistent Role")
+        text = p.read_text()
+        assert text.count("| Approved |") == 2
+        assert "Pending" not in text
+
+    def test_role_filter_none_is_unaffected_blanket_flip(self, project):
+        """Default behavior (chat/local mode, no per-role evidence
+        available) is unchanged: role_filter=None flips every row."""
+        p = self._doc_with_approvals(project, ["Architect", "Tech Lead"])
+        review._mark_md_approved(p, role_filter=None)
+        text = p.read_text()
+        assert text.count("| Approved |") == 2
+
+
 class TestLocalApprovals:
     def test_save_and_load_roundtrip(self, project):
         review._save_local_approval("brd", "Product Owner", "approved in chat")
@@ -259,6 +329,62 @@ class TestLocalApprovals:
         raw = Path(".specify/.local-approvals.yml").read_text()
         assert raw.startswith("#")
         assert yaml.safe_load(raw)["brd"]["approved_by"] == "PO"
+
+
+class TestReviewApproveRoleFlag:
+    """`sdd review approve --role` -- CLI wiring for the role-scoped
+    Approvals-table flip (used when a Jira ticket's single reviewer
+    approved, not the whole RACI table)."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+
+        return CliRunner()
+
+    def _write_design_with_approvals(self, project):
+        p = project / ".specify" / "features" / "auth" / "design.md"
+        p.write_text(
+            "# Design\n> Version: 1.0 | Status: Draft | Date: x | Author: y\n\n"
+            "## Approvals\n\n| Role | Approver | Status | Date |\n|---|---|---|---|\n"
+            "| Architect | | Pending | |\n| Tech Lead | | Pending | |\n"
+            "| Stakeholder | | Pending | |\n\n"
+            "## Version History\n\n| Version | Date |\n|---|---|\n| 1.0 | x |\n"
+        )
+        return p
+
+    def test_role_flag_scopes_the_flip(self, project, runner):
+        p = self._write_design_with_approvals(project)
+        result = runner.invoke(
+            review.review_command,
+            [
+                "approve",
+                "--doc",
+                "design",
+                "--local",
+                "--by",
+                "Sunil Architect",
+                "--role",
+                "Architect",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        text = p.read_text()
+        assert "| Architect | Sunil Architect | Approved |" in text
+        assert "| Tech Lead | | Pending |" in text
+        assert "| Stakeholder | | Pending |" in text
+        assert "only the 'Architect' row(s)" in result.output
+
+    def test_no_role_flag_blanket_flips_as_before(self, project, runner):
+        p = self._write_design_with_approvals(project)
+        result = runner.invoke(
+            review.review_command,
+            ["approve", "--doc", "design", "--local", "--by", "Team"],
+        )
+        assert result.exit_code == 0, result.output
+        text = p.read_text()
+        assert text.count("| Approved |") == 3
+        assert "Pending" not in text
 
 
 class TestDocMdPath:

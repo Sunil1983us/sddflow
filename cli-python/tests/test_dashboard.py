@@ -62,6 +62,25 @@ def test_approve_flips_status_header_and_records_local_approval(tmp_path, monkey
     assert "lgtm" in approvals_text
 
 
+def test_approve_fills_approver_column_in_approvals_table(tmp_path, monkeypatch):
+    """Regression: _do_approve called _mark_md_approved(md_path) with no
+    approver name at all, so even on a doc where the Approvals-table flip
+    itself worked, the Approver column stayed permanently blank after a
+    dashboard-driven approval. by is a single-signal action (one person
+    clicked Approve), so this is a blanket flip -- every row gets Jane's
+    name, none are role-scoped."""
+    monkeypatch.chdir(tmp_path)
+    feature_dir = _scaffold_feature(tmp_path)
+    (feature_dir / "brd.md").write_text(
+        "# BRD\n> Status: Draft | Date: 2026-07-09\n\n"
+        "## Approvals\n\n| Role | Approver | Status | Date |\n|---|---|---|---|\n"
+        "| Product Owner | | Pending | |\n"
+    )
+    _do_approve("payments", "brd", "Jane", "lgtm")
+    md_text = (tmp_path / ".specify" / "features" / "payments" / "brd.md").read_text()
+    assert "| Product Owner | Jane | Approved |" in md_text
+
+
 def test_approve_without_confluence_or_jira_configured_does_not_crash(
     tmp_path, monkeypatch
 ):

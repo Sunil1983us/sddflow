@@ -76,16 +76,46 @@ def _doc_md_path(doc: str, feature: str | None) -> Path | None:
         return None
 
 
-def _mark_approvals_table(text: str, date_str: str) -> str:
-    """Flip every 'Pending' row inside the '## Approvals' section to
-    'Approved', filling the Date column. Scoped to that section only — a
-    coincidental 'Pending' cell anywhere else in the doc is left alone.
+def _mark_approvals_table(
+    text: str,
+    date_str: str,
+    approver_name: str = "",
+    role_filter: str | None = None,
+) -> str:
+    """Flip 'Pending' row(s) inside the '## Approvals' section to
+    'Approved', filling the Date column and the Approver column with
+    approver_name. Scoped to that section only — a coincidental 'Pending'
+    cell anywhere else in the doc is left alone.
 
-    Local-mode approval records a single approver for the whole document
-    (see _save_local_approval), not one per RACI row, so every Pending row
-    is flipped together — matching the document-level 'Status: Approved'
-    header rather than trying to attribute individual rows to reviewers
-    the CLI/dashboard were never told about."""
+    Every current template's Approvals table is 4 columns -- 'Role |
+    Approver | Status | Date' (verified against all 20 templates that
+    have an Approvals section) -- not the 3-column 'Role | Status | Date'
+    an earlier version of this regex assumed. That mismatch meant this
+    function never matched a single real row: it silently no-opped on
+    every document, including via the dashboard's "Approve" button
+    (dashboard.py's _do_approve -> _mark_md_approved, called with no
+    prior text edit) -- the Approvals table stayed 'Pending' forever
+    under an 'Approved' Status header. Never caught because the old unit
+    tests' own fixture invented the same wrong 3-column shape.
+
+    role_filter=None (default): flip every Pending row, filling each with
+    approver_name -- local-mode approval records a single approver for
+    the whole document (see _save_local_approval), not one per RACI row,
+    so every row is flipped together, matching the document-level
+    'Status: Approved' header rather than trying to attribute individual
+    rows to reviewers the CLI/dashboard were never told about.
+
+    role_filter=<text> (jira mode, e.g. the Jira ticket's configured
+    reviewer_role): only flip row(s) whose Role-column text contains
+    role_filter (case-insensitive substring). Every other row is left
+    Pending -- blanket-approving a Tech Lead/Stakeholder row on the
+    strength of one Architect's Jira sign-off would misrepresent evidence
+    nobody actually gave, same principle as validate.prompt.md's own
+    per-item confirmation checkboxes. Falls back to flipping every row
+    (role_filter effectively ignored) if it matches none of them -- a
+    configured reviewer_role that doesn't appear in this doc's Approvals
+    table at all is a config mismatch, not a reason to leave the table
+    permanently stuck on Pending."""
     heading = re.search(r"^## Approvals\s*$", text, flags=re.IGNORECASE | re.MULTILINE)
     if not heading:
         return text
@@ -93,18 +123,37 @@ def _mark_approvals_table(text: str, date_str: str) -> str:
     next_heading = re.search(r"^## ", text[start:], flags=re.MULTILINE)
     end = start + next_heading.start() if next_heading else len(text)
     section = text[start:end]
-    new_section = re.sub(
-        r"^\|([^|\n]*)\|\s*Pending\s*\|[^|\n]*\|[ \t]*$",
-        lambda m: f"|{m.group(1)}| Approved | {date_str} |",
-        section,
+
+    row_re = re.compile(
+        r"^\|([^|\n]*)\|([^|\n]*)\|\s*Pending\s*\|([^|\n]*)\|[ \t]*$",
         flags=re.MULTILINE | re.IGNORECASE,
     )
+
+    if role_filter and not row_re.search(section):
+        role_filter = None  # no Approvals table at all here -- nothing to scope
+    elif role_filter:
+        needle = role_filter.casefold()
+        if not any(needle in m.group(1).casefold() for m in row_re.finditer(section)):
+            role_filter = None  # no row matches -- fall back to blanket flip
+
+    def _flip(m: re.Match) -> str:
+        role_text = m.group(1)
+        if role_filter and role_filter.casefold() not in role_text.casefold():
+            return m.group(0)  # not this row's evidence -- leave it Pending
+        approver_cell = f" {approver_name} " if approver_name else " "
+        return f"|{role_text}|{approver_cell}| Approved | {date_str} |"
+
+    new_section = row_re.sub(_flip, section)
     return text[:start] + new_section + text[end:]
 
 
-def _mark_md_approved(md_path: Path) -> bool:
-    """Flip the document header to 'Status: Approved' and fill any
-    'Pending' rows in the '## Approvals' table with today's date.
+def _mark_md_approved(
+    md_path: Path, approver_name: str = "", role_filter: str | None = None
+) -> bool:
+    """Flip the document header to 'Status: Approved' and fill 'Pending'
+    row(s) in the '## Approvals' table with today's date and
+    approver_name. See _mark_approvals_table's own docstring for
+    approver_name/role_filter semantics (blanket flip vs role-scoped).
 
     Handles the pre-approval statuses case-insensitively: Draft (most docs)
     and Proposed (ADR lifecycle). Returns True if the file was changed by
@@ -139,7 +188,9 @@ def _mark_md_approved(md_path: Path) -> bool:
         flags=re.IGNORECASE,
     )
     new = new_front_matter + text[front_matter_end:]
-    new = _mark_approvals_table(new, str(date.today()))  # noqa: DTZ011 -- local calendar date by design
+    new = _mark_approvals_table(  # noqa: DTZ011 -- local calendar date by design
+        new, str(date.today()), approver_name=approver_name, role_filter=role_filter
+    )
     if new == text:
         return False
     atomic_write_text(md_path, new)
@@ -1586,6 +1637,19 @@ def review_comments(doc, feature, ack):
 )
 @click.option("--by", default="chat", help="Who approved — defaults to 'chat'")
 @click.option(
+    "--role",
+    default=None,
+    help=(
+        "Scope the Approvals-table flip to the row(s) matching this role "
+        "text (case-insensitive substring, e.g. 'Architect') instead of "
+        "flipping every Pending row. Use this when the evidence is a "
+        "single reviewer's sign-off (e.g. one Jira ticket assignee) that "
+        "shouldn't be read as every RACI role having approved. Omit for "
+        "the default blanket flip (appropriate for chat/local mode, "
+        "where there's no per-role signal to scope to)."
+    ),
+)
+@click.option(
     "--note", default="", help="Optional note (e.g. 'approved in chat session')"
 )
 @click.option(
@@ -1597,7 +1661,7 @@ def review_comments(doc, feature, ack):
     default=False,
     help="Skip the Confluence page update even if confluence: is configured",
 )
-def review_approve(doc, local, by, note, feature, no_confluence):
+def review_approve(doc, local, by, role, note, feature, no_confluence):
     """Record a local approval for a document (used when Jira is not configured).
 
     The AI calls this automatically after the user says 'approved' in chat
@@ -1628,10 +1692,16 @@ def review_approve(doc, local, by, note, feature, no_confluence):
     # ── Mark the .md approved (safety net — AI flow usually did this) ────────
     md_path = _doc_md_path(doc, feature)
     if md_path and md_path.exists():
-        if _mark_md_approved(md_path):
+        if _mark_md_approved(md_path, approver_name=by, role_filter=role):
             console.print(
                 f"  [green]✓[/green]  {md_path} — header set to Status: Approved"
             )
+            if role:
+                console.print(
+                    f"  [dim]·[/dim]  Approvals table: only the '{role}' row(s) "
+                    f"marked Approved — other rows left Pending (no evidence "
+                    f"of their sign-off)."
+                )
         # ── Mirror the approved doc to its Confluence page ────────────────────
         if no_confluence:
             console.print("  [dim]·  Confluence update skipped (--no-confluence)[/dim]")

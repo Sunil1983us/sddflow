@@ -6158,6 +6158,90 @@ MIGRATIONS: list[Migration] = [
             "pass; sync-blocks.sh confirmed idempotent",
         ],
     },
+    {
+        "from": "2.8.37",
+        "to": "2.8.38",
+        "description": (
+            "Found and fixed a real, live bug while implementing a "
+            "user-requested design change: the Approvals table's "
+            "'Pending' -> 'Approved' regex has never matched a single "
+            "real document, on any template, ever -- including via the "
+            "dashboard's Approve button. Also added role-scoped "
+            "Approvals-table flipping so a single Jira reviewer's "
+            "sign-off no longer gets misread as every RACI role's"
+        ),
+        "notes": [
+            "User showed a live design.md approval transcript: an agent "
+            "blanket-approved all three Approvals-table roles (Architect/"
+            "Tech Lead/Stakeholder) off one Jira ticket assigned only to "
+            "Architect, then self-corrected. Asked to make that "
+            "discipline the documented, consistent behavior -- 'check "
+            "for all docs'",
+            "While designing that fix, found the CLI's own Approvals-"
+            "table flip (_mark_approvals_table) has been silently "
+            "broken since it was written: its regex expects a 3-column "
+            "'Role | Pending | Date' row shape. Checked every one of the "
+            "20 templates with an ## Approvals section -- all 20 are "
+            "actually 4 columns, 'Role | Approver | Status | Date'. "
+            "Tested the regex against real rows from real templates: "
+            "zero matches, on any of them. The existing unit test's own "
+            "fixture invented the same wrong 3-column shape, so nothing "
+            "ever caught it",
+            "Real impact: dashboard.py's Approve button calls "
+            "_mark_md_approved() directly with no prior text edit -- "
+            "confirmed by reading _do_approve. Every dashboard approval, "
+            "ever, has flipped the Status header correctly but left the "
+            "Approvals table stuck on 'Pending' underneath it. The bug "
+            "was invisible in the normal chat-driven flow only because "
+            "the LLM agent edits the table text itself first, before "
+            "this now-fixed CLI call runs as a no-op safety net with "
+            "nothing left to do",
+            "Also found: _mark_md_approved's caller in review_approve "
+            "never passed --by's value through to the flip function at "
+            "all, so even a working regex would have left the Approver "
+            "column permanently blank. Same gap existed in dashboard.py's "
+            "_do_approve",
+            "Fixed all three together: rewrote _mark_approvals_table's "
+            "regex for the real 4-column shape; added approver_name "
+            "(fills the Approver column) and role_filter (scopes the "
+            "flip to Role-column text matches, case-insensitive "
+            "substring, falling back to blanket-flip if nothing "
+            "matches) parameters, threaded through _mark_md_approved; "
+            "wired approver_name into both review_approve (--by, "
+            "already existed) and dashboard.py's _do_approve (by, "
+            "already existed, just never passed); added a new --role "
+            "flag to 'sdd review approve'",
+            "Updated review-decision-step.md (shared block, used by all "
+            "~15 review-gated documents): step 1 now distinguishes a "
+            "Jira-driven approval from a chat-driven one; step 4 flips "
+            "only the Approvals-table row matching "
+            "document_reviews.{doc}.reviewer_role when Jira drove it "
+            "(leaving other RACI rows Pending, with a fallback to "
+            "blanket-flip on a role/wording mismatch), unchanged "
+            "blanket-flip when chat drove it (no per-role signal exists "
+            "there to scope to); step 6 passes the new --role flag "
+            "through so the CLI's own safety-net flip matches whichever "
+            "scope the manual edit already used",
+            "review-decision-step.md is a _shared/blocks/ source -- "
+            "edited once, propagated via sync-blocks.sh to all 15 "
+            "documents across all 5 packs (75 file locations) plus the "
+            "10 _shared/full/ sources' own embedded copies (refreshed "
+            "for hygiene per the rule added in v2.8.35's README.md fix)",
+            "Fixed test fixtures too: the existing TestMarkApprovalsTable "
+            "tests used the same invented 3-column shape as the bug -- "
+            "updated to the real 4-column format so they'd have actually "
+            "caught this the first time",
+            "This Node CLI has no Jira/Confluence integration and no "
+            "review-approval flow of its own (scaffolding-only by "
+            "design) and is unaffected by any of this -- this migration "
+            "entry exists so both CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 930/930 (922 pre-existing + 8 "
+            "new); ruff check/format clean on all changed files; "
+            "check-cross-references.py clean across all 6 packs; "
+            "test-setup.sh (19/19) and test-setup-micro.sh (12/12) both "
+            "pass; sync-blocks.sh confirmed idempotent",
+        ],
+    },
 ]
 
 

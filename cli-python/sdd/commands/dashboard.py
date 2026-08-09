@@ -368,7 +368,13 @@ def _do_approve(feature: str, doc: str, by: str, note: str) -> dict:
 
     md_path = _doc_md_path(doc, feature)
     if md_path and md_path.exists():
-        result["md_updated"] = _mark_md_approved(md_path)
+        # approver_name=by fills the Approvals table's Approver column too --
+        # previously never passed through, so it stayed blank even on the
+        # rare occasion the (regex-broken, see _mark_approvals_table) flip
+        # itself worked. role_filter is deliberately omitted: a dashboard
+        # click is a single-signal action, same as chat-mode approval, so
+        # the blanket flip is the correct scope here, not role-restricted.
+        result["md_updated"] = _mark_md_approved(md_path, approver_name=by)
         try:
             manifest = read_manifest() or {}
             feature_name = feature or (manifest.get("project") or {}).get("feature", "")

@@ -4,6 +4,57 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.8.38] — 2026-08-08 (Fix: the Approvals-table flip has never matched a single real document — plus role-scoped approval evidence)
+
+A user shared a live `design.md` approval transcript: an agent
+blanket-approved all three Approvals-table roles (Architect/Tech
+Lead/Stakeholder) off one Jira ticket assigned only to Architect, then
+self-corrected mid-session. Asked to make that discipline consistent
+across all documents, not luck-of-the-draw. Implementing that surfaced a
+much bigger, already-live bug.
+
+### Fixed
+
+**1. The Approvals-table `Pending → Approved` flip has never matched a
+single real document, on any template, ever.** Its regex expected a
+3-column `Role | Pending | Date` row shape. Every one of the 20 templates
+that have an `## Approvals` section is actually 4 columns — `Role |
+Approver | Status | Date`. Tested the regex against real rows from real
+templates: zero matches. The dashboard's Approve button calls this
+function directly, with no LLM pre-editing the file — so every
+dashboard-driven approval has flipped the `Status:` header correctly but
+left the Approvals table stuck on `Pending` underneath it, silently,
+this whole time. The bug never showed up in the normal chat-driven flow
+only because the agent edits the table text itself before this
+now-fixed CLI call runs (as a no-op safety net with nothing left to do).
+The existing unit test used the same wrong 3-column fixture, so nothing
+ever caught it.
+
+**2. The Approver column was never filled by the CLI path either.**
+`sdd review approve --by "..."` never actually passed that name through
+to the flip function — same gap in the dashboard's approve handler.
+
+**3. Added role-scoped evidence for Jira-driven approvals.** When a
+Jira ticket approves a document, that only speaks for its one assigned
+reviewer — not every role a multi-role Approvals table lists. A new
+`sdd review approve --role` flag (and matching logic in
+`review-decision-step`, the shared block every review-gated document
+uses) now flips only the Approvals-table row matching that reviewer's
+role when the approval came from Jira, leaving other RACI rows `Pending`
+— falling back to the old blanket-flip on a role/wording mismatch, and
+unchanged for pure chat/local approvals, which have no per-role signal
+to scope to in the first place.
+
+### Verified
+
+- cli-python pytest 930/930 (922 pre-existing + 8 new)
+- ruff check/format clean on all changed files
+- `check-cross-references.py` clean across all 6 packs
+- `test-setup.sh` (19/19) and `test-setup-micro.sh` (12/12) both pass
+- `sync-blocks.sh` confirmed idempotent
+
+---
+
 ## [2.8.37] — 2026-08-08 (Fix: `sdd review apply` never reverted a document's Approved status, and could never reopen a closed Jira ticket)
 
 A user asked how post-approval revisions actually work — does the status
