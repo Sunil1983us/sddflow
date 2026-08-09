@@ -651,17 +651,25 @@ confluence:
 {confluence_profile_line}  space_key: {space_key}
 {parent_line}
 
-  # Page title templates — {{project}} replaced with project name from manifest
+  # Page title templates — {{feature}} substituted with the active feature
+  # (or --feature override) at push time; {{project}} with project name
+  # from manifest. Keep {{feature}} in every per-feature entry below --
+  # `sdd confluence push` nests pages under a Project -> Feature page
+  # hierarchy automatically, but that nesting alone does not stop two
+  # features colliding on the same title (Confluence enforces title
+  # uniqueness per SPACE, not per parent page) -- only {{feature}} in the
+  # title text itself does. See integrations.yml.example for the fuller
+  # reference (more doc keys: validate, analyze, tasks, etc.)
   # design applies in unified plan_mode; arch/hld/adr in separate plan_mode
   page_map:
-    brd:       "{project_name} — Business Requirements"
-    use-cases: "{project_name} — Use Cases"
-    srd:       "{project_name} — System Requirements"
-    design:    "{project_name} — Design"
-    arch:      "{project_name} — Architecture Overview"
-    hld:       "{project_name} — High-Level Design"
-    adr:       "{project_name} — Architecture Decisions"
-    lld:       "{project_name} — Low-Level Design"
+    brd:       "{{feature}} — Business Requirements"
+    use-cases: "{{feature}} — Use Cases"
+    srd:       "{{feature}} — System Requirements"
+    design:    "{{feature}} — Design"
+    arch:      "{{feature}} — Architecture Overview"
+    hld:       "{{feature}} — High-Level Design"
+    adr:       "{{feature}} — Architecture Decisions"
+    lld:       "{{feature}} — Low-Level Design"
     runbook:   "{project_name} — Runbook"
     # Title here is ignored (always "{{project}} — Constitution") -- this
     # key's only job is making a bare "sdd confluence push" (no --doc)
@@ -670,7 +678,7 @@ confluence:
     # Same deal as constitution above -- title ignored (always
     # "{{feature}} — Context"), this key only controls whether a bare
     # push includes it; remove the line to opt out
-    context: "{project_name} — Context"
+    context: "{{feature}} — Context"
 
 # For the Jira review workflow (sdd review submit/check/apply), add a
 # document_reviews: section — see .specify/integrations.yml.example for the

@@ -4307,6 +4307,78 @@ export const MIGRATIONS = [
       return manifest;
     },
   },
+  {
+    from: '2.9.18',
+    to:   '2.9.19',
+    description: "Fix: multi-feature Confluence page overwrites and Jira ticket-identity collisions (real bugs, confirmed by direct testing, not hypothetical)",
+    notes: [
+      'User explicitly asked \'does this work all over the project ... ' +
+      'jira, confluence ... can you test\' -- traced every project_name/' +
+      'feature_name usage through the actual CLI code (not just prompts) ' +
+      'and empirically ran _resolve_page_title against the real default ' +
+      'config: confirmed two features pushing the same doc type (brd/' +
+      'use-cases/srd/etc.) silently overwrite each other\'s Confluence ' +
+      'page, since Confluence page lookup is by title and the default ' +
+      'title had no {feature} in it anywhere',
+      'sdd/commands/config.py\'s _integrations_template() (what `sdd ' +
+      'config init` actually scaffolds) had NO {feature} placeholder for ' +
+      'any per-feature doc key -- fixed to match the already-correct ' +
+      'integrations.yml.example (\'feature-first\' convention, {feature} ' +
+      'only, no {project} prefix -- that fix landed there in an earlier ' +
+      '2.7.35 round but never made it into this scaffold)',
+      'sdd/utils/integrations.py\'s _DEFAULT_PAGE_MAP (fallback for ' +
+      'document_reviews entries with no explicit confluence_page) had ' +
+      'the same gap, fixed. Same for confluence.py\'s and review.py\'s ' +
+      'generic inline fallbacks (doc key not in ANY page_map) -- now ' +
+      '{project} — {feature} — DOC',
+      'review.py\'s Jira review Story summary and Open Questions summary ' +
+      'omitted feature_name -- ticket lookup itself was already feature-' +
+      'safe (label-scoped), but two features\' tickets showed identical ' +
+      'summary text, indistinguishable in Jira\'s own UI. Both now ' +
+      'include feature_name',
+      'cr.py\'s CR idempotency_label was WORSE -- a real functional bug, ' +
+      'not just display: no feature qualifier at all, and CHG-NNN ' +
+      'numbering is per-feature (not globally unique), so two features\' ' +
+      'own \'CHG-001\' resolved to the SAME Jira ticket via this label ' +
+      'lookup -- one feature\'s CR review silently reusing/overwriting ' +
+      'an unrelated feature\'s ticket fields. Fixed to include ' +
+      'feature_name; cr_check (which had no --feature option or feature ' +
+      'resolution at all) fixed to match, since it must use the ' +
+      'identical label cr_submit created the ticket under',
+      'New: confluence.py\'s feature_collision_warning() -- a safety net ' +
+      'for EXISTING projects whose integrations.yml already has an ' +
+      'explicit ({feature}-less) title predating this fix (an explicit ' +
+      'entry, unlike a fallback template, is never silently rewritten). ' +
+      'Wired into `sdd confluence push`/`draft` as a hard block with a ' +
+      'new --force flag to override; wired into review.py\'s ' +
+      'review_submit and _push_doc_page (7 call sites including the ' +
+      'dashboard\'s HTTP approve endpoint) as a non-blocking warning ' +
+      'only, since those contexts have no CLI flag surface of their own ' +
+      'to gate on',
+      'No manifest.yml schema changes -- this is entirely CLI code and a ' +
+      'new integrations.yml scaffold template; an EXISTING project\'s ' +
+      'integrations.yml is never rewritten by `sdd upgrade` (only ' +
+      'manifest.yml is), so an already-scaffolded project should ' +
+      'manually add {feature} to its own page_map entries, or rely on ' +
+      'the new collision-warning safety net in the meantime',
+      'This Node CLI has no Jira/Confluence integration of its own ' +
+      '(scaffolding-only by design) and is unaffected by any of this -- ' +
+      'this migration entry exists so both CLIs report the same ' +
+      'sdd_version chain',
+      'Verified: cli-python pytest 983/983 (968 pre-existing + 15 new ' +
+      '-- new test_feature_collision_safety.py plus 1 new test in ' +
+      'test_review_helpers.py and 1 stale-title assertion corrected); ' +
+      'ruff check/format clean; mypy error count unchanged in kind ' +
+      '(only the pre-existing TypedDict warning multiplying with the ' +
+      'new MIGRATIONS entries, expected); manually confirmed the actual ' +
+      'collision before/after the fix (COLLISION -> distinct titles for ' +
+      'brd/use-cases/srd)',
+    ],
+    migrate: (manifest) => {
+      manifest.sdd_version = '2.9.19';
+      return manifest;
+    },
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

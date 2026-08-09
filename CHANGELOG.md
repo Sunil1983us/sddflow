@@ -4,6 +4,63 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.19] — 2026-08-09 (Fix: multi-feature Confluence page overwrites and Jira ticket-identity collisions)
+
+Prompted by a direct request to actually test whether multi-feature support
+works "all over the project — every prompt, jira, confluence." It didn't,
+fully. Tracing every `project_name`/`feature_name` usage through the real
+CLI code (not just prompts) and running `_resolve_page_title` against the
+actual default config confirmed: two features pushing the same doc type
+(brd, use-cases, srd, ...) would silently overwrite each other's Confluence
+page, since page lookup is by title and the default title had no
+`{feature}` in it anywhere.
+
+### Fixed
+
+- `config.py`'s `_integrations_template()` (what `sdd config init` actually
+  scaffolds) had **no `{feature}` placeholder at all** for any per-feature
+  doc key. Fixed to match the already-correct `integrations.yml.example`
+  ("feature-first" convention) — that fix had landed there in an earlier
+  round but never made it into this scaffold.
+- `integrations.py`'s `_DEFAULT_PAGE_MAP` fallback, and the generic inline
+  fallbacks in `confluence.py`/`review.py` (a doc key with no page_map
+  entry at all) — same gap, fixed.
+- `review.py`'s Jira review Story summary and Open Questions summary
+  omitted the feature name — ticket *lookup* was already feature-safe
+  (label-scoped), but two features' tickets showed identical summary text,
+  indistinguishable in Jira's own UI.
+- `cr.py`'s CR (Change Request) Jira idempotency label was **worse** — a
+  real functional bug, not just display: no feature qualifier at all, and
+  `CHG-NNN` numbering is per-feature, not globally unique, so two
+  features' own "CHG-001" resolved to the **same** Jira ticket — one
+  feature's CR review silently reusing/overwriting an unrelated feature's
+  ticket. `cr check` (which had no `--feature` resolution at all) fixed to
+  match.
+
+### Added
+
+- `feature_collision_warning()` in `confluence.py` — a safety net for
+  **existing** projects whose `integrations.yml` already has an explicit
+  title predating this fix (an explicit entry is never silently rewritten
+  by `sdd upgrade`). Wired into `sdd confluence push`/`draft` as a hard
+  block with a new `--force` flag to override; wired into `review.py`'s
+  push paths as a non-blocking warning where there's no CLI flag surface
+  to gate on (including the dashboard's HTTP approve endpoint).
+
+No `manifest.yml` schema changes — this is CLI code and a scaffold
+template. An already-scaffolded project's `integrations.yml` is never
+rewritten by `sdd upgrade`; add `{feature}` to its `page_map` entries by
+hand, or rely on the new warning in the meantime.
+
+### Verified
+
+- `cli-python` pytest: 983/983 (968 pre-existing + 15 new).
+- `ruff check`/`format`: clean. `mypy`: no new error classes.
+- Manually confirmed the actual collision before/after the fix — COLLISION
+  → distinct titles for brd/use-cases/srd.
+
+---
+
 ## [2.9.18] — 2026-08-09 (Fix: cross-feature naming collision in `{Feature Name}` — new `project.feature_display_name` field)
 
 Direct follow-up from the `sdd project-type migrate` work: `{Feature Name}`

@@ -82,14 +82,20 @@ def parse_confluence_page_id(raw: str | None) -> str | None:
 
 
 _DEFAULT_PAGE_MAP = {
-    "brd": "{project} — Business Requirements",
-    "use-cases": "{project} — Use Cases",
-    "srd": "{project} — System Requirements",
-    "design": "{project} — Design",
-    "arch": "{project} — Architecture Overview",
-    "hld": "{project} — High-Level Design",
-    "adr": "{project} — Architecture Decisions",
-    "lld": "{project} — Low-Level Design",
+    # {feature} included for every per-feature key -- without it, two
+    # features sharing this fallback (no explicit confluence_page of
+    # their own) would upsert the same Confluence page and overwrite
+    # each other's content, since Confluence page lookup is by title
+    # (see confluence.py's _resolve_page_title docstring and the
+    # sdd_version migration that fixed this class of bug).
+    "brd": "{project} — {feature} — Business Requirements",
+    "use-cases": "{project} — {feature} — Use Cases",
+    "srd": "{project} — {feature} — System Requirements",
+    "design": "{project} — {feature} — Design",
+    "arch": "{project} — {feature} — Architecture Overview",
+    "hld": "{project} — {feature} — High-Level Design",
+    "adr": "{project} — {feature} — Architecture Decisions",
+    "lld": "{project} — {feature} — Low-Level Design",
     "runbook": "{project} — Runbook",
     # The title value here is actually ignored -- _resolve_page_title()
     # in confluence.py special-cases "constitution" to always use

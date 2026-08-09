@@ -302,13 +302,28 @@ def _push_doc_page(
     elif doc in cfg.document_reviews:
         title = cfg.document_reviews[doc].confluence_page
     else:
-        title = cfg.confluence.page_map.get(doc, f"{{project}} — {doc.upper()}")
+        # No prior explicit template to preserve for a doc key that isn't
+        # configured anywhere -- safe to include {feature} unconditionally
+        # (see confluence.py's _resolve_page_title, same reasoning).
+        title = cfg.confluence.page_map.get(
+            doc, f"{{project}} — {{feature}} — {doc.upper()}"
+        )
     # {feature} must always be substituted, not just {project} -- Confluence
     # enforces title uniqueness per SPACE, so two features pushing the same
     # doc type without {feature} in the title would silently overwrite each
     # other's page (this was the exact bug fixed for confluence.py's
     # page_map templates; document_reviews.confluence_page had the same gap).
     title = title.replace("{project}", project_name).replace("{feature}", feature_name)
+
+    from sdd.commands.confluence import feature_collision_warning
+
+    warning = feature_collision_warning(title, feature_name)
+    if warning:
+        # Non-blocking here (unlike sdd confluence push/draft's --force
+        # gate) -- this helper is called from contexts with no CLI flag
+        # surface of their own (the dashboard's HTTP approve endpoint
+        # among them), so it can only warn, not refuse.
+        console.print(f"  [yellow]⚠  {warning}[/yellow]")
 
     cf_prof, cf_session = load_confluence_session(cfg)
     cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
@@ -979,12 +994,18 @@ def review_submit(doc, profile, feature):
     page_title = doc_cfg.confluence_page.replace("{project}", project_name).replace(
         "{feature}", feature_name
     )
-    body_html, attachments, diagram_warnings = md_to_storage(
-        md_path.read_text(), cfg.confluence.diagrams
-    )
     from sdd.commands.confluence import (
+        feature_collision_warning,
         resolve_doc_parent_id,
         upload_diagram_attachments,
+    )
+
+    _collision_warning = feature_collision_warning(page_title, feature_name)
+    if _collision_warning:
+        console.print(f"  [yellow]⚠  {_collision_warning}[/yellow]")
+
+    body_html, attachments, diagram_warnings = md_to_storage(
+        md_path.read_text(), cfg.confluence.diagrams
     )
 
     parent_id = resolve_doc_parent_id(
@@ -1030,7 +1051,11 @@ def review_submit(doc, profile, feature):
     idempotency_label = f"sdd-doc:{feature_name}:{doc}"
     review_project_key = cfg.jira.key_for("review")
     existing = jira_client.find_by_label(review_project_key, idempotency_label)
-    story_summary = f"Review: {project_name} — {doc.upper()}"
+    # feature_name in the summary too -- ticket lookup above is already
+    # feature-safe via the label (no collision risk), but two features'
+    # review tickets showing the identical summary text is still a real
+    # usability problem: indistinguishable in Jira's own issue list/search.
+    story_summary = f"Review: {project_name} / {feature_name} — {doc.upper()}"
     desc_text = (
         f"Please review the {doc.upper()} document.\n\n"
         f"Confluence: {page_url}\n\n"
@@ -1246,7 +1271,7 @@ def review_push_questions(doc, profile, feature):
     fields: dict = {
         "project": {"key": review_project_key},
         "issuetype": {"name": cfg.jira.issue_type_for("review")},
-        "summary": f"Open Questions: {project_name} — {doc.upper()}",
+        "summary": f"Open Questions: {project_name} / {feature_name} — {doc.upper()}",
         "labels": cfg.jira.labels
         + ["sdd-review", "sdd-open-questions", idempotency_label],
         "description": {

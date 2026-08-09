@@ -804,6 +804,48 @@ class TestReviewSubmitFieldWiring:
         assert "org-required-label" in review_issue["labels"]
         assert review_issue["customfield_20000"] == "Team Phoenix"
 
+    def test_review_story_summary_includes_feature_name(self, review_project, runner):
+        """Regression: the Story summary used to be f"Review: {project} —
+        {DOC}" with no feature name at all. The ticket lookup itself was
+        already feature-safe (label is sdd-doc:{feature}:{doc}), so this
+        never caused a ticket collision -- but two features' review
+        tickets showed the identical summary text, indistinguishable in
+        Jira's own issue list/search."""
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            result = runner.invoke(
+                review.review_command,
+                ["submit", "--doc", "brd", "--feature", "auth"],
+            )
+
+        assert result.exit_code == 0, result.output
+        review_issue = next(
+            f for f in fake_jira.created if "sdd-review" in f.get("labels", [])
+        )
+        assert review_issue["summary"] == "Review: Demo / auth — BRD"
+
     def test_two_features_do_not_collide_on_the_same_confluence_page(
         self, project, runner
     ):
@@ -2825,6 +2867,9 @@ class TestPushPullQuestionsCommands:
         # row) -- both docs' pages must be refreshed, not just brd's.
         # Titles come from integrations.py's _DEFAULT_PAGE_MAP, since this
         # fixture's integrations.yml only configures document_reviews.validate.
-        assert "Demo — Business Requirements" in fake_confluence.pages_by_title
-        assert "Demo — System Requirements" in fake_confluence.pages_by_title
+        # {feature} is included in the fallback title (see _DEFAULT_PAGE_MAP's
+        # own docstring) -- without it two features pushing the same doc type
+        # would silently overwrite each other's Confluence page.
+        assert "Demo — auth — Business Requirements" in fake_confluence.pages_by_title
+        assert "Demo — auth — System Requirements" in fake_confluence.pages_by_title
         assert "Confluence page refreshed" in result.output
