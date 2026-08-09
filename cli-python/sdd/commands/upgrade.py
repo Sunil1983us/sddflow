@@ -7012,6 +7012,66 @@ MIGRATIONS: list[Migration] = [
             "passed (sdd-micro has no such block, unaffected)",
         ],
     },
+    {
+        "from": "3.0.1",
+        "to": "3.0.2",
+        "description": "New `sdd hooks` command: installs a git "
+        "post-commit hook that makes per-commit Token Usage Logging "
+        "deterministic during /implement, instead of relying solely "
+        "on the AI agent following a prompt-file instruction",
+        "notes": [
+            "Direct follow-up to v3.0.1's prompt fix -- the user "
+            "confirmed it wasn't enough. Even after pulling the "
+            "updated framework and manually catching up with `sdd "
+            "token-log --command implement` (confirming the mechanism "
+            "itself works fine), the agent still wasn't calling it "
+            "automatically per task during a live batched /implement "
+            "run. Explicit ask: 'I need for each task.' A prompt "
+            "instruction is followed probabilistically, not "
+            "enforced -- an agent optimizing for 'proceed without "
+            "stopping' can plausibly skip adjacent housekeeping "
+            "regardless of wording, so the only way to make this "
+            "actually deterministic is code-level, not more prose",
+            "New cli-python/sdd/commands/hooks.py: `sdd hooks "
+            "install` writes .git/hooks/post-commit to call `sdd "
+            "token-log --command implement` after every commit -- "
+            "silent/best-effort (no-ops if sdd isn't on PATH, "
+            "token-pricing.yml isn't configured, or nothing's new "
+            "since the last logged row) and never blocks the commit "
+            "it's attached to (no `set -e`, unconditional `exit 0`). "
+            "Refuses to overwrite a pre-existing foreign post-commit "
+            "hook unless --force is passed; idempotent when re-run on "
+            "its own hook. `sdd hooks status`/`sdd hooks uninstall` "
+            "for symmetry",
+            "Deliberately opt-in, NOT wired into `sdd init`/setup.sh "
+            "-- installing a git hook is a real side effect on the "
+            "user's repository and shouldn't happen without being "
+            "asked, same principle as token-pricing.yml itself being "
+            "opt-in",
+            "Documented: packs/_shared/blocks/token-usage-logging.md "
+            "(synced to all 5 packs' CLAUDE.md) gained a closing "
+            "paragraph pointing at `sdd hooks install`; "
+            "cli-python/README.md gained a `### sdd hooks` reference "
+            "section (previously had none)",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain (the Node CLI has no /implement "
+            "concept of its own -- scaffolding-only by design -- so "
+            "nothing here actually applies to it beyond the version "
+            "stamp)",
+            "Verified: cli-python pytest 1013/1013 (1000 unchanged + "
+            "13 new tests covering fresh install, idempotent "
+            "re-install, foreign-hook refusal with/without --force, "
+            "status in all three states, uninstall in all three "
+            "states, not-a-git-repo handling, and a direct assertion "
+            "the hook script can never fail a commit); ruff "
+            "check/format clean; mypy clean (35 source files, up from "
+            "34); bandit 0 issues. check-cross-references.py clean "
+            "across all 6 packs; sync-blocks.sh run twice "
+            "consecutively with zero drift; test-setup.sh 19/19 "
+            "passed; test-setup-micro.sh 12/12 passed",
+        ],
+    },
 ]
 
 

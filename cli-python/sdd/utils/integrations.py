@@ -481,7 +481,13 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             ".specify/integrations.yml.example to .specify/integrations.yml"
         )
     try:
-        raw = yaml.load(p.read_text(), Loader=_DuplicateKeyLoader) or {}
+        # bandit's B506 pattern-matches the literal `Loader=` argument and
+        # doesn't resolve subclasses -- _DuplicateKeyLoader IS a
+        # yaml.SafeLoader subclass (see its definition above), just with an
+        # extra duplicate-key check on top; no unsafe tag handlers are
+        # added. Equivalent to yaml.safe_load() for anything this constructor
+        # can actually parse.
+        raw = yaml.load(p.read_text(), Loader=_DuplicateKeyLoader) or {}  # nosec B506
     except yaml.YAMLError as e:
         raise IntegrationsConfigError(str(e)) from None
 
