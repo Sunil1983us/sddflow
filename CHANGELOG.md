@@ -4,6 +4,49 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.23] — 2026-08-09 (Dashboard: feature tabs, collapsible sections, stat widgets)
+
+Requested directly by a user who attached a real dashboard PDF snapshot and
+pointed out the obvious problem: on a multi-feature project, the page just
+kept growing — every feature's full block (Full Pipeline, Documents,
+Business Objectives, Timeline, Tasks, Token Usage, Jira Export) stacked one
+after another, with no way to jump around or collapse anything.
+
+### Changed
+
+- **Feature tab strip.** Only the *active* feature's full block renders now.
+  A compact tab strip (one pill per feature, showing stage + tasks%)
+  replaces both the old always-stacked layout and the old static "Features
+  Overview" table — it's the quick-compare view and the navigation control
+  in one. Single-feature projects are unaffected; tabs only appear once
+  there are 2+ features, same threshold the old overview table used.
+- **Collapsible sections.** Living Documents and the project-wide Business
+  Objectives Overview are now collapsible (open by default, same chevron
+  treatment as the existing "Where this data comes from" box) — measured a
+  ~22% page-height reduction when collapsed on a 3-feature/9-BO test
+  fixture.
+- **Stat-tile widgets.** A 3-tile row (Tasks %, Business Objectives
+  outcomes-met, Documents approved) now sits at the top of the active
+  feature's block — no more scanning three separate cards further down.
+  Business Objectives rows also gained a thin inline progress bar instead
+  of plain "67% (2/3)" text.
+
+Pure client-side change (`dashboard_static/app.js` + `style.css`, served
+verbatim by `dashboard.py`) — no server-side or API changes.
+
+### Verified
+
+- `cli-python` pytest 993/993 (no `.py` files touched); `ruff check`/
+  `format` clean; `mypy` clean; `node --check app.js` valid syntax.
+- Manually verified end-to-end: a real HTTP server against a synthetic
+  3-feature fixture with the full BO→BR→FR→Task rollup chain wired,
+  screenshotted via Playwright/Chromium in light and dark theme — tab
+  switching, stat tiles, BO progress bars, and the collapse toggle all
+  confirmed working; dark mode colors adapt correctly through the existing
+  CSS variable system.
+
+---
+
 ## [2.9.22] — 2026-08-09 (`/checklist` now actually blocks at mvp/full scope)
 
 Found via a live dashboard report: "Next: Run `/checklist`" was still

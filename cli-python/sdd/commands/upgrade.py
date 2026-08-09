@@ -6791,6 +6791,58 @@ MIGRATIONS: list[Migration] = [
             "unexpected drift; test-setup.sh 19/19 passed",
         ],
     },
+    {
+        "from": "2.9.22",
+        "to": "2.9.23",
+        "description": "sdd dashboard: feature tab strip, collapsible "
+        "section toggles, and stat-tile widgets for multi-feature "
+        "projects -- requested directly after a user attached a real "
+        "dashboard PDF snapshot showing the page had grown very long "
+        "with several features stacked one after another",
+        "notes": [
+            "Client-side only (dashboard_static/app.js + style.css, "
+            "served verbatim by dashboard.py) -- no Python/server-side "
+            "changes, no API shape changes, all 74 existing dashboard "
+            "pytest tests pass unchanged since they only exercise the "
+            "HTTP handler / JSON API, not the JS/CSS",
+            "Feature tab strip (renderFeatureTabs()): only the ACTIVE "
+            "feature's full block (Full Pipeline + Documents + BOs + "
+            "Timeline + Tasks + Token Usage + Jira Export -- 7 cards) "
+            "renders now, replacing both the old always-stacked layout "
+            "and the old 'Features Overview' table with one compact "
+            "widget that shows stage + tasks% per feature and switches "
+            "the active one on click. Single-feature projects are "
+            "unaffected -- tabs only appear at 2+ features, same "
+            "threshold the old overview table used",
+            "Collapsible section toggles: Living Documents and the "
+            "project-wide Business Objectives Overview are now "
+            '<details class="collapsible"> (open by default, same '
+            "chevron treatment as the existing 'Where this data comes "
+            "from' info box) instead of plain cards -- measured a ~22% "
+            "page-height reduction when collapsed on a 3-feature/9-BO "
+            "test fixture",
+            "Stat-tile widgets: a 3-tile row (Tasks %, Business "
+            "Objectives outcomes-met, Documents approved) now sits at "
+            "the top of the active feature's block -- previously "
+            "required scanning three separate cards further down. "
+            "Business Objectives rows also gained a thin inline "
+            "progress bar in the Progress cell instead of plain text",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain (the Node CLI has no dashboard of its "
+            "own -- scaffolding-only by design -- so nothing here "
+            "actually applies to it beyond the version stamp)",
+            "Verified: cli-python pytest 993/993; ruff check/format "
+            "clean; mypy clean; node --check app.js valid syntax. "
+            "Manually verified end-to-end with a real HTTP server "
+            "against a synthetic 3-feature fixture with the full "
+            "BO->BR->FR->Task rollup chain wired, screenshotted via "
+            "Playwright/Chromium in light and dark theme: tab "
+            "switching, stat tiles, BO progress bars, and the collapse "
+            "toggle all confirmed working; dark mode colors adapt "
+            "correctly through the existing CSS variable system",
+        ],
+    },
 ]
 
 
