@@ -4649,6 +4649,45 @@ export const MIGRATIONS = [
       'user hit); ruff check/format clean; mypy clean',
     ],
   },
+  {
+    from: '3.0.0',
+    to:   '3.0.1',
+    description: "Strengthened the shared Token Usage Logging step (synced to 19 prompt files x 5 packs) after a live user report during /implement: logging was silently skipped for every task once the user asked to proceed through all tasks without stopping for 'go' between them",
+    notes: [
+      'User\'s scenario: told the agent to proceed through every ' +
+      '/implement task without stopping for per-task \'go\'. The ' +
+      'agent\'s own transcript showed it interpreting this broadly -- ' +
+      'it also silently skipped the Token Usage Logging step for ' +
+      'every task, even though token-pricing.yml was already ' +
+      'configured and working (confirmed: other commands in the same ' +
+      'project -- specify-brd, validate, etc. -- had logged fine)',
+      'Root cause: the logging step sits immediately adjacent to the ' +
+      '\'WAIT for go\' instruction in every prompt that has it, with ' +
+      'nothing telling the agent the two are independent -- an agent ' +
+      'optimizing for \'proceed without stopping\' could plausibly ' +
+      'read that as license to also skip the adjacent housekeeping ' +
+      'step, since nothing said otherwise',
+      'Fixed: added a paragraph to ' +
+      'packs/_shared/blocks/token-usage-log-step.md clarifying that ' +
+      '\'proceed without stopping\' / \'skip confirmation\' ' +
+      'instructions waive the PAUSE between steps, not the logging ' +
+      'step -- it must still run after every single task/command ' +
+      'execution regardless, even mid-way through a batch, since ' +
+      'skipping it silently produces an incomplete token-usage.md ' +
+      'that under-reports cost',
+      'Pack-content-only (prompt instruction text for the AI agent) ' +
+      '-- no CLI code touched',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain',
+      'Verified: check-cross-references.py clean across all 6 packs; ' +
+      'sync-blocks.sh run three times consecutively with zero drift ' +
+      'after the first sync (96 files touched: 95 synced pack prompts ' +
+      '+ 1 canonical block source); test-setup.sh 19/19 passed; ' +
+      'test-setup-micro.sh 12/12 passed (sdd-micro has no such block, ' +
+      'unaffected)',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

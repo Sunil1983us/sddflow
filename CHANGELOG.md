@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.0.1] — 2026-08-09 (Fixed: Token Usage Logging silently skipped during batched /implement)
+
+Found via a live user report: they told the agent to run every `/implement`
+task back-to-back without stopping for the usual per-task "go" — and Token
+Usage Logging quietly stopped happening for the rest of the run, even
+though `token-pricing.yml` was already configured and other commands
+(`specify-brd`, `validate`, etc.) had logged fine earlier in the same
+project.
+
+### Fixed
+
+The Token Usage Logging step sits immediately next to the "WAIT for go"
+instruction in every prompt that has it, and nothing said the two were
+independent. An agent asked to "proceed without stopping" could reasonably
+read that as license to skip the adjacent housekeeping step too, since
+nothing told it otherwise.
+
+Added a clarifying paragraph to `packs/_shared/blocks/token-usage-log-step.md`
+(synced to 19 prompt files × 5 packs): "proceed without stopping" /
+"skip confirmation" instructions waive the *pause* between steps, not the
+logging step — it still runs after every single task/command execution,
+even mid-way through a whole batch.
+
+Pure prompt-instruction content — no CLI code touched.
+
+### Verified
+
+- `check-cross-references.py` clean across all 6 packs.
+- `sync-blocks.sh` run three times consecutively, zero drift after the
+  first sync.
+- `test-setup.sh` 19/19 passed; `test-setup-micro.sh` 12/12 passed
+  (`sdd-micro` has no such block — unaffected, by design).
+
+---
+
 ## [3.0.0] — 2026-08-09 (Fixed: Spec Quality Checklist could never show done)
 
 **Version note:** the jump to `3.0.0` is the capped-counter carry rule
