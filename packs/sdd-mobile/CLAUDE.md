@@ -320,6 +320,17 @@ If it does exist, after every command that reads or writes a document
 These figures are for relative comparison only, `Real` rows included —
 see `token-usage.md`'s own notes section for exactly what each `Source`
 value does and doesn't measure.
+
+**Want this guaranteed instead of just instructed, specifically for
+`/implement`?** A prompt-file instruction is followed probabilistically,
+not deterministically — an agent told to "proceed through every task
+without stopping" can plausibly skip this step too, since nothing about
+that instruction is enforced in code. Run `sdd hooks install` once (see
+`cli-python/README.md` → `sdd hooks`) to add a git `post-commit` hook
+that calls `sdd token-log --command implement` automatically after
+every commit, independent of whether the AI agent remembers to. Silent
+by default (does nothing if `token-pricing.yml` isn't configured) and
+never blocks a commit either way.
 <!-- shared:token-usage-logging:end -->
 
 ## Never Do

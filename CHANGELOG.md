@@ -4,6 +4,44 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.0.2] — 2026-08-09 (New: `sdd hooks` — deterministic per-commit token logging)
+
+Direct follow-up to v3.0.1. The prompt fix there wasn't enough — the user
+confirmed it: even after pulling the update and manually catching up with
+`sdd token-log --command implement` (which worked correctly), the agent
+still wasn't calling it automatically per task during a live batched
+`/implement` run. Explicit ask: "I need for each task." A prompt
+instruction is followed probabilistically, not enforced — the only way to
+make this actually deterministic is code, not more prose.
+
+### Added
+
+- **`sdd hooks install`** — writes a git `post-commit` hook that runs
+  `sdd token-log --command implement` after every commit, independent of
+  whether the AI agent remembers to. Silent and best-effort: does nothing
+  if `sdd` isn't on `PATH`, `token-pricing.yml` isn't configured, or
+  there's nothing new since the last logged row — and it can never fail
+  the commit it's attached to.
+- **`sdd hooks status`** / **`sdd hooks uninstall`** for symmetry.
+  `install` refuses to overwrite a pre-existing hook it didn't create
+  unless `--force` is passed; `uninstall` never touches a hook it didn't
+  write.
+
+Deliberately opt-in — not wired into `sdd init`/`sdd upgrade`, since
+installing a git hook is a real side effect on your repository and
+shouldn't happen without being asked, same principle as
+`token-pricing.yml` itself.
+
+### Verified
+
+- `cli-python` pytest 1013/1013 (1000 unchanged + 13 new tests); ruff
+  check/format clean; mypy clean; bandit 0 issues.
+- `check-cross-references.py` clean across all 6 packs; `sync-blocks.sh`
+  run twice consecutively with zero drift; `test-setup.sh` 19/19 passed;
+  `test-setup-micro.sh` 12/12 passed.
+
+---
+
 ## [3.0.1] — 2026-08-09 (Fixed: Token Usage Logging silently skipped during batched /implement)
 
 Found via a live user report: they told the agent to run every `/implement`

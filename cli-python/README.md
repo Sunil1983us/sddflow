@@ -738,6 +738,38 @@ appended, never used to rewrite old ones.
 
 ---
 
+### `sdd hooks`
+
+Installs a git `post-commit` hook that calls `sdd token-log --command
+implement` automatically after every commit — makes per-`/implement`-task
+token logging **deterministic** instead of relying on the AI agent to
+remember it. Every other `/specify-*`/`/plan-*`/etc. command already logs
+itself directly (see `sdd token-log` above); `/implement` is the one
+command whose actual usage happens *between* prompt-followed steps
+(write code → run tests → commit), and a live report showed an agent
+told to "proceed through every task without stopping" plausibly reads
+that as license to skip the adjacent logging step too, since a
+prompt-file instruction is followed probabilistically, not enforced.
+
+```bash
+sdd hooks install            # add the post-commit hook
+sdd hooks install --force    # overwrite an existing post-commit hook that isn't ours
+sdd hooks status             # check whether it's installed
+sdd hooks uninstall          # remove it (only if sdd installed it)
+```
+
+Opt-in — not run automatically by `sdd init`/`sdd upgrade`, since
+installing a git hook is a real side effect on your repository and
+shouldn't happen without being asked. `install` refuses to overwrite a
+`post-commit` hook it didn't create (use `--force` if you're sure); safe
+to re-run once it's already the sdd hook (updates in place). The hook
+script itself is silent and best-effort: does nothing if `sdd` isn't on
+`PATH`, `token-pricing.yml` isn't configured, or there's nothing new to
+log, and it **never blocks the commit** it's attached to regardless of
+outcome.
+
+---
+
 ### `sdd cr`
 
 Change Request review lifecycle — submit a `/change`-generated changeset
