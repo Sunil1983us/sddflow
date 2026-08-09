@@ -700,7 +700,7 @@ Both work unattended from CI/CD — there's no separate script anymore.
 /jira-push epic          # after /specify-brd approval
 /jira-push story         # after /specify-uc or /specify-srd approval
 /jira-push task          # after /task approval
-/jira-push chg CR-001    # after /change approval
+/jira-push chg CR-001 --feature validation-service   # after /change approval
 /jira-push --level all --dry-run   # preview every level before pushing for real
 ```
 Or directly: `sdd jira push --level epic`, etc. Keys created/updated are
@@ -710,6 +710,22 @@ never overwrite each other's locally-tracked keys. This file is a
 human-readable summary only; it is never read back by `sdd jira push` — parent
 links and idempotency are always re-derived live from Jira labels, so a level
 can always be pushed on its own, in any order, and still link up correctly.
+
+---
+
+### Change Requests (CR) — Submit for Review
+
+After `/change` saves a changeset record
+(`.specify/features/{feature}/changesets/CR-NNN.md`):
+```bash
+sdd cr submit --cr CR-001 --feature validation-service   # push to Confluence + create a Jira review task
+sdd cr check  --cr CR-001 --feature validation-service    # poll approval status
+```
+`--feature` defaults to `manifest.yml`'s `project.feature` when omitted — **always pass it
+explicitly on a multi-feature project.** CR numbering (`CR-NNN`/`CHG-NNN`) restarts per feature
+(each feature has its own `changesets/` folder), so a bare `sdd cr submit --cr CR-001` with no
+`--feature` silently resolves to whichever feature `project.feature` currently points to, not
+necessarily the one you meant.
 
 ---
 

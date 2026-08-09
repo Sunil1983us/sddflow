@@ -4,6 +4,43 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [2.9.21] — 2026-08-09 (Docs: `--feature` added to every CR example)
+
+Direct follow-up: "does the CR resolve based on manifest feature?" —
+confirmed via code that `sdd cr submit`/`sdd cr check` resolve
+`feature_name = --feature or manifest.project.feature`, same as every
+other command — but no CR example anywhere in the docs actually showed
+`--feature`, exactly the drift risk this session's Feature Drift Check
+work has been guarding against elsewhere.
+
+### Changed
+
+- `packs/_shared/full/.github/prompts/change.prompt.md` (canonical
+  source) — Step 7's "Submit for Stakeholder Review" now runs `sdd cr
+  submit --cr CR-{NNN} --feature {feature}` (was bare), with a note
+  explaining why: CR numbering restarts per feature (each has its own
+  `changesets/` folder), so an implicit resolution risks acting on the
+  wrong feature's CR after a Feature Drift Check-class scenario. Same fix
+  applied to both `sdd cr check` mentions. Synced to all 5 packs.
+- The pre-existing `/jira-push chg CR-001` example (a different command)
+  also gained `--feature`, same reasoning.
+
+### Added
+
+- A "Change Requests (CR) — Submit for Review" subsection to all 5
+  packs' `HOW-TO-USE.md`.
+- A `### sdd cr` entry to `cli-python/README.md`'s CLI command
+  reference — this command had no entry there at all before now.
+
+### Verified
+
+- `cli-python` pytest: 993/993 (no `.py` files touched, pure prompt/doc
+  content). `check-cross-references.py`: clean across all 6 packs.
+  `sync-blocks.sh`: idempotent across two consecutive runs.
+  `test-setup.sh`: 19/19.
+
+---
+
 ## [2.9.20] — 2026-08-09 (New: `sdd feature list` / `sdd feature status`)
 
 Follow-up on two direct requests: "let us have feature list" (after

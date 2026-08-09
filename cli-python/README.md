@@ -738,6 +738,29 @@ appended, never used to rewrite old ones.
 
 ---
 
+### `sdd cr`
+
+Change Request review lifecycle — submit a `/change`-generated changeset
+record for stakeholder review, then poll its approval status.
+
+```bash
+sdd cr submit --cr CR-001 --feature validation-service   # push to Confluence + create a Jira review task
+sdd cr check  --cr CR-001 --feature validation-service    # exit 0=approved 1=needs-revision 2=pending 3=not-submitted
+```
+
+**Always pass `--feature` explicitly on a multi-feature project.** It
+defaults to `manifest.yml`'s `project.feature` when omitted, but CR
+numbering (`CR-NNN`/`CHG-NNN`) restarts per feature — each feature has its
+own `.specify/features/{feature}/changesets/` folder — so an implicit
+resolution risks acting on the wrong feature's CR if `project.feature` has
+drifted since you last checked (see the Feature Drift Check in each
+pack's `CLAUDE.md`). `sdd cr check`'s lookup label must match `sdd cr
+submit`'s exactly (both are feature-qualified), so a mismatched
+`--feature` between the two calls will report "NOT SUBMITTED" even after
+a real submission.
+
+---
+
 ### `sdd feature`
 
 Read-only, filesystem-only views of a project's features — no

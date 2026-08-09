@@ -6705,6 +6705,51 @@ MIGRATIONS: list[Migration] = [
         ],
         "migrate": lambda m: {**m, "sdd_version": "2.9.20"},
     },
+    {
+        "from": "2.9.20",
+        "to": "2.9.21",
+        "description": "Docs: --feature added to every CR (Change "
+        "Request) example -- none of them showed it before, exactly the "
+        "drift risk this session's Feature Drift Check work guards "
+        "against elsewhere",
+        "notes": [
+            "Direct follow-up: 'does the CR resolve based on manifest "
+            "feature?' confirmed via code -- sdd cr submit/check resolve "
+            "feature_name = --feature or manifest.project.feature, same "
+            "as every other command -- but no CR example anywhere in "
+            "the docs showed --feature at all",
+            "packs/_shared/full/.github/prompts/change.prompt.md "
+            "(canonical source): Step 7's 'Submit for Stakeholder "
+            "Review' now runs `sdd cr submit --cr CR-{NNN} --feature "
+            "{feature}` (was bare), with a note explaining why -- CR "
+            "numbering restarts per feature (each has its own "
+            "changesets/ folder), so an implicit resolution risks "
+            "acting on the wrong feature's CR after a Feature Drift "
+            "Check-class scenario. Same fix applied to both `sdd cr "
+            "check` mentions (the chat-mode fallback message and the "
+            "Step 8 summary block). Synced to all 5 packs",
+            "Added a 'Change Requests (CR) -- Submit for Review' "
+            "subsection to all 5 packs' HOW-TO-USE.md (before "
+            "'Confluence -- Push Documents', where the only pre-"
+            "existing CR-adjacent example -- /jira-push chg CR-001, a "
+            "different command entirely -- already lived). Also added "
+            "--feature to that pre-existing /jira-push chg CR-001 "
+            "example line itself, same reasoning",
+            "Added a `sdd cr` entry to cli-python/README.md's CLI "
+            "command reference -- this command had no entry there at "
+            "all before now, a pre-existing documentation gap found "
+            "while locating where the 'CR examples' actually lived",
+            "This Node CLI has no CR/change-request concept of its own "
+            "(scaffolding-only by design) and is unaffected by any of "
+            "this -- this migration entry exists so both CLIs report "
+            "the same sdd_version chain",
+            "Verified: cli-python pytest 993/993 (no .py files touched, "
+            "pure prompt/doc content); check-cross-references.py clean "
+            "across all 6 packs; sync-blocks.sh run twice consecutively "
+            "with zero drift; test-setup.sh 19/19 passed",
+        ],
+        "migrate": lambda m: {**m, "sdd_version": "2.9.21"},
+    },
 ]
 
 
