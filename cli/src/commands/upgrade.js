@@ -4738,6 +4738,43 @@ export const MIGRATIONS = [
       '12/12 passed',
     ],
   },
+  {
+    from: '3.0.2',
+    to:   '3.1.0',
+    description: "Two purely-additive discoverability links -- `sdd --help` and the dashboard now both point at where to report a bug or request a feature",
+    notes: [
+      'Follow-up to setting up GitHub Issues (templates, ' +
+      'CONTRIBUTING.md, SECURITY.md, making the repo public) earlier ' +
+      'the same session -- those solved \'does a place to report ' +
+      'issues exist\', this solves \'does anyone using the CLI or ' +
+      'dashboard actually see it\', since most sddflow users interact ' +
+      'via pip install + CLI/dashboard and may never visit the GitHub ' +
+      'repo page directly',
+      'cli-python/sdd/__main__.py: the top-level `sdd` Click group ' +
+      'gained an epilog shown at the bottom of `sdd --help` -- ' +
+      '\'Found a bug or have a feature request? ' +
+      'https://github.com/sunil1983us/universalguide/issues\'',
+      'cli-python/sdd/commands/dashboard_static/page.html + ' +
+      'style.css: a static footer link with the same URL, added ' +
+      'outside #root so it survives the dashboard\'s 5s poll ' +
+      'innerHTML rebuild untouched -- no app.js changes needed',
+      'Also added (not part of this version bump -- prose/governance ' +
+      'files sdd upgrade never reads, same bucket as ' +
+      'CONTRIBUTING.md/SECURITY.md): CODE_OF_CONDUCT.md (Contributor ' +
+      'Covenant v2.1) and .github/PULL_REQUEST_TEMPLATE.md, closing ' +
+      'the same gap as GitHub\'s spec-kit repo\'s community-health ' +
+      'sidebar',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no dashboard or equivalent --help ' +
+      'epilog of its own -- scaffolding-only by design -- so nothing ' +
+      'here actually applies to it beyond the version stamp)',
+      'Verified: cli-python pytest 1013/1013 (unchanged -- no test ' +
+      'asserts --help/footer output verbatim); ruff check/format ' +
+      'clean; mypy clean (35 source files); `sdd --help` manually ' +
+      'confirmed to show the new epilog',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

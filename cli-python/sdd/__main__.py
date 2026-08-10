@@ -16,7 +16,10 @@ from sdd.commands.token_log import token_log_command
 from sdd.commands.upgrade import upgrade_command
 
 
-@click.group()
+@click.group(
+    epilog="Found a bug or have a feature request? "
+    "https://github.com/sunil1983us/universalguide/issues"
+)
 @click.version_option(__version__, prog_name="sdd")
 def cli():
     """SDD Framework CLI — Spec-Driven Development"""
