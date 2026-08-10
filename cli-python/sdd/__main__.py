@@ -18,7 +18,7 @@ from sdd.commands.upgrade import upgrade_command
 
 @click.group(
     epilog="Found a bug or have a feature request? "
-    "https://github.com/sunil1983us/universalguide/issues"
+    "https://github.com/sunil1983us/sddflow/issues"
 )
 @click.version_option(__version__, prog_name="sdd")
 def cli():

@@ -4753,7 +4753,7 @@ export const MIGRATIONS = [
       'cli-python/sdd/__main__.py: the top-level `sdd` Click group ' +
       'gained an epilog shown at the bottom of `sdd --help` -- ' +
       '\'Found a bug or have a feature request? ' +
-      'https://github.com/sunil1983us/universalguide/issues\'',
+      'https://github.com/sunil1983us/sddflow/issues\'',
       'cli-python/sdd/commands/dashboard_static/page.html + ' +
       'style.css: a static footer link with the same URL, added ' +
       'outside #root so it survives the dashboard\'s 5s poll ' +
@@ -4773,6 +4773,42 @@ export const MIGRATIONS = [
       'asserts --help/footer output verbatim); ruff check/format ' +
       'clean; mypy clean (35 source files); `sdd --help` manually ' +
       'confirmed to show the new epilog',
+    ],
+  },
+  {
+    from: '3.1.0',
+    to:   '3.1.1',
+    description: "URL correction following the GitHub repo rename (sunil1983us/universalguide -> sunil1983us/sddflow) -- pure bug fix, no new behavior",
+    notes: [
+      'The repo was renamed to match the actual product branding ' +
+      '(sddflow is already the PyPI package name, npm package name, ' +
+      'and CLI binary name -- universalguide never matched any of ' +
+      'them). GitHub\'s redirect covers old links indefinitely, but ' +
+      'v3.1.0\'s --help epilog and dashboard footer link should say ' +
+      'what\'s actually true rather than rely on a redirect forever',
+      'cli-python/sdd/__main__.py\'s --help epilog and ' +
+      'cli-python/sdd/commands/dashboard_static/page.html\'s footer ' +
+      'link both updated to https://github.com/sunil1983us/sddflow/issues',
+      'Also corrected in the same sweep (no bump needed on their own ' +
+      '-- prose/governance files sdd upgrade never reads): README.md, ' +
+      'CONTRIBUTING.md, SECURITY.md, CHANGELOG.md\'s newest entry, ' +
+      'pyproject.toml/package.json URLs, the issue templates, and ' +
+      'each pack\'s README/QUICKSTART/FLOW-ROLES-GATES.md',
+      'Deliberately NOT touched: a test fixture in ' +
+      'test_claude_code_transcript.py referencing ' +
+      '\'/home/user/Universalguide\' as a local filesystem path ' +
+      '(unrelated to the repo name, coincidental match) and an old ' +
+      'CHANGELOG.md entry documenting a past release\'s git clone ' +
+      'example (historical record, not rewritten)',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no dashboard or --help epilog of its ' +
+      'own -- scaffolding-only by design -- so nothing here actually ' +
+      'applies to it beyond the version stamp)',
+      'Verified: cli-python pytest 1013/1013; ruff check/format ' +
+      'clean; mypy clean (35 source files); bandit 0 issues; node ' +
+      '28/28; grep sweep confirms zero remaining \'universalguide\' ' +
+      'references outside the two intentionally-excluded files',
     ],
   },
 ];

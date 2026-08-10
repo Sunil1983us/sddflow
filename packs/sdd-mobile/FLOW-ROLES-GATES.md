@@ -195,4 +195,4 @@ SRD, no RACI, no Jira/Confluence, no traceability chain — the SDD
 Framework has a separate, deliberately minimal pack (`sdd-micro`) for
 scripts and personal projects: just `/specify → [GATE-1] → /task →
 /implement`. It's a different pack, not a mode of this one — see the SDD
-Framework project (`sunil1983us/universalguide`) if that fits better.
+Framework project (`sunil1983us/sddflow`) if that fits better.

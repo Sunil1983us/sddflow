@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability (private disclosure)
-    url: https://github.com/sunil1983us/universalguide/security/advisories/new
+    url: https://github.com/sunil1983us/sddflow/security/advisories/new
     about: Do not open a public issue for security reports — use GitHub Security Advisories instead. See SECURITY.md.
