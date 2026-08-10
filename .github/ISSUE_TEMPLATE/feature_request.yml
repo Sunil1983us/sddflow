@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest something new or missing in a pack, the CLI, or the dashboard.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: this project draws a hard line between **core** (the SDD
+        packs, the Python CLI, the review-gate system, the dashboard — must work
+        with nothing else configured) and **optional adapters** (Jira, Confluence,
+        PR automation, diagram rendering — integrate with core, never required by
+        it). A request that adds a new required dependency to core is unlikely to
+        be accepted as-is, but a request for a new optional adapter is welcome.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does this apply?
+      options:
+        - Python CLI (sddflow / sdd command)
+        - A pack's prompt/command (specify, plan, task, implement, etc.)
+        - Dashboard (sdd dashboard)
+        - New pack (a project type not yet covered)
+        - Jira / Confluence integration
+        - Documentation
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: The situation today, and why it's a gap — not the solution yet.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What you'd like to see. Sketches, example command output, or a rough template shape are all useful.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workaround you're using today, or other approaches you thought about.
+    validations:
+      required: false
