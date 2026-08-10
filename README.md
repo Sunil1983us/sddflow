@@ -4,7 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/sddflow.svg)](https://pypi.org/project/sddflow/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/sddflow.svg?color=green)](https://pypistats.org/packages/sddflow)
 [![License](https://img.shields.io/pypi/l/sddflow.svg)](LICENSE)
-[![CI](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml)
+[![CI](https://github.com/sunil1983us/sddflow/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil1983us/sddflow/actions/workflows/ci.yml)
 
 A collection of self-contained packs that bring a structured, AI-assisted SDLC
 into any project. Copy one pack, run one command, get a full specification
@@ -177,7 +177,7 @@ CHANGELOG.md          # Version history
 ## Getting help / reporting an issue
 
 Found a bug, or something doesn't behave the way it's documented?
-[Open an issue](https://github.com/sunil1983us/universalguide/issues/new/choose) —
+[Open an issue](https://github.com/sunil1983us/sddflow/issues/new/choose) —
 pick the Bug report or Feature request template. Say which part is
 affected (a specific pack + command, the Python CLI, or the dashboard)
 and your `sdd_version` (`.specify/manifest.yml`, or `sdd --version`) —

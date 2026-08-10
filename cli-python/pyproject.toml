@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sddflow"
-version = "3.1.0"
+version = "3.1.1"
 description = "Spec-Driven Development CLI for AI coding agents — SDLC workflows with Jira/Confluence sync, multi-host PR automation, and live progress dashboards"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -56,10 +56,10 @@ diagrams = [
 sdd = "sdd.__main__:cli"
 
 [project.urls]
-Homepage = "https://github.com/sunil1983us/universalguide"
-Repository = "https://github.com/sunil1983us/universalguide"
-"Bug Tracker" = "https://github.com/sunil1983us/universalguide/issues"
-Changelog = "https://github.com/sunil1983us/universalguide/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/sunil1983us/sddflow"
+Repository = "https://github.com/sunil1983us/sddflow"
+"Bug Tracker" = "https://github.com/sunil1983us/sddflow/issues"
+Changelog = "https://github.com/sunil1983us/sddflow/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sdd"]

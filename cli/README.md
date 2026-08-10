@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@sunil1983us/sddflow.svg?color=blue)](https://www.npmjs.com/package/@sunil1983us/sddflow)
 [![npm downloads](https://img.shields.io/npm/dm/@sunil1983us/sddflow.svg?color=green)](https://www.npmjs.com/package/@sunil1983us/sddflow)
 [![License](https://img.shields.io/npm/l/@sunil1983us/sddflow.svg)](../LICENSE)
-[![CI](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil1983us/universalguide/actions/workflows/ci.yml)
+[![CI](https://github.com/sunil1983us/sddflow/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil1983us/sddflow/actions/workflows/ci.yml)
 
 > **Deprecated.** This Node.js CLI covers scaffolding only
 > (`sdd init` / `sdd upgrade`), receives fixes only — no new features are
@@ -37,8 +37,8 @@ they do exactly the same thing as `sdd init` without needing Node.js or npm.
 For development / contributors:
 
 ```bash
-git clone https://github.com/sunil1983us/universalguide.git
-cd universalguide/cli
+git clone https://github.com/sunil1983us/sddflow.git
+cd sddflow/cli
 npm install
 node bin/sdd.js init
 ```

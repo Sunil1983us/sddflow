@@ -5,7 +5,7 @@ an issue or open a PR.
 
 ## Reporting a bug or requesting a feature
 
-Use [GitHub Issues](https://github.com/sunil1983us/universalguide/issues) —
+Use [GitHub Issues](https://github.com/sunil1983us/sddflow/issues) —
 pick the **Bug report** or **Feature request** template. A few notes that
 save a round-trip:
 

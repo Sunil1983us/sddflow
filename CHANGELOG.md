@@ -4,6 +4,36 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.1.1] — 2026-08-10 (URL fix: repo renamed universalguide → sddflow)
+
+The GitHub repo was renamed to `sddflow` to match the actual product
+branding — that's already the PyPI package name, the npm package name,
+and the CLI binary name; `universalguide` never matched any of them.
+GitHub's redirect keeps old links working indefinitely, but the links
+this project ships itself should say what's actually true rather than
+lean on a redirect forever.
+
+### Fixed
+
+- `sdd --help`'s epilog and the dashboard's footer link (both new in
+  v3.1.0) now point at `github.com/sunil1983us/sddflow/issues`.
+- Every other reference across the repo swept to match: `README.md`,
+  `CONTRIBUTING.md`, `SECURITY.md`, `pyproject.toml`/`package.json`
+  project URLs, the issue templates, and each pack's
+  `README.md`/`QUICKSTART.md`/`FLOW-ROLES-GATES.md`.
+- Deliberately left alone: a local-filesystem-path test fixture that
+  coincidentally shared the old name, and an older CHANGELOG entry
+  documenting a past release's clone example (historical record).
+
+### Verified
+
+- cli-python pytest 1013/1013; ruff check/format clean; mypy clean
+  (35 source files); bandit 0 issues; node 28/28; grep sweep confirms
+  zero remaining `universalguide` references outside the two
+  intentionally-excluded files.
+
+---
+
 ## [3.1.0] — 2026-08-10 (`--help` and the dashboard now point to where to report issues)
 
 The repo went public and got GitHub Issues templates, `CONTRIBUTING.md`,
@@ -17,7 +47,7 @@ feature.
 ### Added
 
 - **`sdd --help`** — new epilog: "Found a bug or have a feature request?
-  https://github.com/sunil1983us/universalguide/issues"
+  https://github.com/sunil1983us/sddflow/issues"
 - **Dashboard footer** — same link, rendered outside `#root` in
   `page.html` so it survives the 5s poll's `innerHTML` rebuild without
   needing any `app.js` changes.

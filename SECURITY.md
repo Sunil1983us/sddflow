@@ -6,7 +6,7 @@
 
 Instead, use GitHub's private vulnerability reporting:
 
-1. Go to [Security → Advisories → Report a vulnerability](https://github.com/sunil1983us/universalguide/security/advisories/new).
+1. Go to [Security → Advisories → Report a vulnerability](https://github.com/sunil1983us/sddflow/security/advisories/new).
 2. Describe the issue, affected component (Python CLI, Node CLI, dashboard,
    or a specific pack), affected version(s), and reproduction steps.
 

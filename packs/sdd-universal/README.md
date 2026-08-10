@@ -7,7 +7,7 @@
 ## Start Here — Which File Do I Read?
 
 > Landed here directly and not sure this is the right pack for your
-> project? See the [pack catalog](https://github.com/sunil1983us/universalguide/blob/main/packs/CATALOG.md)
+> project? See the [pack catalog](https://github.com/sunil1983us/sddflow/blob/main/packs/CATALOG.md)
 > for a decision tree.
 
 | Read this | When |
@@ -42,10 +42,10 @@ you review and finalize it (GATE-1) before work continues.
 > enterprise SDLC rigor — BRD → Use Cases → SRD → validate → analyze →
 > clarify → design → task → implement → release, even at `pilot` scope.
 > If that's more process than you need, use
-> [`sdd-micro`](https://github.com/sunil1983us/universalguide/tree/main/packs/sdd-micro) instead — 3 commands, no BRD/UC/SRD ceremony.
+> [`sdd-micro`](https://github.com/sunil1983us/sddflow/tree/main/packs/sdd-micro) instead — 3 commands, no BRD/UC/SRD ceremony.
 
 > **Want to see a finished example first?** Browse
-> [`examples/`](https://github.com/sunil1983us/universalguide/tree/main/examples)
+> [`examples/`](https://github.com/sunil1983us/sddflow/tree/main/examples)
 > on GitHub — two complete, end-to-end SDD runs (a backend API and a
 > frontend web app) showing exactly what every command produces, with
 > full BO → BR → FR → UC → STORY → TASK traceability.
