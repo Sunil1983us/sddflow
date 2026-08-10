@@ -1,6 +1,6 @@
 ---
 name: version-bump
-description: Computes and applies the next sdd_version for this repo (SDD Framework maintainer repo) using its capped major.minor.patch scheme, then updates every lockstep file, migration entry, and CHANGELOG entry that a version bump requires. Use this whenever a change is ready to ship — "bump the version", "cut a new release", "ship this as vX.Y.Z", "what's the next version", or any time you're about to touch cli-python/sdd/__init__.py, pyproject.toml, package.json, or a pack's manifest.yml sdd_version by hand. Don't compute the next version number manually — this skill's carry/rollover rule is not standard semver and hand-editing gets it wrong.
+description: Classifies a change as patch/minor/major (standard SemVer) and applies the next sdd_version for this repo (SDD Framework maintainer repo), then updates every lockstep file, migration entry, and CHANGELOG entry that a version bump requires. Use this whenever a change is ready to ship — "bump the version", "cut a new release", "ship this as vX.Y.Z", "what's the next version", or any time you're about to touch cli-python/sdd/__init__.py, pyproject.toml, package.json, or a pack's manifest.yml sdd_version by hand. Don't compute the next version number manually — the classification step (which field to bump) is a judgment call this skill walks through deliberately, and getting it wrong misleads anyone reading the number.
 ---
 
 # Version Bump (SDD Framework maintainer repo)
@@ -20,35 +20,25 @@ This replaced the earlier default of bumping for every shipped change regardless
 
 ## The versioning rule
 
-The version still looks like semver (`X.Y.Z`), but `Y` and `Z` are **capped counters**, not open-ended — this replaced the old "just increment patch forever" scheme (which had run away to `.100` before this was introduced). Capping keeps the numbers small and the meaning intact: `Z` — a patch within the current minor; `Y` — a minor within the current major.
+Standard [SemVer](https://semver.org/) `MAJOR.MINOR.PATCH`, uncapped, no rollover math. Every bump increments **exactly one** field — the one matching the most significant kind of change in the release — and resets every field to its right to `0`. Which field moves is a classification you make deliberately, not an automatic "current + 1":
 
-- **Z (patch)** ranges **0–24**. Bumping normally means `Z += 1`.
-- **Y (minor)** ranges **0–9**. Bumping normally means `Y += 1`.
-- **X (major)** is uncapped.
+- **PATCH (Z)** — bug fixes only. No new command, no new template, no new manifest field, no new CLI flag, no behavior a user's project didn't already have. `Z += 1`, `X`/`Y` untouched.
+- **MINOR (Y)** — backward-compatible additions. New command, new pack, new optional manifest field, new CLI flag, an extended template, a new opt-in mechanism (e.g. `sdd hooks`). A project that ignores the release loses nothing; one that adopts it gains something, with zero forced action. `Y += 1, Z = 0`.
+- **MAJOR (X)** — breaking or requires-review changes. Renamed/removed command or flag, a manifest schema change that needs actual data transformation (not just a version stamp), changed doc-set requirements for an existing scope, anything that could silently alter an existing project's behavior if the user doesn't look at it. `X += 1, Y = 0, Z = 0`.
 
-**The carry rule** — when a bump would push a field past its cap, it rolls over instead:
-- If `Z + 1` would equal `25`: instead do `Y += 1, Z = 0`. (`Z = 25` is never an actual version number.)
-- If that `Y + 1` would equal `10`: instead do `X += 1, Y = 0`.
+If a single commit mixes kinds (e.g. a bug fix riding along with a new command), classify by the **highest** kind present — one new command pulls the whole release to MINOR even if three unrelated one-line fixes are bundled in. Don't split a bump across two commits just to keep the classification pure; note the mix in the CHANGELOG entry instead.
 
-The cleanest way to compute this without off-by-one mistakes: treat the version as one running integer `N = X*250 + Y*25 + Z` (since `25*10 = 250` patches fit in one major), add 1, then reconstitute `X, Y, Z` via `divmod`:
-
-```python
-def next_version(x: int, y: int, z: int) -> tuple[int, int, int]:
-    n = x * 250 + y * 25 + z + 1
-    x, rem = divmod(n, 250)
-    y, z = divmod(rem, 25)
-    return x, y, z
-```
+When genuinely unsure whether something is PATCH or MINOR (e.g. "does relaxing a validation rule count as an addition?"), default to the more significant of the two candidates — MINOR over PATCH, MAJOR over MINOR. Under-classifying (calling a real behavior change a "patch") is the worse failure mode: it teaches readers the version number can't be trusted, which defeats the entire point of using SemVer.
 
 Read the *current* version straight from `cli-python/sdd/__init__.py` (`__version__ = "X.Y.Z"`) — that file plus the other 8 lockstep files below must already agree; if they don't, stop and flag the mismatch rather than guessing which one is right.
 
-**One-time historical note:** the transition point for this scheme was `2.7.100 → 2.8.0` — the old scheme's runaway patch count (`.100`) was reset by hand at that moment rather than divmod'd retroactively (`100` old-scheme patches do *not* mean 4 rollovers under the new rule). That reset already happened; every bump from `2.8.0` onward uses the plain carry rule above with no further special-casing.
+**Historical note:** versions before this rule took effect (through `3.0.2`) were assigned by an earlier capped-counter scheme (`Y` capped 0–9, `Z` capped 0–24, with divmod-based rollover) that treated every bump as PATCH by default regardless of what shipped — that's exactly the flaw this rule replaces. Nothing about past version numbers is retroactively renumbered; `3.0.2` is simply where classification-based SemVer starts being applied going forward.
 
 ## Applying a bump
 
-### 1. Compute the next version
+### 1. Classify the change, then compute the next version
 
-Read `__version__` from `cli-python/sdd/__init__.py`, apply the divmod rule above, confirm the result with the user's stated intent (a feature ship vs. a metadata-only bump doesn't change the *number*, but does change what goes in step 3's notes).
+Look at what's actually shipping (the diff, not just the description) and classify it PATCH / MINOR / MAJOR per the rule above. State the classification and the one-sentence reason before computing the number — this is the step worth getting right; the arithmetic after it is trivial (`X.Y.Z` → bump the classified field by 1, zero every field to its right). If the change's nature is ambiguous, ask the user rather than silently picking the smaller bump.
 
 ### 2. Update all 9 lockstep files
 

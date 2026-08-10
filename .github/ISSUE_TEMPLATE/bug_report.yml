@@ -1,0 +1,80 @@
+name: Bug report
+description: Something in a pack, the CLI, or the dashboard isn't working as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. A few notes before you start:
+        - **Security issue?** Don't file it here — see [SECURITY.md](../../SECURITY.md)
+          for private disclosure instead.
+        - This repo hosts several things: the `sdd-*` packs (templates/prompts you
+          copy into your own project), the `sddflow` Python CLI (`pip install sddflow`),
+          the (maintenance-mode) Node CLI, and the dashboard. Telling us which one is
+          affected saves a round-trip.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does this happen?
+      options:
+        - Python CLI (sddflow / sdd command)
+        - A pack's prompt/command (specify, plan, task, implement, etc.)
+        - Dashboard (sdd dashboard)
+        - Node CLI (sddflow npm package)
+        - Jira / Confluence integration
+        - Setup script (setup.sh / setup.ps1)
+        - Documentation
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: sdd_version / package version
+      description: >-
+        From your project's `.specify/manifest.yml` (`sdd_version:`), or
+        `pip show sddflow` / `sdd --version`.
+      placeholder: "e.g. 3.0.2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what actually happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: >-
+        The exact command(s) run, in order. If it depends on project state
+        (e.g. a specific manifest.yml scope/project_type, or a document's
+        Status: header), include the relevant snippet.
+      placeholder: |
+        1. sdd init --type backend-service --scope mvp
+        2. Run /specify-brd
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output / error text
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: os
+    attributes:
+      label: OS + Python/Node version
+      placeholder: "e.g. macOS 15, Python 3.11"
+    validations:
+      required: false

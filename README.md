@@ -174,6 +174,19 @@ CHANGELOG.md          # Version history
 
 ---
 
+## Getting help / reporting an issue
+
+Found a bug, or something doesn't behave the way it's documented?
+[Open an issue](https://github.com/sunil1983us/universalguide/issues/new/choose) —
+pick the Bug report or Feature request template. Say which part is
+affected (a specific pack + command, the Python CLI, or the dashboard)
+and your `sdd_version` (`.specify/manifest.yml`, or `sdd --version`) —
+see [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide, including
+how PRs are scoped. Security issue? See [`SECURITY.md`](SECURITY.md)
+instead — please don't file those as a public issue.
+
+---
+
 ## Changelog
 
 See [`CHANGELOG.md`](CHANGELOG.md) for full version history.
