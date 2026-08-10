@@ -4,6 +4,40 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.1.0] — 2026-08-10 (`--help` and the dashboard now point to where to report issues)
+
+The repo went public and got GitHub Issues templates, `CONTRIBUTING.md`,
+and `SECURITY.md` set up earlier the same day — but that only helps
+someone who actually browses to the GitHub repo page. Most `sddflow`
+users interact purely through `pip install` + the CLI/dashboard and may
+never visit GitHub directly. This closes that gap: the two places users
+actually spend time now both link to where to file a bug or request a
+feature.
+
+### Added
+
+- **`sdd --help`** — new epilog: "Found a bug or have a feature request?
+  https://github.com/sunil1983us/universalguide/issues"
+- **Dashboard footer** — same link, rendered outside `#root` in
+  `page.html` so it survives the 5s poll's `innerHTML` rebuild without
+  needing any `app.js` changes.
+- **`CODE_OF_CONDUCT.md`** (Contributor Covenant v2.1) and
+  **`.github/PULL_REQUEST_TEMPLATE.md`** — closes the same community-health
+  gap visible on GitHub's own `spec-kit` repo's sidebar (Code of conduct,
+  Contributing, Security policy all showing there, only two of three
+  present here before this). Prose/governance files — no version bump
+  needed for these two on their own.
+
+### Verified
+
+- cli-python pytest 1013/1013 (unchanged — no test asserts `--help`/footer
+  output verbatim); ruff check/format clean; mypy clean (35 source files);
+  `sdd --help` manually confirmed to show the new epilog; dashboard test
+  suite (`test_dashboard.py`, `test_dashboard_http.py`,
+  `test_dashboard_comments.py`) 68/68 passed.
+
+---
+
 ## [3.0.2] — 2026-08-09 (New: `sdd hooks` — deterministic per-commit token logging)
 
 Direct follow-up to v3.0.1. The prompt fix there wasn't enough — the user

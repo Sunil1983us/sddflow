@@ -238,3 +238,11 @@
     display: flex; align-items: center; gap: .6rem; margin-top: .6rem;
     padding-top: .6rem; border-top: 1px solid var(--border);
   }
+
+  /* Static -- lives in page.html outside #root, so it survives every 5s
+     poll's innerHTML rebuild without needing any JS of its own. */
+  .dashboard-footer {
+    text-align: center; padding: 1.5rem 1rem 2rem; font-size: .8rem;
+  }
+  .dashboard-footer a { color: var(--muted); text-decoration: none; }
+  .dashboard-footer a:hover { color: var(--accent); text-decoration: underline; }
