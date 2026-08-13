@@ -1471,77 +1471,19 @@ def build_bo_rollup(root: Path, feature: str) -> list[dict]:
     tasks = _parse_tasks(feature_dir / "tasks.md")
     bo_closure = _parse_release_bo_closure(feature_dir / "release.md")
 
-    bo_to_br: dict[str, list[str]] = {bo_id: [] for bo_id in brd["objectives"]}
-    for br_id, bo_ids in brd["br_to_bo"].items():
-        for bo_id in bo_ids:
-            if bo_id in bo_to_br:
-                bo_to_br[bo_id].append(br_id)
-
-    br_to_uc: dict[str, list[str]] = {}
-    for uc_id, trace in uc_traces.items():
-        for br_id in trace["br_ids"]:
-            br_to_uc.setdefault(br_id, []).append(uc_id)
-
-    br_to_fr: dict[str, list[str]] = {}
-    fr_to_uc: dict[str, list[str]] = {}
-    for fr_id, meta in fr_meta.items():
-        for br_id in meta["br_ids"]:
-            br_to_fr.setdefault(br_id, []).append(fr_id)
-        for uc_id in meta["uc_ids"]:
-            fr_to_uc.setdefault(fr_id, []).append(uc_id)
-
-    fr_to_tasks: dict[str, list[dict]] = {}
-    for item in tasks["items"]:
-        for fr_id in item.get("fr_ids", []):
-            fr_to_tasks.setdefault(fr_id, []).append(item)
+    bo_to_br = _bo_to_br_index(brd["objectives"], brd["br_to_bo"])
+    br_to_uc = _br_to_uc_index(uc_traces)
+    br_to_fr, fr_to_uc = _fr_indexes(fr_meta)
+    fr_to_tasks = _fr_to_tasks_index(tasks["items"])
 
     rollup = []
     for bo_id, meta in brd["objectives"].items():
         br_ids = bo_to_br.get(bo_id, [])
-
-        uc_ids: list[str] = []
-        for br_id in br_ids:
-            for uc_id in br_to_uc.get(br_id, []):
-                if uc_id not in uc_ids:
-                    uc_ids.append(uc_id)
-
-        fr_ids: list[str] = []
-        for br_id in br_ids:
-            for fr_id in br_to_fr.get(br_id, []):
-                if fr_id not in fr_ids:
-                    fr_ids.append(fr_id)
-        # Bonus: FR Traces already backfilled in use-cases.md for one of
-        # this BO's UCs -- catches an FR that srd.md's own table missed.
-        for uc_id in uc_ids:
-            for fr_id in uc_traces.get(uc_id, {}).get("fr_ids", []):
-                if fr_id not in fr_ids:
-                    fr_ids.append(fr_id)
-        for fr_id in fr_ids:
-            for uc_id in fr_to_uc.get(fr_id, []):
-                if uc_id not in uc_ids:
-                    uc_ids.append(uc_id)
-
-        related_tasks: dict[str, dict] = {}
-        for fr_id in fr_ids:
-            for t in fr_to_tasks.get(fr_id, []):
-                related_tasks[t["id"]] = t
-
-        total = len(related_tasks)
-        norm_counts = {"done": 0, "in_progress": 0}
-        for t in related_tasks.values():
-            n = _norm_task_status(t["status"])
-            if n in norm_counts:
-                norm_counts[n] += 1
-        done = norm_counts["done"]
-
-        if total == 0:
-            status_label = "Not Started"
-        elif done == total:
-            status_label = "Done"
-        elif done > 0 or norm_counts["in_progress"] > 0:
-            status_label = "In Progress"
-        else:
-            status_label = "Not Started"
+        uc_ids, fr_ids = _bo_uc_and_fr_ids(
+            br_ids, br_to_uc, br_to_fr, uc_traces, fr_to_uc
+        )
+        related_tasks = _bo_related_tasks(fr_ids, fr_to_tasks)
+        status_label, total, done = _bo_task_status(related_tasks)
 
         closure = bo_closure.get(bo_id, {})
         rollup.append(
@@ -1559,6 +1501,124 @@ def build_bo_rollup(root: Path, feature: str) -> list[dict]:
             }
         )
     return rollup
+
+
+def _bo_to_br_index(
+    objectives: dict, br_to_bo: dict[str, list[str]]
+) -> dict[str, list[str]]:
+    """Reverses brd.md §5's BR->BO ("Serves BO") column into BO->[BR]."""
+    bo_to_br: dict[str, list[str]] = {bo_id: [] for bo_id in objectives}
+    for br_id, bo_ids in br_to_bo.items():
+        for bo_id in bo_ids:
+            if bo_id in bo_to_br:
+                bo_to_br[bo_id].append(br_id)
+    return bo_to_br
+
+
+def _br_to_uc_index(uc_traces: dict) -> dict[str, list[str]]:
+    """Reverses use-cases.md's own "BR Traces" column into BR->[UC]."""
+    br_to_uc: dict[str, list[str]] = {}
+    for uc_id, trace in uc_traces.items():
+        for br_id in trace["br_ids"]:
+            br_to_uc.setdefault(br_id, []).append(uc_id)
+    return br_to_uc
+
+
+def _fr_indexes(
+    fr_meta: dict,
+) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """From srd.md's FR metadata (Source/Satisfies BR column, UC Trace
+    column), builds BR->[FR] and FR->[UC] in one pass over the same data."""
+    br_to_fr: dict[str, list[str]] = {}
+    fr_to_uc: dict[str, list[str]] = {}
+    for fr_id, meta in fr_meta.items():
+        for br_id in meta["br_ids"]:
+            br_to_fr.setdefault(br_id, []).append(fr_id)
+        for uc_id in meta["uc_ids"]:
+            fr_to_uc.setdefault(fr_id, []).append(uc_id)
+    return br_to_fr, fr_to_uc
+
+
+def _fr_to_tasks_index(task_items: list[dict]) -> dict[str, list[dict]]:
+    """Reverses tasks.md's "Satisfies:" field into FR->[task]."""
+    fr_to_tasks: dict[str, list[dict]] = {}
+    for item in task_items:
+        for fr_id in item.get("fr_ids", []):
+            fr_to_tasks.setdefault(fr_id, []).append(item)
+    return fr_to_tasks
+
+
+def _bo_uc_and_fr_ids(
+    br_ids: list[str],
+    br_to_uc: dict[str, list[str]],
+    br_to_fr: dict[str, list[str]],
+    uc_traces: dict,
+    fr_to_uc: dict[str, list[str]],
+) -> tuple[list[str], list[str]]:
+    """UC_ids and FR_ids for one BO, given its BR_ids -- order-preserving,
+    de-duplicated (each is built as an insertion-ordered set via a plain
+    list + "not in" check, not a real set, since the order feeds display).
+    The two lists are interdependent, computed in three passes in this
+    specific order: UC_ids from BR_to_UC first, then FR_ids from BR_to_FR
+    plus a bonus backfill from any of those UC_ids' own FR Traces (catches
+    an FR srd.md's table missed), then UC_ids gets a final backfill from
+    those FR_ids' own UC Trace column."""
+    uc_ids: list[str] = []
+    for br_id in br_ids:
+        for uc_id in br_to_uc.get(br_id, []):
+            if uc_id not in uc_ids:
+                uc_ids.append(uc_id)
+
+    fr_ids: list[str] = []
+    for br_id in br_ids:
+        for fr_id in br_to_fr.get(br_id, []):
+            if fr_id not in fr_ids:
+                fr_ids.append(fr_id)
+    # Bonus: FR Traces already backfilled in use-cases.md for one of
+    # this BO's UCs -- catches an FR that srd.md's own table missed.
+    for uc_id in uc_ids:
+        for fr_id in uc_traces.get(uc_id, {}).get("fr_ids", []):
+            if fr_id not in fr_ids:
+                fr_ids.append(fr_id)
+    for fr_id in fr_ids:
+        for uc_id in fr_to_uc.get(fr_id, []):
+            if uc_id not in uc_ids:
+                uc_ids.append(uc_id)
+
+    return uc_ids, fr_ids
+
+
+def _bo_related_tasks(
+    fr_ids: list[str], fr_to_tasks: dict[str, list[dict]]
+) -> dict[str, dict]:
+    """All tasks satisfying any of this BO's FR_ids, deduplicated by task id."""
+    related_tasks: dict[str, dict] = {}
+    for fr_id in fr_ids:
+        for t in fr_to_tasks.get(fr_id, []):
+            related_tasks[t["id"]] = t
+    return related_tasks
+
+
+def _bo_task_status(related_tasks: dict[str, dict]) -> tuple[str, int, int]:
+    """(status_label, total, done) for one BO's related tasks."""
+    total = len(related_tasks)
+    norm_counts = {"done": 0, "in_progress": 0}
+    for t in related_tasks.values():
+        n = _norm_task_status(t["status"])
+        if n in norm_counts:
+            norm_counts[n] += 1
+    done = norm_counts["done"]
+
+    if total == 0:
+        status_label = "Not Started"
+    elif done == total:
+        status_label = "Done"
+    elif done > 0 or norm_counts["in_progress"] > 0:
+        status_label = "In Progress"
+    else:
+        status_label = "Not Started"
+
+    return status_label, total, done
 
 
 def _parse_command_log_sources(text: str) -> dict:

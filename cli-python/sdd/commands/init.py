@@ -126,139 +126,205 @@ def init_command(
 
     # ── Fill mode: manifest.yml already exists ────────────────────────────────
     # (also reached after scaffold_mode copies the pack)
-
-    # sdd-micro has no scope/project_type ceremony — its manifest.yml
-    # template has neither key, which is how we detect it in fill mode
-    # (existing manifest, chosen_pack unknown) without tracking the pack
-    # name anywhere persistent.
     existing = read_manifest() or {} if chosen_pack is None else {}
-    if chosen_pack == "sdd-micro":
-        is_micro = True
-    elif chosen_pack is None:
-        is_micro = "project_type" not in existing and "scope" not in existing.get(
-            "project", {}
-        )
-    else:
-        is_micro = False
-
-    # A pack dedicated to one project type already answers the question —
-    # asking again (or running detection a second time, right after
-    # scaffold_pack just copied that pack's own files into the directory)
-    # is redundant and, worse, offers irrelevant choices like "mobile" for
-    # a project the user just told us is sdd-backend-service.
+    is_micro = _determine_is_micro(chosen_pack, existing)
     pack_name = chosen_pack or existing.get("pack")
-    pinned_type = PACK_TO_TYPE.get(pack_name)
 
-    # ── Project type (needed for manifest even in fill mode) ─────────────────
-    if not is_micro and not project_type and pinned_type:
-        project_type = pinned_type
-        console.print(
-            f"[dim]  Project type:[/dim] [green]{project_type}[/green] [dim](from {pack_name})[/dim]"
-        )
-    elif not is_micro and not project_type:
-        console.print("[dim]  Detecting project type...[/dim] ", end="")
-        detected = detect_project_type(".")
-        if detected:
-            console.print(f"[green]{detected}[/green]")
-            confirmed = questionary.confirm(
-                f"  Use detected type '{detected}'?", default=True
-            ).ask()
-            project_type = detected if confirmed else None
-
-        if not project_type:
-            project_type = questionary.select(
-                "  Project type:",
-                choices=PROJECT_TYPES,
-            ).ask()
+    project_type = _resolve_project_type(is_micro, project_type, pack_name)
 
     # ── Interactive prompts ───────────────────────────────────────────────────
-    if not project_name:
-        project_name = questionary.text(
-            "Project name:",
-            validate=lambda v: validate_name(v, "Project name") or True,
-        ).ask()
-
-    if not feature_name:
-        feature_name = questionary.text(
-            "First feature name:",
-            validate=lambda v: validate_name(v, "Feature name") or True,
-        ).ask()
-
-    if not is_micro and not scope:
-        scope = questionary.select(
-            "Scope:",
-            choices=[
-                questionary.Choice(
-                    "pilot  — quick prototype, minimal docs", value="pilot"
-                ),
-                questionary.Choice(
-                    "mvp    — production-ready (+ api-spec, data-model, LLD, ADR)",
-                    value="mvp",
-                ),
-                questionary.Choice(
-                    "full   — enterprise (+ resilience, investigation, security-design)",
-                    value="full",
-                ),
-            ],
-        ).ask()
-
-    # sdd-micro has neither field in its manifest.yml template (3-command,
-    # no plan/design gates to choose a style for) -- same is_micro guard
-    # as scope above.
-    if not is_micro and not plan_mode:
-        plan_mode = questionary.select(
-            "Plan document style:",
-            choices=[
-                questionary.Choice(
-                    "unified  — one combined design.md (architecture + diagrams + "
-                    "API design + decisions). Good for small teams, fast delivery, "
-                    "single review gate.",
-                    value="unified",
-                ),
-                questionary.Choice(
-                    "separate — three focused documents reviewed one by one "
-                    "(arch.md → hld.md → adr.md, mvp+ only). Good for larger "
-                    "teams, separate approvals, detailed audit trail.",
-                    value="separate",
-                ),
-            ],
-        ).ask()
-
-    if not is_micro and not reading_mode:
-        reading_mode = questionary.select(
-            "Document reading mode (token economy — see summary-rules.md):",
-            choices=[
-                questionary.Choice(
-                    "auto    — use each doc's .summary.md when present, fall back "
-                    "to the full doc (and generate a summary) when missing. Good "
-                    "for almost everyone — self-heals, never stuck.",
-                    value="auto",
-                ),
-                questionary.Choice(
-                    "summary — always use .summary.md; warns instead of reading "
-                    "the full doc if one is missing. Good for strict token "
-                    "budgets.",
-                    value="summary",
-                ),
-                questionary.Choice(
-                    "full    — always read the full document, every command. "
-                    "Good for deep debugging, or migrating a project with no "
-                    "summaries.",
-                    value="full",
-                ),
-            ],
-        ).ask()
-
-    if not ai_tool:
-        ai_tool = questionary.select(
-            "Which AI tool will you use?",
-            choices=AI_TOOLS,
-        ).ask()
+    project_name = _prompt_project_name(project_name)
+    feature_name = _prompt_feature_name(feature_name)
+    scope = _prompt_scope(is_micro, scope)
+    plan_mode = _prompt_plan_mode(is_micro, plan_mode)
+    reading_mode = _prompt_reading_mode(is_micro, reading_mode)
+    ai_tool = _prompt_ai_tool(ai_tool)
 
     # Validate CLI-supplied values (questionary validates interactive ones)
     assert_valid_name(project_name, "Project name")
     assert_valid_name(feature_name, "Feature name")
 
+    _print_setup_summary(
+        project_name,
+        project_type,
+        feature_name,
+        scope,
+        plan_mode,
+        reading_mode,
+        ai_tool,
+        is_micro,
+    )
+
+    # ── Update manifest.yml via PyYAML (no string injection possible) ─────────
+    _write_manifest_patch(
+        project_name,
+        feature_name,
+        ai_tool,
+        is_micro,
+        scope,
+        project_type,
+        plan_mode,
+        reading_mode,
+        chosen_pack,
+    )
+    console.print(f"  [green]✓[/green]  {MANIFEST_PATH} filled")
+
+    context_path = _create_context_and_feature_dir(feature_name, project_name)
+    _print_next_steps(ai_tool, context_path)
+
+
+def _determine_is_micro(chosen_pack: str | None, existing: dict) -> bool:
+    """sdd-micro has no scope/project_type ceremony -- its manifest.yml
+    template has neither key, which is how we detect it in fill mode
+    (existing manifest, chosen_pack unknown) without tracking the pack
+    name anywhere persistent."""
+    if chosen_pack == "sdd-micro":
+        return True
+    if chosen_pack is None:
+        return "project_type" not in existing and "scope" not in existing.get(
+            "project", {}
+        )
+    return False
+
+
+def _resolve_project_type(
+    is_micro: bool, project_type: str | None, pack_name: str | None
+) -> str | None:
+    """Needed for the manifest even in fill mode. A pack dedicated to one
+    project type already answers the question -- asking again (or running
+    detection a second time, right after scaffold_pack just copied that
+    pack's own files into the directory) is redundant and, worse, offers
+    irrelevant choices like "mobile" for a project the user just told us
+    is sdd-backend-service."""
+    if is_micro or project_type:
+        return project_type
+
+    pinned_type = PACK_TO_TYPE.get(pack_name) if pack_name else None
+    if pinned_type:
+        console.print(
+            f"[dim]  Project type:[/dim] [green]{pinned_type}[/green] [dim](from {pack_name})[/dim]"
+        )
+        return pinned_type
+
+    console.print("[dim]  Detecting project type...[/dim] ", end="")
+    detected = detect_project_type(".")
+    if detected:
+        console.print(f"[green]{detected}[/green]")
+        confirmed = questionary.confirm(
+            f"  Use detected type '{detected}'?", default=True
+        ).ask()
+        if confirmed:
+            return detected
+
+    return questionary.select("  Project type:", choices=PROJECT_TYPES).ask()
+
+
+def _prompt_project_name(project_name: str | None) -> str:
+    if project_name:
+        return project_name
+    return questionary.text(
+        "Project name:",
+        validate=lambda v: validate_name(v, "Project name") or True,
+    ).ask()
+
+
+def _prompt_feature_name(feature_name: str | None) -> str:
+    if feature_name:
+        return feature_name
+    return questionary.text(
+        "First feature name:",
+        validate=lambda v: validate_name(v, "Feature name") or True,
+    ).ask()
+
+
+def _prompt_scope(is_micro: bool, scope: str | None) -> str | None:
+    if is_micro or scope:
+        return scope
+    return questionary.select(
+        "Scope:",
+        choices=[
+            questionary.Choice("pilot  — quick prototype, minimal docs", value="pilot"),
+            questionary.Choice(
+                "mvp    — production-ready (+ api-spec, data-model, LLD, ADR)",
+                value="mvp",
+            ),
+            questionary.Choice(
+                "full   — enterprise (+ resilience, investigation, security-design)",
+                value="full",
+            ),
+        ],
+    ).ask()
+
+
+def _prompt_plan_mode(is_micro: bool, plan_mode: str | None) -> str | None:
+    # sdd-micro has neither field in its manifest.yml template (3-command,
+    # no plan/design gates to choose a style for) -- same is_micro guard
+    # as _prompt_scope above.
+    if is_micro or plan_mode:
+        return plan_mode
+    return questionary.select(
+        "Plan document style:",
+        choices=[
+            questionary.Choice(
+                "unified  — one combined design.md (architecture + diagrams + "
+                "API design + decisions). Good for small teams, fast delivery, "
+                "single review gate.",
+                value="unified",
+            ),
+            questionary.Choice(
+                "separate — three focused documents reviewed one by one "
+                "(arch.md → hld.md → adr.md, mvp+ only). Good for larger "
+                "teams, separate approvals, detailed audit trail.",
+                value="separate",
+            ),
+        ],
+    ).ask()
+
+
+def _prompt_reading_mode(is_micro: bool, reading_mode: str | None) -> str | None:
+    if is_micro or reading_mode:
+        return reading_mode
+    return questionary.select(
+        "Document reading mode (token economy — see summary-rules.md):",
+        choices=[
+            questionary.Choice(
+                "auto    — use each doc's .summary.md when present, fall back "
+                "to the full doc (and generate a summary) when missing. Good "
+                "for almost everyone — self-heals, never stuck.",
+                value="auto",
+            ),
+            questionary.Choice(
+                "summary — always use .summary.md; warns instead of reading "
+                "the full doc if one is missing. Good for strict token "
+                "budgets.",
+                value="summary",
+            ),
+            questionary.Choice(
+                "full    — always read the full document, every command. "
+                "Good for deep debugging, or migrating a project with no "
+                "summaries.",
+                value="full",
+            ),
+        ],
+    ).ask()
+
+
+def _prompt_ai_tool(ai_tool: str | None) -> str:
+    if ai_tool:
+        return ai_tool
+    return questionary.select("Which AI tool will you use?", choices=AI_TOOLS).ask()
+
+
+def _print_setup_summary(
+    project_name,
+    project_type,
+    feature_name,
+    scope,
+    plan_mode,
+    reading_mode,
+    ai_tool,
+    is_micro,
+) -> None:
     console.print()
     console.print("  Setting up:")
     console.print(f"  Project : [cyan]{project_name}[/cyan]")
@@ -272,7 +338,18 @@ def init_command(
     console.print(f"  AI tool : [cyan]{ai_tool}[/cyan]")
     console.print()
 
-    # ── Update manifest.yml via PyYAML (no string injection possible) ─────────
+
+def _write_manifest_patch(
+    project_name,
+    feature_name,
+    ai_tool,
+    is_micro,
+    scope,
+    project_type,
+    plan_mode,
+    reading_mode,
+    chosen_pack,
+) -> None:
     project_patch = {
         "name": project_name,
         "feature": feature_name,
@@ -297,9 +374,9 @@ def init_command(
     if chosen_pack:
         manifest_patch["pack"] = chosen_pack
     patch_manifest(manifest_patch)
-    console.print(f"  [green]✓[/green]  {MANIFEST_PATH} filled")
 
-    # ── Create context file ───────────────────────────────────────────────────
+
+def _create_context_and_feature_dir(feature_name: str, project_name: str) -> Path:
     context_path = Path(".specify") / "contexts" / f"{feature_name}.md"
     context_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -309,12 +386,14 @@ def init_command(
     else:
         console.print(f"  [dim]·[/dim]  {context_path} already exists — skipped")
 
-    # ── Create feature output directory ──────────────────────────────────────
     feature_dir = Path(".specify") / "features" / feature_name
     feature_dir.mkdir(parents=True, exist_ok=True)
     console.print(f"  [green]✓[/green]  {feature_dir}/ ready")
 
-    # ── Done ──────────────────────────────────────────────────────────────────
+    return context_path
+
+
+def _print_next_steps(ai_tool: str, context_path: Path) -> None:
     next_step = _AI_TOOL_NEXT_STEP.get(ai_tool, _AI_TOOL_NEXT_STEP["other"])
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
