@@ -59,8 +59,8 @@ _STATUS_DISPLAY: dict[str, tuple[str, bool]] = {
 def doctor_command(pack_override, quiet):
     """Report drift between this project's framework-managed files and
     the currently installed sddflow pack. Read-only -- never writes
-    anything; run `sdd upgrade` to actually apply pack content updates
-    once that command covers more than manifest.yml's version stamp."""
+    anything; run `sdd upgrade --apply-files` to actually apply pack
+    content updates."""
     root = Path(".")
     manifest = read_manifest()
     if manifest is None:
@@ -144,9 +144,9 @@ def doctor_command(pack_override, quiet):
         + ", ".join(parts)
     )
     console.print(
-        "  [dim]Note: sdd upgrade does not yet apply these -- it only "
-        "stamps manifest.yml's version. This report is informational "
-        "until that changes.[/dim]"
+        "  [dim]Run [/dim][bold]sdd upgrade --apply-files[/bold][dim] to apply "
+        "safe updates automatically (locally-modified files are left "
+        "alone unless you also pass --force).[/dim]"
     )
     console.print()
     raise SystemExit(1)

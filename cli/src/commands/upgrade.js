@@ -4926,6 +4926,57 @@ export const MIGRATIONS = [
       'instead of the previously-mis-inferred sdd-backend-service',
     ],
   },
+  {
+    from: '3.3.0',
+    to:   '3.4.0',
+    description: "New `sdd upgrade --apply-files` -- the real fix, not just the report: safely applies pack-content updates to an existing project instead of only stamping sdd_version",
+    notes: [
+      'Completes the effort sdd doctor (3.2.0) and the pack: field ' +
+      '(3.3.0) were building toward: sdd upgrade used to only ever ' +
+      'patch manifest.yml\'s sdd_version -- it never touched the ' +
+      'actual template/prompt/command/instruction/setup-script files a ' +
+      'project was scaffolded with. --apply-files now actually applies ' +
+      'safe updates instead of just reporting them',
+      'New sdd/utils/managed_files.py: apply_managed_files() and ' +
+      'write_baseline(). Reuses check_managed_files()\'s existing ' +
+      'classification -- MISSING and NEEDS_UPDATE (local still matches ' +
+      'its last recorded baseline, only canonical content moved on) ' +
+      'are applied automatically; USER_MODIFIED and DIFFERS_UNKNOWN ' +
+      '(no baseline to tell an update apart from a hand edit) are left ' +
+      'alone unless --force is also passed. Every file actually ' +
+      'overwritten is backed up first to .specify/.managed-files-' +
+      'backups/{timestamp}/, never silently discarded. A fresh ' +
+      'baseline is written after every run -- including runs where ' +
+      'nothing changed on disk, so a project that\'s already current ' +
+      'the first time this flag is used still gets a baseline recorded ' +
+      'immediately, rather than only after its first divergence',
+      'sdd upgrade gained --apply-files and --force flags alongside ' +
+      'the existing --sync-prompts (kept, narrower, unchanged, for ' +
+      'backward compatibility). sdd doctor\'s closing note and ' +
+      'docstring updated to point at --apply-files now that it exists, ' +
+      'instead of saying sdd upgrade doesn\'t apply anything yet',
+      'README.md gained a full --apply-files walkthrough plus a new ' +
+      '`sdd doctor` section, which had never been documented there at ' +
+      'all since it shipped in 3.2.0',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no upgrade --apply-files of its own -- ' +
+      'scaffolding-only by design -- so nothing here actually applies ' +
+      'to it beyond the version stamp)',
+      'Verified: cli-python pytest 1055/1055 (1035 unchanged + 20 new ' +
+      'covering apply_managed_files()/write_baseline() directly -- ' +
+      'missing/needs-update/user-modified/force/dry-run/unknown-pack ' +
+      '-- and the CLI wrapper\'s preview, confirm, cancel, --yes, ' +
+      '--force, conflicts-only, and pack-inference paths); ruff ' +
+      'check/format clean; mypy clean (37 source files); bandit 0 ' +
+      'issues; node test 28/28; manually verified end-to-end against a ' +
+      'real freshly-scaffolded project -- baseline correctly written ' +
+      'on a no-op run, a hand-edited file correctly classified as ' +
+      'modified locally by sdd doctor, correctly left alone by ' +
+      '--apply-files without --force, and correctly overwritten-with-' +
+      'backup by --apply-files --force',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

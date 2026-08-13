@@ -4,6 +4,56 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.4.0] — 2026-08-13 (New: `sdd upgrade --apply-files` actually applies pack updates)
+
+Completes the effort `sdd doctor` (3.2.0) and the `pack:` field (3.3.0)
+were building toward. `sdd upgrade` used to only ever patch
+`manifest.yml`'s `sdd_version` field — it never touched the actual
+template/prompt/command/instruction/setup-script files a project was
+scaffolded with. `--apply-files` now actually applies safe updates
+instead of just reporting them.
+
+### Added
+
+- **`sdd upgrade --apply-files`** — brings every framework-managed file
+  (the same set `sdd doctor` checks) in line with the currently installed
+  pack. New files and files that still match their last recorded
+  baseline are applied automatically; files that were hand-edited, or
+  have no recorded baseline to tell an update apart from an edit, are
+  left alone and listed unless `--force` is also passed. Every
+  overwritten file is backed up first to
+  `.specify/.managed-files-backups/{timestamp}/`. A fresh baseline is
+  written after every run — including no-op runs, so a project that's
+  already current the first time this flag is used still gets a baseline
+  recorded immediately rather than only after its first divergence.
+- **`--force`** — with `--apply-files`, also overwrites locally-modified
+  files and files with no recorded baseline (still backed up first).
+- New `sdd/utils/managed_files.py` functions: `apply_managed_files()`,
+  `write_baseline()`.
+- README.md gained a full `--apply-files` walkthrough and a `sdd doctor`
+  section, which had never been documented there since it shipped in
+  3.2.0.
+
+### Changed
+
+- `--sync-prompts` is kept, unchanged, for backward compatibility —
+  `--apply-files` is the recommended flag going forward (broader scope,
+  conflict-aware).
+- `sdd doctor`'s closing note now points at `sdd upgrade --apply-files`
+  instead of saying nothing applies pack updates yet.
+
+### Verified
+
+- cli-python pytest 1055/1055 (1035 unchanged + 20 new); ruff
+  check/format clean; mypy clean (37 source files); bandit 0 issues; node
+  test 28/28; manually verified end-to-end against a real
+  freshly-scaffolded project — baseline correctly written on a no-op run,
+  a hand-edited file correctly classified as modified locally by `sdd
+  doctor`, correctly left alone by `--apply-files` without `--force`,
+  and correctly overwritten-with-backup by `--apply-files --force`.
+
+---
+
 ## [3.3.0] — 2026-08-13 (Fix: `manifest.yml` now records an explicit `pack:` field)
 
 Direct follow-up to 3.2.0. That release could only *detect* the

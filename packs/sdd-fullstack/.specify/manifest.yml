@@ -33,6 +33,6 @@ testing_style: "paired"
 # If using sdd-universal instead, set project_type: "fullstack" in its manifest.yml
 # project_type: "fullstack"
 
-sdd_version: "3.3.0"   # set by sdd init; used by sdd upgrade
+sdd_version: "3.4.0"   # set by sdd init; used by sdd upgrade
 pack: "sdd-fullstack"  # static per pack -- disambiguates project_type-based pack inference (see sdd doctor / _resolve_pack); sdd init also stamps this on --pack, unchanged otherwise
 ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other

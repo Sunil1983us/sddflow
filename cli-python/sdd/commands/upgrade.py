@@ -9,6 +9,7 @@ import click
 from rich.console import Console
 
 from sdd.utils.manifest import MANIFEST_PATH, SDD_VERSION, patch_manifest, read_manifest
+from sdd.utils.managed_files import apply_managed_files
 from sdd.utils.scaffold import (
     ALL_PACKS,
     TYPE_TO_PACK,
@@ -7282,6 +7283,64 @@ MIGRATIONS: list[Migration] = [
             "instead of the previously-mis-inferred sdd-backend-service",
         ],
     },
+    {
+        "from": "3.3.0",
+        "to": "3.4.0",
+        "description": "New `sdd upgrade --apply-files` -- the real fix, "
+        "not just the report: safely applies pack-content updates to an "
+        "existing project instead of only stamping sdd_version",
+        "notes": [
+            "Completes the effort sdd doctor (3.2.0) and the pack: field "
+            "(3.3.0) were building toward: sdd upgrade used to only ever "
+            "patch manifest.yml's sdd_version -- it never touched the "
+            "actual template/prompt/command/instruction/setup-script "
+            "files a project was scaffolded with. --apply-files now "
+            "actually applies safe updates instead of just reporting "
+            "them",
+            "New sdd/utils/managed_files.py: apply_managed_files() and "
+            "write_baseline(). Reuses check_managed_files()'s existing "
+            "classification -- MISSING and NEEDS_UPDATE (local still "
+            "matches its last recorded baseline, only canonical content "
+            "moved on) are applied automatically; USER_MODIFIED and "
+            "DIFFERS_UNKNOWN (no baseline to tell an update apart from "
+            "a hand edit) are left alone unless --force is also passed. "
+            "Every file actually overwritten is backed up first to "
+            ".specify/.managed-files-backups/{timestamp}/, never "
+            "silently discarded. A fresh baseline is written after every "
+            "run -- including runs where nothing changed on disk, so a "
+            "project that's already current the first time this flag is "
+            "used still gets a baseline recorded immediately, rather "
+            "than only after its first divergence",
+            "sdd upgrade gained --apply-files and --force flags "
+            "alongside the existing --sync-prompts (kept, narrower, "
+            "unchanged, for backward compatibility). sdd doctor's "
+            "closing note and docstring updated to point at "
+            "--apply-files now that it exists, instead of saying sdd "
+            "upgrade doesn't apply anything yet",
+            "README.md gained a full --apply-files walkthrough plus a "
+            "new `sdd doctor` section, which had never been documented "
+            "there at all since it shipped in 3.2.0",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain (the Node CLI has no upgrade --apply-"
+            "files of its own -- scaffolding-only by design -- so "
+            "nothing here actually applies to it beyond the version "
+            "stamp)",
+            "Verified: cli-python pytest 1055/1055 (1035 unchanged + 20 "
+            "new covering apply_managed_files()/write_baseline() "
+            "directly -- missing/needs-update/user-modified/force/dry-"
+            "run/unknown-pack -- and the CLI wrapper's preview, confirm, "
+            "cancel, --yes, --force, conflicts-only, and pack-inference "
+            "paths); ruff check/format clean; mypy clean (37 source "
+            "files); bandit 0 issues; node test 28/28; manually verified "
+            "end-to-end against a real freshly-scaffolded project -- "
+            "baseline correctly written on a no-op run, a hand-edited "
+            "file correctly classified as modified locally by sdd "
+            "doctor, correctly left alone by --apply-files without "
+            "--force, and correctly overwritten-with-backup by "
+            "--apply-files --force",
+        ],
+    },
 ]
 
 
@@ -7411,29 +7470,144 @@ def _do_sync_prompts(pack_override: str | None, yes: bool) -> None:
     console.print()
 
 
+def _do_apply_managed_files(pack_override: str | None, yes: bool, force: bool) -> None:
+    """The broader successor to --sync-prompts: covers every managed
+    directory sdd doctor checks (.specify/templates, .claude/commands,
+    .github/prompts, .github/instructions, .github/workflows,
+    .cursor/rules, .vscode, plus setup.sh/setup.ps1), not just prompts
+    and commands, and distinguishes a safe pack-content update
+    (NEEDS_UPDATE: local still matches its last recorded baseline) from
+    a real conflict (USER_MODIFIED / DIFFERS_UNKNOWN) instead of blindly
+    overwriting everything that differs."""
+    manifest = read_manifest() or {}
+    try:
+        pack_name, source = _resolve_pack(manifest, pack_override)
+    except ValueError as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        console.print()
+        return
+
+    console.print(
+        f"  [bold]Applying managed files from pack:[/bold] [cyan]{pack_name}[/cyan]  [dim]({source})[/dim]"
+    )
+    if "inferred" in source or "defaulting" in source:
+        console.print(
+            "  [yellow]⚠  Pack identity is a guess[/yellow] -- pass --pack "
+            "explicitly if this is wrong, or files may be compared "
+            "against the wrong pack's content."
+        )
+    console.print()
+
+    preview = apply_managed_files(
+        Path("."), pack_name, pack_version=SDD_VERSION, force=force, dry_run=True
+    )
+    changed = preview["added"] + preview["updated"]
+    if not changed and not preview["skipped_conflicts"]:
+        # Nothing on disk needs to change, but still run for real (not
+        # dry-run) so write_baseline() records every up-to-date file --
+        # otherwise a project that's current the moment this flag is
+        # first used would go on having no recorded baseline at all
+        # until its first divergence, which is exactly backwards: the
+        # baseline needs to exist *before* a hand edit happens to tell
+        # it apart from a pack update later.
+        apply_managed_files(
+            Path("."), pack_name, pack_version=SDD_VERSION, force=force, dry_run=False
+        )
+        console.print("  [green]✓  All managed files are already up to date.[/green]")
+        console.print()
+        return
+
+    if preview["added"]:
+        console.print(
+            f"  [green]{len(preview['added'])} file(s) will be added[/green] (new in this pack version):"
+        )
+        for f in preview["added"]:
+            console.print(f"    [dim]•[/dim] {f}")
+    if preview["updated"]:
+        console.print(
+            f"  [yellow]{len(preview['updated'])} file(s) will be updated[/yellow] (backed up first):"
+        )
+        for f in preview["updated"]:
+            console.print(f"    [dim]•[/dim] {f}")
+    if preview["skipped_conflicts"]:
+        label = "will be force-overwritten (backed up first)" if force else "left alone"
+        console.print(
+            f"  [red]{len(preview['skipped_conflicts'])} file(s) {label}[/red] "
+            f"(locally modified or no baseline to tell an update apart from a hand edit):"
+        )
+        for f in preview["skipped_conflicts"]:
+            console.print(f"    [dim]•[/dim] {f}")
+        if not force:
+            console.print(
+                "  [dim]Pass --force to overwrite these too (still backed up first).[/dim]"
+            )
+    console.print()
+
+    if not changed and not force:
+        return
+
+    if not yes and not click.confirm("  Proceed?", default=True):
+        console.print("  [yellow]Cancelled — no files changed.[/yellow]")
+        console.print()
+        return
+
+    result = apply_managed_files(
+        Path("."), pack_name, pack_version=SDD_VERSION, force=force, dry_run=False
+    )
+    console.print(
+        f"  [green]✓[/green]  {len(result['added'])} added, {len(result['updated'])} updated, "
+        f"{len(result['unchanged'])} unchanged, {len(result['skipped_conflicts'])} conflict(s) left alone."
+    )
+    if result["backup_dir"]:
+        console.print(
+            f"  [dim]Backups of overwritten files: {result['backup_dir']}[/dim]"
+        )
+    console.print()
+
+
 @click.command()
 @click.option(
     "--sync-prompts",
     is_flag=True,
     help="Re-copy this project's .github/prompts/ and .claude/commands/ "
-    "from the current pack, overwriting stale copies. sdd upgrade "
-    "alone only ever patches manifest.yml's sdd_version -- it never "
-    "touches these files, so fixes made to prompt content after this "
-    "project was scaffolded need this flag to actually reach it.",
+    "from the current pack, overwriting stale copies. Narrower than "
+    "--apply-files (prompts and commands only, no conflict detection) "
+    "-- kept for backward compatibility; --apply-files is the "
+    "recommended flag going forward.",
+)
+@click.option(
+    "--apply-files",
+    is_flag=True,
+    help="Bring every framework-managed file (templates, commands, "
+    "prompts, instructions, workflows, .cursor/rules, .vscode, "
+    "setup.sh/setup.ps1 -- the same set sdd doctor checks) in line "
+    "with the currently installed pack. Safe changes (new files, and "
+    "files that still match their last recorded baseline) are applied "
+    "automatically; files that were hand-edited, or have no recorded "
+    "baseline to tell an update apart from an edit, are left alone "
+    "unless --force is also passed. Every overwritten file is backed "
+    "up first.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="With --apply-files, also overwrite locally-modified files "
+    "and files with no recorded baseline -- still backed up first, "
+    "never silently discarded.",
 )
 @click.option(
     "--pack",
     "pack_override",
     default=None,
-    help=f"Pack to sync prompts from, overriding manifest.yml/inference. One of: {', '.join(ALL_PACKS)}",
+    help=f"Pack to sync/apply files from, overriding manifest.yml/inference. One of: {', '.join(ALL_PACKS)}",
 )
 @click.option(
     "-y",
     "--yes",
     is_flag=True,
-    help="Skip the confirmation prompt for --sync-prompts, and (when "
-    "multiple migrations are pending) skip the jump-to-latest-vs-"
-    "step prompt by jumping straight to latest.",
+    help="Skip the confirmation prompt for --sync-prompts/--apply-files, "
+    "and (when multiple migrations are pending) skip the "
+    "jump-to-latest-vs-step prompt by jumping straight to latest.",
 )
 @click.option(
     "--to-latest",
@@ -7448,7 +7622,9 @@ def _do_sync_prompts(pack_override: str | None, yes: bool) -> None:
     "one and stop -- the original behavior, for reviewing each "
     "migration's notes before continuing to the next.",
 )
-def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
+def upgrade_command(
+    sync_prompts, apply_files, force, pack_override, yes, to_latest, step
+):
     """Migrate manifest.yml to the current pack version."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
@@ -7472,7 +7648,7 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
     if current_version == SDD_VERSION:
         console.print(f"  [green]✓  Already at v{SDD_VERSION} — nothing to do.[/green]")
         console.print()
-        if not sync_prompts:
+        if not sync_prompts and not apply_files:
             return
     else:
         console.print(
@@ -7488,7 +7664,7 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
                 "[yellow]  No migration path found. See CHANGELOG.md for manual steps.[/yellow]"
             )
             console.print()
-            if not sync_prompts:
+            if not sync_prompts and not apply_files:
                 return
         else:
             # A project several versions behind used to need one `sdd
@@ -7569,3 +7745,6 @@ def upgrade_command(sync_prompts, pack_override, yes, to_latest, step):
 
     if sync_prompts:
         _do_sync_prompts(pack_override, yes)
+
+    if apply_files:
+        _do_apply_managed_files(pack_override, yes, force)

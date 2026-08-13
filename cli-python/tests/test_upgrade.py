@@ -404,3 +404,211 @@ def test_sync_prompts_without_pack_flag_infers_from_manifest(project, monkeypatc
     assert result.exit_code == 0
     assert seen["pack"] == "sdd-frontend-spa"
     assert "inferred from project_type" in result.output
+
+
+def _fake_apply_result(
+    added=None, updated=None, skipped_conflicts=None, unchanged=None, backup_dir=None
+):
+    return {
+        "added": added or [],
+        "updated": updated or [],
+        "skipped_conflicts": skipped_conflicts or [],
+        "unchanged": unchanged or [],
+        "backup_dir": backup_dir,
+    }
+
+
+class TestApplyFiles:
+    def test_shows_preview_and_applies_on_confirm(self, project, monkeypatch):
+        _write_manifest(project, SDD_VERSION)
+        calls = []
+
+        def fake_apply(root, pack_name, *, pack_version, force, dry_run):
+            calls.append((pack_name, force, dry_run))
+            if dry_run:
+                return _fake_apply_result(added=["b.md"], updated=["a.md"])
+            return _fake_apply_result(
+                added=["b.md"],
+                updated=["a.md"],
+                backup_dir=".specify/.managed-files-backups/20260101T000000Z",
+            )
+
+        monkeypatch.setattr(upgrade_mod, "apply_managed_files", fake_apply)
+
+        result = CliRunner().invoke(
+            upgrade_command,
+            ["--apply-files", "--pack", "sdd-backend-service"],
+            input="y\n",
+        )
+        assert result.exit_code == 0
+        assert calls == [
+            ("sdd-backend-service", False, True),
+            ("sdd-backend-service", False, False),
+        ]
+        assert (
+            "1 added, 1 updated, 0 unchanged, 0 conflict(s) left alone" in result.output
+        )
+        assert "Backups of overwritten files" in result.output
+
+    def test_cancelled_does_not_apply(self, project, monkeypatch):
+        _write_manifest(project, SDD_VERSION)
+        calls = []
+
+        def fake_apply(root, pack_name, *, pack_version, force, dry_run):
+            calls.append(dry_run)
+            return _fake_apply_result(updated=["a.md"])
+
+        monkeypatch.setattr(upgrade_mod, "apply_managed_files", fake_apply)
+
+        result = CliRunner().invoke(
+            upgrade_command,
+            ["--apply-files", "--pack", "sdd-backend-service"],
+            input="n\n",
+        )
+        assert result.exit_code == 0
+        assert calls == [True]  # only the dry-run preview, never the real apply
+        assert "Cancelled" in result.output
+
+    def test_yes_flag_skips_confirmation(self, project, monkeypatch):
+        _write_manifest(project, SDD_VERSION)
+        monkeypatch.setattr(
+            upgrade_mod,
+            "apply_managed_files",
+            lambda root, pack_name, **_: _fake_apply_result(added=["b.md"]),
+        )
+
+        result = CliRunner().invoke(
+            upgrade_command,
+            ["--apply-files", "--pack", "sdd-backend-service", "--yes"],
+        )
+        assert result.exit_code == 0
+        assert "Proceed?" not in result.output
+        assert "1 added, 0 updated" in result.output
+
+    def test_already_up_to_date_skips_confirmation(self, project, monkeypatch):
+        _write_manifest(project, SDD_VERSION)
+        monkeypatch.setattr(
+            upgrade_mod,
+            "apply_managed_files",
+            lambda root, pack_name, **_: _fake_apply_result(unchanged=["a.md"]),
+        )
+
+        result = CliRunner().invoke(
+            upgrade_command, ["--apply-files", "--pack", "sdd-backend-service"]
+        )
+        assert result.exit_code == 0
+        assert "already up to date" in result.output
+        assert "Proceed?" not in result.output
+
+    def test_already_up_to_date_still_runs_for_real_to_record_baseline(
+        self, project, monkeypatch
+    ):
+        """Nothing on disk changes, but the real (non-dry-run) apply must
+        still run once -- that's what writes .managed-files.json, so a
+        project that's current the moment --apply-files is first used
+        doesn't go on having no baseline at all until its first
+        divergence."""
+        _write_manifest(project, SDD_VERSION)
+        calls = []
+
+        def fake_apply(root, pack_name, *, pack_version, force, dry_run):
+            calls.append(dry_run)
+            return _fake_apply_result(unchanged=["a.md"])
+
+        monkeypatch.setattr(upgrade_mod, "apply_managed_files", fake_apply)
+
+        result = CliRunner().invoke(
+            upgrade_command, ["--apply-files", "--pack", "sdd-backend-service"]
+        )
+        assert result.exit_code == 0
+        assert calls == [True, False]  # preview, then the real (baseline-writing) call
+        assert "Proceed?" not in result.output
+
+    def test_conflicts_only_without_force_reports_and_stops(self, project, monkeypatch):
+        """Nothing safe to change, only conflicts, no --force: report and
+        stop without a confirmation prompt or a second (real) apply call."""
+        _write_manifest(project, SDD_VERSION)
+        calls = []
+
+        def fake_apply(root, pack_name, *, pack_version, force, dry_run):
+            calls.append(dry_run)
+            return _fake_apply_result(skipped_conflicts=["a.md"])
+
+        monkeypatch.setattr(upgrade_mod, "apply_managed_files", fake_apply)
+
+        result = CliRunner().invoke(
+            upgrade_command, ["--apply-files", "--pack", "sdd-backend-service"]
+        )
+        assert result.exit_code == 0
+        assert calls == [True]  # dry-run preview only
+        assert "left alone" in result.output
+        assert "Pass --force" in result.output
+        assert "Proceed?" not in result.output
+
+    def test_force_flag_overwrites_conflicts(self, project, monkeypatch):
+        _write_manifest(project, SDD_VERSION)
+        calls = []
+
+        def fake_apply(root, pack_name, *, pack_version, force, dry_run):
+            calls.append((force, dry_run))
+            if dry_run:
+                return _fake_apply_result(updated=["a.md"])
+            return _fake_apply_result(updated=["a.md"])
+
+        monkeypatch.setattr(upgrade_mod, "apply_managed_files", fake_apply)
+
+        result = CliRunner().invoke(
+            upgrade_command,
+            ["--apply-files", "--force", "--pack", "sdd-backend-service", "--yes"],
+        )
+        assert result.exit_code == 0
+        assert calls == [(True, True), (True, False)]
+        assert (
+            "force-overwritten" not in result.output
+        )  # nothing landed in skipped_conflicts
+
+    def test_runs_even_when_manifest_already_current(self, project, monkeypatch):
+        _write_manifest(project, SDD_VERSION)
+        monkeypatch.setattr(
+            upgrade_mod,
+            "apply_managed_files",
+            lambda root, pack_name, **_: _fake_apply_result(added=["b.md"]),
+        )
+
+        result = CliRunner().invoke(
+            upgrade_command,
+            ["--apply-files", "--pack", "sdd-backend-service", "--yes"],
+        )
+        assert result.exit_code == 0
+        assert "Already at" in result.output
+        assert "1 added" in result.output
+
+    def test_unknown_pack_reports_error_without_crashing(self, project, monkeypatch):
+        _write_manifest(project, SDD_VERSION)
+        result = CliRunner().invoke(
+            upgrade_command, ["--apply-files", "--pack", "not-a-real-pack"]
+        )
+        assert result.exit_code == 0
+        assert "Unknown pack" in result.output
+
+    def test_without_pack_flag_infers_from_manifest(self, project, monkeypatch):
+        m = {
+            "project": {"name": "Demo", "feature": "auth", "scope": "pilot"},
+            "project_type": "frontend-spa",
+            "sdd_version": SDD_VERSION,
+        }
+        (project / ".specify" / "manifest.yml").write_text(yaml.dump(m))
+        seen = {}
+
+        def fake_apply(root, pack_name, *, pack_version, force, dry_run):
+            seen["pack"] = pack_name
+            return _fake_apply_result()
+
+        monkeypatch.setattr(upgrade_mod, "apply_managed_files", fake_apply)
+        result = CliRunner().invoke(upgrade_command, ["--apply-files"])
+        assert result.exit_code == 0
+        assert seen["pack"] == "sdd-frontend-spa"
+        # Rich wraps long lines in CliRunner's captured (fixed-width)
+        # terminal, so match the pieces rather than one long substring.
+        assert "inferred" in result.output
+        assert "project_type" in result.output

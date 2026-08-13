@@ -15,11 +15,13 @@ from sdd.utils.managed_files import (
     STATUS_NEEDS_UPDATE,
     STATUS_UP_TO_DATE,
     STATUS_USER_MODIFIED,
+    apply_managed_files,
     canonical_inventory,
     check_managed_files,
     classify_file,
     load_baseline,
     project_inventory,
+    write_baseline,
 )
 
 
@@ -204,3 +206,142 @@ class TestCheckManagedFiles:
             report[".specify/templates/brd-template.md"]["status"]
             == STATUS_NEEDS_UPDATE
         )
+
+
+class TestWriteBaseline:
+    def test_writes_new_baseline(self, project):
+        project.mkdir(parents=True)
+        write_baseline(project, {"a.md": {"hash": "abc", "pack_version": "1.0.0"}})
+        assert load_baseline(project) == {
+            "a.md": {"hash": "abc", "pack_version": "1.0.0"}
+        }
+
+    def test_merges_with_existing_entries_not_replaces(self, project):
+        project.mkdir(parents=True)
+        write_baseline(project, {"a.md": {"hash": "abc", "pack_version": "1.0.0"}})
+        write_baseline(project, {"b.md": {"hash": "def", "pack_version": "1.0.0"}})
+        assert load_baseline(project) == {
+            "a.md": {"hash": "abc", "pack_version": "1.0.0"},
+            "b.md": {"hash": "def", "pack_version": "1.0.0"},
+        }
+
+    def test_overwrites_only_the_given_keys(self, project):
+        project.mkdir(parents=True)
+        write_baseline(project, {"a.md": {"hash": "old", "pack_version": "1.0.0"}})
+        write_baseline(project, {"a.md": {"hash": "new", "pack_version": "1.1.0"}})
+        assert load_baseline(project) == {
+            "a.md": {"hash": "new", "pack_version": "1.1.0"}
+        }
+
+
+class TestApplyManagedFiles:
+    def test_missing_file_is_added_no_backup(self, fake_pack, project):
+        project.mkdir(parents=True)
+        result = apply_managed_files(project, "sdd-fake", pack_version="9.9.9")
+        assert "setup.sh" in result["added"]
+        assert result["backup_dir"] is None
+        assert (project / "setup.sh").read_text() == "#!/bin/sh\necho v1\n"
+        # Baseline recorded for the newly-added file
+        baseline = load_baseline(project)
+        assert baseline["setup.sh"]["pack_version"] == "9.9.9"
+
+    def test_needs_update_is_applied_and_backed_up(self, fake_pack, project):
+        project.mkdir(parents=True)
+        (project / ".specify" / "templates").mkdir(parents=True)
+        (project / ".specify" / "templates" / "brd-template.md").write_text(
+            "brd v0 (old baseline)\n"
+        )
+        write_baseline(
+            project,
+            {
+                ".specify/templates/brd-template.md": {
+                    "hash": __import__("hashlib")
+                    .sha256(b"brd v0 (old baseline)\n")
+                    .hexdigest(),
+                    "pack_version": "1.0.0",
+                }
+            },
+        )
+
+        result = apply_managed_files(project, "sdd-fake", pack_version="9.9.9")
+
+        assert ".specify/templates/brd-template.md" in result["updated"]
+        assert result["backup_dir"] is not None
+        assert (
+            project / ".specify" / "templates" / "brd-template.md"
+        ).read_text() == "brd v1\n"
+        backup_file = (
+            project
+            / result["backup_dir"]
+            / ".specify"
+            / "templates"
+            / "brd-template.md"
+        )
+        assert backup_file.read_text() == "brd v0 (old baseline)\n"
+
+    def test_user_modified_is_left_alone_without_force(self, fake_pack, project):
+        project.mkdir(parents=True)
+        (project / ".github" / "prompts").mkdir(parents=True)
+        (project / ".github" / "prompts" / "specify.prompt.md").write_text(
+            "hand-edited, no baseline\n"
+        )
+
+        result = apply_managed_files(project, "sdd-fake", pack_version="9.9.9")
+
+        assert ".github/prompts/specify.prompt.md" in result["skipped_conflicts"]
+        assert (
+            project / ".github" / "prompts" / "specify.prompt.md"
+        ).read_text() == "hand-edited, no baseline\n"
+        # Conflict left alone -> no baseline entry recorded for it
+        assert ".github/prompts/specify.prompt.md" not in load_baseline(project)
+
+    def test_user_modified_is_overwritten_and_backed_up_with_force(
+        self, fake_pack, project
+    ):
+        project.mkdir(parents=True)
+        (project / ".github" / "prompts").mkdir(parents=True)
+        (project / ".github" / "prompts" / "specify.prompt.md").write_text(
+            "hand-edited, no baseline\n"
+        )
+
+        result = apply_managed_files(
+            project, "sdd-fake", pack_version="9.9.9", force=True
+        )
+
+        assert ".github/prompts/specify.prompt.md" in result["updated"]
+        assert result["skipped_conflicts"] == []
+        assert (
+            project / ".github" / "prompts" / "specify.prompt.md"
+        ).read_text() == "specify v1\n"
+        backup_file = (
+            project / result["backup_dir"] / ".github" / "prompts" / "specify.prompt.md"
+        )
+        assert backup_file.read_text() == "hand-edited, no baseline\n"
+
+    def test_up_to_date_file_gets_baseline_recorded_too(self, fake_pack, project):
+        # A file that already matches canonical (no baseline yet) should
+        # still get a baseline entry written -- so a *future* pack update
+        # can tell NEEDS_UPDATE apart from USER_MODIFIED for it.
+        project.mkdir(parents=True)
+        (project / ".specify" / "templates").mkdir(parents=True)
+        (project / ".specify" / "templates" / "brd-template.md").write_text("brd v1\n")
+
+        result = apply_managed_files(project, "sdd-fake", pack_version="9.9.9")
+
+        assert ".specify/templates/brd-template.md" in result["unchanged"]
+        baseline = load_baseline(project)
+        assert baseline[".specify/templates/brd-template.md"]["pack_version"] == "9.9.9"
+
+    def test_dry_run_changes_nothing_on_disk_or_baseline(self, fake_pack, project):
+        project.mkdir(parents=True)
+        result = apply_managed_files(
+            project, "sdd-fake", pack_version="9.9.9", dry_run=True
+        )
+        assert "setup.sh" in result["added"]
+        assert not (project / "setup.sh").exists()
+        assert load_baseline(project) == {}
+
+    def test_unknown_pack_raises(self, fake_pack, project):
+        project.mkdir(parents=True)
+        with pytest.raises(RuntimeError, match="not found"):
+            apply_managed_files(project, "sdd-does-not-exist", pack_version="9.9.9")
