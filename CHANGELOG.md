@@ -4,6 +4,50 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.3.0] — 2026-08-13 (Fix: `manifest.yml` now records an explicit `pack:` field)
+
+Direct follow-up to 3.2.0. That release could only *detect* the
+pack-identity gap it found while dogfooding `sdd doctor` — a project
+without a stored pack identity has to be inferred from `project_type`,
+which silently names the wrong pack for any `sdd-universal`-scaffolded
+project (it serves all 10 project types from one shared file set rather
+than becoming a type-specific pack). This release fixes it at the source.
+
+### Added
+
+- Every pack's own `.specify/manifest.yml` template (`sdd-backend-service`,
+  `sdd-frontend-spa`, `sdd-fullstack`, `sdd-mobile`, `sdd-universal`, and
+  `sdd-micro` outside the version lockstep) now bakes in a static
+  `pack: "sdd-..."` line right after `sdd_version` — the same pattern
+  already used for `sdd_version`'s own static default. No template
+  substitution needed in `setup.sh`/`setup.ps1`; the value is simply
+  correct for every project scaffolded from that pack.
+- `PACK-SPEC.md`'s documented manifest schema updated to list `pack:` as
+  a required field, so community pack authors include it from day one.
+
+### Changed
+
+- `_resolve_pack()` already prioritized a stored `manifest.get('pack')`
+  above inference (added alongside 3.2.0) — this release is what actually
+  makes that branch fire for `setup.sh`/`setup.ps1`-scaffolded projects.
+  `sdd init`-scaffolded projects were already unaffected, since `init` has
+  stamped this field since before this phased effort started.
+
+### Verified
+
+- cli-python pytest 1035/1035 (unaffected — manifest-only change); all 6
+  packs' `manifest.yml` confirmed to parse as valid YAML with the new
+  field; `check-cross-references.py` clean across all 6 packs;
+  `test-setup.sh` 19/19 and `test-setup-micro.sh` 12/12 passed; two real
+  functional scaffolds re-confirmed the fix end-to-end — a fresh
+  `sdd-backend-service` scaffold now resolves via `manifest.yml 'pack'
+  field` with no warning, and a fresh `sdd-universal` scaffold
+  (`setup.sh --type backend-service`) now correctly resolves to
+  `sdd-universal` instead of the previously-mis-inferred
+  `sdd-backend-service`.
+
+---
+
 ## [3.2.0] — 2026-08-10 (New: `sdd doctor` — read-only pack-drift report)
 
 An external code review of this repo (ChatGPT) found, among other things,

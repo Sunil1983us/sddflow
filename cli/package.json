@@ -1,6 +1,6 @@
 {
   "name": "@sunil1983us/sddflow",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "CLI for the Spec-Driven Development (SDD) Framework — initialize and upgrade AI-agent SDLC packs (Claude Code, GitHub Copilot, and any AI coding tool)",
   "type": "module",
   "bin": {

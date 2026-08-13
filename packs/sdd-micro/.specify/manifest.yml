@@ -16,4 +16,5 @@ pr_rules:
 workflow_mode: "local"
 
 sdd_version: "2.7.41"   # set by sdd init; used by sdd upgrade
+pack: "sdd-micro"  # static -- disambiguates pack inference (see sdd doctor / _resolve_pack); already inferred reliably via the no-scope/no-project_type heuristic, but explicit is strictly better
 ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other

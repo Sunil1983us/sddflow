@@ -4871,6 +4871,61 @@ export const MIGRATIONS = [
       'mypy clean (37 source files, up from 35); bandit 0 issues',
     ],
   },
+  {
+    from: '3.2.0',
+    to:   '3.3.0',
+    description: "New required-going-forward `pack:` field in manifest.yml, closing the pack-identity gap sdd doctor's warning banner (added in 3.2.0) could only detect, not fix",
+    notes: [
+      'Direct follow-up to 3.2.0: that release shipped sdd doctor with ' +
+      'a warning banner for the case where _resolve_pack() had to ' +
+      '*infer* a project\'s pack from project_type rather than read it ' +
+      'from an explicit field -- most visibly wrong for sdd-universal, ' +
+      'which serves all 10 project_types from one shared set of files ' +
+      'and was being silently resolved to a type-specific pack (e.g. ' +
+      'sdd-backend-service) instead of itself',
+      'This bump fixes it at the source instead of just flagging it: ' +
+      'every pack\'s own manifest.yml template (sdd-backend-service, ' +
+      'sdd-frontend-spa, sdd-fullstack, sdd-mobile, sdd-universal, and ' +
+      'sdd-micro outside the lockstep) now bakes in a static ' +
+      '`pack: "sdd-..."` line right after sdd_version, the same ' +
+      'pattern already used for sdd_version\'s own static default -- ' +
+      'setup.sh/setup.ps1 need no template-substitution logic, the ' +
+      'value is simply correct for every project scaffolded from that ' +
+      'pack',
+      '_resolve_pack() in upgrade.py already prioritized ' +
+      'manifest.get(\'pack\') above project_type inference (added in ' +
+      'the 3.2.0 work) -- this bump is what actually makes that branch ' +
+      'fire for setup.sh/setup.ps1-scaffolded projects; sdd init-' +
+      'scaffolded projects were already unaffected, since init has ' +
+      'stamped manifest_patch[\'pack\'] since before this phased ' +
+      'effort started',
+      'PACK-SPEC.md\'s documented manifest.yml schema updated to list ' +
+      '`pack:` as a required field alongside sdd_version, so community ' +
+      'pack authors building against PACK-SPEC.md include it from day ' +
+      'one',
+      'Existing projects on older sdd_version have no `pack:` field ' +
+      'yet -- this migration entry only stamps sdd_version forward, as ' +
+      'always; a project without the field simply keeps falling back ' +
+      'to inference (with the 3.2.0 warning banner) until it\'s re-' +
+      'scaffolded or the field is added by hand -- there is no ' +
+      'destructive or surprising behavior change for anyone upgrading',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no pack-resolution logic of its own -- ' +
+      'scaffolding-only by design -- so nothing here actually applies ' +
+      'to it beyond the version stamp)',
+      'Verified: cli-python pytest 1035/1035 (unaffected by the ' +
+      'manifest-only change); all 6 packs\' manifest.yml confirmed to ' +
+      'parse as valid YAML with the new field; check-cross-' +
+      'references.py clean across all 6 packs; test-setup.sh 19/19 and ' +
+      'test-setup-micro.sh 12/12 passed; two real functional scaffolds ' +
+      're-confirmed the fix end-to-end -- a fresh sdd-backend-service ' +
+      'scaffold now resolves via "manifest.yml \'pack\' field" with no ' +
+      'warning, and a fresh sdd-universal scaffold (setup.sh --type ' +
+      'backend-service) now correctly resolves to sdd-universal ' +
+      'instead of the previously-mis-inferred sdd-backend-service',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

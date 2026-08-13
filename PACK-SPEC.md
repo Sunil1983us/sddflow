@@ -102,6 +102,16 @@ project_type: "auto"  # set during /specify or by setup.sh
 
 sdd_version: "2.7.87"  # REQUIRED — pack version for upgrade tracking
 
+pack: "sdd-your-pack-name"  # REQUIRED — this pack's own name, static (not
+                             # filled by setup.sh -- bake the real value
+                             # directly into your pack's manifest.yml, same
+                             # as sdd_version above). Lets sdd doctor/sdd
+                             # upgrade/_resolve_pack know for certain which
+                             # pack a project came from, instead of guessing
+                             # from project_type -- important for any pack
+                             # (like sdd-universal) that serves more than
+                             # one project_type from one shared set of files.
+
 pr_rules:
   max_lines_per_pr: 400
   max_files_per_pr: 5
