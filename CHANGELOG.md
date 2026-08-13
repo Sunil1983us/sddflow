@@ -4,6 +4,62 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.2.0] — 2026-08-10 (New: `sdd doctor` — read-only pack-drift report)
+
+An external code review of this repo (ChatGPT) found, among other things,
+that `sdd upgrade` has only ever stamped `manifest.yml`'s `sdd_version`
+field — it never actually syncs a project's templates, prompts, commands,
+instructions, setup scripts, or (confirmed while investigating this)
+workflow/`.cursor`/`.vscode` files forward to match the pack content
+bundled with whatever CLI version is currently installed. A project could
+report itself "upgraded" while every one of those files still matched
+whatever version it was originally scaffolded with. The review's numbers
+were verified independently before acting on any of it — radon complexity
+figures and coverage percentages matched exactly when re-run.
+
+`sdd doctor` is the first, deliberately read-only step of closing that
+gap: it reports drift without applying anything, so it's safe to ship and
+use immediately, well ahead of the larger `sdd upgrade` rewrite that will
+actually apply fixes.
+
+### Added
+
+- **`sdd doctor`** — SHA-256-hashes every framework-managed file (under
+  `.specify/templates/`, `.claude/commands/`, `.github/prompts/`,
+  `.github/instructions/`, `.github/workflows/`, `.cursor/rules/`,
+  `.vscode/`, plus `setup.sh`/`setup.ps1`) against the pack bundled with
+  the currently installed CLI, and classifies each as up-to-date /
+  missing / needs-update / user-modified / differs-for-unknown-reason
+  (the honest fallback for any project scaffolded before this existed —
+  no recorded baseline means it can't tell a pack update from a hand
+  edit, and doesn't guess). `--pack` to override detection, `--quiet` to
+  only show non-clean files. Exit code 0/1, scriptable.
+
+### Fixed (discovered while building this, not from the review)
+
+- Dogfooding `sdd doctor` against a real freshly-scaffolded project
+  surfaced a real, pre-existing gap: `_resolve_pack()`'s project_type
+  inference can silently name the wrong pack for any sdd-universal-
+  scaffolded project, since sdd-universal serves every project_type from
+  one shared set of files rather than becoming a type-specific pack, and
+  `manifest.yml` has never recorded an explicit `pack:` field to tell the
+  two apart. Not fixed here — `sdd doctor` now detects when its pack
+  identity came from inference rather than a stored field and prints a
+  prominent warning rather than silently trusting a guess. A real fix
+  belongs with the `pack_version`/manifest-schema split planned next in
+  this effort.
+
+### Verified
+
+- cli-python pytest 1035/1035 (1012 unchanged + 23 new); manually
+  verified end-to-end against a real freshly-scaffolded project — 113/113
+  files correctly up to date with the correct pack, a hand-edit and a
+  deletion both caught precisely with nothing else flagged; ruff
+  check/format clean; mypy clean (37 source files, up from 35); bandit 0
+  issues.
+
+---
+
 ## [3.1.1] — 2026-08-10 (URL fix: repo renamed universalguide → sddflow)
 
 The GitHub repo was renamed to `sddflow` to match the actual product

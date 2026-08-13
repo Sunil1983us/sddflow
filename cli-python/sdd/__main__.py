@@ -5,6 +5,7 @@ from sdd.commands.config import config_command
 from sdd.commands.confluence import confluence_command
 from sdd.commands.cr import cr_command
 from sdd.commands.dashboard import dashboard_command
+from sdd.commands.doctor import doctor_command
 from sdd.commands.feature import feature_command
 from sdd.commands.hooks import hooks_command
 from sdd.commands.init import init_command
@@ -38,6 +39,7 @@ cli.add_command(token_log_command, name="token-log")
 cli.add_command(project_type_command, name="project-type")
 cli.add_command(feature_command, name="feature")
 cli.add_command(hooks_command, name="hooks")
+cli.add_command(doctor_command, name="doctor")
 
 
 if __name__ == "__main__":

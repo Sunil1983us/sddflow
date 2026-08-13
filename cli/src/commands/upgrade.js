@@ -4811,6 +4811,66 @@ export const MIGRATIONS = [
       'references outside the two intentionally-excluded files',
     ],
   },
+  {
+    from: '3.1.1',
+    to:   '3.2.0',
+    description: "New `sdd doctor` command -- read-only report of drift between a project's framework-managed files and the currently installed CLI's pack content",
+    notes: [
+      'First step of a larger effort responding to external review ' +
+      'feedback (verified independently before acting on any of it -- ' +
+      'radon complexity numbers and coverage percentages matched ' +
+      'exactly when re-run): sdd upgrade has only ever stamped ' +
+      'manifest.yml\'s sdd_version field, never actually syncing a ' +
+      'project\'s templates/prompts/commands/instructions/setup-' +
+      'scripts/workflows/.cursor/.vscode files forward to match the ' +
+      'installed CLI\'s pack content -- so a project could report ' +
+      'itself \'upgraded\' while every one of those files still ' +
+      'matched whatever version it was originally scaffolded with',
+      'sdd doctor is deliberately read-only -- reports drift, changes ' +
+      'nothing -- so it\'s safe to ship and use immediately, ahead of ' +
+      'the much bigger sdd upgrade rewrite that will actually apply ' +
+      'fixes (a later bump)',
+      'New cli-python/sdd/utils/managed_files.py: SHA-256-hashes ' +
+      'every managed file in the pack bundled with the currently ' +
+      'installed CLI (the \'canonical\' content) and in the project ' +
+      'itself, classifying each as up-to-date / missing / needs-' +
+      'update / user-modified / differs-for-unknown-reason (the last ' +
+      'one being the honest fallback for every project scaffolded ' +
+      'before this existed -- no baseline recorded, so it can\'t ' +
+      'distinguish a pack update from a hand edit, and doesn\'t guess)',
+      'New cli-python/sdd/commands/doctor.py: `sdd doctor` CLI ' +
+      'wrapper, reuses upgrade.py\'s existing _resolve_pack() for ' +
+      'pack detection, --pack to override, --quiet to only show ' +
+      'non-clean files, exit code 0/1 (scriptable)',
+      'Real finding surfaced by dogfooding this against a real ' +
+      'freshly-scaffolded project, not from the external review: ' +
+      '_resolve_pack()\'s existing project_type inference can ' +
+      'silently guess the wrong pack for any sdd-universal-scaffolded ' +
+      'project, since sdd-universal handles every project_type from ' +
+      'one shared set of files rather than becoming a type-specific ' +
+      'pack, and manifest.yml has never recorded an explicit ' +
+      '\'pack:\' field to disambiguate. Root-caused but not fixed ' +
+      'here -- doctor detects when _resolve_pack\'s answer came from ' +
+      'inference rather than an explicit stored field and prints a ' +
+      'prominent warning instead of silently presenting a guess as ' +
+      'fact; a real fix belongs with the pack_version/manifest-schema ' +
+      'split planned next in this phased effort',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same ' +
+      'sdd_version chain (the Node CLI has no doctor command of its ' +
+      'own -- scaffolding-only by design -- so nothing here actually ' +
+      'applies to it beyond the version stamp)',
+      'Verified: cli-python pytest 1035/1035 (1012 unchanged + 23 new ' +
+      'covering inventory building, hashing, baseline loading/' +
+      'malformed-JSON handling, all 5 classification branches ' +
+      'directly, and the CLI wrapper\'s exit codes/--quiet/inference-' +
+      'warning banner); manually verified end-to-end against a real ' +
+      'freshly-scaffolded project (113/113 up to date with the ' +
+      'correct pack; a hand-edit and a deletion both caught ' +
+      'precisely, nothing else flagged); ruff check/format clean; ' +
+      'mypy clean (37 source files, up from 35); bandit 0 issues',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
