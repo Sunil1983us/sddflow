@@ -130,8 +130,15 @@ Run, in order, and don't proceed to commit if any fail:
 ```bash
 python3 -c "import ast; ast.parse(open('cli-python/sdd/commands/upgrade.py').read())"
 node --check cli/src/commands/upgrade.js
+python3 packs/_shared/tests/check-migration-parity.py --verbose
 cd cli-python && python3 -m pytest tests -q
 ```
+
+`check-migration-parity.py` catches a migration entry added to only one of
+the two `MIGRATIONS` lists (step 3 above) — a missing/mismatched `from`/`to`
+hop, not prose differences. The two lists' `description`/`notes` text is
+expected to differ in places (each CLI's notes sometimes call out
+CLI-specific detail) — only the version chain itself needs to match.
 
 If pack-level files (templates, prompts, `_shared/blocks/`) were touched as part of the change being shipped — not just the version bump itself — also run:
 

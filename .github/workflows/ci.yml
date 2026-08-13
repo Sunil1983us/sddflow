@@ -46,6 +46,14 @@ jobs:
       - name: Run check-cross-references.py
         run: python3 packs/_shared/tests/check-cross-references.py
 
+  migration-parity-check:
+    name: Python and Node CLI migration chains match (from/to hops)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run check-migration-parity.py
+        run: python3 packs/_shared/tests/check-migration-parity.py --verbose
+
   output-assertions:
     name: Worked example passes output assertions
     runs-on: ubuntu-latest
