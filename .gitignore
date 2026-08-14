@@ -13,7 +13,14 @@ dist/
 
 # Node.js
 node_modules/
+# package-lock.json is ignored by default (e.g. examples/todo-api/'s --
+# that project's own npm install/test never runs in CI, so its lockfile
+# has zero reproducibility impact either way), except cli/'s: that one IS
+# npm installed fresh on every CI run (node-cli-sanity job, via `npm ci`)
+# and is what actually gets published, so it's tracked deliberately for
+# deterministic builds and lockfile-aware Dependabot updates.
 package-lock.json
+!/cli/package-lock.json
 *.tgz
 .env
 
