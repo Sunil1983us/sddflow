@@ -115,6 +115,96 @@ class TestGetAttachmentByFilename:
         assert kwargs["params"] == {"filename": "diagram-1.svg"}
 
 
+class TestGetMyself:
+    def _client(self, json_body: dict):
+        session = MagicMock()
+        response = MagicMock()
+        response.json.return_value = json_body
+        session.get.return_value = response
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+        return client, session
+
+    def test_gets_user_current_endpoint(self):
+        client, session = self._client({"displayName": "Ada"})
+        client.get_myself()
+        args, _kwargs = session.get.call_args
+        assert args[0] == "https://x.atlassian.net/wiki/rest/api/user/current"
+
+    def test_returns_the_response_body(self):
+        client, _session = self._client({"displayName": "Ada", "accountId": "abc"})
+        assert client.get_myself() == {"displayName": "Ada", "accountId": "abc"}
+
+
+class TestGetPageByTitle:
+    def _client(self, results):
+        session = MagicMock()
+        response = MagicMock()
+        response.json.return_value = {"results": results}
+        session.get.return_value = response
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+        return client, session
+
+    def test_queries_by_space_key_title_and_expands_version(self):
+        client, session = self._client([])
+        client.get_page_by_title("ENG", "My Page")
+        args, kwargs = session.get.call_args
+        assert args[0] == "https://x.atlassian.net/wiki/rest/api/content"
+        assert kwargs["params"] == {
+            "type": "page",
+            "spaceKey": "ENG",
+            "title": "My Page",
+            "expand": "version",
+        }
+
+    def test_returns_none_when_no_page_exists(self):
+        client, _session = self._client([])
+        assert client.get_page_by_title("ENG", "My Page") is None
+
+    def test_returns_the_first_match_when_found(self):
+        client, _session = self._client([{"id": "999", "version": {"number": 3}}])
+        result = client.get_page_by_title("ENG", "My Page")
+        assert result == {"id": "999", "version": {"number": 3}}
+
+
+class TestCreatePage:
+    def _client(self, response_body):
+        session = MagicMock()
+        response = MagicMock()
+        response.json.return_value = response_body
+        session.post.return_value = response
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+        return client, session
+
+    def test_posts_to_content_endpoint(self):
+        client, session = self._client({"id": "999"})
+        client.create_page("ENG", "My Page", "<p>body</p>")
+        args, _kwargs = session.post.call_args
+        assert args[0] == "https://x.atlassian.net/wiki/rest/api/content"
+
+    def test_payload_shape_without_parent(self):
+        client, session = self._client({"id": "999"})
+        client.create_page("ENG", "My Page", "<p>body</p>")
+        body = session.post.call_args.kwargs["json"]
+        assert body == {
+            "type": "page",
+            "title": "My Page",
+            "space": {"key": "ENG"},
+            "body": {"storage": {"value": "<p>body</p>", "representation": "storage"}},
+        }
+        assert "ancestors" not in body
+
+    def test_ancestors_included_only_when_parent_id_given(self):
+        client, session = self._client({"id": "999"})
+        client.create_page("ENG", "My Page", "<p>body</p>", parent_id="111")
+        body = session.post.call_args.kwargs["json"]
+        assert body["ancestors"] == [{"id": "111"}]
+
+    def test_returns_the_created_page(self):
+        client, _session = self._client({"id": "999", "title": "My Page"})
+        result = client.create_page("ENG", "My Page", "<p>body</p>")
+        assert result == {"id": "999", "title": "My Page"}
+
+
 class TestUploadAttachmentUpdatesExisting:
     """Regression coverage for a real, 100%-reproducible user-reported
     bug: re-pushing a local-svg diagram page a second time always failed
@@ -280,3 +370,159 @@ class TestUpsertPage409Retry:
         assert page["version"]["number"] == 2
         assert session.get.call_count == 1
         assert session.put.call_count == 1
+
+
+class TestGetPageWithBody:
+    def test_gets_content_endpoint_and_expands_body_storage(self):
+        session = MagicMock()
+        response = MagicMock()
+        response.json.return_value = {"id": "999", "body": {}}
+        session.get.return_value = response
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+
+        client.get_page_with_body("999")
+
+        args, kwargs = session.get.call_args
+        assert args[0] == "https://x.atlassian.net/wiki/rest/api/content/999"
+        assert kwargs["params"] == {"expand": "body.storage,version,_links"}
+
+    def test_returns_the_response_body(self):
+        session = MagicMock()
+        response = MagicMock()
+        response.json.return_value = {"id": "999", "title": "My Page"}
+        session.get.return_value = response
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+
+        assert client.get_page_with_body("999") == {"id": "999", "title": "My Page"}
+
+
+def _comment_response(results: list[dict]) -> MagicMock:
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"results": results}
+    return response
+
+
+def _raw_comment(
+    author="Ada",
+    when="2026-08-13T10:00:00.000Z",
+    body_html="<p>Looks good</p>",
+    resolved=False,
+) -> dict:
+    return {
+        "version": {"by": {"displayName": author}, "when": when},
+        "body": {"view": {"value": body_html}},
+        "extensions": {"resolution": {"status": "resolved" if resolved else "open"}},
+    }
+
+
+class TestGetPageComments:
+    """get_page_comments() -- footer comments, always resolved-agnostic
+    (Confluence footer comments have no resolved/unresolved concept,
+    unlike inline comments)."""
+
+    def _client(self, results):
+        session = MagicMock()
+        session.get.return_value = _comment_response(results)
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+        return client, session
+
+    def test_queries_child_comment_endpoint_with_expand_and_limit(self):
+        client, session = self._client([])
+        client.get_page_comments("999")
+        args, kwargs = session.get.call_args
+        assert (
+            args[0] == "https://x.atlassian.net/wiki/rest/api/content/999/child/comment"
+        )
+        assert kwargs["params"] == {
+            "expand": "body.view,version,ancestors",
+            "limit": "100",
+        }
+
+    def test_strips_html_and_normalizes_shape(self):
+        client, _session = self._client([_raw_comment(body_html="<p>Looks good</p>")])
+        result = client.get_page_comments("999")
+        assert result == [
+            {
+                "author": "Ada",
+                "created": "2026-08-13",
+                "text": "Looks good",
+                "type": "comment",
+            }
+        ]
+
+    def test_created_date_truncated_to_date_only(self):
+        client, _session = self._client(
+            [_raw_comment(when="2026-08-13T10:00:00.000+0000")]
+        )
+        result = client.get_page_comments("999")
+        assert result[0]["created"] == "2026-08-13"
+
+    def test_missing_author_defaults_to_unknown(self):
+        raw = _raw_comment()
+        del raw["version"]["by"]
+        client, _session = self._client([raw])
+        assert client.get_page_comments("999")[0]["author"] == "Unknown"
+
+    def test_empty_body_after_stripping_is_omitted(self):
+        """A comment whose body is pure markup (e.g. an empty <p></p>) has
+        nothing left after _strip_html -- must not show up as a blank
+        entry."""
+        client, _session = self._client([_raw_comment(body_html="<p></p>")])
+        assert client.get_page_comments("999") == []
+
+
+class TestGetInlineComments:
+    """get_inline_comments() -- unlike footer comments, these carry a
+    resolved/unresolved status and Confluence returns 400 (not an empty
+    result set) when a page has inline comments disabled entirely."""
+
+    def _client(self, results):
+        session = MagicMock()
+        session.get.return_value = _comment_response(results)
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+        return client, session
+
+    def test_queries_child_comment_endpoint_with_inline_location(self):
+        client, session = self._client([])
+        client.get_inline_comments("999")
+        args, kwargs = session.get.call_args
+        assert (
+            args[0] == "https://x.atlassian.net/wiki/rest/api/content/999/child/comment"
+        )
+        assert kwargs["params"] == {
+            "expand": "body.view,version,extensions.inlineProperties",
+            "limit": "100",
+            "location": "inline",
+        }
+
+    def test_unresolved_comment_is_included_with_inline_type(self):
+        client, _session = self._client([_raw_comment(resolved=False)])
+        result = client.get_inline_comments("999")
+        assert result == [
+            {
+                "author": "Ada",
+                "created": "2026-08-13",
+                "text": "Looks good",
+                "type": "inline",
+            }
+        ]
+
+    def test_resolved_comment_is_filtered_out(self):
+        client, _session = self._client([_raw_comment(resolved=True)])
+        assert client.get_inline_comments("999") == []
+
+    def test_400_response_returns_empty_list_without_raising(self):
+        """Confluence returns 400 (not 200 + empty results) for a page
+        with inline comments disabled -- this must be treated as "no
+        inline comments" the same as an empty list, not surfaced as an
+        error that would abort sdd review pull-answers."""
+        session = MagicMock()
+        response = MagicMock()
+        response.status_code = 400
+        response.raise_for_status.side_effect = requests.HTTPError("400 Bad Request")
+        session.get.return_value = response
+        client = ConfluenceClient(session, "https://x.atlassian.net")
+
+        assert client.get_inline_comments("999") == []
+        response.raise_for_status.assert_not_called()

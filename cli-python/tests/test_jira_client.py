@@ -121,6 +121,108 @@ class TestLinkIssues:
             assert "400" in str(e)
 
 
+class TestCreateIssue:
+    def test_posts_to_issue_endpoint(self):
+        client, session = _client_with_mock_session({"key": "PROJ-1"})
+        client.create_issue({"summary": "Title", "project": {"key": "PROJ"}})
+        url = session.post.call_args.args[0]
+        assert url == "https://example.atlassian.net/rest/api/3/issue"
+
+    def test_fields_wrapped_under_fields_key_not_sent_flat(self):
+        """Jira's create-issue contract requires the whole payload nested
+        under a top-level "fields" key -- sending the field dict flat is a
+        real, easy-to-make mistake that silently produces a 400."""
+        client, session = _client_with_mock_session({"key": "PROJ-1"})
+        fields = {"summary": "Title", "project": {"key": "PROJ"}}
+        client.create_issue(fields)
+        body = session.post.call_args.kwargs["json"]
+        assert body == {"fields": fields}
+
+    def test_returns_the_created_issue(self):
+        client, _ = _client_with_mock_session({"key": "PROJ-1", "id": "10001"})
+        result = client.create_issue({"summary": "Title"})
+        assert result == {"key": "PROJ-1", "id": "10001"}
+
+
+def _client_with_mock_put(
+    json_body: dict | None = None,
+) -> tuple[JiraClient, MagicMock]:
+    session = MagicMock()
+    response = MagicMock()
+    response.json.return_value = json_body or {}
+    response.raise_for_status.return_value = None
+    session.put.return_value = response
+    client = JiraClient(session, "https://example.atlassian.net")
+    return client, session
+
+
+class TestUpdateIssue:
+    def test_puts_to_issue_key_endpoint(self):
+        client, session = _client_with_mock_put()
+        client.update_issue("PROJ-1", {"summary": "New title"})
+        url = session.put.call_args.args[0]
+        assert url == "https://example.atlassian.net/rest/api/3/issue/PROJ-1"
+
+    def test_fields_wrapped_under_fields_key(self):
+        client, session = _client_with_mock_put()
+        client.update_issue("PROJ-1", {"summary": "New title"})
+        body = session.put.call_args.kwargs["json"]
+        assert body == {"fields": {"summary": "New title"}}
+
+
+class TestSetParent:
+    """set_parent() has two genuinely different payload shapes depending
+    on parent_field -- easy to get backwards, since only one of the two
+    branches is exercised by any given real Jira project's configuration
+    (company-managed projects use the "parent" field; some team-managed/
+    classic setups use a custom Epic Link field name instead)."""
+
+    def test_default_parent_field_sends_nested_key_object(self):
+        client, session = _client_with_mock_put()
+        client.set_parent("PROJ-2", "PROJ-1")
+        body = session.put.call_args.kwargs["json"]
+        assert body == {"fields": {"parent": {"key": "PROJ-1"}}}
+
+    def test_custom_parent_field_sends_the_key_flat(self):
+        client, session = _client_with_mock_put()
+        client.set_parent("PROJ-2", "PROJ-1", parent_field="customfield_10014")
+        body = session.put.call_args.kwargs["json"]
+        assert body == {"fields": {"customfield_10014": "PROJ-1"}}
+
+
+class TestAddComment:
+    def test_posts_to_issue_comment_endpoint(self):
+        client, session = _client_with_mock_session({"id": "1"})
+        client.add_comment("PROJ-1", "hello")
+        url = session.post.call_args.args[0]
+        assert url == "https://example.atlassian.net/rest/api/3/issue/PROJ-1/comment"
+
+    def test_body_uses_atlassian_document_format(self):
+        """A malformed ADF body is rejected by Jira Cloud with a 400 that
+        gives little clue what's wrong -- this pins the exact envelope
+        shape the API requires."""
+        client, session = _client_with_mock_session({"id": "1"})
+        client.add_comment("PROJ-1", "hello world")
+        body = session.post.call_args.kwargs["json"]
+        assert body == {
+            "body": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": "hello world"}],
+                    }
+                ],
+            }
+        }
+
+    def test_returns_the_created_comment(self):
+        client, _ = _client_with_mock_session({"id": "1", "body": "hello"})
+        result = client.add_comment("PROJ-1", "hello")
+        assert result == {"id": "1", "body": "hello"}
+
+
 def _client_with_mock_get(json_body: dict) -> tuple[JiraClient, MagicMock]:
     session = MagicMock()
     response = MagicMock()
@@ -129,6 +231,64 @@ def _client_with_mock_get(json_body: dict) -> tuple[JiraClient, MagicMock]:
     session.get.return_value = response
     client = JiraClient(session, "https://example.atlassian.net")
     return client, session
+
+
+class TestGetMyself:
+    def test_gets_myself_endpoint(self):
+        client, session = _client_with_mock_get({"displayName": "Ada"})
+        client.get_myself()
+        url = session.get.call_args.args[0]
+        assert url == "https://example.atlassian.net/rest/api/3/myself"
+
+    def test_returns_the_response_body(self):
+        client, _ = _client_with_mock_get({"displayName": "Ada", "accountId": "abc"})
+        assert client.get_myself() == {"displayName": "Ada", "accountId": "abc"}
+
+
+class TestGetFields:
+    def test_gets_field_endpoint(self):
+        client, session = _client_with_mock_get([])
+        client.get_fields()
+        url = session.get.call_args.args[0]
+        assert url == "https://example.atlassian.net/rest/api/3/field"
+
+    def test_returns_the_field_list_directly_not_wrapped(self):
+        """Unlike most list endpoints here, /field returns a bare JSON
+        array, not an envelope with a named key -- easy to accidentally
+        add a ["fields"] unwrap that would break this one."""
+        fields = [{"id": "customfield_10014", "name": "Epic Link"}]
+        client, _ = _client_with_mock_get(fields)
+        assert client.get_fields() == fields
+
+
+class TestGetIssueTypes:
+    def test_gets_project_statuses_endpoint(self):
+        client, session = _client_with_mock_get([])
+        client.get_issue_types("PROJ")
+        url = session.get.call_args.args[0]
+        assert url == "https://example.atlassian.net/rest/api/3/project/PROJ/statuses"
+
+    def test_returns_the_response_directly_not_wrapped(self):
+        statuses = [{"name": "Story", "statuses": []}]
+        client, _ = _client_with_mock_get(statuses)
+        assert client.get_issue_types("PROJ") == statuses
+
+
+class TestGetComments:
+    def test_gets_issue_comment_endpoint(self):
+        client, session = _client_with_mock_get({"comments": []})
+        client.get_comments("PROJ-1")
+        url = session.get.call_args.args[0]
+        assert url == "https://example.atlassian.net/rest/api/3/issue/PROJ-1/comment"
+
+    def test_returns_comments_list_from_response(self):
+        comments = [{"id": "1", "body": "hi"}]
+        client, _ = _client_with_mock_get({"comments": comments})
+        assert client.get_comments("PROJ-1") == comments
+
+    def test_missing_comments_key_returns_empty_list(self):
+        client, _ = _client_with_mock_get({})
+        assert client.get_comments("PROJ-1") == []
 
 
 class TestGetTransitions:
