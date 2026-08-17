@@ -4,6 +4,39 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.4.1] — 2026-08-17 (Fix: `sdd config test` no longer crashes on a non-JSON response)
+
+Reported by a real user testing PAT auth against two separate Jira/
+Confluence Data Center servers: `sdd config test` crashed with a raw
+`json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)`
+traceback instead of a clean per-service status line.
+
+### Fixed
+
+- `response.json()` raises this when a server answers 200 with a
+  non-JSON body — most commonly an SSO/login-page redirect, or
+  `base_url` pointing at the wrong path entirely. `except
+  requests.HTTPError` never caught it, since `JSONDecodeError` is a
+  `RequestException` *sibling*, not a subclass of `HTTPError`.
+- `sdd/commands/config.py`'s duplicated Jira/Confluence probe logic is
+  now one `_probe_service()` helper with three distinct failure modes:
+  an HTTP error (shows status + body), a non-JSON response (shows an
+  actionable message about `base_url`/SSO/token validity instead of a
+  raw parse error — caught both as the bare stdlib exception class,
+  matching what the reporting user's traceback showed, and as modern
+  `requests`' own wrapped subclass), and any other connection-level
+  failure (requests' own message is clear enough on its own).
+
+### Verified
+
+- cli-python pytest 1098/1098 (1094 unchanged + 4 new covering all
+  three failure modes, including a direct reproduction of the reported
+  bug); ruff check/format clean; mypy clean (37 source files); bandit 0
+  issues; manually confirmed end-to-end through the full CLI invocation
+  path, not just the unit tests.
+
+---
+
 ## [3.4.0] — 2026-08-13 (New: `sdd upgrade --apply-files` actually applies pack updates)
 
 Completes the effort `sdd doctor` (3.2.0) and the `pack:` field (3.3.0)

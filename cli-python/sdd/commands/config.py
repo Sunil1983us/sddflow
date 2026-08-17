@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -517,31 +518,61 @@ def config_test(profile):
         console.print(f"  [dim]Confluence profile: {cf_name}[/dim]")
         console.print()
 
-    try:
-        me = JiraClient(jira_session, jira_prof.base_url).get_myself()
-        name = me.get("displayName") or me.get("emailAddress", "?")
-        console.print(
-            f"  [green]✓[/green]  Jira       — connected as [cyan]{name}[/cyan]"
-        )
-    except requests.HTTPError as e:
-        console.print(
-            f"  [red]✗  Jira       — HTTP {e.response.status_code}: "
-            f"{e.response.text[:120]}[/red]"
-        )
-
-    try:
-        me = ConfluenceClient(cf_session, cf_prof.base_url).get_myself()
-        name = me.get("displayName") or me.get("username", "?")
-        console.print(
-            f"  [green]✓[/green]  Confluence — connected as [cyan]{name}[/cyan]"
-        )
-    except requests.HTTPError as e:
-        console.print(
-            f"  [red]✗  Confluence — HTTP {e.response.status_code}: "
-            f"{e.response.text[:120]}[/red]"
-        )
+    _probe_service(
+        "Jira",
+        lambda: JiraClient(jira_session, jira_prof.base_url).get_myself(),
+        ("displayName", "emailAddress"),
+    )
+    _probe_service(
+        "Confluence",
+        lambda: ConfluenceClient(cf_session, cf_prof.base_url).get_myself(),
+        ("displayName", "username"),
+    )
 
     console.print()
+
+
+def _probe_service(label: str, get_myself_fn, name_keys: tuple[str, ...]) -> None:
+    """Runs a get_myself()-style connectivity probe and prints one status
+    line -- never lets it crash the whole `sdd config test` command.
+
+    Three failure modes, told apart because each points at a different
+    fix:
+    - HTTPError: the server itself said no (4xx/5xx) -- its status code
+      and body are the most useful thing to show.
+    - JSONDecodeError (raised by response.json() on a 200-but-non-JSON
+      body -- caught as the bare stdlib class since older `requests`
+      versions raise that directly, and as InvalidJSONError to also
+      catch requests>=2.27's own subclass that wraps it): most commonly
+      means base_url points at an SSO/login redirect page or the wrong
+      path entirely, not the real API root -- a raw "Expecting value:
+      line 1 column 1" message (what this looks like uncaught) gives the
+      user no clue what actually went wrong.
+    - Any other RequestException (connection refused, DNS failure,
+      timeout, TLS error, malformed URL): whatever requests' own message
+      says is usually clear enough on its own.
+    """
+    try:
+        me = get_myself_fn()
+        name = next((me.get(k) for k in name_keys if me.get(k)), "?")
+        console.print(
+            f"  [green]✓[/green]  {label:<10} — connected as [cyan]{name}[/cyan]"
+        )
+    except requests.exceptions.HTTPError as e:
+        console.print(
+            f"  [red]✗  {label:<10} — HTTP {e.response.status_code}: "
+            f"{e.response.text[:120]}[/red]"
+        )
+    except (json.JSONDecodeError, requests.exceptions.InvalidJSONError):
+        console.print(
+            f"  [red]✗  {label:<10} — got a response, but it wasn't "
+            f"JSON.[/red]\n"
+            f"      [dim]Check base_url points at the API root (not a "
+            f"login/SSO redirect page), and that the PAT/token is "
+            f"still valid.[/dim]"
+        )
+    except requests.exceptions.RequestException as e:
+        console.print(f"  [red]✗  {label:<10} — {e}[/red]")
 
 
 @config_command.command("fields")

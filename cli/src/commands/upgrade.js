@@ -4977,6 +4977,54 @@ export const MIGRATIONS = [
       'backup by --apply-files --force',
     ],
   },
+  {
+    from: '3.4.0',
+    to:   '3.4.1',
+    description: "Bugfix: `sdd config test` no longer crashes with a raw traceback when a Jira/Confluence server responds 200 with a non-JSON body",
+    notes: [
+      'Real user report: testing PAT auth against two Jira/Confluence ' +
+      'Data Center servers, `sdd config test` crashed with an ' +
+      'unhandled `json.decoder.JSONDecodeError: Expecting value: line ' +
+      '1 column 1 (char 0)` traceback instead of a clean per-service ' +
+      'status line',
+      'Root cause: response.json() raises this when the server answers ' +
+      '200 with a non-JSON body -- most commonly an SSO/login-page ' +
+      'redirect, or base_url pointing at the wrong path entirely. ' +
+      '`except requests.HTTPError` never caught it, since JSONDecodeError ' +
+      'is a RequestException *sibling*, not a subclass of HTTPError -- ' +
+      'an easy exception-hierarchy mistake to make and never notice ' +
+      'until it happens for real',
+      'Fixed by extracting the duplicated Jira/Confluence probe logic ' +
+      'in cli-python/sdd/commands/config.py into one _probe_service() ' +
+      'helper with three distinct except clauses: HTTPError (the ' +
+      'server said no, show its status+body), JSONDecodeError (caught ' +
+      'both as the bare stdlib class -- older requests versions raise ' +
+      'that directly, matching what the reporting user\'s traceback ' +
+      'showed -- and requests.exceptions.InvalidJSONError, the modern ' +
+      'requests>=2.27 wrapper -- shows an actionable message pointing ' +
+      'at base_url/SSO/token validity instead of a raw parse error), ' +
+      'and any other RequestException (connection refused, DNS ' +
+      'failure, timeout, TLS error, malformed URL -- requests\' own ' +
+      'message is clear enough on its own)',
+      'No manifest.yml or generated-file changes -- purely a crash fix ' +
+      'in CLI error handling, nothing for an existing project to ' +
+      'migrate',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no `sdd config test` of its own -- ' +
+      'scaffolding-only by design -- so nothing here actually applies ' +
+      'to it beyond the version stamp)',
+      'Verified: cli-python pytest 1098/1098 (1094 unchanged + 4 new ' +
+      'covering all three failure modes, including the exact bare-' +
+      'stdlib-JSONDecodeError reproduction of the reported bug and the ' +
+      'modern requests-wrapped variant); ruff check/format clean; mypy ' +
+      'clean (37 source files); bandit 0 issues; manually confirmed ' +
+      'end-to-end through the full Click CLI invocation path (not just ' +
+      'the unit tests) -- a probe against a real unreachable server ' +
+      'produces a clean per-service error line and exit code 0, never ' +
+      'a traceback',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

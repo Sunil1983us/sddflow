@@ -44,6 +44,6 @@ testing_style: "paired"
 # If using sdd-universal instead, set project_type: "backend-service" in its manifest.yml
 # project_type: "backend-service"
 
-sdd_version: "3.4.0"   # set by sdd init; used by sdd upgrade
+sdd_version: "3.4.1"   # set by sdd init; used by sdd upgrade
 pack: "sdd-backend-service"  # static per pack -- disambiguates project_type-based pack inference (see sdd doctor / _resolve_pack); sdd init also stamps this on --pack, unchanged otherwise
 ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other
