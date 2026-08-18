@@ -1,7 +1,7 @@
 # Unit tests for config-init template output and integrations loading.
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
@@ -1209,7 +1209,7 @@ class TestConfigTestCommand:
             "C",
             (),
             {
-                "__init__": lambda self, session, base_url: setattr(
+                "__init__": lambda self, session, base_url, deployment="cloud": setattr(
                     self, "base_url", base_url
                 ),
                 "get_myself": lambda self: {"displayName": display_name},
@@ -1266,7 +1266,7 @@ class TestConfigTestCommand:
         seen_base_urls = []
 
         def _client_factory(display_name):
-            def _init(self, session, base_url):
+            def _init(self, session, base_url, deployment="cloud"):
                 seen_base_urls.append(base_url)
                 self.base_url = base_url
 
@@ -1329,7 +1329,7 @@ class TestConfigTestCommand:
         seen_base_urls = []
 
         def _client_factory(display_name):
-            def _init(self, session, base_url):
+            def _init(self, session, base_url, deployment="cloud"):
                 seen_base_urls.append(base_url)
 
             return type(
@@ -1353,6 +1353,37 @@ class TestConfigTestCommand:
             "https://candidate.example",
             "https://candidate.example",
         ]
+
+    def test_pat_profile_wires_deployment_through_to_real_client_urls(
+        self, runner, config_home
+    ):
+        """End-to-end confirmation, unlike the fake-client tests above:
+        the REAL JiraClient/ConfluenceClient (not a test double) must
+        receive deployment='server' for a pat-mode profile and actually
+        request the v2 / no-/wiki-prefix URLs -- this is the real bug a
+        user hit against a real Jira/Confluence Data Center instance."""
+        self._write_profiles(
+            config_home,
+            onprem={"auth_mode": "pat", "base_url": "https://jira.internal"},
+        )
+
+        session = MagicMock()
+        response = MagicMock()
+        response.json.return_value = {"displayName": "Ada"}
+        response.raise_for_status.return_value = None
+        session.get.return_value = response
+
+        # JiraClient/ConfluenceClient deliberately NOT patched -- the real
+        # classes must run, only the network layer (Session) is faked.
+        with patch.object(config_mod, "build_session", return_value=session):
+            result = runner.invoke(config_command, ["test"])
+
+        assert result.exit_code == 0, result.output
+        urls_called = [c.args[0] for c in session.get.call_args_list]
+        assert "https://jira.internal/rest/api/2/myself" in urls_called
+        assert "https://jira.internal/rest/api/user/current" in urls_called
+        assert "https://jira.internal/rest/api/3/myself" not in urls_called
+        assert not any("/wiki/" in u for u in urls_called)
 
     def test_unknown_profile_reports_which_service_failed(self, runner, config_home):
         self._write_profiles(
@@ -1378,7 +1409,7 @@ class TestConfigTestCommand:
             "C",
             (),
             {
-                "__init__": lambda self, session, base_url: None,
+                "__init__": lambda self, session, base_url, deployment="cloud": None,
                 "get_myself": lambda self: raise_fn(),
             },
         )

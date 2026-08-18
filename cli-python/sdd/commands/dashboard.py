@@ -201,12 +201,14 @@ def _fetch_review_links(feature: str) -> dict:
     try:
         if cfg.jira:
             prof, session = load_jira_session(cfg)
-            jira_client = JiraClient(session, prof.base_url)
+            jira_client = JiraClient(session, prof.base_url, deployment=prof.deployment)
         else:
             jira_client = None
         if cfg.confluence:
             cf_prof, cf_session = load_confluence_session(cfg)
-            cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
+            cf_client = ConfluenceClient(
+                cf_session, cf_prof.base_url, deployment=cf_prof.deployment
+            )
         else:
             cf_prof, cf_client = None, None
     except Exception as e:
@@ -305,7 +307,7 @@ def _jira_client_for_comments():
         return None
     try:
         prof, session = load_jira_session(cfg)
-        return JiraClient(session, prof.base_url), cfg
+        return JiraClient(session, prof.base_url, deployment=prof.deployment), cfg
     except Exception:
         return None
 

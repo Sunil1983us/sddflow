@@ -7392,6 +7392,70 @@ MIGRATIONS: list[Migration] = [
             "per-service error line and exit code 0, never a traceback",
         ],
     },
+    {
+        "from": "3.4.1",
+        "to": "3.4.2",
+        "description": "Bugfix: Jira/Confluence client now targets the "
+        "correct REST API version/path for Server & Data Center "
+        "deployments, not just Cloud",
+        "notes": [
+            "Confirmed against two real Jira/Confluence Data Center "
+            "servers (the same user who reported the 3.4.1 crash): "
+            "Jira Server/DC does not support REST API v3 at all -- only "
+            "v2 (JRASERVER-70688, an Atlassian feature request for v3 "
+            "on Data Center, is still open, confirming this). "
+            "Confluence Server/DC's REST API sits directly at "
+            "/rest/api, with no /wiki prefix -- that prefix is a "
+            "Cloud-only convention (Cloud sites share a domain with "
+            "Jira Cloud, so /wiki disambiguates them there; a "
+            "standalone Server/DC install has no such collision)",
+            "sdd/utils/jira_client.py and confluence_client.py "
+            "hardcoded the Cloud-only paths (v3, /wiki) unconditionally "
+            "before this -- every request against a Server/DC instance "
+            "failed, not always with a clean error: a reverse proxy or "
+            "SSO gateway in front of the real instance can respond 200 "
+            "with an HTML login page, or 403, for a path it doesn't "
+            "recognize -- which is exactly what the 3.4.1 crash report "
+            "turned out to be a symptom of",
+            "Added Profile.deployment (sdd/utils/atlassian_auth.py): "
+            "'server' for auth_mode == 'pat', 'cloud' otherwise. "
+            "Personal Access Tokens are a Server/DC-only feature -- "
+            "Cloud doesn't support them -- so auth_mode alone is a "
+            "reliable signal, no separate config field needed. "
+            "JiraClient/ConfluenceClient both gained an optional "
+            "deployment= keyword (default 'cloud', so every existing "
+            "Cloud profile's behavior is unchanged) that switches "
+            "v3->v2 and drops the /wiki prefix for 'server'",
+            "Threaded through all 24 call sites across 8 command files "
+            "(config.py, jira.py, confluence.py, review.py, cr.py, "
+            "dashboard.py, pr.py) -- every one already had the Profile "
+            "object in hand, so each is a one-line "
+            "deployment=prof.deployment addition, mechanically applied "
+            "and individually verified",
+            "No manifest.yml or generated-file changes -- purely a "
+            "connectivity fix for PAT/Server-DC profiles; existing "
+            "Cloud (basic/oauth2) profiles see zero behavior change",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain (the Node CLI has no Jira/Confluence "
+            "client of its own -- scaffolding-only by design -- so "
+            "nothing here actually applies to it beyond the version "
+            "stamp)",
+            "Verified: cli-python pytest 1108/1108 (1098 unchanged + 10 "
+            "new -- Profile.deployment for all three auth_modes, "
+            "JiraClient/ConfluenceClient's _api() URL construction for "
+            "both deployments, and one true end-to-end test using the "
+            "REAL client classes, not fakes, confirming a pat profile "
+            "actually requests /rest/api/2/myself and /rest/api/user/"
+            "current with no /wiki segment); ruff check/format clean; "
+            "mypy clean (37 source files); bandit 0 issues; manually "
+            "confirmed end-to-end through the full Click CLI invocation "
+            "path with the real client classes and a mocked Session, "
+            "matching exactly what the reporting user independently "
+            "verified by hand with curl/Invoke-RestMethod against their "
+            "own Data Center servers",
+        ],
+    },
 ]
 
 

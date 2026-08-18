@@ -19,6 +19,27 @@ def _client_with_mock_session(json_body: dict) -> tuple[JiraClient, MagicMock]:
     return client, session
 
 
+class TestDeployment:
+    """Confirmed against a real Jira Data Center instance: it doesn't
+    support REST API v3 at all (v3 is Cloud-only -- JRASERVER-70688, an
+    open Atlassian feature request for v3 on Data Center, confirms this).
+    Every request built with the hardcoded v3 path this client used
+    before `deployment` existed failed against Server/DC, sometimes as a
+    200-with-HTML-login-page rather than a clean error."""
+
+    def test_default_deployment_is_cloud_uses_v3(self):
+        client = JiraClient(MagicMock(), "https://x.atlassian.net")
+        assert client._api("/myself") == "https://x.atlassian.net/rest/api/3/myself"
+
+    def test_explicit_cloud_deployment_uses_v3(self):
+        client = JiraClient(MagicMock(), "https://x.atlassian.net", deployment="cloud")
+        assert client._api("/myself") == "https://x.atlassian.net/rest/api/3/myself"
+
+    def test_server_deployment_uses_v2_not_v3(self):
+        client = JiraClient(MagicMock(), "https://jira.internal", deployment="server")
+        assert client._api("/myself") == "https://jira.internal/rest/api/2/myself"
+
+
 class TestSearch:
     def test_posts_to_search_jql_not_deprecated_search(self):
         client, session = _client_with_mock_session({"issues": []})

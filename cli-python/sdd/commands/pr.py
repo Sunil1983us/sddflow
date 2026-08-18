@@ -84,7 +84,7 @@ def pr_create(task, base, profile, feature):
     if cfg.jira:
         try:
             prof, session = load_jira_session(cfg, profile)
-            jira_client = JiraClient(session, prof.base_url)
+            jira_client = JiraClient(session, prof.base_url, deployment=prof.deployment)
             issue = jira_client.find_by_label(
                 cfg.jira.key_for("task"), f"sdd:{task.upper()}"
             )

@@ -39,6 +39,6 @@ plan_mode: "unified"
 #   bdd:    Given/When/Then specs drive tests, written before implementation
 testing_style: "paired"
 
-sdd_version: "3.4.1"   # set by sdd init; used by sdd upgrade
+sdd_version: "3.4.2"   # set by sdd init; used by sdd upgrade
 pack: "sdd-universal"  # static per pack -- disambiguates project_type-based pack inference (see sdd doctor / _resolve_pack); sdd init also stamps this on --pack, unchanged otherwise
 ai_tool: ""             # set by sdd init: claude-code | copilot | cursor | windsurf | other

@@ -520,12 +520,16 @@ def config_test(profile):
 
     _probe_service(
         "Jira",
-        lambda: JiraClient(jira_session, jira_prof.base_url).get_myself(),
+        lambda: JiraClient(
+            jira_session, jira_prof.base_url, deployment=jira_prof.deployment
+        ).get_myself(),
         ("displayName", "emailAddress"),
     )
     _probe_service(
         "Confluence",
-        lambda: ConfluenceClient(cf_session, cf_prof.base_url).get_myself(),
+        lambda: ConfluenceClient(
+            cf_session, cf_prof.base_url, deployment=cf_prof.deployment
+        ).get_myself(),
         ("displayName", "username"),
     )
 
@@ -608,7 +612,7 @@ def config_fields(profile, project):
         )
         raise SystemExit(1)
 
-    fields = JiraClient(session, prof.base_url).get_fields()
+    fields = JiraClient(session, prof.base_url, deployment=prof.deployment).get_fields()
     custom = sorted(
         [f for f in fields if f.get("custom")],
         key=lambda f: f.get("name", ""),

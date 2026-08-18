@@ -10,6 +10,42 @@ import requests
 from sdd.utils.confluence_client import ConfluenceClient
 
 
+class TestDeployment:
+    """Confirmed against a real Confluence Data Center instance: its REST
+    API sits directly at /rest/api, with no /wiki prefix at all -- /wiki
+    is a Cloud-only convention (Cloud Confluence sites share a domain
+    with Jira Cloud, e.g. https://x.atlassian.net, so /wiki disambiguates
+    them there; a standalone Server/DC install has no such collision).
+    Every request built with the hardcoded /wiki prefix this client used
+    before `deployment` existed failed against Server/DC, sometimes as a
+    200-with-HTML-login-page rather than a clean error."""
+
+    def test_default_deployment_is_cloud_uses_wiki_prefix(self):
+        client = ConfluenceClient(MagicMock(), "https://x.atlassian.net")
+        assert (
+            client._api("/user/current")
+            == "https://x.atlassian.net/wiki/rest/api/user/current"
+        )
+
+    def test_explicit_cloud_deployment_uses_wiki_prefix(self):
+        client = ConfluenceClient(
+            MagicMock(), "https://x.atlassian.net", deployment="cloud"
+        )
+        assert (
+            client._api("/user/current")
+            == "https://x.atlassian.net/wiki/rest/api/user/current"
+        )
+
+    def test_server_deployment_has_no_wiki_prefix(self):
+        client = ConfluenceClient(
+            MagicMock(), "https://confluence.internal", deployment="server"
+        )
+        assert (
+            client._api("/user/current")
+            == "https://confluence.internal/rest/api/user/current"
+        )
+
+
 class TestUploadAttachment:
     def _client(self, existing_results=None):
         """existing_results simulates get_attachment_by_filename()'s

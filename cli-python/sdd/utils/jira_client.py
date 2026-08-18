@@ -4,14 +4,27 @@ import requests
 
 
 class JiraClient:
-    """Thin wrapper around Jira REST API v3 (Cloud) / v2 (Server/DC)."""
+    """Thin wrapper around Jira REST API v3 (Cloud) / v2 (Server/DC).
 
-    def __init__(self, session: requests.Session, base_url: str):
+    Jira Server/Data Center does not support REST API v3 at all -- it's
+    Cloud-exclusive (confirmed: JRASERVER-70688, an Atlassian Data
+    Center feature request for v3 support, is still open). Every request
+    against a Server/DC instance built with the v3 path fails -- not
+    always with a clean 401/404: a reverse proxy or SSO gateway in front
+    of the real instance can respond 200 with an HTML login page, or
+    403, for a path it doesn't recognize, which is what made this hard
+    to diagnose from the CLI's error message alone before this existed
+    (see the `deployment` parameter below and Profile.deployment)."""
+
+    def __init__(
+        self, session: requests.Session, base_url: str, *, deployment: str = "cloud"
+    ):
         self._s = session
         self._base = base_url.rstrip("/")
+        self._api_version = "2" if deployment == "server" else "3"
 
     def _api(self, path: str) -> str:
-        return f"{self._base}/rest/api/3{path}"
+        return f"{self._base}/rest/api/{self._api_version}{path}"
 
     def get_myself(self) -> dict:
         r = self._s.get(self._api("/myself"))

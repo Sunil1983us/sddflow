@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.4.2] — 2026-08-17 (Fix: Jira/Confluence Server & Data Center support)
+
+Direct follow-up to 3.4.1, from the same user report. After 3.4.1 fixed
+`sdd config test`'s crash, the user tested the underlying connection by
+hand with curl/`Invoke-RestMethod` against two real Jira/Confluence Data
+Center servers — Jira's `/rest/api/2/myself` worked, `/rest/api/3` did
+not; Confluence's `/rest/api/user/current` worked, with no `/wiki`
+prefix. That confirmed the real root cause: this CLI's Jira/Confluence
+clients were hardcoded to Cloud-only conventions.
+
+### Fixed
+
+- Jira Server/Data Center does not support REST API v3 at all — only
+  v2. Confluence Server/Data Center's REST API sits directly at
+  `/rest/api`, with no Cloud's `/wiki` prefix. `JiraClient`/
+  `ConfluenceClient` hardcoded the Cloud-only paths unconditionally
+  before this — every request against a Server/DC instance failed, not
+  always with a clean error.
+- Added `Profile.deployment` (`'server'` for `auth_mode: pat` — a
+  Server/DC-only auth feature — `'cloud'` otherwise). Both clients gained
+  an optional `deployment=` keyword (default `'cloud'`, so existing
+  Cloud profiles are unaffected) that switches v3→v2 and drops the
+  `/wiki` prefix for Server/DC. Threaded through all 24 call sites
+  across 8 command files.
+
+### Verified
+
+- cli-python pytest 1108/1108 (1098 unchanged + 10 new, including one
+  end-to-end test using the real client classes confirming a `pat`
+  profile requests exactly the URLs the reporting user verified by
+  hand); ruff check/format clean; mypy clean (37 source files); bandit 0
+  issues.
+
+---
+
 ## [3.4.1] — 2026-08-17 (Fix: `sdd config test` no longer crashes on a non-JSON response)
 
 Reported by a real user testing PAT auth against two separate Jira/

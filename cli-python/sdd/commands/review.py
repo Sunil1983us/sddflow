@@ -329,13 +329,17 @@ def _push_doc_page(
         console.print(f"  [yellow]⚠  {warning}[/yellow]")
 
     cf_prof, cf_session = load_confluence_session(cfg)
-    cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
+    cf_client = ConfluenceClient(
+        cf_session, cf_prof.base_url, deployment=cf_prof.deployment
+    )
 
     banner = ""
     if cfg.jira and doc in cfg.document_reviews:
         try:
             jira_prof, jira_session = load_jira_session(cfg)
-            jira_client = JiraClient(jira_session, jira_prof.base_url)
+            jira_client = JiraClient(
+                jira_session, jira_prof.base_url, deployment=jira_prof.deployment
+            )
             status, _, issue = _get_review_status(
                 doc,
                 jira_client,
@@ -967,8 +971,12 @@ def review_submit(doc, profile, feature):
     project_name = proj.get("name", "Project")
     feature_name = feature or proj.get("feature", "")
 
-    jira_client = JiraClient(jira_session, jira_prof.base_url)
-    cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
+    jira_client = JiraClient(
+        jira_session, jira_prof.base_url, deployment=jira_prof.deployment
+    )
+    cf_client = ConfluenceClient(
+        cf_session, cf_prof.base_url, deployment=cf_prof.deployment
+    )
     doc_cfg = cfg.document_reviews[doc]
 
     # ── Sequence gate ─────────────────────────────────────────────────────────
@@ -1228,7 +1236,9 @@ def review_push_questions(doc, profile, feature):
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
 
-    jira_client = JiraClient(session, jira_prof.base_url)
+    jira_client = JiraClient(
+        session, jira_prof.base_url, deployment=jira_prof.deployment
+    )
     doc_cfg = cfg.document_reviews[doc]
 
     # ── Also push the (blocked) doc to Confluence, so reviewers can comment there too ──
@@ -1408,7 +1418,9 @@ def review_pull_answers(doc, profile, feature):
     except Exception:
         raise SystemExit(0)
 
-    jira_client = JiraClient(session, jira_prof.base_url)
+    jira_client = JiraClient(
+        session, jira_prof.base_url, deployment=jira_prof.deployment
+    )
     try:
         comments = jira_client.get_comments(issue_key)
     except Exception as e:
@@ -1539,7 +1551,7 @@ def review_check(doc, profile, feature):
         )
         raise SystemExit(3)
 
-    client = JiraClient(session, jira_prof.base_url)
+    client = JiraClient(session, jira_prof.base_url, deployment=jira_prof.deployment)
     status, comments, _ = _get_review_status(
         doc, client, cfg.jira.key_for("review"), cfg, feature_name
     )
@@ -1849,7 +1861,9 @@ def review_apply(doc, profile, feature):
     # Notify reviewer on Jira (only if a review ticket exists for this doc --
     # docs pushed via the page_map fallback alone have no ticket to notify)
     if cfg.jira:
-        jira_client = JiraClient(session, jira_prof.base_url)
+        jira_client = JiraClient(
+            session, jira_prof.base_url, deployment=jira_prof.deployment
+        )
         issue = jira_client.find_by_label(
             cfg.jira.key_for("review"), f"sdd-doc:{feature_name}:{doc}"
         )
@@ -1930,7 +1944,7 @@ def review_status(profile, feature):
     feature_name = feature or proj.get("feature", "")
     scope = proj.get("scope")
 
-    client = JiraClient(session, jira_prof.base_url)
+    client = JiraClient(session, jira_prof.base_url, deployment=jira_prof.deployment)
 
     # Group by phase, sort by sequence
     _PHASE_ORDER = ["specify", "validate", "planning", "tasks", "release"]
