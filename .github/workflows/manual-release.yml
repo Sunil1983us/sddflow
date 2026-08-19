@@ -36,6 +36,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # actions/checkout normally leaves a git config credential
+          # (http.https://github.com/.extraheader) carrying the default,
+          # read-only GITHUB_TOKEN. That extraheader takes priority over
+          # the RELEASE_TAG_PAT we embed in the remote URL below, so the
+          # push silently authenticates as github-actions[bot] instead of
+          # the PAT and gets a 403 -- persist-credentials: false stops
+          # checkout from setting it at all.
+          persist-credentials: false
 
       - name: Resolve the version to tag
         id: resolve
