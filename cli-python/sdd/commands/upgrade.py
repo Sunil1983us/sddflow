@@ -8,8 +8,8 @@ from typing import TypedDict
 import click
 from rich.console import Console
 
-from sdd.utils.manifest import MANIFEST_PATH, SDD_VERSION, patch_manifest, read_manifest
 from sdd.utils.managed_files import apply_managed_files
+from sdd.utils.manifest import MANIFEST_PATH, SDD_VERSION, patch_manifest, read_manifest
 from sdd.utils.scaffold import (
     ALL_PACKS,
     TYPE_TO_PACK,
@@ -7454,6 +7454,51 @@ MIGRATIONS: list[Migration] = [
             "matching exactly what the reporting user independently "
             "verified by hand with curl/Invoke-RestMethod against their "
             "own Data Center servers",
+        ],
+    },
+    {
+        "from": "3.4.2",
+        "to": "3.4.3",
+        "description": "Security hardening: sdd/utils/git_host.py's host "
+        "detection no longer trusts a substring match, closing a "
+        "CodeQL-flagged host-spoofing gap",
+        "notes": [
+            "parse_remote() decided which git host (github/bitbucket/"
+            "gitlab/azure) a repo's origin remote belongs to via plain "
+            "`\"github.com\" in host`-style substring checks -- CodeQL's "
+            "py/incomplete-url-substring-sanitization flagged all 5 "
+            "occurrences (github.com, bitbucket.org, gitlab, dev.azure."
+            "com, visualstudio.com): a host like notgithub.com or "
+            "github.com.evil.example contains the substring \"github."
+            "com\" without being github.com or a subdomain of it",
+            "Added _host_is(host, domain) -- exact match or subdomain "
+            "via str.endswith(f'.{domain}') -- for the four hosts that "
+            "pin to one real domain (github.com, bitbucket.org, dev."
+            "azure.com, visualstudio.com). gitlab's check stays "
+            "deliberately broader (self-hosted instances live at "
+            "arbitrary hostnames, e.g. gitlab.mycompany.internal) but "
+            "moved from an anywhere-substring check to _host_has_label"
+            "(), requiring \"gitlab\" to be a full dot/hyphen-separated "
+            "label -- closes notgitlab.io/gitlabish.io false-accepts "
+            "while still detecting gitlab.corp.io/code-gitlab.corp.io",
+            "Practical exploitability was narrow -- host comes from "
+            "the local git remote URL (`git remote get-url origin`), "
+            "which only decides which provider CLI (gh/glab/az) `sdd "
+            "pr create` shells out to, not a network-facing trust "
+            "boundary -- but the fix is free and the old behavior was "
+            "genuinely wrong regardless of exploitability",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain (the Node CLI has no PR-creation git-host "
+            "detection of its own -- scaffolding-only by design -- so "
+            "nothing here actually applies to it beyond the version "
+            "stamp)",
+            "Verified: cli-python pytest 1120/1120 (1108 unchanged + 12 "
+            "new -- 8 substring-bypass-rejection cases across all 4 "
+            "pinned hosts, 2 gitlab label-bypass-rejection cases, and 2 "
+            "confirming genuine self-hosted GitLab detection still "
+            "works); ruff check/format clean; mypy clean; bandit 0 "
+            "issues",
         ],
     },
 ]

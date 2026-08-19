@@ -89,6 +89,58 @@ def test_parse_remote_garbage_input_does_not_raise():
     assert info.host == "unknown"
 
 
+# ── Host substring-sanitization bypass (CodeQL py/incomplete-url-substring-
+# sanitization) — a host containing one of the known domains as a substring,
+# without actually being that domain or a subdomain of it, must not be
+# misidentified as that host. ─────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://notgithub.com/acme/widgets.git",
+        "https://github.com.evil.example/acme/widgets.git",
+        "https://notbitbucket.org/acme/widgets.git",
+        "https://bitbucket.org.evil.example/acme/widgets.git",
+        "https://notdev.azure.com/acme/AcmeProject/_git/widgets",
+        "https://dev.azure.com.evil.example/acme/AcmeProject/_git/widgets",
+        "https://notvisualstudio.com/AcmeProject/_git/widgets",
+        "https://acme.visualstudio.com.evil.example/AcmeProject/_git/widgets",
+    ],
+)
+def test_parse_remote_rejects_substring_bypass(url):
+    info = parse_remote(url)
+    assert info.host == "unknown"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://notgitlab.io/acme/widgets.git",
+        "https://gitlabish.io/acme/widgets.git",
+    ],
+)
+def test_parse_remote_rejects_gitlab_label_bypass(url):
+    info = parse_remote(url)
+    assert info.host == "unknown"
+
+
+@pytest.mark.parametrize(
+    "url,owner,repo",
+    [
+        ("https://gitlab.corp.io/acme/widgets.git", "acme", "widgets"),
+        ("https://code-gitlab.corp.io/acme/widgets.git", "acme", "widgets"),
+    ],
+)
+def test_parse_remote_self_hosted_gitlab_still_detected(url, owner, repo):
+    """The label-boundary fix must not regress detection of genuine
+    self-hosted GitLab instances -- only the substring-anywhere bypass."""
+    info = parse_remote(url)
+    assert info.host == "gitlab"
+    assert info.owner == owner
+    assert info.repo == repo
+
+
 def test_detect_host_no_remote_configured():
     with patch("sdd.utils.git_host.get_origin_url", return_value=None):
         info = detect_host()
