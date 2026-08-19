@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.4.3] — 2026-08-19 (Security: fix host-spoofable substring checks flagged by CodeQL)
+
+GitHub's code-scanning (CodeQL) flagged `sdd/utils/git_host.py`'s host
+detection — the logic behind `sdd pr create` that decides which git host
+(GitHub/Bitbucket/GitLab/Azure DevOps) a repo's origin remote points at —
+for a classic substring-sanitization bug: `"github.com" in host` and
+similar checks accept any host containing that substring anywhere, not
+just github.com itself or a real subdomain of it (e.g. `notgithub.com`
+or `github.com.evil.example` would both incorrectly match).
+
+### Fixed
+
+- `parse_remote()`'s 5 substring checks replaced with real host-boundary
+  comparisons: `_host_is()` (exact match or `.`-subdomain, via
+  `str.endswith(f".{domain}")`) for the four hosts pinned to one real
+  domain — github.com, bitbucket.org, dev.azure.com, visualstudio.com.
+- `gitlab`'s check — deliberately broader than the other four, to catch
+  arbitrary self-hosted instances like `gitlab.mycompany.internal` —
+  moved from an anywhere-substring check to `_host_has_label()`,
+  requiring `"gitlab"` to be a full dot/hyphen-separated hostname label.
+  Closes `notgitlab.io`/`gitlabish.io` false-accepts while still
+  detecting genuine self-hosted installs like `gitlab.corp.io` and
+  `code-gitlab.corp.io`.
+
+Practical exploitability was narrow — `host` comes from the local git
+remote URL, which only decides which provider CLI (`gh`/`glab`/`az`)
+gets shelled out to, not a network-facing trust boundary — but the fix
+is free and the old behavior was genuinely incorrect regardless.
+
+### Verified
+
+- cli-python pytest 1120/1120 (1108 unchanged + 12 new: 8 cases
+  confirming the substring bypass is rejected across all 4 pinned
+  hosts, 2 confirming the gitlab label-bypass is rejected, 2 confirming
+  genuine self-hosted GitLab detection still works unchanged).
+- ruff check/format clean; mypy clean; bandit 0 issues.
+
+---
+
 ## [3.4.2] — 2026-08-17 (Fix: Jira/Confluence Server & Data Center support)
 
 Direct follow-up to 3.4.1, from the same user report. After 3.4.1 fixed

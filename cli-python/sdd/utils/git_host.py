@@ -87,6 +87,28 @@ def _split_host_path(url: str) -> tuple[str, str] | None:
     return m.group("host").lower(), m.group("path").strip("/")
 
 
+def _host_is(host: str, domain: str) -> bool:
+    """True if `host` is exactly `domain` or a subdomain of it.
+
+    A plain `domain in host` substring check is bypassable: "notgithub.com"
+    and "github.com.evil.example" both contain the substring "github.com"
+    without being github.com or a subdomain of it (CodeQL:
+    py/incomplete-url-substring-sanitization). Anchoring on the label
+    boundary the way `str.endswith` does here closes that."""
+    return host == domain or host.endswith(f".{domain}")
+
+
+def _host_has_label(host: str, label: str) -> bool:
+    """True if `label` is one of `host`'s dot/hyphen-separated components
+    exactly -- e.g. "gitlab" matches "gitlab.corp.io" and
+    "code-gitlab.corp.io" but not "notgitlab.io" or "gitlabish.io". Same
+    substring-bypass class as _host_is, but for the self-hosted GitLab
+    heuristic below, which -- unlike github.com/bitbucket.org/
+    dev.azure.com/visualstudio.com -- can't be pinned to one exact
+    domain, since self-hosted instances live at arbitrary hostnames."""
+    return label in re.split(r"[.-]", host)
+
+
 def parse_remote(url: str) -> RemoteInfo:
     """Parse a git remote URL into (host, owner, repo[, project]).
 
@@ -99,17 +121,17 @@ def parse_remote(url: str) -> RemoteInfo:
     host, path = split
     parts = [p for p in path.split("/") if p]
 
-    if "github.com" in host:
+    if _host_is(host, "github.com"):
         if len(parts) >= 2:
             return RemoteInfo(host="github", owner=parts[0], repo=parts[1])
         return RemoteInfo(host="github", owner="", repo=parts[-1] if parts else "")
 
-    if "bitbucket.org" in host:
+    if _host_is(host, "bitbucket.org"):
         if len(parts) >= 2:
             return RemoteInfo(host="bitbucket", owner=parts[0], repo=parts[1])
         return RemoteInfo(host="bitbucket", owner="", repo=parts[-1] if parts else "")
 
-    if "gitlab" in host:
+    if _host_has_label(host, "gitlab"):
         # GitLab supports nested subgroups: group/subgroup/.../repo — owner is
         # everything before the last segment (still enough to build the URL-
         # encoded project path GitLab's API expects: "group%2Fsubgroup%2Frepo").
@@ -117,12 +139,12 @@ def parse_remote(url: str) -> RemoteInfo:
             return RemoteInfo(host="gitlab", owner="/".join(parts[:-1]), repo=parts[-1])
         return RemoteInfo(host="gitlab", owner="", repo=parts[-1] if parts else "")
 
-    if "dev.azure.com" in host or "visualstudio.com" in host:
+    if _host_is(host, "dev.azure.com") or _host_is(host, "visualstudio.com"):
         # https forms:  dev.azure.com/{org}/{project}/_git/{repo}
         #               {org}.visualstudio.com/{project}/_git/{repo}
         # ssh form:     ssh.dev.azure.com:v3/{org}/{project}/{repo}
         clean = [p for p in parts if p != "_git" and p != "v3"]
-        if "visualstudio.com" in host:
+        if _host_is(host, "visualstudio.com"):
             org = host.split(".visualstudio.com")[0]
             if len(clean) >= 2:
                 return RemoteInfo(
