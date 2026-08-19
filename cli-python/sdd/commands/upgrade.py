@@ -8,8 +8,8 @@ from typing import TypedDict
 import click
 from rich.console import Console
 
-from sdd.utils.manifest import MANIFEST_PATH, SDD_VERSION, patch_manifest, read_manifest
 from sdd.utils.managed_files import apply_managed_files
+from sdd.utils.manifest import MANIFEST_PATH, SDD_VERSION, patch_manifest, read_manifest
 from sdd.utils.scaffold import (
     ALL_PACKS,
     TYPE_TO_PACK,
