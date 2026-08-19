@@ -11,16 +11,25 @@ the one-time PyPI setup only the project owner can do.
 1. Ship the version bump normally — the `version-bump` skill, a commit,
    merged to `main`. This alone does **not** release or publish anything.
 2. Once `main` has the version you want to release, tag it and push the
-   tag:
-   ```bash
-   git checkout main && git pull
-   git tag v3.4.0          # must exactly match cli-python/sdd/__init__.py's __version__
-   git push origin v3.4.0
-   ```
-   The tag push is the deliberate trigger — nothing here fires
-   automatically on every merge to `main`. This also means a `main`
-   commit can be reverted or hotfixed without accidentally releasing
-   half-finished work.
+   tag. Two ways to do this:
+   - **From a local clone:**
+     ```bash
+     git checkout main && git pull
+     git tag v3.4.0          # must exactly match cli-python/sdd/__init__.py's __version__
+     git push origin v3.4.0
+     ```
+   - **From GitHub's website, no local git needed:** Actions tab →
+     **"Manual Release (tag + publish)"** → **Run workflow** → leave the
+     version field blank (uses whatever's currently in
+     `cli-python/sdd/__init__.py`) or type a specific version to
+     double-check against it → **Run workflow**. This creates and pushes
+     the tag on GitHub's own infrastructure — see "One-time GitHub setup"
+     below for the (also one-time) secret this needs.
+
+   The tag push is the deliberate trigger either way — nothing here
+   fires automatically on every merge to `main`. This also means a
+   `main` commit can be reverted or hotfixed without accidentally
+   releasing half-finished work.
 3. Pushing the tag fires two independent GitHub Actions workflows:
    - **`.github/workflows/release.yml`** — verifies the tag matches
      `__version__`, pulls that version's section out of `CHANGELOG.md`,
@@ -50,6 +59,38 @@ stays a manual `npm publish` from a maintainer's machine (see
 `cli/README.md`), deliberately: the Node CLI is frozen at
 scaffolding-only, maintenance-mode, and publishes rarely enough that
 building OIDC automation for it isn't worth it right now.
+
+---
+
+## One-time GitHub setup (only needed for the "Manual Release" button)
+
+Skip this if you always tag from a local clone — it's only needed for
+the `workflow_dispatch`-triggered `.github/workflows/manual-release.yml`
+("Manual Release (tag + publish)" in the Actions tab).
+
+Why it needs any setup at all: GitHub deliberately does not let a push
+made with a workflow's own built-in `GITHUB_TOKEN` trigger *other*
+workflows — an anti-infinite-loop safeguard. `release.yml`/
+`publish-pypi.yml` both fire on `push: tags: [v*]`, so a tag pushed with
+the default token would silently never reach them. Pushing with a real
+Personal Access Token instead sidesteps that restriction.
+
+1. GitHub → your avatar → **Settings** → **Developer settings** →
+   **Personal access tokens** → **Fine-grained tokens** → **Generate new
+   token**.
+2. **Repository access**: "Only select repositories" → `sddflow`. Don't
+   grant it access to anything else.
+3. **Permissions** → **Repository permissions** → **Contents**: "Read
+   and write". Leave everything else at "No access" — this token only
+   ever pushes a tag, nothing more.
+4. Generate it, copy the token (shown once).
+5. In the `sddflow` repo: **Settings** → **Secrets and variables** →
+   **Actions** → **New repository secret** → name it exactly
+   `RELEASE_TAG_PAT`, paste the token, save.
+
+That's it — the button works from then on. If the secret is missing or
+expired, the workflow fails immediately with a clear message telling
+you to redo this, rather than a cryptic git auth error.
 
 ---
 

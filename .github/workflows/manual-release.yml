@@ -1,0 +1,84 @@
+name: Manual Release (tag + publish)
+# A "Run workflow" button in the Actions tab -- lets a maintainer cut a
+# release entirely from GitHub's UI, no local git required. Type a
+# version (or leave it blank to use whatever's already in cli-python/
+# sdd/__init__.py), pick the branch to release from (the branch selector
+# built into the "Run workflow" UI -- normally leave it on main), click
+# Run. This creates and pushes the `vX.Y.Z` tag; release.yml and
+# publish-pypi.yml then fire automatically from that tag push, exactly
+# as they do for a tag pushed from a local machine.
+#
+# Why this can't just push the tag with the workflow's own built-in
+# token: GitHub deliberately does not let a push made with the default
+# GITHUB_TOKEN trigger other workflows (an anti-infinite-loop
+# safeguard) -- so a tag pushed that way would silently never reach
+# release.yml/publish-pypi.yml, both of which listen for `push: tags:
+# [v*]`. Pushing with a real Personal Access Token sidesteps that. See
+# RELEASING.md for the one-time setup: create a fine-grained PAT scoped
+# to just this repository with "Contents: Read and write" permission,
+# then add it as a repo secret named RELEASE_TAG_PAT (Settings ->
+# Secrets and variables -> Actions -> New repository secret).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to tag, e.g. 3.4.3 (no leading v). Leave blank to use the version currently in cli-python/sdd/__init__.py."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  tag-and-trigger:
+    name: Create and push the release tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve the version to tag
+        id: resolve
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          pkg_version="$(python3 -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('cli-python/sdd/__init__.py').read()).group(1))")"
+          if [ -z "$INPUT_VERSION" ]; then
+            version="$pkg_version"
+            echo "No version input given -- using the current __version__: $version"
+          else
+            version="$INPUT_VERSION"
+            if [ "$version" != "$pkg_version" ]; then
+              echo "::error::Requested version $version does not match cli-python/sdd/__init__.py's __version__ ($pkg_version). Bump the version first (see the version-bump skill / RELEASING.md), or leave the version input blank to release $pkg_version as-is."
+              exit 1
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check the tag doesn't already exist
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/v${VERSION}" >/dev/null; then
+            echo "::error::Tag v${VERSION} already exists -- nothing to do. Bump the version first if you meant to cut a new release."
+            exit 1
+          fi
+
+      - name: Create and push the tag
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+          RELEASE_TAG_PAT: ${{ secrets.RELEASE_TAG_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_TAG_PAT:-}" ]; then
+            echo "::error::RELEASE_TAG_PAT repo secret is not set. This workflow needs a real Personal Access Token (not the default GITHUB_TOKEN) to push the tag -- GitHub deliberately doesn't let the default token's push trigger other workflows, and release.yml/publish-pypi.yml both need to fire from this tag push. See RELEASING.md for the one-time setup: a fine-grained PAT scoped to just this repository with Contents: Read and write, added as a repo secret named RELEASE_TAG_PAT."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${RELEASE_TAG_PAT}@github.com/${GITHUB_REPOSITORY}.git"
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+          echo "✓ Pushed tag v${VERSION} -- release.yml and publish-pypi.yml should start automatically within a few seconds. Check the Actions tab."
