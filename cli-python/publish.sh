@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # publish.sh — bundle packs, build wheel, upload to PyPI
 #
+# The normal release path is now automated: push a `vX.Y.Z` git tag and
+# .github/workflows/publish-pypi.yml builds and publishes via PyPI
+# Trusted Publishing (OIDC) -- no token needed. See ../RELEASING.md.
+#
+# This script is kept as a manual fallback and for TestPyPI uploads
+# (which the automated workflow doesn't cover).
+#
 # Usage:
 #   bash publish.sh             # upload to PyPI (live)
 #   bash publish.sh --test      # upload to TestPyPI first (recommended first time)

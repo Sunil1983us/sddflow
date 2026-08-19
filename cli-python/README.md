@@ -92,12 +92,46 @@ migration pending, it asks:
   and jumps straight to latest — so an automated `sdd upgrade` never needs
   N reruns to converge.
 
-**This only ever touches `manifest.yml`'s `sdd_version` field.** Fixes made
-to prompt file *content* (`.github/prompts/*.md`, `.claude/commands/*.md`)
-after your project was scaffolded do **not** reach an existing project just
-by running `sdd upgrade` or upgrading the `sddflow` package — those files
-were copied into your project once, at `sdd init` time, and nothing
-re-syncs them automatically. For that, use `--sync-prompts`:
+**On its own, this only touches `manifest.yml`'s `sdd_version` field.**
+Fixes made to your pack's actual files (templates, prompts, commands,
+instructions, setup scripts, and a few IDE-integration files) after your
+project was scaffolded do **not** reach an existing project just by
+running plain `sdd upgrade` or upgrading the `sddflow` package — those
+files were copied into your project once, at `sdd init` time, and nothing
+re-syncs them automatically on its own. Two flags exist for that:
+
+```bash
+sdd upgrade --apply-files               # recommended: every managed file, conflict-aware
+sdd upgrade --sync-prompts              # narrower: prompts + commands only, always overwrites
+```
+
+**`--apply-files`** (recommended) covers everything `sdd doctor` checks —
+`.specify/templates/`, `.claude/commands/`, `.github/prompts/`,
+`.github/instructions/`, `.github/workflows/`, `.cursor/rules/`,
+`.vscode/`, plus `setup.sh`/`setup.ps1` — and tells a safe pack update
+apart from your own hand edits before touching anything:
+
+```bash
+sdd upgrade --apply-files                                # preview + confirm
+sdd upgrade --apply-files --yes                           # skip the confirmation prompt
+sdd upgrade --apply-files --pack sdd-backend-service       # override pack detection
+sdd upgrade --apply-files --force                          # also overwrite locally-modified files
+```
+
+New files and files that still match their last recorded baseline (i.e.
+you never touched them, only the pack moved on) are applied automatically.
+Files that were hand-edited, or that have no recorded baseline to tell an
+update apart from an edit (any project scaffolded before this existed),
+are left alone and listed — pass `--force` to overwrite those too. Every
+file actually overwritten is backed up to
+`.specify/.managed-files-backups/{timestamp}/` first, never silently
+discarded, and a fresh baseline is written after every run so future
+`sdd doctor`/`sdd upgrade --apply-files` calls keep getting more precise.
+See `sdd doctor` below to check drift without changing anything first.
+
+**`--sync-prompts`** is the older, narrower mechanism — `.github/prompts/`
+and `.claude/commands/` only, and always overwrites anything that differs
+(no baseline, no conflict detection) — kept for backward compatibility:
 
 ```bash
 sdd upgrade --sync-prompts              # preview + confirm, then re-copy
@@ -105,20 +139,34 @@ sdd upgrade --sync-prompts --yes        # skip the confirmation prompt
 sdd upgrade --sync-prompts --pack sdd-backend-service   # override pack detection
 ```
 
-Which pack to sync from is resolved, in order: `--pack` flag →
-`manifest.yml`'s `pack` field (written automatically by `sdd init` on
-every new project) → inferred from `project_type` → `sdd-universal` as a
-last resort. If it had to guess, it says so and tells you to pass `--pack`
-if the guess is wrong — projects scaffolded before this field existed
-won't have `pack` recorded, so double-check the inference on those.
+For both flags, which pack to sync from is resolved, in order: `--pack`
+flag → `manifest.yml`'s `pack` field (written automatically by `sdd init`
+on every new project, and baked as a static default into every pack's own
+`manifest.yml` template as of v3.3.0) → inferred from `project_type` →
+`sdd-universal` as a last resort. If it had to guess, it says so and
+tells you to pass `--pack` if the guess is wrong.
 
-Every file about to be overwritten is shown first (and left alone if you
-say no); anything actually overwritten is backed up to
-`.specify/.prompt-sync-backups/{timestamp}/` first, so a project with
-hand-edited prompt files never just loses those edits silently. Only
-`.github/prompts/` and `.claude/commands/` are touched — nothing under
-`.specify/` (templates, constitution, your generated docs) is ever synced
-by this command.
+---
+
+### `sdd doctor`
+
+Read-only report of drift between your project's framework-managed files
+and the pack content bundled with your currently installed `sddflow` CLI
+— the same file set `sdd upgrade --apply-files` acts on, but this command
+never changes anything.
+
+```bash
+sdd doctor
+sdd doctor --quiet                      # only show files that aren't up to date
+sdd doctor --pack sdd-backend-service   # check against a specific pack
+```
+
+Each file is classified as up to date, needs update (pack content moved
+on, you never touched it — safe to auto-apply), modified locally (a real
+conflict), differs with no baseline recorded (can't tell an update apart
+from a hand edit — the honest fallback for any project older than this
+baseline mechanism), or missing. Exit code 0 if everything's clean, 1
+otherwise (scriptable in CI).
 
 ---
 

@@ -39,7 +39,7 @@ For development / contributors:
 ```bash
 git clone https://github.com/sunil1983us/sddflow.git
 cd sddflow/cli
-npm install
+npm ci
 node bin/sdd.js init
 ```
 

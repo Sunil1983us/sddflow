@@ -122,7 +122,9 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
 
     # ── Push CR record to Confluence ─────────────────────────────────────────
     if cfg.confluence:
-        cf_client = ConfluenceClient(cf_session, cf_prof.base_url)
+        cf_client = ConfluenceClient(
+            cf_session, cf_prof.base_url, deployment=cf_prof.deployment
+        )
         body_html, attachments, diagram_warnings = md_to_storage(
             cr_text, cfg.confluence.diagrams
         )
@@ -159,7 +161,9 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
 
     # ── Create / update Jira review task ─────────────────────────────────────
     if cfg.jira:
-        jira_client = JiraClient(jira_session, jira_prof.base_url)
+        jira_client = JiraClient(
+            jira_session, jira_prof.base_url, deployment=jira_prof.deployment
+        )
         # feature_name included for the same reason page_title above is --
         # cr_id alone (e.g. "CHG-001") is scoped per feature's own tasks.md
         # counter, not globally unique across the project. Without it here,
@@ -288,7 +292,7 @@ def cr_check(cr, profile, feature):
     proj = manifest.get("project") or {}
     feature_name = feature or proj.get("feature", "")
 
-    client = JiraClient(session, prof.base_url)
+    client = JiraClient(session, prof.base_url, deployment=prof.deployment)
     # Must match cr_submit's idempotency_label exactly (feature-qualified) --
     # otherwise this would never find the ticket cr_submit actually created.
     issue = client.find_by_label(

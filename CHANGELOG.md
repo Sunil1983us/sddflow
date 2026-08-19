@@ -4,6 +4,224 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.4.2] — 2026-08-17 (Fix: Jira/Confluence Server & Data Center support)
+
+Direct follow-up to 3.4.1, from the same user report. After 3.4.1 fixed
+`sdd config test`'s crash, the user tested the underlying connection by
+hand with curl/`Invoke-RestMethod` against two real Jira/Confluence Data
+Center servers — Jira's `/rest/api/2/myself` worked, `/rest/api/3` did
+not; Confluence's `/rest/api/user/current` worked, with no `/wiki`
+prefix. That confirmed the real root cause: this CLI's Jira/Confluence
+clients were hardcoded to Cloud-only conventions.
+
+### Fixed
+
+- Jira Server/Data Center does not support REST API v3 at all — only
+  v2. Confluence Server/Data Center's REST API sits directly at
+  `/rest/api`, with no Cloud's `/wiki` prefix. `JiraClient`/
+  `ConfluenceClient` hardcoded the Cloud-only paths unconditionally
+  before this — every request against a Server/DC instance failed, not
+  always with a clean error.
+- Added `Profile.deployment` (`'server'` for `auth_mode: pat` — a
+  Server/DC-only auth feature — `'cloud'` otherwise). Both clients gained
+  an optional `deployment=` keyword (default `'cloud'`, so existing
+  Cloud profiles are unaffected) that switches v3→v2 and drops the
+  `/wiki` prefix for Server/DC. Threaded through all 24 call sites
+  across 8 command files.
+
+### Verified
+
+- cli-python pytest 1108/1108 (1098 unchanged + 10 new, including one
+  end-to-end test using the real client classes confirming a `pat`
+  profile requests exactly the URLs the reporting user verified by
+  hand); ruff check/format clean; mypy clean (37 source files); bandit 0
+  issues.
+
+---
+
+## [3.4.1] — 2026-08-17 (Fix: `sdd config test` no longer crashes on a non-JSON response)
+
+Reported by a real user testing PAT auth against two separate Jira/
+Confluence Data Center servers: `sdd config test` crashed with a raw
+`json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)`
+traceback instead of a clean per-service status line.
+
+### Fixed
+
+- `response.json()` raises this when a server answers 200 with a
+  non-JSON body — most commonly an SSO/login-page redirect, or
+  `base_url` pointing at the wrong path entirely. `except
+  requests.HTTPError` never caught it, since `JSONDecodeError` is a
+  `RequestException` *sibling*, not a subclass of `HTTPError`.
+- `sdd/commands/config.py`'s duplicated Jira/Confluence probe logic is
+  now one `_probe_service()` helper with three distinct failure modes:
+  an HTTP error (shows status + body), a non-JSON response (shows an
+  actionable message about `base_url`/SSO/token validity instead of a
+  raw parse error — caught both as the bare stdlib exception class,
+  matching what the reporting user's traceback showed, and as modern
+  `requests`' own wrapped subclass), and any other connection-level
+  failure (requests' own message is clear enough on its own).
+
+### Verified
+
+- cli-python pytest 1098/1098 (1094 unchanged + 4 new covering all
+  three failure modes, including a direct reproduction of the reported
+  bug); ruff check/format clean; mypy clean (37 source files); bandit 0
+  issues; manually confirmed end-to-end through the full CLI invocation
+  path, not just the unit tests.
+
+---
+
+## [3.4.0] — 2026-08-13 (New: `sdd upgrade --apply-files` actually applies pack updates)
+
+Completes the effort `sdd doctor` (3.2.0) and the `pack:` field (3.3.0)
+were building toward. `sdd upgrade` used to only ever patch
+`manifest.yml`'s `sdd_version` field — it never touched the actual
+template/prompt/command/instruction/setup-script files a project was
+scaffolded with. `--apply-files` now actually applies safe updates
+instead of just reporting them.
+
+### Added
+
+- **`sdd upgrade --apply-files`** — brings every framework-managed file
+  (the same set `sdd doctor` checks) in line with the currently installed
+  pack. New files and files that still match their last recorded
+  baseline are applied automatically; files that were hand-edited, or
+  have no recorded baseline to tell an update apart from an edit, are
+  left alone and listed unless `--force` is also passed. Every
+  overwritten file is backed up first to
+  `.specify/.managed-files-backups/{timestamp}/`. A fresh baseline is
+  written after every run — including no-op runs, so a project that's
+  already current the first time this flag is used still gets a baseline
+  recorded immediately rather than only after its first divergence.
+- **`--force`** — with `--apply-files`, also overwrites locally-modified
+  files and files with no recorded baseline (still backed up first).
+- New `sdd/utils/managed_files.py` functions: `apply_managed_files()`,
+  `write_baseline()`.
+- README.md gained a full `--apply-files` walkthrough and a `sdd doctor`
+  section, which had never been documented there since it shipped in
+  3.2.0.
+
+### Changed
+
+- `--sync-prompts` is kept, unchanged, for backward compatibility —
+  `--apply-files` is the recommended flag going forward (broader scope,
+  conflict-aware).
+- `sdd doctor`'s closing note now points at `sdd upgrade --apply-files`
+  instead of saying nothing applies pack updates yet.
+
+### Verified
+
+- cli-python pytest 1055/1055 (1035 unchanged + 20 new); ruff
+  check/format clean; mypy clean (37 source files); bandit 0 issues; node
+  test 28/28; manually verified end-to-end against a real
+  freshly-scaffolded project — baseline correctly written on a no-op run,
+  a hand-edited file correctly classified as modified locally by `sdd
+  doctor`, correctly left alone by `--apply-files` without `--force`,
+  and correctly overwritten-with-backup by `--apply-files --force`.
+
+---
+
+## [3.3.0] — 2026-08-13 (Fix: `manifest.yml` now records an explicit `pack:` field)
+
+Direct follow-up to 3.2.0. That release could only *detect* the
+pack-identity gap it found while dogfooding `sdd doctor` — a project
+without a stored pack identity has to be inferred from `project_type`,
+which silently names the wrong pack for any `sdd-universal`-scaffolded
+project (it serves all 10 project types from one shared file set rather
+than becoming a type-specific pack). This release fixes it at the source.
+
+### Added
+
+- Every pack's own `.specify/manifest.yml` template (`sdd-backend-service`,
+  `sdd-frontend-spa`, `sdd-fullstack`, `sdd-mobile`, `sdd-universal`, and
+  `sdd-micro` outside the version lockstep) now bakes in a static
+  `pack: "sdd-..."` line right after `sdd_version` — the same pattern
+  already used for `sdd_version`'s own static default. No template
+  substitution needed in `setup.sh`/`setup.ps1`; the value is simply
+  correct for every project scaffolded from that pack.
+- `PACK-SPEC.md`'s documented manifest schema updated to list `pack:` as
+  a required field, so community pack authors include it from day one.
+
+### Changed
+
+- `_resolve_pack()` already prioritized a stored `manifest.get('pack')`
+  above inference (added alongside 3.2.0) — this release is what actually
+  makes that branch fire for `setup.sh`/`setup.ps1`-scaffolded projects.
+  `sdd init`-scaffolded projects were already unaffected, since `init` has
+  stamped this field since before this phased effort started.
+
+### Verified
+
+- cli-python pytest 1035/1035 (unaffected — manifest-only change); all 6
+  packs' `manifest.yml` confirmed to parse as valid YAML with the new
+  field; `check-cross-references.py` clean across all 6 packs;
+  `test-setup.sh` 19/19 and `test-setup-micro.sh` 12/12 passed; two real
+  functional scaffolds re-confirmed the fix end-to-end — a fresh
+  `sdd-backend-service` scaffold now resolves via `manifest.yml 'pack'
+  field` with no warning, and a fresh `sdd-universal` scaffold
+  (`setup.sh --type backend-service`) now correctly resolves to
+  `sdd-universal` instead of the previously-mis-inferred
+  `sdd-backend-service`.
+
+---
+
+## [3.2.0] — 2026-08-10 (New: `sdd doctor` — read-only pack-drift report)
+
+An external code review of this repo (ChatGPT) found, among other things,
+that `sdd upgrade` has only ever stamped `manifest.yml`'s `sdd_version`
+field — it never actually syncs a project's templates, prompts, commands,
+instructions, setup scripts, or (confirmed while investigating this)
+workflow/`.cursor`/`.vscode` files forward to match the pack content
+bundled with whatever CLI version is currently installed. A project could
+report itself "upgraded" while every one of those files still matched
+whatever version it was originally scaffolded with. The review's numbers
+were verified independently before acting on any of it — radon complexity
+figures and coverage percentages matched exactly when re-run.
+
+`sdd doctor` is the first, deliberately read-only step of closing that
+gap: it reports drift without applying anything, so it's safe to ship and
+use immediately, well ahead of the larger `sdd upgrade` rewrite that will
+actually apply fixes.
+
+### Added
+
+- **`sdd doctor`** — SHA-256-hashes every framework-managed file (under
+  `.specify/templates/`, `.claude/commands/`, `.github/prompts/`,
+  `.github/instructions/`, `.github/workflows/`, `.cursor/rules/`,
+  `.vscode/`, plus `setup.sh`/`setup.ps1`) against the pack bundled with
+  the currently installed CLI, and classifies each as up-to-date /
+  missing / needs-update / user-modified / differs-for-unknown-reason
+  (the honest fallback for any project scaffolded before this existed —
+  no recorded baseline means it can't tell a pack update from a hand
+  edit, and doesn't guess). `--pack` to override detection, `--quiet` to
+  only show non-clean files. Exit code 0/1, scriptable.
+
+### Fixed (discovered while building this, not from the review)
+
+- Dogfooding `sdd doctor` against a real freshly-scaffolded project
+  surfaced a real, pre-existing gap: `_resolve_pack()`'s project_type
+  inference can silently name the wrong pack for any sdd-universal-
+  scaffolded project, since sdd-universal serves every project_type from
+  one shared set of files rather than becoming a type-specific pack, and
+  `manifest.yml` has never recorded an explicit `pack:` field to tell the
+  two apart. Not fixed here — `sdd doctor` now detects when its pack
+  identity came from inference rather than a stored field and prints a
+  prominent warning rather than silently trusting a guess. A real fix
+  belongs with the `pack_version`/manifest-schema split planned next in
+  this effort.
+
+### Verified
+
+- cli-python pytest 1035/1035 (1012 unchanged + 23 new); manually
+  verified end-to-end against a real freshly-scaffolded project — 113/113
+  files correctly up to date with the correct pack, a hand-edit and a
+  deletion both caught precisely with nothing else flagged; ruff
+  check/format clean; mypy clean (37 source files, up from 35); bandit 0
+  issues.
+
+---
+
 ## [3.1.1] — 2026-08-10 (URL fix: repo renamed universalguide → sddflow)
 
 The GitHub repo was renamed to `sddflow` to match the actual product

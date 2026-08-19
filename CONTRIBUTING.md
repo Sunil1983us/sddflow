@@ -68,6 +68,11 @@ to be accepted as-is; the same idea as an *optional* adapter usually is.
    major for anything breaking). Pure documentation changes don't need
    one.
 
+## Releasing
+
+Maintainers: see [`RELEASING.md`](RELEASING.md) for how a version bump
+turns into a GitHub Release and a PyPI publish.
+
 ## License
 
 By contributing, you agree your contribution is licensed under this

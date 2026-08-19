@@ -1,0 +1,94 @@
+name: Publish to PyPI
+# Fires on a `vX.Y.Z` tag push -- same trigger as release.yml, deliberately
+# a separate workflow (not chained) so a GitHub Release can still be
+# created even before PyPI Trusted Publishing is configured.
+#
+# Uses PyPI Trusted Publishing (OIDC) -- no PYPI_TOKEN secret involved.
+# This job's publish step WILL FAIL until the one-time setup in
+# RELEASING.md is done on pypi.org (add this repo/workflow/environment as
+# a trusted publisher for the `sddflow` project). That failure is
+# expected and safe until then -- nothing is uploaded, no token to leak.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build and publish sddflow to PyPI
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # required for OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify the tag matches cli-python/sdd/__init__.py's __version__
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(python3 -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('cli-python/sdd/__init__.py').read()).group(1))")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match cli-python/sdd/__init__.py's __version__ ($pkg_version) -- refusing to publish a mismatched tag."
+            exit 1
+          fi
+          echo "OK: tag $GITHUB_REF_NAME matches __version__ $pkg_version"
+
+      - name: Bundle packs into cli-python/sdd/packs (mirrors publish.sh Step 1)
+        run: |
+          set -euo pipefail
+          dest="cli-python/sdd/packs"
+          rm -rf "$dest"
+          mkdir -p "$dest"
+          for pack in sdd-backend-service sdd-frontend-spa sdd-fullstack sdd-mobile sdd-universal sdd-micro; do
+            cp -r "packs/$pack" "$dest/$pack"
+          done
+
+      - name: Install the build frontend
+        run: pip install build
+
+      - name: Build sdist + wheel
+        working-directory: cli-python
+        run: python3 -m build
+
+      - name: Assert both the wheel and the sdist actually contain the bundled packs
+        working-directory: cli-python
+        run: |
+          python3 - <<'PYEOF'
+          import glob
+          import sys
+          import tarfile
+          import zipfile
+
+          needle = "sdd/packs/sdd-universal/setup.sh"
+
+          wheel = glob.glob("dist/*.whl")[0]
+          with zipfile.ZipFile(wheel) as zf:
+              names = zf.namelist()
+          if not any(n.endswith(needle) for n in names):
+              sys.exit(f"::error::{wheel} is missing {needle} -- aborting, do not publish")
+          print(f"OK: {wheel} contains {needle}")
+
+          sdist = glob.glob("dist/*.tar.gz")[0]
+          with tarfile.open(sdist) as tf:
+              names = tf.getnames()
+          if not any(n.endswith(needle) for n in names):
+              sys.exit(f"::error::{sdist} is missing {needle} -- aborting, do not publish")
+          print(f"OK: {sdist} contains {needle}")
+          PYEOF
+
+      - name: Publish to PyPI (Trusted Publishing / OIDC)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: cli-python/dist/
+
+      - name: Clean up bundled packs from the source tree (mirrors publish.sh Step 5)
+        if: always()
+        run: rm -rf cli-python/sdd/packs

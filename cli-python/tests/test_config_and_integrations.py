@@ -1,8 +1,10 @@
 # Unit tests for config-init template output and integrations loading.
+import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 import yaml
 from click.testing import CliRunner
 
@@ -1207,7 +1209,7 @@ class TestConfigTestCommand:
             "C",
             (),
             {
-                "__init__": lambda self, session, base_url: setattr(
+                "__init__": lambda self, session, base_url, deployment="cloud": setattr(
                     self, "base_url", base_url
                 ),
                 "get_myself": lambda self: {"displayName": display_name},
@@ -1264,7 +1266,7 @@ class TestConfigTestCommand:
         seen_base_urls = []
 
         def _client_factory(display_name):
-            def _init(self, session, base_url):
+            def _init(self, session, base_url, deployment="cloud"):
                 seen_base_urls.append(base_url)
                 self.base_url = base_url
 
@@ -1327,7 +1329,7 @@ class TestConfigTestCommand:
         seen_base_urls = []
 
         def _client_factory(display_name):
-            def _init(self, session, base_url):
+            def _init(self, session, base_url, deployment="cloud"):
                 seen_base_urls.append(base_url)
 
             return type(
@@ -1352,6 +1354,37 @@ class TestConfigTestCommand:
             "https://candidate.example",
         ]
 
+    def test_pat_profile_wires_deployment_through_to_real_client_urls(
+        self, runner, config_home
+    ):
+        """End-to-end confirmation, unlike the fake-client tests above:
+        the REAL JiraClient/ConfluenceClient (not a test double) must
+        receive deployment='server' for a pat-mode profile and actually
+        request the v2 / no-/wiki-prefix URLs -- this is the real bug a
+        user hit against a real Jira/Confluence Data Center instance."""
+        self._write_profiles(
+            config_home,
+            onprem={"auth_mode": "pat", "base_url": "https://jira.internal"},
+        )
+
+        session = MagicMock()
+        response = MagicMock()
+        response.json.return_value = {"displayName": "Ada"}
+        response.raise_for_status.return_value = None
+        session.get.return_value = response
+
+        # JiraClient/ConfluenceClient deliberately NOT patched -- the real
+        # classes must run, only the network layer (Session) is faked.
+        with patch.object(config_mod, "build_session", return_value=session):
+            result = runner.invoke(config_command, ["test"])
+
+        assert result.exit_code == 0, result.output
+        urls_called = [c.args[0] for c in session.get.call_args_list]
+        assert "https://jira.internal/rest/api/2/myself" in urls_called
+        assert "https://jira.internal/rest/api/user/current" in urls_called
+        assert "https://jira.internal/rest/api/3/myself" not in urls_called
+        assert not any("/wiki/" in u for u in urls_called)
+
     def test_unknown_profile_reports_which_service_failed(self, runner, config_home):
         self._write_profiles(
             config_home,
@@ -1370,3 +1403,123 @@ class TestConfigTestCommand:
 
         assert result.exit_code != 0
         assert "Confluence profile 'missing-profile'" in result.output
+
+    def _failing_client(self, raise_fn):
+        return type(
+            "C",
+            (),
+            {
+                "__init__": lambda self, session, base_url, deployment="cloud": None,
+                "get_myself": lambda self: raise_fn(),
+            },
+        )
+
+    def test_http_error_shows_status_and_body_without_crashing(
+        self, runner, config_home
+    ):
+        self._write_profiles(
+            config_home,
+            work={"auth_mode": "basic", "base_url": "https://x.atlassian.net"},
+        )
+
+        def _raise():
+            response = type("R", (), {"status_code": 401, "text": "Unauthorized"})()
+            raise requests.exceptions.HTTPError(response=response)
+
+        failing_client = self._failing_client(_raise)
+
+        with (
+            patch.object(config_mod, "build_session", return_value=object()),
+            patch.object(config_mod, "JiraClient", failing_client),
+            patch.object(config_mod, "ConfluenceClient", failing_client),
+        ):
+            result = runner.invoke(config_command, ["test"])
+
+        assert result.exit_code == 0  # one bad service is not a hard failure
+        assert "Traceback" not in result.output
+        assert "HTTP 401" in result.output
+        assert "Unauthorized" in result.output
+
+    def test_non_json_response_shows_actionable_message_without_crashing(
+        self, runner, config_home
+    ):
+        """Regression: a real user reported `sdd config test` crashing with
+        a raw `json.decoder.JSONDecodeError: Expecting value: line 1
+        column 1 (char 0)` traceback while testing PAT auth against a
+        real Jira/Confluence Data Center server. response.json() raises
+        this when the server responds 200 with a non-JSON body (most
+        commonly an SSO/login-page redirect instead of the real API) --
+        `except requests.HTTPError` never caught it, since JSONDecodeError
+        is a RequestException *sibling*, not a subclass of HTTPError."""
+        self._write_profiles(
+            config_home, work={"auth_mode": "pat", "base_url": "https://jira.internal"}
+        )
+
+        def _raise():
+            json.loads("<html>not json</html>")  # raises the real exception
+
+        failing_client = self._failing_client(_raise)
+
+        with (
+            patch.object(config_mod, "build_session", return_value=object()),
+            patch.object(config_mod, "JiraClient", failing_client),
+            patch.object(config_mod, "ConfluenceClient", failing_client),
+        ):
+            result = runner.invoke(config_command, ["test"])
+
+        assert result.exit_code == 0
+        assert "Traceback" not in result.output
+        assert "wasn't" in result.output and "JSON" in result.output
+        assert "SSO" in result.output or "login" in result.output
+
+    def test_non_json_response_caught_even_via_requests_own_subclass(
+        self, runner, config_home
+    ):
+        """Same failure mode as above, but simulating requests>=2.27's own
+        wrapped requests.exceptions.JSONDecodeError instead of the bare
+        stdlib one -- both must be caught, whichever requests raises."""
+        self._write_profiles(
+            config_home, work={"auth_mode": "pat", "base_url": "https://jira.internal"}
+        )
+
+        def _raise():
+            raise requests.exceptions.JSONDecodeError(
+                "Expecting value", "<html></html>", 0
+            )
+
+        failing_client = self._failing_client(_raise)
+
+        with (
+            patch.object(config_mod, "build_session", return_value=object()),
+            patch.object(config_mod, "JiraClient", failing_client),
+            patch.object(config_mod, "ConfluenceClient", failing_client),
+        ):
+            result = runner.invoke(config_command, ["test"])
+
+        assert result.exit_code == 0
+        assert "Traceback" not in result.output
+        assert "wasn't" in result.output and "JSON" in result.output
+
+    def test_connection_error_shows_message_without_crashing(self, runner, config_home):
+        self._write_profiles(
+            config_home,
+            work={"auth_mode": "basic", "base_url": "https://x.atlassian.net"},
+        )
+
+        def _raise():
+            raise requests.exceptions.ConnectionError(
+                "Failed to resolve 'x.atlassian.net'"
+            )
+
+        failing_client = self._failing_client(_raise)
+
+        with (
+            patch.object(config_mod, "build_session", return_value=object()),
+            patch.object(config_mod, "JiraClient", failing_client),
+            patch.object(config_mod, "ConfluenceClient", failing_client),
+        ):
+            result = runner.invoke(config_command, ["test"])
+
+        assert result.exit_code == 0
+        assert "Traceback" not in result.output
+        assert "Failed to resolve" in result.output

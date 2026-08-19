@@ -80,6 +80,23 @@ class Profile:
     access_token_env: str | None = None
     profile_name: str | None = None  # set by load_profile; the keyring lookup key
 
+    @property
+    def deployment(self) -> str:
+        """ "server" for PAT auth, "cloud" for everything else (basic/
+        oauth2). Personal Access Tokens are a Jira/Confluence Server &
+        Data Center-only feature -- Cloud doesn't support them -- so
+        auth_mode == "pat" is a reliable signal for deployment type,
+        confirmed against a real Data Center instance (see the
+        JiraClient/ConfluenceClient docstrings for why this matters:
+        Jira Server/DC only supports REST API v2, not v3, and
+        Confluence Server/DC's REST API has no /wiki path prefix, both
+        Cloud-only conventions that silently fail against Server/DC --
+        not with a clean 401, but often a 200-with-HTML-login-page or a
+        403 from a reverse proxy, which is what made this hard to
+        diagnose from the CLI's error message alone before this existed.
+        """
+        return "server" if self.auth_mode == "pat" else "cloud"
+
 
 def load_profile(name: str | None = None) -> Profile:
     if not CONFIG_PATH.exists():

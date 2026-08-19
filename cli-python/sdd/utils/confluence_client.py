@@ -13,14 +13,26 @@ def _strip_html(text: str) -> str:
 
 
 class ConfluenceClient:
-    """Thin wrapper around Confluence REST API v1 (compatible with Cloud and Server/DC)."""
+    """Thin wrapper around the Confluence REST API. The path prefix
+    differs by deployment: Cloud sites share a domain with Jira Cloud
+    (e.g. https://x.atlassian.net), so Confluence lives under a /wiki
+    sub-path there to avoid colliding with it -- but a standalone
+    Server/Data Center install has no such collision and its REST API
+    sits directly at /rest/api, with no /wiki prefix at all. Using the
+    Cloud path against a Server/DC instance fails silently in confusing
+    ways (a reverse proxy or SSO gateway can respond 200 with an HTML
+    login page, or 403, for a path it doesn't recognize) -- see the
+    `deployment` parameter below and Profile.deployment."""
 
-    def __init__(self, session: requests.Session, base_url: str):
+    def __init__(
+        self, session: requests.Session, base_url: str, *, deployment: str = "cloud"
+    ):
         self._s = session
         self._base = base_url.rstrip("/")
+        self._path_prefix = "" if deployment == "server" else "/wiki"
 
     def _api(self, path: str) -> str:
-        return f"{self._base}/wiki/rest/api{path}"
+        return f"{self._base}{self._path_prefix}/rest/api{path}"
 
     def get_myself(self) -> dict:
         r = self._s.get(self._api("/user/current"))

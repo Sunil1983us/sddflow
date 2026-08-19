@@ -692,7 +692,7 @@ def jira_push(profile, feature, level, cr, dry_run):
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
 
-    client = JiraClient(session, prof.base_url)
+    client = JiraClient(session, prof.base_url, deployment=prof.deployment)
 
     try:
         if level == "uc-draft":
@@ -1338,7 +1338,7 @@ def jira_sync(profile, feature):
         raise SystemExit(1)
 
     tasks = parse_tasks(features_dir)
-    client = JiraClient(session, prof.base_url)
+    client = JiraClient(session, prof.base_url, deployment=prof.deployment)
     project_key = cfg.jira.key_for("task")
 
     console.print(f"  {'TASK ID':<12} {'Jira Key':<14} Status")

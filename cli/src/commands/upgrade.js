@@ -4811,6 +4811,277 @@ export const MIGRATIONS = [
       'references outside the two intentionally-excluded files',
     ],
   },
+  {
+    from: '3.1.1',
+    to:   '3.2.0',
+    description: "New `sdd doctor` command -- read-only report of drift between a project's framework-managed files and the currently installed CLI's pack content",
+    notes: [
+      'First step of a larger effort responding to external review ' +
+      'feedback (verified independently before acting on any of it -- ' +
+      'radon complexity numbers and coverage percentages matched ' +
+      'exactly when re-run): sdd upgrade has only ever stamped ' +
+      'manifest.yml\'s sdd_version field, never actually syncing a ' +
+      'project\'s templates/prompts/commands/instructions/setup-' +
+      'scripts/workflows/.cursor/.vscode files forward to match the ' +
+      'installed CLI\'s pack content -- so a project could report ' +
+      'itself \'upgraded\' while every one of those files still ' +
+      'matched whatever version it was originally scaffolded with',
+      'sdd doctor is deliberately read-only -- reports drift, changes ' +
+      'nothing -- so it\'s safe to ship and use immediately, ahead of ' +
+      'the much bigger sdd upgrade rewrite that will actually apply ' +
+      'fixes (a later bump)',
+      'New cli-python/sdd/utils/managed_files.py: SHA-256-hashes ' +
+      'every managed file in the pack bundled with the currently ' +
+      'installed CLI (the \'canonical\' content) and in the project ' +
+      'itself, classifying each as up-to-date / missing / needs-' +
+      'update / user-modified / differs-for-unknown-reason (the last ' +
+      'one being the honest fallback for every project scaffolded ' +
+      'before this existed -- no baseline recorded, so it can\'t ' +
+      'distinguish a pack update from a hand edit, and doesn\'t guess)',
+      'New cli-python/sdd/commands/doctor.py: `sdd doctor` CLI ' +
+      'wrapper, reuses upgrade.py\'s existing _resolve_pack() for ' +
+      'pack detection, --pack to override, --quiet to only show ' +
+      'non-clean files, exit code 0/1 (scriptable)',
+      'Real finding surfaced by dogfooding this against a real ' +
+      'freshly-scaffolded project, not from the external review: ' +
+      '_resolve_pack()\'s existing project_type inference can ' +
+      'silently guess the wrong pack for any sdd-universal-scaffolded ' +
+      'project, since sdd-universal handles every project_type from ' +
+      'one shared set of files rather than becoming a type-specific ' +
+      'pack, and manifest.yml has never recorded an explicit ' +
+      '\'pack:\' field to disambiguate. Root-caused but not fixed ' +
+      'here -- doctor detects when _resolve_pack\'s answer came from ' +
+      'inference rather than an explicit stored field and prints a ' +
+      'prominent warning instead of silently presenting a guess as ' +
+      'fact; a real fix belongs with the pack_version/manifest-schema ' +
+      'split planned next in this phased effort',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same ' +
+      'sdd_version chain (the Node CLI has no doctor command of its ' +
+      'own -- scaffolding-only by design -- so nothing here actually ' +
+      'applies to it beyond the version stamp)',
+      'Verified: cli-python pytest 1035/1035 (1012 unchanged + 23 new ' +
+      'covering inventory building, hashing, baseline loading/' +
+      'malformed-JSON handling, all 5 classification branches ' +
+      'directly, and the CLI wrapper\'s exit codes/--quiet/inference-' +
+      'warning banner); manually verified end-to-end against a real ' +
+      'freshly-scaffolded project (113/113 up to date with the ' +
+      'correct pack; a hand-edit and a deletion both caught ' +
+      'precisely, nothing else flagged); ruff check/format clean; ' +
+      'mypy clean (37 source files, up from 35); bandit 0 issues',
+    ],
+  },
+  {
+    from: '3.2.0',
+    to:   '3.3.0',
+    description: "New required-going-forward `pack:` field in manifest.yml, closing the pack-identity gap sdd doctor's warning banner (added in 3.2.0) could only detect, not fix",
+    notes: [
+      'Direct follow-up to 3.2.0: that release shipped sdd doctor with ' +
+      'a warning banner for the case where _resolve_pack() had to ' +
+      '*infer* a project\'s pack from project_type rather than read it ' +
+      'from an explicit field -- most visibly wrong for sdd-universal, ' +
+      'which serves all 10 project_types from one shared set of files ' +
+      'and was being silently resolved to a type-specific pack (e.g. ' +
+      'sdd-backend-service) instead of itself',
+      'This bump fixes it at the source instead of just flagging it: ' +
+      'every pack\'s own manifest.yml template (sdd-backend-service, ' +
+      'sdd-frontend-spa, sdd-fullstack, sdd-mobile, sdd-universal, and ' +
+      'sdd-micro outside the lockstep) now bakes in a static ' +
+      '`pack: "sdd-..."` line right after sdd_version, the same ' +
+      'pattern already used for sdd_version\'s own static default -- ' +
+      'setup.sh/setup.ps1 need no template-substitution logic, the ' +
+      'value is simply correct for every project scaffolded from that ' +
+      'pack',
+      '_resolve_pack() in upgrade.py already prioritized ' +
+      'manifest.get(\'pack\') above project_type inference (added in ' +
+      'the 3.2.0 work) -- this bump is what actually makes that branch ' +
+      'fire for setup.sh/setup.ps1-scaffolded projects; sdd init-' +
+      'scaffolded projects were already unaffected, since init has ' +
+      'stamped manifest_patch[\'pack\'] since before this phased ' +
+      'effort started',
+      'PACK-SPEC.md\'s documented manifest.yml schema updated to list ' +
+      '`pack:` as a required field alongside sdd_version, so community ' +
+      'pack authors building against PACK-SPEC.md include it from day ' +
+      'one',
+      'Existing projects on older sdd_version have no `pack:` field ' +
+      'yet -- this migration entry only stamps sdd_version forward, as ' +
+      'always; a project without the field simply keeps falling back ' +
+      'to inference (with the 3.2.0 warning banner) until it\'s re-' +
+      'scaffolded or the field is added by hand -- there is no ' +
+      'destructive or surprising behavior change for anyone upgrading',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no pack-resolution logic of its own -- ' +
+      'scaffolding-only by design -- so nothing here actually applies ' +
+      'to it beyond the version stamp)',
+      'Verified: cli-python pytest 1035/1035 (unaffected by the ' +
+      'manifest-only change); all 6 packs\' manifest.yml confirmed to ' +
+      'parse as valid YAML with the new field; check-cross-' +
+      'references.py clean across all 6 packs; test-setup.sh 19/19 and ' +
+      'test-setup-micro.sh 12/12 passed; two real functional scaffolds ' +
+      're-confirmed the fix end-to-end -- a fresh sdd-backend-service ' +
+      'scaffold now resolves via "manifest.yml \'pack\' field" with no ' +
+      'warning, and a fresh sdd-universal scaffold (setup.sh --type ' +
+      'backend-service) now correctly resolves to sdd-universal ' +
+      'instead of the previously-mis-inferred sdd-backend-service',
+    ],
+  },
+  {
+    from: '3.3.0',
+    to:   '3.4.0',
+    description: "New `sdd upgrade --apply-files` -- the real fix, not just the report: safely applies pack-content updates to an existing project instead of only stamping sdd_version",
+    notes: [
+      'Completes the effort sdd doctor (3.2.0) and the pack: field ' +
+      '(3.3.0) were building toward: sdd upgrade used to only ever ' +
+      'patch manifest.yml\'s sdd_version -- it never touched the ' +
+      'actual template/prompt/command/instruction/setup-script files a ' +
+      'project was scaffolded with. --apply-files now actually applies ' +
+      'safe updates instead of just reporting them',
+      'New sdd/utils/managed_files.py: apply_managed_files() and ' +
+      'write_baseline(). Reuses check_managed_files()\'s existing ' +
+      'classification -- MISSING and NEEDS_UPDATE (local still matches ' +
+      'its last recorded baseline, only canonical content moved on) ' +
+      'are applied automatically; USER_MODIFIED and DIFFERS_UNKNOWN ' +
+      '(no baseline to tell an update apart from a hand edit) are left ' +
+      'alone unless --force is also passed. Every file actually ' +
+      'overwritten is backed up first to .specify/.managed-files-' +
+      'backups/{timestamp}/, never silently discarded. A fresh ' +
+      'baseline is written after every run -- including runs where ' +
+      'nothing changed on disk, so a project that\'s already current ' +
+      'the first time this flag is used still gets a baseline recorded ' +
+      'immediately, rather than only after its first divergence',
+      'sdd upgrade gained --apply-files and --force flags alongside ' +
+      'the existing --sync-prompts (kept, narrower, unchanged, for ' +
+      'backward compatibility). sdd doctor\'s closing note and ' +
+      'docstring updated to point at --apply-files now that it exists, ' +
+      'instead of saying sdd upgrade doesn\'t apply anything yet',
+      'README.md gained a full --apply-files walkthrough plus a new ' +
+      '`sdd doctor` section, which had never been documented there at ' +
+      'all since it shipped in 3.2.0',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no upgrade --apply-files of its own -- ' +
+      'scaffolding-only by design -- so nothing here actually applies ' +
+      'to it beyond the version stamp)',
+      'Verified: cli-python pytest 1055/1055 (1035 unchanged + 20 new ' +
+      'covering apply_managed_files()/write_baseline() directly -- ' +
+      'missing/needs-update/user-modified/force/dry-run/unknown-pack ' +
+      '-- and the CLI wrapper\'s preview, confirm, cancel, --yes, ' +
+      '--force, conflicts-only, and pack-inference paths); ruff ' +
+      'check/format clean; mypy clean (37 source files); bandit 0 ' +
+      'issues; node test 28/28; manually verified end-to-end against a ' +
+      'real freshly-scaffolded project -- baseline correctly written ' +
+      'on a no-op run, a hand-edited file correctly classified as ' +
+      'modified locally by sdd doctor, correctly left alone by ' +
+      '--apply-files without --force, and correctly overwritten-with-' +
+      'backup by --apply-files --force',
+    ],
+  },
+  {
+    from: '3.4.0',
+    to:   '3.4.1',
+    description: "Bugfix: `sdd config test` no longer crashes with a raw traceback when a Jira/Confluence server responds 200 with a non-JSON body",
+    notes: [
+      'Real user report: testing PAT auth against two Jira/Confluence ' +
+      'Data Center servers, `sdd config test` crashed with an ' +
+      'unhandled `json.decoder.JSONDecodeError: Expecting value: line ' +
+      '1 column 1 (char 0)` traceback instead of a clean per-service ' +
+      'status line',
+      'Root cause: response.json() raises this when the server answers ' +
+      '200 with a non-JSON body -- most commonly an SSO/login-page ' +
+      'redirect, or base_url pointing at the wrong path entirely. ' +
+      '`except requests.HTTPError` never caught it, since JSONDecodeError ' +
+      'is a RequestException *sibling*, not a subclass of HTTPError -- ' +
+      'an easy exception-hierarchy mistake to make and never notice ' +
+      'until it happens for real',
+      'Fixed by extracting the duplicated Jira/Confluence probe logic ' +
+      'in cli-python/sdd/commands/config.py into one _probe_service() ' +
+      'helper with three distinct except clauses: HTTPError (the ' +
+      'server said no, show its status+body), JSONDecodeError (caught ' +
+      'both as the bare stdlib class -- older requests versions raise ' +
+      'that directly, matching what the reporting user\'s traceback ' +
+      'showed -- and requests.exceptions.InvalidJSONError, the modern ' +
+      'requests>=2.27 wrapper -- shows an actionable message pointing ' +
+      'at base_url/SSO/token validity instead of a raw parse error), ' +
+      'and any other RequestException (connection refused, DNS ' +
+      'failure, timeout, TLS error, malformed URL -- requests\' own ' +
+      'message is clear enough on its own)',
+      'No manifest.yml or generated-file changes -- purely a crash fix ' +
+      'in CLI error handling, nothing for an existing project to ' +
+      'migrate',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no `sdd config test` of its own -- ' +
+      'scaffolding-only by design -- so nothing here actually applies ' +
+      'to it beyond the version stamp)',
+      'Verified: cli-python pytest 1098/1098 (1094 unchanged + 4 new ' +
+      'covering all three failure modes, including the exact bare-' +
+      'stdlib-JSONDecodeError reproduction of the reported bug and the ' +
+      'modern requests-wrapped variant); ruff check/format clean; mypy ' +
+      'clean (37 source files); bandit 0 issues; manually confirmed ' +
+      'end-to-end through the full Click CLI invocation path (not just ' +
+      'the unit tests) -- a probe against a real unreachable server ' +
+      'produces a clean per-service error line and exit code 0, never ' +
+      'a traceback',
+    ],
+  },
+  {
+    from: '3.4.1',
+    to:   '3.4.2',
+    description: "Bugfix: Jira/Confluence client now targets the correct REST API version/path for Server & Data Center deployments, not just Cloud",
+    notes: [
+      'Confirmed against two real Jira/Confluence Data Center servers ' +
+      '(the same user who reported the 3.4.1 crash): Jira Server/DC ' +
+      'does not support REST API v3 at all -- only v2 (JRASERVER-70688, ' +
+      'an Atlassian feature request for v3 on Data Center, is still ' +
+      'open, confirming this). Confluence Server/DC\'s REST API sits ' +
+      'directly at /rest/api, with no /wiki prefix -- that prefix is a ' +
+      'Cloud-only convention (Cloud sites share a domain with Jira ' +
+      'Cloud, so /wiki disambiguates them there; a standalone Server/DC ' +
+      'install has no such collision)',
+      'sdd/utils/jira_client.py and confluence_client.py hardcoded the ' +
+      'Cloud-only paths (v3, /wiki) unconditionally before this -- ' +
+      'every request against a Server/DC instance failed, not always ' +
+      'with a clean error: a reverse proxy or SSO gateway in front of ' +
+      'the real instance can respond 200 with an HTML login page, or ' +
+      '403, for a path it doesn\'t recognize -- which is exactly what ' +
+      'the 3.4.1 crash report turned out to be a symptom of',
+      'Added Profile.deployment (sdd/utils/atlassian_auth.py): ' +
+      '\'server\' for auth_mode == \'pat\', \'cloud\' otherwise. ' +
+      'Personal Access Tokens are a Server/DC-only feature -- Cloud ' +
+      'doesn\'t support them -- so auth_mode alone is a reliable ' +
+      'signal, no separate config field needed. JiraClient/' +
+      'ConfluenceClient both gained an optional deployment= keyword ' +
+      '(default \'cloud\', so every existing Cloud profile\'s behavior ' +
+      'is unchanged) that switches v3->v2 and drops the /wiki prefix ' +
+      'for \'server\'',
+      'Threaded through all 24 call sites across 8 command files ' +
+      '(config.py, jira.py, confluence.py, review.py, cr.py, ' +
+      'dashboard.py, pr.py) -- every one already had the Profile ' +
+      'object in hand, so each is a one-line deployment=prof.deployment ' +
+      'addition, mechanically applied and individually verified',
+      'No manifest.yml or generated-file changes -- purely a ' +
+      'connectivity fix for PAT/Server-DC profiles; existing Cloud ' +
+      '(basic/oauth2) profiles see zero behavior change',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same sdd_version ' +
+      'chain (the Node CLI has no Jira/Confluence client of its own -- ' +
+      'scaffolding-only by design -- so nothing here actually applies ' +
+      'to it beyond the version stamp)',
+      'Verified: cli-python pytest 1108/1108 (1098 unchanged + 10 new ' +
+      '-- Profile.deployment for all three auth_modes, JiraClient/' +
+      'ConfluenceClient\'s _api() URL construction for both ' +
+      'deployments, and one true end-to-end test using the REAL client ' +
+      'classes, not fakes, confirming a pat profile actually requests ' +
+      '/rest/api/2/myself and /rest/api/user/current with no /wiki ' +
+      'segment); ruff check/format clean; mypy clean (37 source files); ' +
+      'bandit 0 issues; manually confirmed end-to-end through the full ' +
+      'Click CLI invocation path with the real client classes and a ' +
+      'mocked Session, matching exactly what the reporting user ' +
+      'independently verified by hand with curl/Invoke-RestMethod ' +
+      'against their own Data Center servers',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

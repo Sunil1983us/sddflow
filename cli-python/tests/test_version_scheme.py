@@ -1,15 +1,26 @@
-"""Regression tests for the capped X.Y.Z version scheme documented in
+"""Regression tests for the version scheme documented in
 .claude/skills/version-bump/SKILL.md.
 
-Background: from 2.8.0 (the scheme's introduction) through 2.8.40, 41
-consecutive version bumps each did a flat `Z += 1` without ever applying
-the documented carry rule (Z caps at 24 -- the 26th patch in a minor
-should roll into Y += 1, Z = 0). Nothing caught it, so Z silently climbed
-to 40 -- 16 past the cap -- and the 2.9.x minor was never used at all
-until the drift was noticed and corrected in one jump, straight to
-2.9.16. These tests exist so the next time Z or Y drifts past its cap,
-the test suite fails immediately at that commit instead of the drift
-accumulating unnoticed for 41 more bumps.
+Current rule (since 3.0.2): standard, uncapped SemVer X.Y.Z. Which field
+bumps is a deliberate classification made per-release (PATCH/MINOR/MAJOR)
+by whoever runs the version-bump skill -- there's no formula to sanity-
+check anymore, just well-formedness of whatever the classification
+produced.
+
+Historical note: from 2.8.0 through 3.0.2 this repo used a *capped*
+counter scheme instead (Z capped at 24, Y capped at 9, with a divmod-
+based carry rule) -- introduced after Z had earlier drifted to 40, 16
+past its intended cap, because 41 consecutive bumps each did a flat
+`Z += 1` with nothing checking the cap. That capped scheme is what this
+file's tests used to enforce (`TestCappedVersionScheme`, removed here).
+It was itself replaced by the uncapped SemVer rule above once it became
+clear the capped scheme had the same underlying flaw as the plain-
+increment scheme before it: every bump treated as equivalent regardless
+of what actually shipped, carrying no signal about fix vs. feature vs.
+breaking change. See CHANGELOG.md and the skill file's own "Historical
+note" for the full chain. `TestVersionLockstep` below is unaffected by
+any of this -- keeping 8 files in sync on one version string is orthogonal
+to how that string's next value gets chosen.
 """
 
 from __future__ import annotations
@@ -43,70 +54,30 @@ def _parse_version(v: str) -> tuple[int, int, int]:
     return int(m.group(1)), int(m.group(2)), int(m.group(3))
 
 
-class TestCappedVersionScheme:
-    """Y (minor) and Z (patch) are capped counters, not open-ended semver
-    -- see the version-bump skill's "The versioning rule". Z ranges
-    0-24; a 25th patch within a minor must instead be expressed as
-    Y += 1, Z = 0. Y ranges 0-9 the same way against X."""
+class TestSemVerScheme:
+    """Standard, uncapped SemVer -- see the version-bump skill's "The
+    versioning rule". No cap on any field; which field bumps is a
+    per-release classification (PATCH/MINOR/MAJOR), not a formula, so
+    there's nothing here to sanity-check beyond well-formedness."""
 
-    def test_current_version_respects_the_cap(self):
-        _major, minor, patch = _parse_version(SDD_VERSION)
-        assert 0 <= patch <= 24, (
-            f"sdd_version {SDD_VERSION!r} has patch={patch}, which exceeds "
-            "the documented cap of 24 -- this is exactly the drift class "
-            "that let Z climb to 40 across 2.8.0-2.8.40 unnoticed. The next "
-            "bump should have carried into the next minor (Y += 1, Z = 0) "
-            "instead of incrementing Z past 24."
-        )
-        assert 0 <= minor <= 9, (
-            f"sdd_version {SDD_VERSION!r} has minor={minor}, which exceeds "
-            "the documented cap of 9 -- the next bump should have carried "
-            "into the next major (X += 1, Y = 0) instead."
+    def test_current_version_is_well_formed_semver(self):
+        major, minor, patch = _parse_version(SDD_VERSION)
+        assert major >= 0 and minor >= 0 and patch >= 0, (
+            f"sdd_version {SDD_VERSION!r} parsed to a negative component: "
+            f"({major}, {minor}, {patch})"
         )
 
-    def test_next_version_helper_never_exceeds_the_cap(self):
-        """Sanity-checks the divmod formula itself (see the version-bump
-        skill's `next_version`) across a wide sweep of inputs, including
-        already-over-cap ones like the historical (2, 8, 40) -- the exact
-        shape of the drift this test suite guards against. The formula
-        must always reduce back into range regardless of how far a stale
-        input has drifted past the cap."""
-
-        def next_version(x: int, y: int, z: int) -> tuple[int, int, int]:
-            n = x * 250 + y * 25 + z + 1
-            x, rem = divmod(n, 250)
-            y, z = divmod(rem, 25)
-            return x, y, z
-
-        # A representative sweep: in-range inputs, right at the cap
-        # boundary, and inputs already past it (the historical drift
-        # shape) -- every output must land back in range.
-        cases = [
-            (2, 8, 0),
-            (2, 8, 23),
-            (2, 8, 24),  # right at the cap -- next bump must carry
-            (2, 8, 40),  # the actual historical drift input
-            (2, 9, 24),
-            (0, 0, 0),
-            (5, 0, 24),
-        ]
-        for x, y, z in cases:
-            _nx, ny, nz = next_version(x, y, z)
-            assert 0 <= nz <= 24, f"next_version({x},{y},{z}) -> patch={nz}"
-            assert 0 <= ny <= 9, f"next_version({x},{y},{z}) -> minor={ny}"
-
-    def test_cap_boundary_actually_carries(self):
-        """The one specific transition that silently failed to fire for
-        41 consecutive bumps: incrementing past patch=24 must produce
-        minor+1, patch=0 -- not patch=25."""
-
-        def next_version(x: int, y: int, z: int) -> tuple[int, int, int]:
-            n = x * 250 + y * 25 + z + 1
-            x, rem = divmod(n, 250)
-            y, z = divmod(rem, 25)
-            return x, y, z
-
-        assert next_version(2, 8, 24) == (2, 9, 0)
+    def test_current_version_is_at_or_past_the_semver_rule_introduction(self):
+        """The uncapped SemVer rule took effect at 3.0.2 (see this file's
+        module docstring and the skill's own "Historical note") -- nothing
+        before that point followed it, but nothing after should regress
+        to a version below where the rule started."""
+        major, minor, patch = _parse_version(SDD_VERSION)
+        assert (major, minor, patch) >= (3, 0, 2), (
+            f"sdd_version {SDD_VERSION!r} is below 3.0.2, where the "
+            "uncapped SemVer rule took effect -- versions should only "
+            "move forward."
+        )
 
 
 class TestVersionLockstep:

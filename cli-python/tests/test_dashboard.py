@@ -234,7 +234,7 @@ def test_fetch_review_links_surfaces_classification_and_comments(tmp_path, monke
     monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
 
     class FakeJiraClient:
-        def __init__(self, session, base_url):
+        def __init__(self, session, base_url, deployment="cloud"):
             pass
 
         def find_by_label(self, project_key, label):
@@ -298,7 +298,7 @@ def test_fetch_review_links_classifies_approved_status(tmp_path, monkeypatch):
     monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
 
     class FakeJiraClient:
-        def __init__(self, session, base_url):
+        def __init__(self, session, base_url, deployment="cloud"):
             pass
 
         def find_by_label(self, project_key, label):
@@ -476,7 +476,7 @@ def test_fetch_review_links_includes_export_status(tmp_path, monkeypatch):
     monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
 
     class FakeJiraClient:
-        def __init__(self, session, base_url):
+        def __init__(self, session, base_url, deployment="cloud"):
             pass
 
         def search(self, jql, fields=None, max_results=50):
@@ -521,7 +521,7 @@ def test_fetch_review_links_works_without_document_reviews_configured(
     monkeypatch.setattr(auth_mod, "build_session", lambda profile: object())
 
     class FakeJiraClient:
-        def __init__(self, session, base_url):
+        def __init__(self, session, base_url, deployment="cloud"):
             pass
 
         def search(self, jql, fields=None, max_results=50):

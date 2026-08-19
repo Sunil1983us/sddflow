@@ -227,6 +227,19 @@ references are deliberately skipped (AI-2 summaries aren't guaranteed to
 preserve source section numbers); a `.md` reference to a doc key with no
 matching `*-template.md` is reported as a note, not a failure.
 
+A fourth harness, `packs/_shared/tests/check-migration-parity.py`, checks
+that `cli-python/sdd/commands/upgrade.py` and `cli/src/commands/upgrade.js`
+agree on the `MIGRATIONS` version chain (every `from`/`to` hop, in order).
+The two lists' `description`/`notes` prose is expected to differ in
+places — each CLI's notes sometimes call out CLI-specific detail — only
+the version chain itself is load-bearing (it drives which migrations a
+project sees applied). CI runs it on every PR (`migration-parity-check`
+job). Run it locally after adding a migration entry to either file:
+
+```bash
+python3 packs/_shared/tests/check-migration-parity.py --verbose
+```
+
 ---
 
 ## Versioning Policy

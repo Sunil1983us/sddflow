@@ -85,6 +85,29 @@ class TestLoadProfileCredentialStore:
         assert p.profile_name == "on-prem"
 
 
+class TestProfileDeployment:
+    """Profile.deployment -- confirmed against a real Jira/Confluence Data
+    Center instance: PAT auth only works there against REST API v2 (Jira)
+    and the /rest/api path with no /wiki prefix (Confluence); the v3/
+    /wiki Cloud conventions this CLI used unconditionally before this
+    existed produced a 200-with-HTML-login-page or 403, not a clean
+    error. PAT is a Server/DC-only auth feature -- Cloud doesn't support
+    it -- so auth_mode alone is a reliable signal, no separate config
+    field needed."""
+
+    def test_pat_auth_mode_is_server_deployment(self):
+        p = auth.Profile(auth_mode="pat", base_url="https://x.internal")
+        assert p.deployment == "server"
+
+    def test_basic_auth_mode_is_cloud_deployment(self):
+        p = auth.Profile(auth_mode="basic", base_url="https://x.atlassian.net")
+        assert p.deployment == "cloud"
+
+    def test_oauth2_auth_mode_is_cloud_deployment(self):
+        p = auth.Profile(auth_mode="oauth2", base_url="https://x.atlassian.net")
+        assert p.deployment == "cloud"
+
+
 class TestResolveSecretEnvPath:
     """The pre-existing env-var behavior must be byte-for-byte unchanged."""
 

@@ -1,0 +1,68 @@
+name: Create GitHub Release
+# Fires on a `vX.Y.Z` tag push -- the deliberate, human-triggered step in
+# this repo's release process (see RELEASING.md). Creates the repo's
+# GitHub Release with notes pulled straight from CHANGELOG.md's matching
+# section, so the two are never written twice by hand.
+#
+# Independent of publish-pypi.yml (same trigger, separate workflow) --
+# a GitHub Release is useful and low-risk on its own, and must not be
+# blocked by PyPI's trusted-publisher setup (a one-time manual step on
+# pypi.org that may not be done yet -- see RELEASING.md).
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Tag matches sdd_version, then create the release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Verify the tag matches cli-python/sdd/__init__.py's __version__
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(python3 -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('cli-python/sdd/__init__.py').read()).group(1))")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match cli-python/sdd/__init__.py's __version__ ($pkg_version) -- refusing to release a mismatched tag."
+            exit 1
+          fi
+          echo "OK: tag $GITHUB_REF_NAME matches __version__ $pkg_version"
+
+      - name: Extract this version's notes from CHANGELOG.md
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import os
+          import re
+
+          tag_version = os.environ["GITHUB_REF_NAME"][1:]  # strip leading 'v'
+          text = open("CHANGELOG.md").read()
+          pattern = rf"^## \[{re.escape(tag_version)}\].*?\n(.*?)(?=\n## \[|\Z)"
+          m = re.search(pattern, text, re.DOTALL | re.MULTILINE)
+          if not m:
+              raise SystemExit(
+                  f"::error::No CHANGELOG.md section found for version {tag_version} "
+                  f"-- add a '## [{tag_version}] — ...' entry before tagging."
+              )
+          body = m.group(1).strip()
+          body = re.sub(r"\n---\s*$", "", body).strip()
+          with open("release_notes.md", "w") as f:
+              f.write(body + "\n")
+          print(f"OK: extracted {len(body)} chars of release notes for {tag_version}")
+          PYEOF
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file release_notes.md

@@ -342,7 +342,7 @@ def confluence_push(profile, feature, doc, summary, dry_run, force):
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
 
-    client = ConfluenceClient(session, prof.base_url)
+    client = ConfluenceClient(session, prof.base_url, deployment=prof.deployment)
 
     for key, md_path, title in available:
         body, attachments, diagram_warnings = md_to_storage(
@@ -471,7 +471,7 @@ def confluence_draft(doc, profile, feature, dry_run, force):
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
 
-    client = ConfluenceClient(session, prof.base_url)
+    client = ConfluenceClient(session, prof.base_url, deployment=prof.deployment)
     body, attachments, diagram_warnings = md_to_storage(
         doc_path.read_text(), cf_cfg.diagrams
     )
@@ -577,7 +577,7 @@ def confluence_pull(doc, profile, feature, page_id):
         console.print(f"  [red]✗  Auth error: {e}[/red]")
         raise SystemExit(1)
 
-    client = ConfluenceClient(session, prof.base_url)
+    client = ConfluenceClient(session, prof.base_url, deployment=prof.deployment)
 
     console.print(f"  Fetching page [cyan]{resolved_page_id}[/cyan] from Confluence...")
     try:
