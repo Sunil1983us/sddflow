@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.6.0] — 2026-08-26 (/clarify: live one-at-a-time interview, pushes back on vague answers)
+
+Previously `/clarify` wrote every open item to `clarify.md`, presented the
+full report, and then just waited — whatever came back in chat was mapped
+to an item's ID and accepted as-is, even a non-answer like "make it
+reasonable" or "whatever's best." The item still got marked RESOLVED, and
+the same ambiguity could resurface unnoticed at `/plan-design`.
+
+### Changed
+
+- `/clarify` still presents the full report once, but the live-chat answer
+  path now interviews one item at a time — CRITICAL/HIGH first — instead
+  of just waiting for whatever comes back.
+- If an answer is vague, it's not accepted: the agent asks one specific
+  follow-up aimed at getting something `/plan-design` can actually build
+  against. Pushes back at most twice per item; a third vague answer
+  resolves by best guess instead of looping forever.
+- A human who pastes answers for several items at once is still accepted
+  immediately — the one-at-a-time cadence is the default, not a hard rule.
+- The other three intake paths are unchanged: editing `clarify.md`
+  directly and saying "done," "best guess"/"continue," and an async
+  Jira/Confluence comment reply all still bypass the interview entirely.
+
+### Verified
+
+- `sync-blocks.sh` run twice consecutively with zero unexpected drift
+  (only the 5 intentionally-edited `clarify.prompt.md` files changed);
+  `check-cross-references.py` clean across all 6 packs; `test-setup.sh`
+  19/19 passed.
+
+---
+
 ## [3.5.0] — 2026-08-26 (Confluence push-drift detection: sdd confluence verify, --force-overwrite)
 
 `sdd confluence push` used to overwrite a page's body unconditionally,

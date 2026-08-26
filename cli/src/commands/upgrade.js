@@ -5171,6 +5171,47 @@ export const MIGRATIONS = [
       'clean; mypy clean (38 source files); bandit 0 issues',
     ],
   },
+  {
+    from: '3.5.0',
+    to:   '3.6.0',
+    description: "/clarify now interviews live chat answers one item at a time and pushes back on vague ones, instead of posting the whole list and passively waiting",
+    notes: [
+      'Previously /clarify wrote every open item to clarify.md, ' +
+      'presented the full report, and then just waited -- whatever ' +
+      'came back in chat was mapped to an item\'s ID and accepted ' +
+      'as-is, even a vague non-answer like \'make it reasonable\' or ' +
+      '\'whatever\'s best\'. The item still got marked RESOLVED, and ' +
+      'the same ambiguity could resurface unnoticed at /plan-design',
+      'Now: after presenting the full report once (so the human can ' +
+      'still see everything at a glance), the live-chat path asks ' +
+      'about items one at a time -- CRITICAL/HIGH first -- and, if an ' +
+      'answer is still vague, asks one specific follow-up instead of ' +
+      'accepting it. Pushes back at most twice per item; a third vague ' +
+      'answer resolves by best guess instead of looping forever. A ' +
+      'human who pastes answers for several items at once is still ' +
+      'accepted immediately -- the one-at-a-time cadence is the ' +
+      'default, not a hard rule',
+      'The three other intake paths are unchanged: editing clarify.md ' +
+      'directly and saying \'done\', \'best guess\'/\'continue\', and ' +
+      'an async Jira/Confluence comment reply (pulled in by `sdd ' +
+      'review pull-answers --doc clarify`) all still bypass the ' +
+      'interview entirely -- only the live-chat answer path changed',
+      'Prompt-content only (packs/{sdd-backend-service,sdd-frontend-' +
+      'spa,sdd-fullstack,sdd-mobile,sdd-universal}/.github/prompts/' +
+      'clarify.prompt.md) -- no CLI code touched, no manifest.yml ' +
+      'schema change. sdd-micro is unaffected (no /clarify in its ' +
+      '3-command scope)',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same ' +
+      'sdd_version chain (the Node CLI has no prompt-execution role ' +
+      'of its own -- scaffolding-only by design -- so nothing here ' +
+      'actually applies to it beyond the version stamp)',
+      'Verified: sync-blocks.sh run twice consecutively with zero ' +
+      'unexpected drift (only the 5 intentionally-edited clarify.' +
+      'prompt.md files changed); check-cross-references.py clean ' +
+      'across all 6 packs; test-setup.sh 19/19 passed',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
