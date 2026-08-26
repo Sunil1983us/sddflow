@@ -7465,12 +7465,12 @@ MIGRATIONS: list[Migration] = [
         "notes": [
             "parse_remote() decided which git host (github/bitbucket/"
             "gitlab/azure) a repo's origin remote belongs to via plain "
-            "`\"github.com\" in host`-style substring checks -- CodeQL's "
+            '`"github.com" in host`-style substring checks -- CodeQL\'s '
             "py/incomplete-url-substring-sanitization flagged all 5 "
             "occurrences (github.com, bitbucket.org, gitlab, dev.azure."
             "com, visualstudio.com): a host like notgithub.com or "
-            "github.com.evil.example contains the substring \"github."
-            "com\" without being github.com or a subdomain of it",
+            'github.com.evil.example contains the substring "github.'
+            'com" without being github.com or a subdomain of it',
             "Added _host_is(host, domain) -- exact match or subdomain "
             "via str.endswith(f'.{domain}') -- for the four hosts that "
             "pin to one real domain (github.com, bitbucket.org, dev."
@@ -7478,7 +7478,7 @@ MIGRATIONS: list[Migration] = [
             "deliberately broader (self-hosted instances live at "
             "arbitrary hostnames, e.g. gitlab.mycompany.internal) but "
             "moved from an anywhere-substring check to _host_has_label"
-            "(), requiring \"gitlab\" to be a full dot/hyphen-separated "
+            '(), requiring "gitlab" to be a full dot/hyphen-separated '
             "label -- closes notgitlab.io/gitlabish.io false-accepts "
             "while still detecting gitlab.corp.io/code-gitlab.corp.io",
             "Practical exploitability was narrow -- host comes from "
