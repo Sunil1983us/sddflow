@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.5.0] — 2026-08-26 (Confluence push-drift detection: sdd confluence verify, --force-overwrite)
+
+`sdd confluence push` used to overwrite a page's body unconditionally,
+using Confluence's optimistic-locking version number purely to avoid a
+409 — never to detect that someone had edited the live page in between.
+A reviewer fixing a typo or adding a clarification directly on Confluence
+had that edit silently discarded the next time anyone re-pushed the doc,
+with no warning it had ever existed.
+
+### Added
+
+- `docs/confluence/push-log.yml` (new, auto-generated) — records what
+  sddflow itself last wrote to each page: `{page_id: {doc, title,
+  pushed_version}}`, updated after every successful `push`/`draft`/`pull`.
+- `sdd confluence push` now checks each page's live version against the
+  push log before overwriting it. If the page moved since sddflow's last
+  push, it prints who edited it and when, and skips that doc — pass the
+  new `--force-overwrite` flag to push anyway. (Separate from the
+  existing `--force`, which governs a different warning about
+  title/feature collisions.)
+- `sdd confluence draft`/`pull` record the push-log entry but never warn
+  — draft/pull's whole point is inviting a human to edit the page
+  directly, so flagging that as drift would be a constant false alarm.
+- New `sdd confluence verify` command: read-only, reports
+  up-to-date/drifted/missing for every tracked page without pushing or
+  pulling anything — for checking drift on demand, not just at the next
+  push.
+
+### Verified
+
+- cli-python pytest 1143/1143 (1120 unchanged + 23 new); ruff
+  check/format clean; mypy clean (38 source files); bandit 0 issues.
+
+---
+
 ## [3.4.3] — 2026-08-19 (Security: fix host-spoofable substring checks flagged by CodeQL)
 
 GitHub's code-scanning (CodeQL) flagged `sdd/utils/git_host.py`'s host

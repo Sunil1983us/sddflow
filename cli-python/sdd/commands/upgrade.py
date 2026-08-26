@@ -7501,6 +7501,58 @@ MIGRATIONS: list[Migration] = [
             "issues",
         ],
     },
+    {
+        "from": "3.4.3",
+        "to": "3.5.0",
+        "description": "sdd confluence push now detects and warns when a page "
+        "was edited outside sddflow since its own last push, instead of "
+        "silently overwriting it; new sdd confluence verify command",
+        "notes": [
+            "upsert_page() always overwrote a Confluence page's body with "
+            "whatever the local .md said, using Confluence's optimistic-"
+            "locking version number purely to avoid a 409 -- never to "
+            "detect a manual edit made in between. A reviewer editing the "
+            "live page directly (fixing a typo, adding a clarification) "
+            "had that edit silently discarded the next time anyone ran "
+            "`sdd confluence push`, with no warning it had ever existed",
+            "New cli-python/sdd/utils/confluence_push_log.py: "
+            "docs/confluence/push-log.yml records {page_id: {doc, title, "
+            "pushed_version}} after every successful push/draft/pull. "
+            "check_drift() compares a page's live version.number against "
+            "the recorded value (using version.by/version.when Confluence "
+            "already returns) to tell 'someone edited this since we last "
+            "wrote it' apart from a normal, expected re-push",
+            "`sdd confluence push` now checks drift before each doc's "
+            "upsert and, if the page moved, prints who edited it and "
+            "when, then skips that doc -- pass the new --force-overwrite "
+            "flag (separate from the existing --force, which governs a "
+            "different warning about title/feature collisions) to push "
+            "anyway. `sdd confluence draft`/`pull` record the push-log "
+            "entry but never warn -- draft/pull's entire purpose is "
+            "inviting a human to edit the page directly in Confluence, so "
+            "flagging that as drift would be a constant false alarm",
+            "New `sdd confluence verify` command: read-only, reports "
+            "up-to-date/drifted/missing for every page in push-log.yml "
+            "without pushing or pulling anything -- for checking drift "
+            "on demand rather than only finding out at the next push",
+            "docs/confluence/push-log.yml is new, generated state (like "
+            "docs/jira/{feature}/keys.yml) -- no manifest.yml schema "
+            "change, and safe to delete: it only ever gets rebuilt from "
+            "the next push, never re-derived from Confluence itself",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain (the Node CLI has no Confluence "
+            "integration of its own -- scaffolding-only by design -- so "
+            "nothing here actually applies to it beyond the version "
+            "stamp)",
+            "Verified: cli-python pytest 1143/1143 (1120 unchanged + 23 "
+            "new -- push-log load/record/drift-check unit tests, plus "
+            "CLI-level tests for the warn-and-skip path, --force-"
+            "overwrite, and `sdd confluence verify` in all three states); "
+            "ruff check/format clean; mypy clean (38 source files); "
+            "bandit 0 issues",
+        ],
+    },
 ]
 
 
