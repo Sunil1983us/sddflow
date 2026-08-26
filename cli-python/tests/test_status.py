@@ -889,6 +889,25 @@ def test_jira_keys_parsed_with_base_url(tmp_path, monkeypatch):
     assert jira["tasks"][0]["url"] == "https://acme.atlassian.net/browse/PROJ-4"
 
 
+def test_jira_keys_rejects_a_traversal_feature_name(tmp_path, monkeypatch):
+    """_local_jira_links() is traversal-checked via safe_feature_path()
+    (defense-in-depth for CodeQL py/path-injection -- every current
+    caller already validates `feature` upstream, but this way the guard
+    doesn't depend on that). A feature name that tries to escape
+    docs/jira/ returns the same empty result as "no keys file", not an
+    exception, and never reads anything outside docs/jira/."""
+    from sdd.utils.status import _local_jira_links
+
+    monkeypatch.chdir(tmp_path)
+    outside = tmp_path / "outside" / "keys.yml"
+    outside.parent.mkdir(parents=True)
+    outside.write_text("epic: SHOULD-NOT-BE-READ\n")
+
+    result = _local_jira_links(tmp_path, "../../outside", base_url=None)
+
+    assert result == {"epic": None, "stories": [], "tasks": []}
+
+
 def test_jira_keys_legacy_dict_shape_still_parses(tmp_path, monkeypatch):
     """Regression: a real user's dashboard crashed with AttributeError
     ('str' object has no attribute 'get') because status.py's reader
