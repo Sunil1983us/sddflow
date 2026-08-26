@@ -5250,6 +5250,53 @@ export const MIGRATIONS = [
       'clean; mypy clean (38 source files); bandit 0 issues',
     ],
   },
+  {
+    from: '3.6.1',
+    to:   '3.7.0',
+    description: "/clarify's live interview redesigned again -- spec-kit-inspired format: pre-reasoned recommended answers, at least 5-6 questions balanced across item types",
+    notes: [
+      '3.6.0 made /clarify\'s live-chat path push back on a vague ' +
+      'answer with one narrower follow-up (max twice) before falling ' +
+      'to best guess. Checked github/spec-kit\'s own clarify.md ' +
+      'template directly for a second opinion on this -- it asks one ' +
+      'question at a time (capped at 5), each with a pre-reasoned ' +
+      'recommended/suggested default the human can accept with \'yes\' ' +
+      'instead of typing an answer, drawn from a 9-category taxonomy ' +
+      'that inherently balances technical and business angles',
+      'Adopted that shape instead: every question now states ' +
+      '**Recommended: Option X** (multiple-choice, lettered table) or ' +
+      '**Suggested:** (open-ended), reasoned from something real in ' +
+      'this project\'s own docs (context.md, constitution.md\'s Tech ' +
+      'Stack/Domain Rules, brd.md\'s stated business objectives) -- ' +
+      'never a generic justification. Ask through at least 5-6 items ' +
+      'when that many are open, picked across item types (not just ' +
+      'severity) so it doesn\'t ask five near-identical AMB items back ' +
+      'to back while a real GAP/OQ item sits unasked',
+      'The push-back mechanic is gone -- with a recommended default ' +
+      'always on offer, \'make it reasonable\'-style non-answers are ' +
+      'rarer to begin with. What remains: a reply that doesn\'t engage ' +
+      'at all gets exactly one check-in referencing the already-' +
+      'offered default (not a new/repeated question); if that doesn\'t ' +
+      'land, the item resolves using that same default as agent-best-' +
+      'guess rather than looping',
+      'The three other intake paths (direct file-edit + \'done\', ' +
+      '\'best guess\'/\'continue\', async Jira/Confluence comment) are ' +
+      'unchanged from 3.6.0',
+      'Prompt-content only (packs/{sdd-backend-service,sdd-frontend-' +
+      'spa,sdd-fullstack,sdd-mobile,sdd-universal}/.github/prompts/' +
+      'clarify.prompt.md) -- no CLI code touched, no manifest.yml ' +
+      'schema change. sdd-micro unaffected',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same ' +
+      'sdd_version chain (the Node CLI has no prompt-execution role ' +
+      'of its own -- scaffolding-only by design -- so nothing here ' +
+      'actually applies to it beyond the version stamp)',
+      'Verified: sync-blocks.sh run twice consecutively with zero ' +
+      'unexpected drift (only the 5 intentionally-edited clarify.' +
+      'prompt.md files changed); check-cross-references.py clean ' +
+      'across all 6 packs; test-setup.sh 19/19 passed',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

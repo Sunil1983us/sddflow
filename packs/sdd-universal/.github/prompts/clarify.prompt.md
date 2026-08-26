@@ -70,23 +70,54 @@ Rules:
   below — do not just post the list and go silent.
 - Do NOT proceed to PLAN until all items resolved (by human or best guess).
 
-**Live interview (chat answers)** — ask about items one at a time,
-CRITICAL/HIGH first (highest-severity R-NNN and every CRITICAL CF-NNN,
-then AMB/GAP/CON/ASM/OQ in the order listed in the report), not the
-whole list in a single message:
-- If the answer is specific enough to actually resolve the item (a
-  concrete value, a stated decision, an explicit "N/A"/"doesn't
-  apply"), accept it and move to the next item.
-- If it's vague or leaves the ambiguity intact ("make it reasonable",
-  "whatever's best", "up to you", or a restatement of the question) —
-  do NOT mark it RESOLVED. Ask one specific follow-up aimed at getting
-  something /plan-design can actually build against. Push back at most
-  twice per item; if the third answer is still vague, resolve it by
-  best guess instead (below) rather than looping forever.
+**Live interview (chat answers)** — ask ONE question at a time, never
+the whole list in a single message. Ask through at least 5-6 items when
+the report has that many open (fewer only if fewer genuinely exist) —
+picked across item types, not just severity, so the run doesn't end up
+asking five near-identical AMB items back to back while a real GAP/OQ
+item sits unasked. Order: highest-severity R-NNN and every CRITICAL
+CF-NNN first, then balance across the remaining AMB/GAP/CON/ASM/OQ types.
+
+Each question:
+1. Lead with **Question:** followed by the actual question, ending in
+   `?`, plus the item ID in parens — e.g. "**Question:** Does the retry
+   apply per-transaction-type, or uniformly across all of them? (AMB-003)"
+2. One sentence on why it matters for this feature specifically — not
+   a generic "this affects design" filler.
+3. A pre-reasoned default the human can just accept instead of typing
+   an answer:
+   - **Multiple-choice** (2-5 genuinely discrete options exist): render
+     as a lettered Markdown table, then state **Recommended: Option X**
+     with 1-2 sentences of reasoning.
+   - **Open-ended** (no natural discrete options): state **Suggested:**
+     a concrete short answer, with 1-2 sentences of reasoning.
+   - The reasoning MUST cite something real and specific to this
+     project — `context.md`, `constitution.md`'s Tech Stack/Domain
+     Rules, `brd.md`'s stated business objectives, or a prior resolved
+     item — never a generic justification that could apply to any
+     project. If nothing in this project's own docs supports a
+     recommendation, say so plainly and ask open-ended instead of
+     inventing a plausible-sounding default.
+4. Cover both technical and business angles across the batch, not just
+   one — e.g. a question about a data-model choice belongs next to one
+   about who owns the consequence if that choice turns out wrong, not
+   six variations on the same architectural point.
+
+**Accepting an answer:**
+- The option letter, "yes"/"recommended"/"suggested", or a custom
+  answer — any of these resolves the item; move to the next question.
+- A reply that doesn't actually engage ("not sure", "whatever", or
+  silence on that item while answering others) gets exactly one gentle
+  check-in referencing the recommended/suggested default already
+  offered ("Want me to go with Option B, or do you have something else
+  in mind?") — not a new question, not repeated wording. If that
+  doesn't land either, resolve using that same recommended/suggested
+  default and mark it `(agent best guess — flag for Architect at
+  /plan-design)`, rather than looping.
 - If the human answers several items at once unprompted (pastes a
-  block covering multiple IDs), accept that too — one-at-a-time is the
-  default cadence, not a rule that blocks someone who'd rather answer
-  everything in one message.
+  block covering multiple IDs), accept that immediately — one-at-a-time
+  is the default cadence, not a rule that blocks someone who'd rather
+  answer everything in one message.
 
 **Accepted reply forms:**
 - Answered through the live interview above
