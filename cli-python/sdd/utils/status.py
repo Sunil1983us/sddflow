@@ -17,6 +17,7 @@ import yaml
 
 from sdd.utils.manifest import read_manifest
 from sdd.utils.project_type import applicable_extended_docs
+from sdd.utils.validate import safe_feature_path
 
 # Best-effort generic pipeline order. Not every pack/scope/plan_mode
 # generates every doc — this is used only to order what *does* exist and
@@ -1766,9 +1767,18 @@ def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
     """Jira Epic/Story/Task links already persisted by the progressive
     export (docs/jira/{feature}/keys.yml, written by `sdd jira push`). No
     network call — review-gate ticket links (from `sdd review submit`/
-    `apply`) live in a separate file, see _local_review_links() below."""
+    `apply`) live in a separate file, see _local_review_links() below.
+
+    `feature` is traversal-checked via safe_feature_path() here too, even
+    though every current caller already validates it upstream (dashboard.py's
+    _SAFE_TOKEN regex on the HTTP path, plain CLI-arg trust on the `sdd
+    status` path) -- this way the guard doesn't depend on every future
+    caller remembering to check first (CodeQL py/path-injection)."""
     result: dict = {"epic": None, "stories": [], "tasks": []}
-    keys_path = root / "docs" / "jira" / feature / "keys.yml"
+    try:
+        keys_path = safe_feature_path(root / "docs" / "jira", feature) / "keys.yml"
+    except ValueError:
+        return result
     if not keys_path.exists():
         return result
     try:

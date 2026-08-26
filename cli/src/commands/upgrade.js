@@ -5212,6 +5212,44 @@ export const MIGRATIONS = [
       'across all 6 packs; test-setup.sh 19/19 passed',
     ],
   },
+  {
+    from: '3.6.0',
+    to:   '3.6.1',
+    description: "status.py's _local_jira_links() now traversal-checks the feature name before building docs/jira/{feature}/keys.yml, closing a CodeQL-flagged path-injection gap",
+    notes: [
+      '_local_jira_links(root, feature, base_url) built docs/jira/' +
+      '{feature}/keys.yml by string concatenation -- root / \'docs\' / ' +
+      '\'jira\' / feature / \'keys.yml\' -- with no traversal check of ' +
+      'its own. Every current caller already validated `feature` ' +
+      'before calling in (dashboard.py\'s /api/review-links endpoint ' +
+      'via the _SAFE_TOKEN allowlist regex; the CLI sdd status path, ' +
+      'same trust level as a user\'s own manifest.yml), so this was ' +
+      'never actually reachable with an attacker-controlled value -- ' +
+      'but CodeQL\'s py/path-injection query correctly flags that the ' +
+      'function itself provides no guarantee, only its callers happen to',
+      'Now routes through safe_feature_path() (validate.py -- the ' +
+      'same resolve()+relative_to() traversal check every other ' +
+      'doc-path resolution in this codebase already uses) before ' +
+      'appending \'keys.yml\'. A feature name that tries to escape ' +
+      'docs/jira/ returns the same empty {epic: None, stories: [], ' +
+      'tasks: []} result as \'no keys file found\' instead of reading ' +
+      'whatever\'s at the escaped path',
+      'Same shape and precedent as the 3.4.2 -> 3.4.3 git_host.py ' +
+      'CodeQL fix: narrow practical exploitability given the existing ' +
+      'caller-side guards, but the fix is free and the old behavior ' +
+      'was genuinely under-guarded regardless',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same ' +
+      'sdd_version chain (the Node CLI has no status/Jira-links logic ' +
+      'of its own -- scaffolding-only by design -- so nothing here ' +
+      'actually applies to it beyond the version stamp)',
+      'Verified: cli-python pytest 1144/1144 (1143 unchanged + 1 new ' +
+      '-- test_jira_keys_rejects_a_traversal_feature_name, confirming ' +
+      'a file placed outside docs/jira/ is never read for a ' +
+      '\'../../outside\'-style feature value); ruff check/format ' +
+      'clean; mypy clean (38 source files); bandit 0 issues',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

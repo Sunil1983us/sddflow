@@ -4,6 +4,33 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.6.1] — 2026-08-26 (Security: status.py path-injection hardening flagged by CodeQL)
+
+GitHub's code-scanning (CodeQL) flagged `status.py`'s `_local_jira_links()`
+for `py/path-injection`: it built `docs/jira/{feature}/keys.yml` by string
+concatenation, with no traversal check of its own. Every current caller
+already validated `feature` before calling in (the dashboard's
+`/api/review-links` endpoint via an allowlist regex; the CLI `sdd status`
+path, same trust level as a user's own `manifest.yml`), so this was never
+actually reachable with an attacker-controlled value — but the function
+itself provided no guarantee, only its callers happened to.
+
+### Fixed
+
+- `_local_jira_links()` now routes the feature name through
+  `safe_feature_path()` (the same traversal check every other doc-path
+  resolution in this codebase already uses) before building the path. A
+  feature name that tries to escape `docs/jira/` now returns the same
+  empty result as "no keys file found," instead of reading whatever's at
+  the escaped path.
+
+### Verified
+
+- cli-python pytest 1144/1144 (1143 unchanged + 1 new); ruff check/format
+  clean; mypy clean; bandit 0 issues.
+
+---
+
 ## [3.6.0] — 2026-08-26 (/clarify: live one-at-a-time interview, pushes back on vague answers)
 
 Previously `/clarify` wrote every open item to `clarify.md`, presented the
