@@ -65,15 +65,34 @@ Rules:
   patch clarify.md, and continue automatically." If the command fails or
   isn't configured, just present the report below for the user to resolve
   directly (unchanged fallback behavior).
-- Present the report. WAIT for human answers.
+- Present the full report once, so the human can see everything at a
+  glance and choose how to answer. Then start the **live interview**
+  below — do not just post the list and go silent.
 - Do NOT proceed to PLAN until all items resolved (by human or best guess).
 
-**Accepted reply forms:**
-- Answers given inline in chat — AI maps each to its ID
-- User edits `clarify.md` directly, then says "done" in chat
-- **"best guess"** / **"continue with best guess"** / **"continue"** — AI applies its best judgment for every unanswered item
+**Live interview (chat answers)** — ask about items one at a time,
+CRITICAL/HIGH first (highest-severity R-NNN and every CRITICAL CF-NNN,
+then AMB/GAP/CON/ASM/OQ in the order listed in the report), not the
+whole list in a single message:
+- If the answer is specific enough to actually resolve the item (a
+  concrete value, a stated decision, an explicit "N/A"/"doesn't
+  apply"), accept it and move to the next item.
+- If it's vague or leaves the ambiguity intact ("make it reasonable",
+  "whatever's best", "up to you", or a restatement of the question) —
+  do NOT mark it RESOLVED. Ask one specific follow-up aimed at getting
+  something /plan-design can actually build against. Push back at most
+  twice per item; if the third answer is still vague, resolve it by
+  best guess instead (below) rather than looping forever.
+- If the human answers several items at once unprompted (pastes a
+  block covering multiple IDs), accept that too — one-at-a-time is the
+  default cadence, not a rule that blocks someone who'd rather answer
+  everything in one message.
 
-- **Answers left as a Jira/Confluence comment** (`clarify:AMB-001: <answer>`, one per line, on the ticket pushed above) — pulled in automatically the next time `/clarify` runs (see "Re-run check"), or immediately via `sdd review pull-answers --doc clarify`.
+**Accepted reply forms:**
+- Answered through the live interview above
+- User edits `clarify.md` directly, then says "done" in chat — bypasses the interview entirely (skip straight to "After Human Fills Answers")
+- **"best guess"** / **"continue with best guess"** / **"continue"** — AI applies its best judgment for every unanswered item, no interview
+- **Answers left as a Jira/Confluence comment** (`clarify:AMB-001: <answer>`, one per line, on the ticket pushed above) — pulled in automatically the next time `/clarify` runs (see "Re-run check"), or immediately via `sdd review pull-answers --doc clarify`. No interview — an async reviewer isn't in this chat to interview.
 
 ## After Human Fills Answers
 

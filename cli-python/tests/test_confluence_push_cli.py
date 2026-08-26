@@ -13,19 +13,28 @@ from sdd.commands import confluence
 class FakeConfluenceClient:
     def __init__(self, session=None, base_url=None):
         self.pages_by_title: dict[str, dict] = {}
+        self.pages_by_id: dict[str, dict] = {}
         self.body_by_title: dict[str, str] = {}
         self._next_id = 1
 
     def get_page_by_title(self, space_key, title):
         return self.pages_by_title.get(title)
 
+    def get_page_with_body(self, page_id):
+        page = dict(self.pages_by_id[page_id])
+        page["body"] = {"storage": {"value": self.body_by_title.get(page["title"], "")}}
+        return page
+
     def create_page(self, space_key, title, body_html, parent_id=None):
         page = {
             "id": str(self._next_id),
+            "title": title,
+            "version": {"number": 1, "by": {"displayName": "sddflow"}, "when": ""},
             "_links": {"webui": f"/pages/{self._next_id}"},
         }
         self._next_id += 1
         self.pages_by_title[title] = page
+        self.pages_by_id[page["id"]] = page
         self.body_by_title[title] = body_html
         return page
 
@@ -33,8 +42,25 @@ class FakeConfluenceClient:
         existing = self.get_page_by_title(space_key, title)
         if existing:
             self.body_by_title[title] = body_html
+            existing["version"] = {
+                "number": existing["version"]["number"] + 1,
+                "by": {"displayName": "sddflow"},
+                "when": "",
+            }
             return existing, False
         return self.create_page(space_key, title, body_html, parent_id), True
+
+    def bump_version_externally(self, title, by="Someone Else", when="2026-01-01"):
+        """Test helper: simulate a human editing the page directly in
+        Confluence, outside sddflow -- bumps the version the way a real
+        Confluence PUT from the web UI would, without touching
+        body_by_title (sddflow never sees what they actually changed)."""
+        page = self.pages_by_title[title]
+        page["version"] = {
+            "number": page["version"]["number"] + 1,
+            "by": {"displayName": by},
+            "when": when,
+        }
 
     def upload_attachment(self, page_id, filename, content, media_type="image/svg+xml"):
         return {"id": f"att-{filename}"}
@@ -242,3 +268,113 @@ class TestConfluencePushIncludesContextByDefault:
 
         assert result.exit_code == 0, result.output
         assert "auth — Context" in cf_client.pages_by_title
+
+
+class TestConfluencePushDriftDetection:
+    """`sdd confluence push` warns and skips a page that was edited
+    outside sddflow since the last push, instead of silently clobbering
+    it -- see confluence_push_log.py. First push is never flagged
+    (nothing tracked yet); a second push with no external edit isn't
+    flagged either (the version we recorded still matches)."""
+
+    def _push(self, runner, cf_client, *extra_args):
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
+            return runner.invoke(
+                confluence.confluence_command, ["push", "--doc", "brd", *extra_args]
+            )
+
+    def test_first_push_is_never_flagged_as_drift(self, project, runner):
+        cf_client = FakeConfluenceClient()
+        result = self._push(runner, cf_client)
+        assert result.exit_code == 0, result.output
+        assert "edited by" not in result.output
+
+    def test_repush_with_no_external_edit_is_not_flagged(self, project, runner):
+        cf_client = FakeConfluenceClient()
+        self._push(runner, cf_client)
+        result = self._push(runner, cf_client)
+        assert result.exit_code == 0, result.output
+        assert "edited by" not in result.output
+        assert (
+            "Full content." in cf_client.body_by_title["auth — Business Requirements"]
+        )
+
+    def test_externally_edited_page_is_flagged_and_push_skipped(self, project, runner):
+        cf_client = FakeConfluenceClient()
+        self._push(runner, cf_client)
+        cf_client.bump_version_externally(
+            "auth — Business Requirements", by="Jane Reviewer", when="2026-03-01"
+        )
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nUpdated content the push would otherwise write.\n"
+        )
+
+        result = self._push(runner, cf_client)
+
+        assert "edited by Jane Reviewer on 2026-03-01" in result.output
+        assert "skipped" in result.output
+        # the push did NOT happen -- body is unchanged from the pre-edit state
+        assert (
+            "Updated content"
+            not in cf_client.body_by_title["auth — Business Requirements"]
+        )
+
+    def test_force_overwrite_pushes_despite_external_edit(self, project, runner):
+        cf_client = FakeConfluenceClient()
+        self._push(runner, cf_client)
+        cf_client.bump_version_externally("auth — Business Requirements")
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nOverwritten on purpose.\n"
+        )
+
+        result = self._push(runner, cf_client, "--force-overwrite")
+
+        assert result.exit_code == 0, result.output
+        assert (
+            "Overwritten on purpose."
+            in cf_client.body_by_title["auth — Business Requirements"]
+        )
+
+    def test_push_log_file_is_written(self, project, runner):
+        cf_client = FakeConfluenceClient()
+        self._push(runner, cf_client)
+        log_path = project / "docs" / "confluence" / "push-log.yml"
+        assert log_path.exists()
+        data = yaml.safe_load(log_path.read_text())
+        entry = next(iter(data.values()))
+        assert entry["doc"] == "brd"
+        assert entry["pushed_version"] == 1
+
+
+class TestConfluenceVerify:
+    def test_verify_with_nothing_tracked_yet(self, project, runner):
+        cf_client = FakeConfluenceClient()
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
+            result = runner.invoke(confluence.confluence_command, ["verify"])
+        assert result.exit_code == 0, result.output
+        assert "run `sdd confluence push`" in result.output
+
+    def test_verify_reports_up_to_date_after_a_clean_push(self, project, runner):
+        cf_client = FakeConfluenceClient()
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
+            runner.invoke(confluence.confluence_command, ["push", "--doc", "brd"])
+            result = runner.invoke(confluence.confluence_command, ["verify"])
+        assert result.exit_code == 0, result.output
+        assert "up to date" in result.output
+        assert "All tracked pages match" in result.output
+
+    def test_verify_reports_drifted_page(self, project, runner):
+        cf_client = FakeConfluenceClient()
+        p1, p2 = _patched(cf_client)
+        with p1, p2:
+            runner.invoke(confluence.confluence_command, ["push", "--doc", "brd"])
+            cf_client.bump_version_externally(
+                "auth — Business Requirements", by="Jane Reviewer", when="2026-03-01"
+            )
+            result = runner.invoke(confluence.confluence_command, ["verify"])
+        assert result.exit_code == 0, result.output
+        assert "edited by Jane Reviewer on 2026-03-01" in result.output
+        assert "1 page(s) edited outside sddflow" in result.output

@@ -9,6 +9,7 @@ from rich.console import Console
 from sdd.utils.atlassian_auth import load_confluence_session
 from sdd.utils.cf_to_md import cf_to_md
 from sdd.utils.confluence_client import ConfluenceClient
+from sdd.utils.confluence_push_log import check_drift, load_push_log, record_push
 from sdd.utils.integrations import IntegrationsConfigError, load_integrations
 from sdd.utils.manifest import read_manifest
 from sdd.utils.md_to_cf import md_to_storage
@@ -249,7 +250,15 @@ def confluence_command():
     help="Push even if a page title doesn't distinguish this feature from "
     "others in the project (risk of overwriting another feature's page)",
 )
-def confluence_push(profile, feature, doc, summary, dry_run, force):
+@click.option(
+    "--force-overwrite",
+    is_flag=True,
+    default=False,
+    help="Push even if the live Confluence page was edited by someone else "
+    "since sddflow's last push to it (risk of silently discarding that "
+    "edit). See docs/confluence/push-log.yml / `sdd confluence verify`.",
+)
+def confluence_push(profile, feature, doc, summary, dry_run, force, force_overwrite):
     """Publish SDD documents to Confluence pages (create or update)."""
     console.print()
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
@@ -343,8 +352,30 @@ def confluence_push(profile, feature, doc, summary, dry_run, force):
         raise SystemExit(1)
 
     client = ConfluenceClient(session, prof.base_url, deployment=prof.deployment)
+    push_log = load_push_log()
 
     for key, md_path, title in available:
+        try:
+            existing = client.get_page_by_title(cf_cfg.space_key, title)
+        except Exception as e:
+            console.print(f"  [red]✗  {title} — {e}[/red]")
+            continue
+        if existing:
+            drift = check_drift(existing, push_log)
+            if drift:
+                console.print(
+                    f"  [yellow]⚠  {key}: page edited by {drift['by']} on "
+                    f"{drift['when']} since sddflow's last push "
+                    f"(v{drift['pushed_version']} → v{drift['live_version']})"
+                    f"[/yellow]"
+                )
+                if not force_overwrite:
+                    console.print(
+                        f"  [red]✗  {key}: skipped — pass --force-overwrite "
+                        "to overwrite this edit anyway.[/red]"
+                    )
+                    continue
+
         body, attachments, diagram_warnings = md_to_storage(
             md_path.read_text(), cf_cfg.diagrams
         )
@@ -354,6 +385,13 @@ def confluence_push(profile, feature, doc, summary, dry_run, force):
             )
             page, created = client.upsert_page(cf_cfg.space_key, title, body, parent_id)
             upload_diagram_attachments(client, page["id"], attachments)
+            record_push(
+                page["id"],
+                key,
+                title,
+                page.get("version", {}).get("number", 1),
+            )
+            push_log = load_push_log()
             action = "[green]created[/green]" if created else "[dim]updated[/dim]"
             console.print(f"  {action}  [cyan]{title}[/cyan]")
             if created:
@@ -482,6 +520,7 @@ def confluence_draft(doc, profile, feature, dry_run, force):
         )
         page, created = client.upsert_page(cf_cfg.space_key, title, body, parent_id)
         upload_diagram_attachments(client, page["id"], attachments)
+        record_push(page["id"], doc, title, page.get("version", {}).get("number", 1))
     except Exception as e:
         console.print(f"  [red]✗  Confluence error: {e}[/red]")
         raise SystemExit(1)
@@ -591,6 +630,17 @@ def confluence_pull(doc, profile, feature, page_id):
         console.print("  [red]✗  Page body is empty.[/red]")
         raise SystemExit(1)
 
+    # A pull means the local .md is now caught up with whatever's live on
+    # Confluence -- record that as the new known-good baseline so a later
+    # `push` doesn't flag this exact content (which the user just
+    # deliberately pulled in) as a surprise edit.
+    record_push(
+        resolved_page_id,
+        doc,
+        page.get("title", doc),
+        page.get("version", {}).get("number", 1),
+    )
+
     markdown = cf_to_md(storage_body)
 
     # Fetch comments (footer + inline) and append as a section the AI can read
@@ -656,5 +706,90 @@ def confluence_pull(doc, profile, feature, page_id):
         console.print("  and comments, then continue.")
     else:
         console.print("  Say [bold]'done'[/bold] in chat to resume the SDD workflow.")
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print()
+
+
+@confluence_command.command("verify")
+@click.option("--profile", default=None)
+def confluence_verify(profile):
+    """Check every page sddflow has pushed for edits made outside sddflow.
+
+    Read-only -- never pushes or pulls anything. Compares each page's live
+    Confluence version against docs/confluence/push-log.yml (written by
+    `push`/`draft`/`pull`) and reports which pages have moved since sddflow
+    last wrote them, so you can decide whether to re-push (see
+    --force-overwrite on `sdd confluence push`) or pull the change in by
+    hand first.
+    """
+    console.print()
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print("  [bold cyan]SDD ↔ Confluence Verify[/bold cyan]")
+    console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
+    console.print()
+
+    try:
+        cfg = load_integrations()
+    except (FileNotFoundError, IntegrationsConfigError) as e:
+        console.print(f"  [red]✗  {e}[/red]")
+        raise SystemExit(1)
+
+    if not cfg.confluence:
+        console.print(
+            "  [red]✗  No confluence: section in .specify/integrations.yml[/red]"
+        )
+        raise SystemExit(1)
+
+    push_log = load_push_log()
+    if not push_log:
+        console.print(
+            "  [dim]Nothing tracked yet — run `sdd confluence push` at "
+            "least once first.[/dim]"
+        )
+        console.print()
+        return
+
+    try:
+        prof, session = load_confluence_session(cfg, profile)
+    except Exception as e:
+        console.print(f"  [red]✗  Auth error: {e}[/red]")
+        raise SystemExit(1)
+
+    client = ConfluenceClient(session, prof.base_url, deployment=prof.deployment)
+
+    drifted = 0
+    for page_id, record in sorted(
+        push_log.items(), key=lambda kv: kv[1].get("doc", "")
+    ):
+        doc = record.get("doc", "?")
+        title = record.get("title", page_id)
+        try:
+            page = client.get_page_with_body(page_id)
+        except Exception as e:
+            console.print(f"  [red]✗  {doc:<20} — {title} — {e}[/red]")
+            continue
+        drift = check_drift(page, push_log)
+        if drift:
+            drifted += 1
+            console.print(
+                f"  [yellow]⚠  {doc:<20}[/yellow] — {title}\n"
+                f"          edited by {drift['by']} on {drift['when']} "
+                f"since sddflow's last push "
+                f"(v{drift['pushed_version']} → v{drift['live_version']})"
+            )
+        else:
+            console.print(f"  [green]✓[/green]  {doc:<20} — {title}  (up to date)")
+
+    console.print()
+    if drifted:
+        console.print(
+            f"  [yellow]{drifted} page(s) edited outside sddflow.[/yellow] "
+            "Re-push with --force-overwrite once reviewed, or pull the "
+            "change into the .md by hand first."
+        )
+    else:
+        console.print(
+            "  [bold green]All tracked pages match sddflow's last push.[/bold green]"
+        )
     console.print("[bold]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold]")
     console.print()

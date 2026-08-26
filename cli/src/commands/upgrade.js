@@ -5123,6 +5123,95 @@ export const MIGRATIONS = [
       'format clean; mypy clean; bandit 0 issues',
     ],
   },
+  {
+    from: '3.4.3',
+    to:   '3.5.0',
+    description: "sdd confluence push now detects and warns when a page was edited outside sddflow since its own last push, instead of silently overwriting it; new sdd confluence verify command",
+    notes: [
+      'upsert_page() always overwrote a Confluence page\'s body with ' +
+      'whatever the local .md said, using Confluence\'s optimistic-' +
+      'locking version number purely to avoid a 409 -- never to ' +
+      'detect a manual edit made in between. A reviewer editing the ' +
+      'live page directly (fixing a typo, adding a clarification) had ' +
+      'that edit silently discarded the next time anyone ran `sdd ' +
+      'confluence push`, with no warning it had ever existed',
+      'New cli-python/sdd/utils/confluence_push_log.py: ' +
+      'docs/confluence/push-log.yml records {page_id: {doc, title, ' +
+      'pushed_version}} after every successful push/draft/pull. ' +
+      'check_drift() compares a page\'s live version.number against ' +
+      'the recorded value (using version.by/version.when Confluence ' +
+      'already returns) to tell \'someone edited this since we last ' +
+      'wrote it\' apart from a normal, expected re-push',
+      '`sdd confluence push` now checks drift before each doc\'s ' +
+      'upsert and, if the page moved, prints who edited it and when, ' +
+      'then skips that doc -- pass the new --force-overwrite flag ' +
+      '(separate from the existing --force, which governs a ' +
+      'different warning about title/feature collisions) to push ' +
+      'anyway. `sdd confluence draft`/`pull` record the push-log ' +
+      'entry but never warn -- draft/pull\'s entire purpose is ' +
+      'inviting a human to edit the page directly in Confluence, so ' +
+      'flagging that as drift would be a constant false alarm',
+      'New `sdd confluence verify` command: read-only, reports ' +
+      'up-to-date/drifted/missing for every page in push-log.yml ' +
+      'without pushing or pulling anything -- for checking drift on ' +
+      'demand rather than only finding out at the next push',
+      'docs/confluence/push-log.yml is new, generated state (like ' +
+      'docs/jira/{feature}/keys.yml) -- no manifest.yml schema ' +
+      'change, and safe to delete: it only ever gets rebuilt from the ' +
+      'next push, never re-derived from Confluence itself',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same ' +
+      'sdd_version chain (the Node CLI has no Confluence integration ' +
+      'of its own -- scaffolding-only by design -- so nothing here ' +
+      'actually applies to it beyond the version stamp)',
+      'Verified: cli-python pytest 1143/1143 (1120 unchanged + 23 new ' +
+      '-- push-log load/record/drift-check unit tests, plus CLI-level ' +
+      'tests for the warn-and-skip path, --force-overwrite, and `sdd ' +
+      'confluence verify` in all three states); ruff check/format ' +
+      'clean; mypy clean (38 source files); bandit 0 issues',
+    ],
+  },
+  {
+    from: '3.5.0',
+    to:   '3.6.0',
+    description: "/clarify now interviews live chat answers one item at a time and pushes back on vague ones, instead of posting the whole list and passively waiting",
+    notes: [
+      'Previously /clarify wrote every open item to clarify.md, ' +
+      'presented the full report, and then just waited -- whatever ' +
+      'came back in chat was mapped to an item\'s ID and accepted ' +
+      'as-is, even a vague non-answer like \'make it reasonable\' or ' +
+      '\'whatever\'s best\'. The item still got marked RESOLVED, and ' +
+      'the same ambiguity could resurface unnoticed at /plan-design',
+      'Now: after presenting the full report once (so the human can ' +
+      'still see everything at a glance), the live-chat path asks ' +
+      'about items one at a time -- CRITICAL/HIGH first -- and, if an ' +
+      'answer is still vague, asks one specific follow-up instead of ' +
+      'accepting it. Pushes back at most twice per item; a third vague ' +
+      'answer resolves by best guess instead of looping forever. A ' +
+      'human who pastes answers for several items at once is still ' +
+      'accepted immediately -- the one-at-a-time cadence is the ' +
+      'default, not a hard rule',
+      'The three other intake paths are unchanged: editing clarify.md ' +
+      'directly and saying \'done\', \'best guess\'/\'continue\', and ' +
+      'an async Jira/Confluence comment reply (pulled in by `sdd ' +
+      'review pull-answers --doc clarify`) all still bypass the ' +
+      'interview entirely -- only the live-chat answer path changed',
+      'Prompt-content only (packs/{sdd-backend-service,sdd-frontend-' +
+      'spa,sdd-fullstack,sdd-mobile,sdd-universal}/.github/prompts/' +
+      'clarify.prompt.md) -- no CLI code touched, no manifest.yml ' +
+      'schema change. sdd-micro is unaffected (no /clarify in its ' +
+      '3-command scope)',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same ' +
+      'sdd_version chain (the Node CLI has no prompt-execution role ' +
+      'of its own -- scaffolding-only by design -- so nothing here ' +
+      'actually applies to it beyond the version stamp)',
+      'Verified: sync-blocks.sh run twice consecutively with zero ' +
+      'unexpected drift (only the 5 intentionally-edited clarify.' +
+      'prompt.md files changed); check-cross-references.py clean ' +
+      'across all 6 packs; test-setup.sh 19/19 passed',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
