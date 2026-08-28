@@ -78,9 +78,11 @@ def parse_stories(path: str | Path = ".specify/features") -> list[Story]:
     """Read stories.md from path (file) or search recursively (directory)."""
     p = Path(path)
     if p.is_file():
-        return _parse_stories_text(p.read_text())
+        return _parse_stories_text(p.read_text(encoding="utf-8"))
     matches = list(p.rglob("stories.md"))
-    return _parse_stories_text(matches[0].read_text()) if matches else []
+    return (
+        _parse_stories_text(matches[0].read_text(encoding="utf-8")) if matches else []
+    )
 
 
 # STORY-{NNN} heading: current template uses a colon ("### STORY-001: Title"),
@@ -204,9 +206,11 @@ def parse_use_cases(path: str | Path = ".specify/features") -> list[UseCase]:
     needed for the draft-story bootstrap this feeds (see jira.py)."""
     p = Path(path)
     if p.is_file():
-        return _parse_use_cases_text(p.read_text())
+        return _parse_use_cases_text(p.read_text(encoding="utf-8"))
     matches = list(p.rglob("use-cases.md"))
-    return _parse_use_cases_text(matches[0].read_text()) if matches else []
+    return (
+        _parse_use_cases_text(matches[0].read_text(encoding="utf-8")) if matches else []
+    )
 
 
 def _parse_use_cases_text(text: str) -> list[UseCase]:
@@ -223,9 +227,9 @@ def parse_tasks(path: str | Path = ".specify/features") -> list[Task]:
     """Read tasks.md from path (file) or search recursively (directory)."""
     p = Path(path)
     if p.is_file():
-        return _parse_tasks_text(p.read_text())
+        return _parse_tasks_text(p.read_text(encoding="utf-8"))
     matches = list(p.rglob("tasks.md"))
-    return _parse_tasks_text(matches[0].read_text()) if matches else []
+    return _parse_tasks_text(matches[0].read_text(encoding="utf-8")) if matches else []
 
 
 # TASK-{NNN}/PERF-{NNN} heading: the shipped tasks-template.md uses "###"

@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.7.1] — 2026-08-28 (Fix: unencoded file I/O mangled non-ASCII content on Windows)
+
+A user reported an em-dash in a `/create-context`-generated `context.md`
+coming out as mojibake (`â€"`) once pushed to Confluence via `sdd
+confluence push`. Root cause: `Path.read_text()`/`write_text()` and
+`open()`/`os.fdopen()` in text mode all default to
+`locale.getpreferredencoding(False)` when `encoding=` is omitted — cp1252
+on many Windows setups, not UTF-8. Each UTF-8 byte of the em-dash got
+reinterpreted as a separate cp1252 character.
+
+### Fixed
+
+- Every `read_text()`/`write_text()` call and the one `os.fdopen()` call
+  across the entire `cli-python` codebase now pass `encoding="utf-8"`
+  explicitly — ~20 files, including the shared `atomic_write_text()`
+  utility used by nearly every write site in the codebase.
+- One f-string quote collision found along the way (can't reuse double
+  quotes inside a double-quoted f-string pre-3.12) fixed by switching
+  that one site to single quotes.
+- Checked the Node CLI for the equivalent gap — none exists; Node's
+  `fs.writeFileSync` defaults to `'utf8'` for string writes regardless of
+  OS locale, and every `readFileSync` call already passed `'utf8'`.
+
+### Added
+
+- `cli-python/tests/test_utf8_encoding_everywhere.py` — a static AST scan
+  asserting every text-mode file I/O call in the codebase specifies
+  `encoding=`, so this can't silently regress.
+
+### Verified
+
+- cli-python pytest 1146/1146 (1144 unchanged + 2 new); ruff check/format
+  clean; mypy clean; bandit 0 issues.
+
+---
+
 ## [3.7.0] — 2026-08-26 (/clarify: spec-kit-style questions with pre-reasoned recommended answers)
 
 3.6.0 made `/clarify`'s live-chat path push back on a vague answer with

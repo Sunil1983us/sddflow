@@ -70,7 +70,7 @@ def _is_ours(path: Path) -> bool:
     if not path.is_file():
         return False
     try:
-        first_line = path.read_text(errors="replace").splitlines()[:2]
+        first_line = path.read_text(errors="replace", encoding="utf-8").splitlines()[:2]
     except OSError:
         return False
     return any(_MARKER in line for line in first_line)
@@ -117,7 +117,7 @@ def hooks_install(force):
         if not force:
             raise SystemExit(2)
 
-    target.write_text(_HOOK_SCRIPT)
+    target.write_text(_HOOK_SCRIPT, encoding="utf-8")
     target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     console.print(
         f"[green]✓[/green]  Installed post-commit hook at [cyan]{target}[/cyan] -- "

@@ -93,7 +93,7 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
         console.print("  Run /change first to generate the changeset record.")
         raise SystemExit(1)
 
-    cr_text = cr_file.read_text()
+    cr_text = cr_file.read_text(encoding="utf-8")
     cr_summary = _extract_cr_summary(cr_text)
     # Feature name (not project name) keeps this collision-safe: Confluence
     # enforces title uniqueness per SPACE, so two features could otherwise

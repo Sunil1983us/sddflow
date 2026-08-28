@@ -39,7 +39,7 @@ def load_push_log(path: Path = PUSH_LOG_PATH) -> dict[str, dict[str, Any]]:
     if not path.exists():
         return {}
     try:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError:
         return {}
     return data if isinstance(data, dict) else {}

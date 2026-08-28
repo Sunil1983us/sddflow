@@ -30,13 +30,13 @@ def detect_project_type(root: str = ".") -> str | None:
 
     def read_json(path: str) -> dict:
         try:
-            return json.loads((r / path).read_text())
+            return json.loads((r / path).read_text(encoding="utf-8"))
         except Exception:
             return {}
 
     def read_text(*parts: str) -> str:
         try:
-            return (r / Path(*parts)).read_text().lower()
+            return (r / Path(*parts)).read_text(encoding="utf-8").lower()
         except Exception:
             return ""
 

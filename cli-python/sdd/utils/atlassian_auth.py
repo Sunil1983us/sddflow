@@ -103,7 +103,7 @@ def load_profile(name: str | None = None) -> Profile:
         raise FileNotFoundError(
             "~/.sdd/config.yml not found. Run 'sdd config init' to create it."
         )
-    data = yaml.safe_load(CONFIG_PATH.read_text()) or {}
+    data = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
     profiles = data.get("profiles", {})
 
     if name is None:
@@ -260,5 +260,6 @@ def save_config(config: dict) -> None:
         "# SDD global config — credentials stored as env var names, or\n"
         "# (credential_store: keyring) in the OS keychain — never as\n"
         "# plaintext values in this file either way\n"
-        + yaml.dump(config, default_flow_style=False, allow_unicode=True)
+        + yaml.dump(config, default_flow_style=False, allow_unicode=True),
+        encoding="utf-8",
     )

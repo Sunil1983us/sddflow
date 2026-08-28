@@ -381,7 +381,9 @@ def _create_context_and_feature_dir(feature_name: str, project_name: str) -> Pat
     context_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not context_path.exists():
-        context_path.write_text(_context_template(feature_name, project_name))
+        context_path.write_text(
+            _context_template(feature_name, project_name), encoding="utf-8"
+        )
         console.print(f"  [green]✓[/green]  {context_path} created")
     else:
         console.print(f"  [dim]·[/dim]  {context_path} already exists — skipped")

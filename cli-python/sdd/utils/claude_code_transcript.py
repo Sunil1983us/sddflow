@@ -110,7 +110,7 @@ def sum_usage_since(
     usage_by_model: dict[str, ModelUsage] = {}
     for path in transcript_files:
         try:
-            lines = path.read_text().splitlines()
+            lines = path.read_text(encoding="utf-8").splitlines()
         except OSError:
             continue
         for line in lines:

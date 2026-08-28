@@ -24,7 +24,7 @@ def atomic_write_text(path: str | Path, content: str) -> None:
         dir=target.parent, prefix=f".{target.name}.", suffix=".tmp"
     )
     try:
-        with os.fdopen(fd, "w") as f:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
         os.replace(tmp_path, target)
     except BaseException:

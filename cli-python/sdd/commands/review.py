@@ -34,7 +34,7 @@ _LOCAL_APPROVALS_FILE = Path(".specify") / ".local-approvals.yml"
 
 def _load_local_approvals() -> dict:
     if _LOCAL_APPROVALS_FILE.exists():
-        return yaml.safe_load(_LOCAL_APPROVALS_FILE.read_text()) or {}
+        return yaml.safe_load(_LOCAL_APPROVALS_FILE.read_text(encoding="utf-8")) or {}
     return {}
 
 
@@ -176,7 +176,7 @@ def _mark_md_approved(
     at all -- see data-model-template.md -- so that enum line was the
     FIRST, and only, match in the whole document) got silently mangled
     into 'RuleVersionStatus: Approved, SUBMITTED, PUBLISHED, RETIRED'."""
-    text = md_path.read_text()
+    text = md_path.read_text(encoding="utf-8")
     heading = re.search(r"^## ", text, flags=re.MULTILINE)
     front_matter_end = heading.start() if heading else len(text)
     front_matter = text[:front_matter_end]
@@ -223,7 +223,7 @@ def _mark_md_needs_revision(md_path: Path) -> bool:
     NEEDS REVISION comment before its first approval) is left untouched
     -- there is nothing to revert for a document that was never approved
     in the first place. Returns True if the file was changed."""
-    text = md_path.read_text()
+    text = md_path.read_text(encoding="utf-8")
     heading = re.search(r"^## ", text, flags=re.MULTILINE)
     front_matter_end = heading.start() if heading else len(text)
     front_matter = text[:front_matter_end]
@@ -359,7 +359,7 @@ def _push_doc_page(
             pass  # banner is a best-effort addition -- never blocks the page push itself
 
     body_html, attachments, diagram_warnings = md_to_storage(
-        md_path.read_text(), cfg.confluence.diagrams
+        md_path.read_text(encoding="utf-8"), cfg.confluence.diagrams
     )
     from sdd.commands.confluence import (
         resolve_doc_parent_id,
@@ -532,7 +532,7 @@ _REVIEW_LINKS_FILE = Path(".specify") / ".jira-review-links.json"
 
 def _load_review_links() -> dict:
     if _REVIEW_LINKS_FILE.exists():
-        return json.loads(_REVIEW_LINKS_FILE.read_text())
+        return json.loads(_REVIEW_LINKS_FILE.read_text(encoding="utf-8"))
     return {}
 
 
@@ -660,7 +660,7 @@ def _patch_marker(md_path: Path, nnn: str, answer: str) -> bool:
     resolved, or nnn doesn't exist in this file)."""
     if not md_path.exists():
         return False
-    text = md_path.read_text()
+    text = md_path.read_text(encoding="utf-8")
     pattern = re.compile(r"\[NEEDS CLARIFICATION-" + re.escape(nnn) + r":\s*[^\]]*\]")
     if not pattern.search(text):
         return False
@@ -767,7 +767,7 @@ def _patch_clarify_item(md_path: Path, code: str, answer: str) -> bool:
     otherwise (already resolved, or code doesn't exist in this file)."""
     if not md_path.exists():
         return False
-    text = md_path.read_text()
+    text = md_path.read_text(encoding="utf-8")
 
     heading = re.search(r"^### " + re.escape(code) + r":.*$", text, re.MULTILINE)
     if not heading:
@@ -833,7 +833,7 @@ def _number_legacy_markers(md_path: Path) -> int:
     including when the file doesn't exist)."""
     if not md_path.exists():
         return 0
-    text = md_path.read_text()
+    text = md_path.read_text(encoding="utf-8")
 
     existing_nums = [int(n) for n in re.findall(r"\[NEEDS CLARIFICATION-(\d+):", text)]
     state = {"next_num": max(existing_nums, default=0) + 1, "count": 0}
@@ -1016,7 +1016,7 @@ def review_submit(doc, profile, feature):
         console.print(f"  [yellow]⚠  {_collision_warning}[/yellow]")
 
     body_html, attachments, diagram_warnings = md_to_storage(
-        md_path.read_text(), cfg.confluence.diagrams
+        md_path.read_text(encoding="utf-8"), cfg.confluence.diagrams
     )
 
     parent_id = resolve_doc_parent_id(
@@ -1219,12 +1219,12 @@ def review_push_questions(doc, profile, feature):
         raise SystemExit(1)
 
     if doc == "clarify":
-        items = _parse_clarify_open_items(md_path.read_text())
+        items = _parse_clarify_open_items(md_path.read_text(encoding="utf-8"))
         not_found_msg = (
             "No OPEN items found in clarify.md's STATUS TABLE — nothing to push."
         )
     else:
-        items = _parse_open_questions(md_path.read_text())
+        items = _parse_open_questions(md_path.read_text(encoding="utf-8"))
         not_found_msg = f"No open [NEEDS CLARIFICATION-NNN] items found in {md_path.name} — nothing to push."
     if not items:
         console.print(f"  [dim]{not_found_msg}[/dim]")
@@ -1372,9 +1372,9 @@ def review_pull_answers(doc, profile, feature):
 
     is_clarify = doc == "clarify"
     if is_clarify:
-        items = _parse_clarify_open_items(md_path.read_text())
+        items = _parse_clarify_open_items(md_path.read_text(encoding="utf-8"))
     else:
-        items = _parse_open_questions(md_path.read_text())
+        items = _parse_open_questions(md_path.read_text(encoding="utf-8"))
     if not items:
         raise SystemExit(0)
 

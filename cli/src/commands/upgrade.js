@@ -5297,6 +5297,56 @@ export const MIGRATIONS = [
       'across all 6 packs; test-setup.sh 19/19 passed',
     ],
   },
+  {
+    from: '3.7.0',
+    to:   '3.7.1',
+    description: "Security/correctness: fixed unencoded file I/O across the whole cli-python codebase -- non-ASCII content (em-dashes, curly quotes, accents) got mangled on Windows and other non-UTF-8-locale systems",
+    notes: [
+      'A user hit this directly: an em-dash in a /create-context-' +
+      'generated context.md came out as mojibake (\'â€”\') once ' +
+      'pushed to Confluence via `sdd confluence push`. Root cause: ' +
+      'Path.read_text()/write_text() and open()/os.fdopen() in text ' +
+      'mode all default to locale.getpreferredencoding(False) when ' +
+      'encoding= is omitted -- cp1252 on many Windows setups, not ' +
+      'UTF-8. Each UTF-8 byte of the em-dash got reinterpreted as a ' +
+      'separate cp1252 character',
+      'Root-caused to confluence.py\'s md_path.read_text() first, then ' +
+      'found the identical bug in the shared atomic_write_text() ' +
+      'utility (os.fdopen(fd, \'w\'), no encoding) used by nearly ' +
+      'every write site in the codebase (manifest.py, review.py x6, ' +
+      'jira.py, hooks.py, confluence_push_log.py, managed_files.py), ' +
+      'plus ~19 more read_text/write_text call sites across commands/' +
+      'config.py, commands/confluence.py, commands/cr.py, commands/' +
+      'dashboard.py, commands/hooks.py, commands/init.py, commands/' +
+      'jira.py, commands/pr.py, commands/review.py, commands/' +
+      'token_log.py, utils/atlassian_auth.py, utils/' +
+      'claude_code_transcript.py, utils/detect.py, utils/' +
+      'integrations.py, utils/sdd_parser.py, utils/status.py, utils/' +
+      'dashboard_comments.py',
+      'Fixed all of them: every read_text()/write_text() call and the ' +
+      'one os.fdopen() call now pass encoding=\'utf-8\' explicitly, no ' +
+      'longer falling back to OS locale. One f-string quote collision ' +
+      'found along the way (pr.py -- can\'t reuse double quotes inside ' +
+      'a double-quoted f-string pre-3.12) fixed by switching that one ' +
+      'site to single quotes',
+      'Checked the Node CLI (cli/src/**) for the equivalent gap -- ' +
+      'none exists: Node\'s fs.writeFileSync defaults to \'utf8\' for ' +
+      'string writes regardless of OS locale (unlike Python), and ' +
+      'every readFileSync call already passes \'utf8\' explicitly. ' +
+      'This migration entry exists purely so both CLIs report the ' +
+      'same sdd_version chain -- nothing in the Node CLI needed to ' +
+      'change',
+      'Added cli-python/tests/test_utf8_encoding_everywhere.py: a ' +
+      'static AST scan across every file under sdd/ asserting every ' +
+      'text-mode read_text()/write_text()/open()/fdopen() call ' +
+      'specifies encoding= (binary-mode opens correctly excluded) -- ' +
+      'this is the actual regression guard, confirmed to fail when ' +
+      'encoding= is missing regardless of the test runner\'s own locale',
+      'Verified: cli-python pytest 1146/1146 (1144 unchanged + 2 new); ' +
+      'ruff check/format clean; mypy clean (38 source files); bandit ' +
+      '0 issues',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

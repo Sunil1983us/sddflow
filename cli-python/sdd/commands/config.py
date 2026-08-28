@@ -145,7 +145,7 @@ def _collect_and_save_profile(default_name: str) -> str:
 
     # Merge into existing config
     if CONFIG_PATH.exists():
-        existing = yaml.safe_load(CONFIG_PATH.read_text()) or {}
+        existing = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
     else:
         existing = {"version": "1", "profiles": {}}
 
@@ -304,14 +304,14 @@ def _scaffold_integrations(
         # file means every section this pack version supports is always
         # present, commented exactly as the pack author intended.
         content = _integrations_from_example(
-            example.read_text(),
+            example.read_text(encoding="utf-8"),
             profile_name,
             project_key,
             space_key,
             parent_page_id,
             confluence_profile_name,
         )
-        dest.write_text(content)
+        dest.write_text(content, encoding="utf-8")
         console.print(
             f"  [green]✓[/green]  {dest} created (from your pack's integrations.yml.example)"
         )
@@ -344,7 +344,8 @@ def _scaffold_integrations(
                 parent_page_id,
                 project_name,
                 confluence_profile_name,
-            )
+            ),
+            encoding="utf-8",
         )
         console.print(
             f"  [green]✓[/green]  {dest} created (minimal built-in template — "
@@ -429,7 +430,7 @@ def config_set_secret(profile):
         )
         raise SystemExit(1)
 
-    data = yaml.safe_load(CONFIG_PATH.read_text()) or {}
+    data = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
     profiles = data.get("profiles", {})
     if profile not in profiles:
         console.print(

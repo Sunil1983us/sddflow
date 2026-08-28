@@ -29,13 +29,13 @@ _CONSTITUTION_PAGE_TITLE = "{project} — Constitution"
 
 def _load_drafts() -> dict:
     if _DRAFTS_FILE.exists():
-        return json.loads(_DRAFTS_FILE.read_text())
+        return json.loads(_DRAFTS_FILE.read_text(encoding="utf-8"))
     return {}
 
 
 def _save_drafts(drafts: dict) -> None:
     _DRAFTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _DRAFTS_FILE.write_text(json.dumps(drafts, indent=2))
+    _DRAFTS_FILE.write_text(json.dumps(drafts, indent=2), encoding="utf-8")
 
 
 def _resolve_doc_path(doc: str, feature: str) -> Path:
@@ -377,7 +377,7 @@ def confluence_push(profile, feature, doc, summary, dry_run, force, force_overwr
                     continue
 
         body, attachments, diagram_warnings = md_to_storage(
-            md_path.read_text(), cf_cfg.diagrams
+            md_path.read_text(encoding="utf-8"), cf_cfg.diagrams
         )
         try:
             parent_id = resolve_doc_parent_id(
@@ -511,7 +511,7 @@ def confluence_draft(doc, profile, feature, dry_run, force):
 
     client = ConfluenceClient(session, prof.base_url, deployment=prof.deployment)
     body, attachments, diagram_warnings = md_to_storage(
-        doc_path.read_text(), cf_cfg.diagrams
+        doc_path.read_text(encoding="utf-8"), cf_cfg.diagrams
     )
 
     try:
@@ -679,7 +679,7 @@ def confluence_pull(doc, profile, feature, page_id):
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
     doc_path.parent.mkdir(parents=True, exist_ok=True)
-    doc_path.write_text(markdown + "\n")
+    doc_path.write_text(markdown + "\n", encoding="utf-8")
 
     body_lines = len(cf_to_md(storage_body).splitlines())
     comment_count = len(all_comments)

@@ -35,7 +35,7 @@ def read_manifest(path: str = MANIFEST_PATH) -> dict | None:
     if not p.exists():
         return None
     try:
-        return yaml.safe_load(p.read_text()) or {}
+        return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as e:
         raise ManifestError(
             f"{path} exists but isn't valid YAML: {e}\n"

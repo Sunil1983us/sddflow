@@ -133,7 +133,7 @@ _RUNNING_TOTAL_ROW_RE = re.compile(
 def _doc_status(path: Path) -> str | None:
     """First 'Status: X' value found in the file, or None if unreadable/absent."""
     try:
-        text = path.read_text(errors="replace")
+        text = path.read_text(errors="replace", encoding="utf-8")
     except OSError:
         return None
     m = _STATUS_RE.search(text)
@@ -157,7 +157,7 @@ def _parse_approvals_table(path: Path) -> list[dict]:
     is unreadable -- never raises, this is best-effort dashboard sugar.
     """
     try:
-        text = path.read_text(errors="replace")
+        text = path.read_text(errors="replace", encoding="utf-8")
     except OSError:
         return []
     lines = text.splitlines()
@@ -240,7 +240,7 @@ def _parse_version_history_table(path: Path) -> list[dict]:
     Tolerates the optional trailing CHG-NNN column (5 cells) alongside the
     4-cell base shape."""
     try:
-        text = path.read_text(errors="replace")
+        text = path.read_text(errors="replace", encoding="utf-8")
     except OSError:
         return []
     rows = []
@@ -330,7 +330,7 @@ def _load_roles_map(root: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except Exception:
         return {}
     roles = data.get("roles")
@@ -390,7 +390,7 @@ def _local_approvals(root: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        return yaml.safe_load(path.read_text()) or {}
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except Exception:
         return {}
 
@@ -400,7 +400,7 @@ def _dashboard_comments(root: Path, feature: str, doc: str) -> list:
     if not path.exists():
         return []
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return []
     return data.get(f"{feature}/{doc}", [])
@@ -555,7 +555,7 @@ def _checklist_info(root: Path, feature: str) -> dict:
     if not path.is_file():
         return {"exists": False, "critical_open": None}
     try:
-        text = path.read_text(errors="replace")
+        text = path.read_text(errors="replace", encoding="utf-8")
     except OSError:
         return {"exists": False, "critical_open": None}
     rows = _table_rows_after_heading(text.splitlines(), "CHK-NNN Items")
@@ -1183,7 +1183,7 @@ def _parse_tasks(tasks_path: Path) -> dict:
             "items": [],
         }
 
-    text = tasks_path.read_text(errors="replace")
+    text = tasks_path.read_text(errors="replace", encoding="utf-8")
     lines = text.splitlines()
     items: list[dict] = []
     fmt = "full"
@@ -1247,7 +1247,7 @@ def _parse_brd_bo(brd_path: Path) -> dict:
     doesn't exist yet, or still has unfilled template placeholders (a row
     starting with '{' is treated as never-generated, not a real BO/BR)."""
     try:
-        text = brd_path.read_text(errors="replace")
+        text = brd_path.read_text(errors="replace", encoding="utf-8")
     except OSError:
         return {"objectives": {}, "br_to_bo": {}}
     lines = text.splitlines()
@@ -1299,7 +1299,7 @@ def _parse_uc_traces(uc_path: Path) -> dict:
     {UC-NNN: {'br_ids': [...], 'fr_ids': [...]}} -- fr_ids is [] until
     /specify-srd has backfilled the FR trace."""
     try:
-        text = uc_path.read_text(errors="replace")
+        text = uc_path.read_text(errors="replace", encoding="utf-8")
     except OSError:
         return {}
     lines = text.splitlines()
@@ -1368,7 +1368,7 @@ def _parse_srd_fr(srd_path: Path) -> dict:
     rows (FR-NNN | UC Trace | Coverage Confirmed?) supplement FR->UC links
     when §2 lacks one. Returns {FR-NNN: {'br_ids': [...], 'uc_ids': [...]}}."""
     try:
-        text = srd_path.read_text(errors="replace")
+        text = srd_path.read_text(errors="replace", encoding="utf-8")
     except OSError:
         return {}
     lines = text.splitlines()
@@ -1411,7 +1411,7 @@ def _parse_release_bo_closure(release_path: Path) -> dict:
     {} if release.md doesn't exist yet or the table isn't found -- most
     features haven't reached /release yet, that's normal, not an error."""
     try:
-        text = release_path.read_text(errors="replace")
+        text = release_path.read_text(errors="replace", encoding="utf-8")
     except OSError:
         return {}
     lines = text.splitlines()
@@ -1648,7 +1648,7 @@ def _parse_command_log_sources(text: str) -> dict:
 def _parse_token_usage(path: Path) -> dict | None:
     if not path.exists():
         return None
-    text = path.read_text(errors="replace")
+    text = path.read_text(errors="replace", encoding="utf-8")
     values: dict[str, str] = {}
     for m in _RUNNING_TOTAL_ROW_RE.finditer(text):
         values[m.group(1)] = m.group(2).strip()
@@ -1690,7 +1690,7 @@ def _constitution_status(root: Path) -> dict:
     # mean /specify has run yet. Only treat Part 2 as generated once those
     # literal placeholders are gone (the agent replaces every one of them
     # when it fills Part 2, even in DRAFT form pre-GATE-1).
-    text = path.read_text(errors="replace")
+    text = path.read_text(errors="replace", encoding="utf-8")
     part2_marker = text.find("PART 2")
     part2_text = text[part2_marker:] if part2_marker != -1 else text
     if _TEMPLATE_PLACEHOLDER_RE.search(part2_text):
@@ -1782,7 +1782,7 @@ def _local_jira_links(root: Path, feature: str, base_url: str | None) -> dict:
     if not keys_path.exists():
         return result
     try:
-        keys = yaml.safe_load(keys_path.read_text()) or {}
+        keys = yaml.safe_load(keys_path.read_text(encoding="utf-8")) or {}
     except Exception:
         return result
 
@@ -1813,7 +1813,7 @@ def _local_confluence_links(root: Path, base_url: str | None) -> dict:
     if not drafts_path.exists():
         return {}
     try:
-        drafts = json.loads(drafts_path.read_text())
+        drafts = json.loads(drafts_path.read_text(encoding="utf-8"))
     except Exception:
         return {}
     links = {}
@@ -1841,7 +1841,7 @@ def _local_review_links(root: Path, base_url: str | None) -> dict:
     if not links_path.exists():
         return {}
     try:
-        raw = json.loads(links_path.read_text())
+        raw = json.loads(links_path.read_text(encoding="utf-8"))
     except Exception:
         return {}
     links = {}
