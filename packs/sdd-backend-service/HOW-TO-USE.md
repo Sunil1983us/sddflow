@@ -1078,6 +1078,43 @@ Each worktree has its own `.specify/manifest.yml`, so two chats — one per
 worktree — can each set `project.feature` to a different value and never
 collide. Plain separate clones work the same way.
 
+### Team Setup — Multiple Contributors, Multiple Features
+
+The risk this solves: contributor A pushes with `project.feature: feature-1`
+committed; contributor B, mid-work on `feature-2` in the **same clone/branch**,
+runs a plain `git pull` and B's local `manifest.yml` silently flips to
+`feature-1` too. Nothing errors — B's next command just trusts the new value.
+No document is destroyed (each feature's docs live in their own
+`.specify/features/{feature}/` folder either way), but B's *next edit* can
+land in the wrong feature's folder without anyone noticing.
+
+**Checklist for a new teammate joining a multi-feature project:**
+1. One branch per feature, one working copy per branch — `git worktree add
+   ../project-{feature} {feature}-branch` (or a plain separate clone). Never
+   two people editing `project.feature` in the same clone.
+2. In your own worktree, set `project.feature`, `project.context_file`, and
+   (once the project has more than one feature) `project.feature_display_name`
+   together — see "`{Feature Name}` convention" in CLAUDE.md. Do this once per
+   worktree; it shouldn't need to change again while you stay on that feature.
+3. `git pull` inside your worktree only ever affects your own branch — it
+   cannot pull another worktree's `project.feature` value into yours. This is
+   what actually eliminates the drift risk, not any check inside a command.
+4. The **Feature Drift Check** (CLAUDE.md) is a secondary safety net, not a
+   substitute for step 1 — it only catches drift *within one already-running
+   AI conversation* that has already established which feature it's on. A
+   fresh chat, or a second person's independent session, gets no warning.
+5. Merging a feature branch back and `manifest.yml` conflicts on the
+   `project.feature` line: harmless — pick either value as the shared default
+   (each feature's real content lives in its own folder regardless), but
+   confirm `feature_display_name`/`context_file` on the side you keep still
+   match it, so document headers and Confluence/Jira titles don't go stale.
+6. Suspect drift already happened? `git log -p -- .specify/manifest.yml`
+   shows every change to `project.feature` and by whom; cross-reference
+   against `git log --oneline -- .specify/features/{feature}/` for that same
+   window to spot anything committed to the wrong feature's folder. Nothing
+   is unrecoverable — `git mv`/cherry-pick the misfiled commit to the correct
+   folder.
+
 ---
 
 ## File Ownership

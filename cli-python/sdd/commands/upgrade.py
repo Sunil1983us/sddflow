@@ -7769,7 +7769,7 @@ MIGRATIONS: list[Migration] = [
             "Reported live: a user saw an AI agent's own reasoning "
             "trace get confused by this warning mid-session and skip "
             "pushing the constitution entirely",
-            "feature_collision_warning() gained a `doc: str = \"\"` "
+            'feature_collision_warning() gained a `doc: str = ""` '
             "parameter; short-circuits to None (no warning) when `doc "
             "in PROJECT_SCOPED_DOCS`, before the feature-name-in-title "
             "check even runs. All 3 call sites (confluence_push's "
@@ -7792,6 +7792,43 @@ MIGRATIONS: list[Migration] = [
             "reproduced the exact warning text the user saw -- and "
             "pass against the fix); ruff check/format clean; mypy "
             "clean (38 source files); bandit 0 issues",
+        ],
+    },
+    {
+        "from": "3.7.2",
+        "to": "3.7.3",
+        "description": "Docs: added a 'Team Setup -- Multiple Contributors, Multiple Features' checklist to all 5 non-micro packs' HOW-TO-USE.md, right after 'Working on Multiple Features' -- no manifest schema changes",
+        "notes": [
+            "Prompted by a real user scenario: contributor A pushes with "
+            "project.feature: feature-1 committed; contributor B, "
+            "mid-work on feature-2 in the same clone/branch, runs a "
+            "plain git pull and B's local manifest.yml silently flips "
+            "to feature-1 too -- nothing errors, B's next command just "
+            "trusts the new value",
+            "The existing 'Working on Multiple Features' section already "
+            "recommended git worktree per feature but didn't spell out "
+            "why that's the actual fix (pull only ever affects your own "
+            "branch/worktree) versus the Feature Drift Check, which is "
+            "a secondary safety net that only catches drift within one "
+            "already-running AI conversation -- a fresh chat or a "
+            "second person's independent session gets no warning",
+            "New subsection adds a 6-step checklist: worktree/clone per "
+            "feature, set feature/context_file/feature_display_name "
+            "together per worktree, why git pull is branch-scoped, the "
+            "Feature Drift Check's actual limits, how to resolve a "
+            "manifest.yml merge conflict on the project.feature line, "
+            "and how to detect + repair drift that already happened via "
+            "git log -p on manifest.yml cross-referenced against the "
+            "affected feature folder's own log",
+            "sdd-micro intentionally excluded -- no multi-feature "
+            "concept in that pack, not part of the shared-block sync "
+            "system",
+            "Docs-only change -- no manifest.yml field changes, no CLI behavior change",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 1149/1149 (no test changes -- "
+            "docs-only); ruff check/format clean",
         ],
     },
 ]

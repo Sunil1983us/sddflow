@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.7.3] — 2026-08-28 (Docs: Team Setup checklist for multi-contributor, multi-feature projects)
+
+A user walked through a real multi-team risk: contributor A pushes with
+`project.feature: feature-1` committed, contributor B is mid-work on
+`feature-2` in the same clone/branch, and B's plain `git pull` silently
+flips B's local `manifest.yml` to `feature-1` too — nothing errors, B's
+next command just trusts the new value. The existing "Working on Multiple
+Features" section already recommended `git worktree` per feature, but
+didn't spell out why that's the actual fix (a `git pull` only ever affects
+your own branch/worktree) versus the Feature Drift Check, which only
+catches drift within one already-running AI conversation.
+
+### Added
+
+- New "Team Setup — Multiple Contributors, Multiple Features" subsection
+  in all 5 non-micro packs' `HOW-TO-USE.md`, right after "Working on
+  Multiple Features": a 6-step checklist covering worktree-per-feature
+  setup, keeping `project.feature`/`context_file`/`feature_display_name`
+  together, why `git pull` is branch-scoped, the Feature Drift Check's
+  actual limits, resolving a `manifest.yml` merge conflict on the
+  `project.feature` line, and detecting/repairing drift that already
+  happened via `git log -p` on `manifest.yml`.
+
+### Verified
+
+- Docs-only change — no manifest schema or CLI behavior change.
+- New subsection confirmed byte-identical across all 5 packs.
+- cli-python pytest 1149/1149 (no test changes); ruff check/format clean;
+  `check-migration-parity.py` clean.
+
+---
+
 ## [3.7.2] — 2026-08-28 (Fix: sdd confluence push --doc constitution wrongly warned about a collision)
 
 `sdd confluence push --doc constitution` (and other PROJECT_SCOPED_DOCS:
