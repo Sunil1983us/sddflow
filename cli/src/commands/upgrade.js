@@ -5250,6 +5250,103 @@ export const MIGRATIONS = [
       'clean; mypy clean (38 source files); bandit 0 issues',
     ],
   },
+  {
+    from: '3.6.1',
+    to:   '3.7.0',
+    description: "/clarify's live interview redesigned again -- spec-kit-inspired format: pre-reasoned recommended answers, at least 5-6 questions balanced across item types",
+    notes: [
+      '3.6.0 made /clarify\'s live-chat path push back on a vague ' +
+      'answer with one narrower follow-up (max twice) before falling ' +
+      'to best guess. Checked github/spec-kit\'s own clarify.md ' +
+      'template directly for a second opinion on this -- it asks one ' +
+      'question at a time (capped at 5), each with a pre-reasoned ' +
+      'recommended/suggested default the human can accept with \'yes\' ' +
+      'instead of typing an answer, drawn from a 9-category taxonomy ' +
+      'that inherently balances technical and business angles',
+      'Adopted that shape instead: every question now states ' +
+      '**Recommended: Option X** (multiple-choice, lettered table) or ' +
+      '**Suggested:** (open-ended), reasoned from something real in ' +
+      'this project\'s own docs (context.md, constitution.md\'s Tech ' +
+      'Stack/Domain Rules, brd.md\'s stated business objectives) -- ' +
+      'never a generic justification. Ask through at least 5-6 items ' +
+      'when that many are open, picked across item types (not just ' +
+      'severity) so it doesn\'t ask five near-identical AMB items back ' +
+      'to back while a real GAP/OQ item sits unasked',
+      'The push-back mechanic is gone -- with a recommended default ' +
+      'always on offer, \'make it reasonable\'-style non-answers are ' +
+      'rarer to begin with. What remains: a reply that doesn\'t engage ' +
+      'at all gets exactly one check-in referencing the already-' +
+      'offered default (not a new/repeated question); if that doesn\'t ' +
+      'land, the item resolves using that same default as agent-best-' +
+      'guess rather than looping',
+      'The three other intake paths (direct file-edit + \'done\', ' +
+      '\'best guess\'/\'continue\', async Jira/Confluence comment) are ' +
+      'unchanged from 3.6.0',
+      'Prompt-content only (packs/{sdd-backend-service,sdd-frontend-' +
+      'spa,sdd-fullstack,sdd-mobile,sdd-universal}/.github/prompts/' +
+      'clarify.prompt.md) -- no CLI code touched, no manifest.yml ' +
+      'schema change. sdd-micro unaffected',
+      'This Node CLI ships from the same pack sources -- this ' +
+      'migration entry exists so both CLIs report the same ' +
+      'sdd_version chain (the Node CLI has no prompt-execution role ' +
+      'of its own -- scaffolding-only by design -- so nothing here ' +
+      'actually applies to it beyond the version stamp)',
+      'Verified: sync-blocks.sh run twice consecutively with zero ' +
+      'unexpected drift (only the 5 intentionally-edited clarify.' +
+      'prompt.md files changed); check-cross-references.py clean ' +
+      'across all 6 packs; test-setup.sh 19/19 passed',
+    ],
+  },
+  {
+    from: '3.7.0',
+    to:   '3.7.1',
+    description: "Security/correctness: fixed unencoded file I/O across the whole cli-python codebase -- non-ASCII content (em-dashes, curly quotes, accents) got mangled on Windows and other non-UTF-8-locale systems",
+    notes: [
+      'A user hit this directly: an em-dash in a /create-context-' +
+      'generated context.md came out as mojibake (\'â€”\') once ' +
+      'pushed to Confluence via `sdd confluence push`. Root cause: ' +
+      'Path.read_text()/write_text() and open()/os.fdopen() in text ' +
+      'mode all default to locale.getpreferredencoding(False) when ' +
+      'encoding= is omitted -- cp1252 on many Windows setups, not ' +
+      'UTF-8. Each UTF-8 byte of the em-dash got reinterpreted as a ' +
+      'separate cp1252 character',
+      'Root-caused to confluence.py\'s md_path.read_text() first, then ' +
+      'found the identical bug in the shared atomic_write_text() ' +
+      'utility (os.fdopen(fd, \'w\'), no encoding) used by nearly ' +
+      'every write site in the codebase (manifest.py, review.py x6, ' +
+      'jira.py, hooks.py, confluence_push_log.py, managed_files.py), ' +
+      'plus ~19 more read_text/write_text call sites across commands/' +
+      'config.py, commands/confluence.py, commands/cr.py, commands/' +
+      'dashboard.py, commands/hooks.py, commands/init.py, commands/' +
+      'jira.py, commands/pr.py, commands/review.py, commands/' +
+      'token_log.py, utils/atlassian_auth.py, utils/' +
+      'claude_code_transcript.py, utils/detect.py, utils/' +
+      'integrations.py, utils/sdd_parser.py, utils/status.py, utils/' +
+      'dashboard_comments.py',
+      'Fixed all of them: every read_text()/write_text() call and the ' +
+      'one os.fdopen() call now pass encoding=\'utf-8\' explicitly, no ' +
+      'longer falling back to OS locale. One f-string quote collision ' +
+      'found along the way (pr.py -- can\'t reuse double quotes inside ' +
+      'a double-quoted f-string pre-3.12) fixed by switching that one ' +
+      'site to single quotes',
+      'Checked the Node CLI (cli/src/**) for the equivalent gap -- ' +
+      'none exists: Node\'s fs.writeFileSync defaults to \'utf8\' for ' +
+      'string writes regardless of OS locale (unlike Python), and ' +
+      'every readFileSync call already passes \'utf8\' explicitly. ' +
+      'This migration entry exists purely so both CLIs report the ' +
+      'same sdd_version chain -- nothing in the Node CLI needed to ' +
+      'change',
+      'Added cli-python/tests/test_utf8_encoding_everywhere.py: a ' +
+      'static AST scan across every file under sdd/ asserting every ' +
+      'text-mode read_text()/write_text()/open()/fdopen() call ' +
+      'specifies encoding= (binary-mode opens correctly excluded) -- ' +
+      'this is the actual regression guard, confirmed to fail when ' +
+      'encoding= is missing regardless of the test runner\'s own locale',
+      'Verified: cli-python pytest 1146/1146 (1144 unchanged + 2 new); ' +
+      'ruff check/format clean; mypy clean (38 source files); bandit ' +
+      '0 issues',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

@@ -144,9 +144,7 @@ def pr_create(task, base, profile, feature):
     if cfg.code_review.enabled and cfg.code_review.pre_review:
         summary_path = features_dir / f".pre-review-{task.lower()}.md"
         if summary_path.exists():
-            pre_review_section = (
-                f"\n## Pre-Review\n\n{summary_path.read_text().strip()}\n\n"
-            )
+            pre_review_section = f"\n## Pre-Review\n\n{summary_path.read_text(encoding='utf-8').strip()}\n\n"
             console.print("  [green]✓[/green]  Pre-review summary included")
         else:
             console.print(

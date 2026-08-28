@@ -28,6 +28,39 @@ def test_round_trips_unicode(tmp_path):
     assert p.read_text() == "café-service"
 
 
+def test_writes_real_utf8_bytes_regardless_of_locale_default(tmp_path):
+    """Belt-and-suspenders correctness check alongside the real
+    regression guard, tests/test_utf8_encoding_everywhere.py's static
+    scan. atomic_write_text() used to open its temp file via
+    `os.fdopen(fd, "w")` with no `encoding=` -- which falls back to
+    locale.getpreferredencoding(False), cp1252 on many Windows setups,
+    not UTF-8. A user hit exactly this: an em-dash ("—") in a
+    /create-context-generated context.md came out as "â€”" (mojibake --
+    each UTF-8 byte reinterpreted as a separate cp1252 character) once
+    pushed to Confluence.
+
+    This can't actually reproduce that failure in a CI/dev environment
+    whose own locale is already UTF-8 (most Linux containers) --
+    os.fdopen(fd, "w") with no encoding= still happens to write UTF-8
+    bytes here regardless of the missing argument. It's the static AST
+    scan, not this test, that fails when `encoding=` is missing,
+    independent of the runner's own locale. This test still earns its
+    place as a correctness check: it reads the raw bytes off disk and
+    decodes them as UTF-8 explicitly (rather than trusting
+    Path.read_text()'s own implicit default, which -- see
+    test_round_trips_unicode above -- would silently match whatever
+    atomic_write_text() implicitly wrote with and hide a mismatch)."""
+    p = tmp_path / "file.txt"
+    atomic_write_text(p, "Status: Draft — review Group A and Group B")
+    raw = p.read_bytes()
+    assert raw.decode("utf-8") == "Status: Draft — review Group A and Group B"
+    # The exact bytes an em-dash (U+2014) encodes to in UTF-8 -- if this
+    # were written as cp1252, "—" would either raise (cp1252 has no
+    # U+2014 mapping... it does, at 0x97, so it'd silently write the
+    # wrong single byte) rather than these three UTF-8 bytes.
+    assert "\xe2\x80\x94".encode("latin-1") in raw
+
+
 def test_accepts_str_path(tmp_path):
     p = tmp_path / "file.txt"
     atomic_write_text(str(p), "hello")

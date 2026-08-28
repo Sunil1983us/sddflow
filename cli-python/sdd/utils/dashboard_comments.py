@@ -29,7 +29,7 @@ def _load_json(path: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
@@ -57,4 +57,4 @@ def acknowledge(feature: str, doc: str) -> None:
     acks = _load_json(_ACK_FILE)
     acks[key] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     _ACK_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _ACK_FILE.write_text(json.dumps(acks, indent=2))
+    _ACK_FILE.write_text(json.dumps(acks, indent=2), encoding="utf-8")

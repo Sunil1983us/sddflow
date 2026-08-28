@@ -111,7 +111,10 @@ def _fetch_doc_content(feature: str, doc: str) -> dict | None:
         return None
     if not path.exists() or not path.is_file():
         return None
-    return {"path": str(path), "content": path.read_text(errors="replace")}
+    return {
+        "path": str(path),
+        "content": path.read_text(errors="replace", encoding="utf-8"),
+    }
 
 
 _JIRA_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]*-\d+$")
@@ -397,7 +400,7 @@ def _load_comments() -> dict:
     if not _COMMENTS_FILE.exists():
         return {}
     try:
-        return json.loads(_COMMENTS_FILE.read_text())
+        return json.loads(_COMMENTS_FILE.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
@@ -422,7 +425,7 @@ def _do_comment(feature: str, doc: str, by: str, text: str) -> dict:
     }
     comments.setdefault(key, []).append(entry)
     _COMMENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _COMMENTS_FILE.write_text(json.dumps(comments, indent=2))
+    _COMMENTS_FILE.write_text(json.dumps(comments, indent=2), encoding="utf-8")
 
     jira_comment = _post_jira_comment(feature, doc, f"{by} (via SDD Dashboard): {text}")
     return {"saved": True, "comment": entry, "jira_comment": jira_comment}

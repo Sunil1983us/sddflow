@@ -159,7 +159,7 @@ def parse_brd_problem_statement(features_dir: Path) -> str:
     if not path.exists():
         return ""
     return _extract_heading_section(
-        path.read_text(), _BRD_SECTION_HEADINGS["problem_statement"]
+        path.read_text(encoding="utf-8"), _BRD_SECTION_HEADINGS["problem_statement"]
     )
 
 
@@ -170,7 +170,7 @@ def parse_brd_business_hypothesis(features_dir: Path) -> str:
     if not path.exists():
         return ""
     return _extract_heading_section(
-        path.read_text(), _BRD_SECTION_HEADINGS["business_hypothesis"]
+        path.read_text(encoding="utf-8"), _BRD_SECTION_HEADINGS["business_hypothesis"]
     )
 
 
@@ -181,7 +181,7 @@ def parse_brd_executive_summary(features_dir: Path) -> str:
     if not path.exists():
         return ""
     return _extract_heading_section(
-        path.read_text(), _BRD_SECTION_HEADINGS["executive_summary"]
+        path.read_text(encoding="utf-8"), _BRD_SECTION_HEADINGS["executive_summary"]
     )
 
 
@@ -191,7 +191,7 @@ def parse_brd_out_of_scope(features_dir: Path) -> list[str]:
     path = features_dir / "brd.md"
     if not path.exists():
         return []
-    return _extract_labeled_bullets(path.read_text(), "Out of Scope")
+    return _extract_labeled_bullets(path.read_text(encoding="utf-8"), "Out of Scope")
 
 
 _NFR_ROW_RE = re.compile(r"^\s*\|\s*NFR-\d+\s*\|")
@@ -207,7 +207,7 @@ def parse_srd_nfr_rows(features_dir: Path) -> list[str]:
     if not path.exists():
         return []
     items = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not _NFR_ROW_RE.match(stripped):
             continue
@@ -233,7 +233,7 @@ def parse_brd_business_objectives(features_dir: Path) -> list[str]:
     if not path.exists():
         return []
     items = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not _BO_ROW_RE.match(stripped):
             continue
@@ -286,7 +286,7 @@ def parse_brd_success_criteria(features_dir: Path) -> list[str]:
     if not path.exists():
         return []
     return _extract_heading_bullets(
-        path.read_text(),
+        path.read_text(encoding="utf-8"),
         _BRD_SUCCESS_CRITERIA_HEADING,
         _CHECKLIST_BULLET_RE,
     )
@@ -323,7 +323,7 @@ def brd_confluence_link(confluence_base_url: str | None) -> str | None:
     if not drafts_path.exists():
         return None
     try:
-        drafts = json.loads(drafts_path.read_text())
+        drafts = json.loads(drafts_path.read_text(encoding="utf-8"))
     except Exception:
         return None
     page_id = (drafts.get("brd") or {}).get("page_id")
@@ -439,7 +439,7 @@ def parse_changeset(features_dir: Path, cr_id: str) -> list[dict]:
     path = features_dir / "changesets" / f"{cr_id}.md"
     if not path.exists():
         raise FileNotFoundError(f"Changeset not found: {path}")
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     chg_tasks = []
     for line in text.splitlines():
         stripped = line.strip()
@@ -1267,7 +1267,7 @@ def _save_keys_summary(
     existing: dict = {}
     if path.exists():
         try:
-            existing = yaml.safe_load(path.read_text()) or {}
+            existing = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         except Exception:
             existing = {}
     if epic_key:
@@ -1294,7 +1294,8 @@ def _save_keys_summary(
             "# without affecting future pushes.\n"
             + yaml.dump(
                 existing, default_flow_style=False, sort_keys=False, allow_unicode=True
-            )
+            ),
+            encoding="utf-8",
         )
     except Exception:  # noqa: S110 -- this local record file is a human-readable
         pass  # convenience only (see comment above); never block a push over it

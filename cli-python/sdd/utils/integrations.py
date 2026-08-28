@@ -487,7 +487,7 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
         # extra duplicate-key check on top; no unsafe tag handlers are
         # added. Equivalent to yaml.safe_load() for anything this constructor
         # can actually parse.
-        raw = yaml.load(p.read_text(), Loader=_DuplicateKeyLoader) or {}  # nosec B506
+        raw = yaml.load(p.read_text(encoding="utf-8"), Loader=_DuplicateKeyLoader) or {}  # nosec B506
     except yaml.YAMLError as e:
         raise IntegrationsConfigError(str(e)) from None
 

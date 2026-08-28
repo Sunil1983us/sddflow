@@ -42,7 +42,7 @@ def _feature_dir(feature_name: str) -> Path:
 def _load_pricing() -> dict | None:
     if not TOKEN_PRICING_PATH.exists():
         return None
-    return yaml.safe_load(TOKEN_PRICING_PATH.read_text()) or {}
+    return yaml.safe_load(TOKEN_PRICING_PATH.read_text(encoding="utf-8")) or {}
 
 
 def _cost_for(pricing: dict, model: str, input_tokens: int, output_tokens: int) -> str:
@@ -91,7 +91,7 @@ def _existing_rows(path: Path) -> list[dict]:
     if not path.exists():
         return []
     rows = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         row = _parse_table_row(line)
         if row:
             rows.append(row)
@@ -127,7 +127,7 @@ def _parse_int(cell: str) -> int:
 
 def _init_from_template(feature_name: str) -> str:
     if TOKEN_USAGE_TEMPLATE_PATH.exists():
-        return TOKEN_USAGE_TEMPLATE_PATH.read_text().replace(
+        return TOKEN_USAGE_TEMPLATE_PATH.read_text(encoding="utf-8").replace(
             "{Feature Name}", feature_name
         )
     # Extremely defensive fallback -- the template ships in every pack,
@@ -266,9 +266,9 @@ def token_log_command(feature, command_name, dry_run):
 
     if not token_usage_path.exists():
         token_usage_path.parent.mkdir(parents=True, exist_ok=True)
-        token_usage_path.write_text(_init_from_template(feature_name))
+        token_usage_path.write_text(_init_from_template(feature_name), encoding="utf-8")
 
-    lines = token_usage_path.read_text().splitlines()
+    lines = token_usage_path.read_text(encoding="utf-8").splitlines()
     try:
         # The file's FIRST table separator belongs to Running Totals
         # (|---|---|), not Per-Command Log -- must anchor the search on
@@ -306,7 +306,7 @@ def token_log_command(feature, command_name, dry_run):
 
     text = "\n".join(lines) + "\n"
     text = _rewrite_running_totals(text, existing_rows + new_rows)
-    token_usage_path.write_text(text)
+    token_usage_path.write_text(text, encoding="utf-8")
 
     for r in new_rows:
         console.print(
