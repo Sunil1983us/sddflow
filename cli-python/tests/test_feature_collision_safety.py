@@ -63,6 +63,46 @@ class TestFeatureCollisionWarning:
         warning = feature_collision_warning("Demo — BRD", "auth", root=tmp_path)
         assert warning is None
 
+    def test_project_scoped_doc_never_warns_even_multi_feature(self, tmp_path):
+        """Regression: constitution/runbook/data-model/security-design/
+        api-spec are PROJECT_SCOPED_DOCS -- deliberately ONE shared page
+        across every feature, by design (see _resolve_page_title, which
+        strips {feature} from their titles unconditionally). A real user
+        hit this: `sdd confluence push --doc constitution` in a
+        multi-feature project warned "pushing now will upsert onto
+        whichever of those other features' pages already has this exact
+        title, silently overwriting its content" -- flatly wrong for a
+        doc type that's supposed to be the exact same page for every
+        feature. Confused an AI agent mid-session into skipping the push
+        entirely. `doc=` being PROJECT_SCOPED_DOCS must short-circuit
+        before the feature-name-in-title check even runs."""
+        (tmp_path / ".specify" / "features" / "auth").mkdir(parents=True)
+        (tmp_path / ".specify" / "features" / "billing").mkdir(parents=True)
+        for doc in (
+            "constitution",
+            "runbook",
+            "data-model",
+            "security-design",
+            "api-spec",
+        ):
+            warning = feature_collision_warning(
+                "Demo — Constitution", "auth", doc=doc, root=tmp_path
+            )
+            assert warning is None, f"{doc}: expected no warning, got {warning!r}"
+
+    def test_per_feature_doc_still_warns_alongside_project_scoped_doc(self, tmp_path):
+        """The PROJECT_SCOPED_DOCS exemption must not blanket-suppress the
+        warning for genuinely per-feature docs (brd, use-cases, ...) in
+        the same project -- only the docs that are actually meant to
+        share one page."""
+        (tmp_path / ".specify" / "features" / "auth").mkdir(parents=True)
+        (tmp_path / ".specify" / "features" / "billing").mkdir(parents=True)
+        warning = feature_collision_warning(
+            "Demo — Business Requirements", "auth", doc="brd", root=tmp_path
+        )
+        assert warning is not None
+        assert "billing" in warning
+
 
 class TestConfigScaffoldIncludesFeature:
     """config.py's _integrations_template() is what `sdd config init`
@@ -189,6 +229,50 @@ class TestConfluencePushForceGate:
             )
         assert result.exit_code == 0, result.output
         assert "created" in result.output or "updated" in result.output
+
+    def test_constitution_push_never_warns_in_multi_feature_project(
+        self, multi_feature_project
+    ):
+        """End-to-end regression for the real bug: `sdd confluence push
+        --doc constitution` in a multi-feature project used to warn about
+        overwriting another feature's page and refuse without --force --
+        constitution is PROJECT_SCOPED_DOCS, meant to be the one shared
+        page for every feature; there is no other feature's page to
+        collide with."""
+        (multi_feature_project / ".specify" / "memory").mkdir(parents=True)
+        (multi_feature_project / ".specify" / "memory" / "constitution.md").write_text(
+            "# Constitution\n\nPart 1: universal rules.\n"
+        )
+
+        class FakeClient:
+            def __init__(self, *a, **k):
+                pass
+
+            def get_page_by_title(self, *a, **k):
+                return None
+
+            def create_page(self, *a, **k):
+                return {"id": "1", "_links": {}}
+
+            def upsert_page(self, *a, **k):
+                return {"id": "1", "_links": {}}, True
+
+        with (
+            patch(
+                "sdd.commands.confluence.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.confluence.ConfluenceClient", FakeClient),
+        ):
+            result = CliRunner().invoke(
+                confluence_command, ["push", "--doc", "constitution"]
+            )
+        assert result.exit_code == 0, result.output
+        assert "Refusing to push" not in result.output
+        assert "collision risk" not in result.output
 
 
 class FakeJiraClient:
