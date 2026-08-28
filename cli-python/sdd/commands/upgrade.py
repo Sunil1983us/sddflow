@@ -7749,6 +7749,51 @@ MIGRATIONS: list[Migration] = [
             "files); bandit 0 issues",
         ],
     },
+    {
+        "from": "3.7.1",
+        "to": "3.7.2",
+        "description": "Fix: sdd confluence push --doc constitution (and "
+        "other PROJECT_SCOPED_DOCS) wrongly warned about overwriting "
+        "another feature's page in a multi-feature project",
+        "notes": [
+            "feature_collision_warning() had no idea whether a doc is "
+            "project-scoped (constitution, runbook, data-model, "
+            "security-design, api-spec -- deliberately ONE shared page "
+            "across every feature, by design; _resolve_page_title "
+            "already strips {feature} from these titles "
+            "unconditionally). It only checked 'does the title contain "
+            "the feature name', which project-scoped docs' titles never "
+            "do on purpose, so it always flagged them as a collision "
+            "risk and refused to push without --force, even though "
+            "there's no other feature's page to actually collide with",
+            "Reported live: a user saw an AI agent's own reasoning "
+            "trace get confused by this warning mid-session and skip "
+            "pushing the constitution entirely",
+            "feature_collision_warning() gained a `doc: str = \"\"` "
+            "parameter; short-circuits to None (no warning) when `doc "
+            "in PROJECT_SCOPED_DOCS`, before the feature-name-in-title "
+            "check even runs. All 3 call sites (confluence_push's "
+            "bulk-push collision list, its dry-run loop, "
+            "confluence_draft) now pass doc=key/doc=doc. Default "
+            "doc='' (not in PROJECT_SCOPED_DOCS) preserves old behavior "
+            "for any caller that predates this parameter",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain (the Node CLI has no Confluence "
+            "integration of its own -- scaffolding-only by design -- "
+            "so nothing here actually applies to it beyond the version "
+            "stamp)",
+            "Verified: cli-python pytest 1149/1149 (1146 unchanged + 3 "
+            "new -- covering all 5 PROJECT_SCOPED_DOCS keys, confirming "
+            "the exemption doesn't blanket-suppress real per-feature-"
+            "doc collision warnings, and an end-to-end CLI test "
+            "reproducing the exact real-world scenario; confirmed all 3 "
+            "new tests actually fail against the pre-fix code -- "
+            "reproduced the exact warning text the user saw -- and "
+            "pass against the fix); ruff check/format clean; mypy "
+            "clean (38 source files); bandit 0 issues",
+        ],
+    },
 ]
 
 

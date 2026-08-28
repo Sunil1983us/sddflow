@@ -4,6 +4,35 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.7.2] — 2026-08-28 (Fix: sdd confluence push --doc constitution wrongly warned about a collision)
+
+`sdd confluence push --doc constitution` (and other PROJECT_SCOPED_DOCS:
+`runbook`, `data-model`, `security-design`, `api-spec`) wrongly warned
+about overwriting another feature's page in a multi-feature project and
+refused to push without `--force`. `feature_collision_warning()` only
+checked "does the title contain the feature name" — which project-scoped
+docs' titles never do on purpose, since they're deliberately one shared
+page across every feature — so it always flagged them as a collision
+risk, even though there's no other feature's page to actually collide
+with. Reported live: a user saw an AI agent's own reasoning trace get
+confused by this warning mid-session and skip pushing the constitution
+entirely.
+
+### Fixed
+
+- `feature_collision_warning()` gained a `doc` parameter and
+  short-circuits to "no warning" when `doc` is one of the
+  `PROJECT_SCOPED_DOCS`, before the feature-name check even runs.
+
+### Verified
+
+- cli-python pytest 1149/1149 (1146 unchanged + 3 new — confirmed all 3
+  actually fail against the pre-fix code, reproducing the exact warning
+  text the user saw, and pass against the fix); ruff check/format clean;
+  mypy clean; bandit 0 issues.
+
+---
+
 ## [3.7.1] — 2026-08-28 (Fix: unencoded file I/O mangled non-ASCII content on Windows)
 
 A user reported an em-dash in a `/create-context`-generated `context.md`

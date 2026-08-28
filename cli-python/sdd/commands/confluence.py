@@ -179,11 +179,15 @@ def _resolve_page_title(
 
 
 def feature_collision_warning(
-    title: str, feature_name: str, root: Path = Path(".")
+    title: str, feature_name: str, doc: str = "", root: Path = Path(".")
 ) -> str | None:
     """None if this push is safe; otherwise a warning explaining why it
-    isn't. "Safe" means either only one feature exists in this project, or
-    `title` already distinguishes the current feature from the others.
+    isn't. "Safe" means: `doc` is a PROJECT_SCOPED_DOCS entry (constitution,
+    runbook, data-model, security-design, api-spec) -- these are
+    *intentionally* one shared page across every feature, by design, not a
+    naming accident to warn about -- or only one feature exists in this
+    project, or `title` already distinguishes the current feature from the
+    others.
 
     This exists for projects whose integrations.yml predates {feature}
     being added to a doc's page_map/document_reviews.confluence_page entry
@@ -194,7 +198,13 @@ def feature_collision_warning(
     {feature} would upsert onto whatever page ANY other feature's same
     doc type already created, since Confluence page lookup is by title,
     not by feature. Never raises -- best-effort; a missing/unreadable
-    .specify/features/ just means nothing to warn about."""
+    .specify/features/ just means nothing to warn about.
+
+    `doc` defaults to "" (not PROJECT_SCOPED_DOCS) rather than being
+    required, so any external caller that predates this parameter still
+    gets the old (feature-name-only) behavior instead of a TypeError."""
+    if doc in PROJECT_SCOPED_DOCS:
+        return None
     if feature_name and feature_name in title:
         return None
     features_dir = root / ".specify" / "features"
@@ -319,7 +329,7 @@ def confluence_push(profile, feature, doc, summary, dry_run, force, force_overwr
     console.print()
 
     collisions = [
-        (key, title, feature_collision_warning(title, feature_name))
+        (key, title, feature_collision_warning(title, feature_name, doc=key))
         for key, _md_path, title in available
     ]
     collisions = [(key, title, w) for key, title, w in collisions if w]
@@ -337,7 +347,7 @@ def confluence_push(profile, feature, doc, summary, dry_run, force, force_overwr
 
     if dry_run:
         for key, md_path, title in available:
-            warning = feature_collision_warning(title, feature_name)
+            warning = feature_collision_warning(title, feature_name, doc=key)
             flag = "  [yellow]⚠  collision risk[/yellow]" if warning else ""
             console.print(
                 f"  [dim]would push[/dim]  [cyan]{title}[/cyan]  ← {md_path}{flag}"
@@ -484,7 +494,7 @@ def confluence_draft(doc, profile, feature, dry_run, force):
     console.print(f"  Space    : [cyan]{cf_cfg.space_key}[/cyan]")
     console.print()
 
-    warning = feature_collision_warning(title, feature_name)
+    warning = feature_collision_warning(title, feature_name, doc=doc)
     if warning and not dry_run:
         console.print(f"  [yellow]⚠  {warning}[/yellow]")
         if not force:
