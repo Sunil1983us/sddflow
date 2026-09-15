@@ -117,6 +117,46 @@ class JiraClient:
         raise_for_status_with_body(r)
         return r.json()
 
+    def get_createmeta_fields(
+        self, project_key: str, issue_type_name: str
+    ) -> dict | None:
+        """Fetch Jira's own field metadata (required/optional, schema
+        type) for a given project + issue type, via the classic
+        createmeta endpoint. This is Jira's own source of truth for what
+        a create-issue request needs -- letting `sdd doctor` validate any
+        organization's custom issue types and required fields generically,
+        without this codebase needing to know about them in advance.
+
+        Still the only createmeta option on Server/Data Center (API v2 --
+        confirmed, see this class's own docstring on v2/v3). Cloud has
+        since introduced a newer two-step per-issue-type endpoint and
+        Atlassian's docs mark this classic one deprecated there, though it
+        remains functional as of writing; if Atlassian removes it from
+        Cloud entirely, this is the call site that would need a
+        Cloud-specific fallback.
+
+        Returns None if the project or issue type wasn't found (empty
+        "projects" or "issuetypes" in the response) -- a genuinely
+        different finding from "found but has zero fields", so callers
+        can tell "typo'd issue type name" apart from "issue type has no
+        custom fields configured at all"."""
+        r = self._s.get(
+            self._api("/issue/createmeta"),
+            params={
+                "projectKeys": project_key,
+                "issuetypeNames": issue_type_name,
+                "expand": "projects.issuetypes.fields",
+            },
+        )
+        raise_for_status_with_body(r)
+        projects = r.json().get("projects", [])
+        if not projects:
+            return None
+        issuetypes = projects[0].get("issuetypes", [])
+        if not issuetypes:
+            return None
+        return issuetypes[0].get("fields", {})
+
     def get_comments(self, issue_key: str) -> list[dict]:
         r = self._s.get(self._api(f"/issue/{issue_key}/comment"))
         raise_for_status_with_body(r)

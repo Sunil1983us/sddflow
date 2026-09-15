@@ -4,6 +4,45 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.8.0] — 2026-09-15 (New: sdd doctor validates Jira Epic field requirements against Jira's own createmeta)
+
+Direct follow-up to the string of Jira push fixes (v3.7.5–v3.7.9): those
+were genuine framework bugs, but the underlying question — "Jira/
+Confluence setup is specific to each organization; is there a way they
+can fix it within their own org, without a framework code change every
+time?" — needed an actual mechanism, not just more one-off fixes.
+`createmeta` is Jira's own source of truth for what a project + issue
+type combination requires, so validating against it generalizes to any
+organization's custom issue types (SAFe Enabler and beyond) without this
+codebase needing to know about them in advance.
+
+### Added
+
+- `JiraClient.get_createmeta_fields()` — queries Jira's classic
+  `createmeta` endpoint for a project + issue type's field requirements.
+- `check_epic_createmeta()` — cross-checks every Jira-required field for
+  the configured Epic/Feature issue type against what SDD can actually
+  populate, flagging anything uncovered (naming the exact
+  `integrations.yml` fix when it's the known `epic_name` gap) and any
+  non-string `description` schema on Server/Data Center.
+- `sdd doctor` now runs this automatically whenever Jira is configured
+  (silently skipped otherwise); a new `--skip-jira` flag opts out.
+  Findings factor into `doctor`'s exit code.
+
+Phase 1 scope: Epic/Feature level only — Story/Task/CHG are a natural
+follow-up using the same mechanism, not a redesign. Confluence has no
+equivalent schema-validation API and isn't covered.
+
+### Verified
+
+- cli-python pytest 1191/1191 (1170 unchanged + 21 new — unit tests for
+  every finding type plus CLI-level wiring tests, confirmed to fail
+  against the pre-fix code).
+- ruff check/format clean; mypy clean; bandit clean (no new findings);
+  `check-migration-parity.py` clean (176 entries).
+
+---
+
 ## [3.7.9] — 2026-09-15 (Fix: Jira Server/Data Center rejected every description as Cloud-only ADF)
 
 The response-body visibility added in v3.7.8 was step one of actually

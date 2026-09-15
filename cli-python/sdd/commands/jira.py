@@ -462,6 +462,107 @@ def feature_extra_fields(
     return extra
 
 
+def check_epic_createmeta(
+    cfg: JiraConfig, client: JiraClient
+) -> list[tuple[bool, str]]:
+    """Validate the configured Epic/Feature-level issue type against
+    Jira's own createmeta for the project -- catches "this push will
+    fail" before it does, using Jira's own field requirements as the
+    source of truth instead of this codebase needing to know about any
+    given organization's custom issue types in advance. Used by
+    `sdd doctor`.
+
+    Read-only -- makes exactly one Jira API call, never writes anything.
+    Phase 1: Epic/Feature level only, matching feature_extra_fields()
+    above; Story/Task/CHG are a planned follow-up using the same
+    mechanism.
+
+    Returns a list of (ok, message) findings -- never raises for a
+    Jira-side validation problem (that's the whole point: report it as a
+    finding), but a connectivity/auth failure calling Jira at all is the
+    caller's problem to handle (matches every other JiraClient method)."""
+    project_key = cfg.key_for("feature")
+    issue_type = cfg.issue_type_for("feature")
+    fields_meta = client.get_createmeta_fields(project_key, issue_type)
+    if fields_meta is None:
+        return [
+            (
+                False,
+                f"issue type '{issue_type}' not found in project "
+                f"'{project_key}' -- check issue_hierarchy.feature in "
+                "integrations.yml against Jira's actual issue type names "
+                "for this project",
+            )
+        ]
+
+    known = cfg.fields_for("feature")
+    # The exact set of field IDs feature_extra_fields() (above) + the
+    # project/issuetype/summary/labels _upsert_issue() always adds could
+    # ever populate for an Epic -- kept in sync with those two functions
+    # by hand, since deriving it automatically would mean actually
+    # running the push. "reporter" is excluded even when Jira marks it
+    # required: Jira auto-fills it from the authenticated API caller in
+    # the common case -- based on standard Jira behavior, not guaranteed
+    # for every instance's workflow/permission scheme.
+    settable = {"summary", "project", "issuetype", "labels", "description", "priority"}
+    if known.get("epic_name"):
+        settable.add(known["epic_name"])
+    if known.get("team") and cfg.team:
+        settable.add(known["team"])
+
+    findings: list[tuple[bool, str]] = []
+    missing = [
+        (field_id, meta.get("name", field_id))
+        for field_id, meta in fields_meta.items()
+        if meta.get("required") and field_id not in settable and field_id != "reporter"
+    ]
+    if missing:
+        for field_id, name in missing:
+            if name.strip().casefold() == "epic name":
+                hint = f" -- add jira.custom_fields.epic_name: {field_id} to integrations.yml"
+            else:
+                hint = (
+                    " -- no integrations.yml field mapping sets this; SDD "
+                    "has no way to populate it. Either ask your Jira admin "
+                    "to make it optional for API-created issues, or this "
+                    "needs a new custom_fields mapping added to the "
+                    "framework"
+                )
+            findings.append(
+                (
+                    False,
+                    f"required field '{name}' ({field_id}) on issue type "
+                    f"'{issue_type}'{hint}",
+                )
+            )
+    else:
+        findings.append(
+            (
+                True,
+                f"issue type '{issue_type}' in project '{project_key}' -- "
+                "every Jira-required field is covered",
+            )
+        )
+
+    description_meta = fields_meta.get("description")
+    if description_meta is not None:
+        schema_type = description_meta.get("schema", {}).get("type")
+        if client.deployment == "server" and schema_type not in (None, "string"):
+            findings.append(
+                (
+                    False,
+                    f"description field's schema type is '{schema_type}', "
+                    "not 'string' -- unexpected for Server/Data Center; "
+                    "the wiki-markup conversion (see adf_to_wiki_markup) "
+                    "may not apply cleanly here",
+                )
+            )
+        else:
+            findings.append((True, "description field format matches this deployment"))
+
+    return findings
+
+
 _CHG_ROW_RE = re.compile(r"^\s*\|\s*CHG-\d+\s*\|")
 
 

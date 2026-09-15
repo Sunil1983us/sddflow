@@ -5674,6 +5674,65 @@ export const MIGRATIONS = [
       'findings)',
     ],
   },
+  {
+    from: '3.7.9',
+    to:   '3.8.0',
+    description: "New: sdd doctor validates the configured Jira Epic issue type against Jira's own createmeta, so an organization's own required-field/issue-type mistakes get caught locally instead of only surfacing as a failed push",
+    notes: [
+      'Direct follow-up to the string of Jira push fixes (3.7.5-3.7.9): ' +
+      'those were genuine framework bugs, but the underlying request -- ' +
+      '\'we don\'t know what all issue will be there; Jira/Confluence ' +
+      'setup is specific to each organization -- is there a way they ' +
+      'can fix it within their own org, without a framework code ' +
+      'change every time?\' -- needed an actual mechanism, not just ' +
+      'more one-off fixes. createmeta is Jira\'s own source of truth ' +
+      'for what a project + issue type combination requires, so ' +
+      'validating against it generalizes to any organization\'s custom ' +
+      'issue types (SAFe Enabler and beyond) without this codebase ' +
+      'needing to know about them in advance',
+      'Added JiraClient.get_createmeta_fields() (jira_client.py): GET ' +
+      '.../issue/createmeta?projectKeys=...&issuetypeNames=...&expand=' +
+      'projects.issuetypes.fields -- the classic endpoint, the only ' +
+      'createmeta option on Server/Data Center; still functional on ' +
+      'Cloud as of writing though Atlassian\'s docs mark it deprecated ' +
+      'there in favor of a newer two-step API (flagged as a known ' +
+      'follow-up risk, not yet verified against a live Cloud instance)',
+      'Added check_epic_createmeta() (commands/jira.py): resolves the ' +
+      'configured Epic/Feature project+issue type, calls createmeta, ' +
+      'and cross-checks every Jira-required field against the fixed ' +
+      'set feature_extra_fields()/_upsert_issue() can actually populate ' +
+      '(project/issuetype/summary/labels/description/priority, plus ' +
+      'custom_fields.epic_name/team if configured) -- \'reporter\' ' +
+      'excluded from the check since Jira commonly auto-fills it from ' +
+      'the API caller even when marked required. Also flags a non-' +
+      'string description schema on Server/DC (the 3.7.9 bug class, ' +
+      'generalized to catch it for any future field, not just ' +
+      'description)',
+      'Wired into `sdd doctor` as a new section, run automatically ' +
+      'whenever integrations.yml configures jira: (silently skipped ' +
+      'otherwise -- an optional adapter, not something every project ' +
+      'has, per this repo\'s product-scope policy); new --skip-jira ' +
+      'flag opts out even when configured. A finding failure now ' +
+      'factors into doctor\'s exit code alongside the existing managed-' +
+      'files drift check',
+      'Phase 1 scope, deliberately: Epic/Feature level only (Story/' +
+      'Task/CHG use the same mechanism and are a natural follow-up, ' +
+      'not a redesign); Confluence has no equivalent schema-validation ' +
+      'API and isn\'t covered by this',
+      'This Node CLI has no doctor/Jira-validation concept of its own ' +
+      '(scaffolding-only by design) and is unaffected by this beyond ' +
+      'the version stamp -- this migration entry exists so both CLIs ' +
+      'report the same sdd_version chain',
+      'Verified: cli-python pytest 1191/1191 (1170 unchanged + 21 new ' +
+      '-- unit tests for check_epic_createmeta()\'s every finding type ' +
+      'and get_createmeta_fields()\'s HTTP shape, plus CLI-level tests ' +
+      'confirming sdd doctor skips/runs/exits correctly; confirmed the ' +
+      'wiring tests fail against the pre-fix code with an ' +
+      'AttributeError on the not-yet-existing hooks); ruff check/' +
+      'format clean; mypy clean (39 source files, 1 pre-existing ' +
+      'unrelated error); bandit clean (no new findings)',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping
