@@ -7955,6 +7955,45 @@ MIGRATIONS: list[Migration] = [
             "the fix); ruff check/format clean",
         ],
     },
+    {
+        "from": "3.7.6",
+        "to": "3.7.7",
+        "description": "Docs: integrations.yml.example never showed the epic_name custom field, even though HOW-TO-USE.md documented it as available -- undiscoverable, and its absence causes a real Jira HTTP 400 on classic/company-managed projects",
+        "notes": [
+            "Reported live: a user's Jira Epic bootstrap (during /specify) "
+            "failed with HTTP 400 creating the issue, on a project using "
+            "a SAFe 'Enabler' issue type -- an Epic subtype, common on "
+            "Advanced Roadmaps/Portfolio-for-Jira orgs. Classic/company-"
+            "managed Jira projects require the special 'Epic Name' field "
+            "on any Epic-type issue (team-managed projects don't); "
+            "jira.py's feature_extra_fields() already supports setting "
+            "it via custom_fields.epic_name (see its docstring), but the "
+            "shipped integrations.yml.example never showed that key at "
+            "all -- not even as a commented-out example line -- despite "
+            "all 5 packs' HOW-TO-USE.md field-mapping table already "
+            "listing epic_name as one of the supported custom_fields",
+            "Added a commented '# epic_name: customfield_10011' line "
+            "under jira.custom_fields in "
+            "_shared/full/.specify/integrations.yml.example, with a "
+            "comment explaining exactly when it's required and pointing "
+            "at 'sdd config fields --project KEY' to find the real field "
+            "ID for a given instance -- synced to all 5 non-micro packs "
+            "via sync-blocks.sh",
+            "sdd-micro intentionally excluded -- no Jira integration in "
+            "that pack, not part of the shared-block sync system",
+            "Docs-only change to an example/comment -- no manifest.yml "
+            "field changes, no CLI behavior change (custom_fields.epic_name "
+            "was already fully functional in jira.py; it was only "
+            "undiscoverable)",
+            "This Node CLI ships from the same pack sources -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 1157/1157 (no test changes -- "
+            "docs-only); ruff check/format clean; "
+            "check-cross-references.py clean across 6 packs; "
+            "test-setup.sh 19/19",
+        ],
+    },
 ]
 
 

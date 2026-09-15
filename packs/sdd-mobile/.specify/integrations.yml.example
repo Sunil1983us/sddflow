@@ -186,6 +186,15 @@ jira:
   #   Jira Server / DC:             customfield_10002 (varies by config)
   custom_fields:
     story_points: customfield_10016
+    #
+    # Epic Name — REQUIRED on classic/company-managed Jira projects for
+    # any Epic-type issue (including Epic subtypes like a SAFe "Enabler"
+    # or "Feature" issue type in Advanced Roadmaps/Portfolio orgs).
+    # Without this set, Jira rejects Epic creation with HTTP 400
+    # ("Epic Name is required") the moment /specify or `sdd jira push
+    # --level epic` tries to bootstrap the issue — team-managed projects
+    # don't need it, so this only bites classic-project setups.
+    # epic_name: customfield_10011
     # acceptance_criteria: customfield_10021
     # team:                customfield_10100   # pairs with base_fields.team above
     # sprint:              customfield_10020

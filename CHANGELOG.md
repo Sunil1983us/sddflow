@@ -4,6 +4,38 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.7.7] — 2026-09-15 (Docs: undiscoverable epic_name custom field caused a real Jira HTTP 400)
+
+A user's Jira Epic bootstrap (during `/specify`) failed with HTTP 400
+creating the issue, on a project using a SAFe "Enabler" issue type — an
+Epic subtype common on Advanced Roadmaps/Portfolio-for-Jira orgs. Classic/
+company-managed Jira projects require the special "Epic Name" field on
+any Epic-type issue (team-managed projects don't). `jira.py`'s
+`feature_extra_fields()` already supports setting it via
+`custom_fields.epic_name` — but the shipped `integrations.yml.example`
+never showed that key at all, not even as a commented-out example line,
+despite all 5 packs' `HOW-TO-USE.md` field-mapping table already listing
+`epic_name` as a supported `custom_fields` entry.
+
+### Added
+
+- A commented `# epic_name: customfield_10011` line under
+  `jira.custom_fields` in `integrations.yml.example` (all 5 non-micro
+  packs), explaining exactly when it's required and pointing at `sdd
+  config fields --project KEY` to find the real field ID for a given
+  Jira instance.
+
+### Verified
+
+- Docs-only change to an example/comment — no manifest schema or CLI
+  behavior change (`custom_fields.epic_name` was already fully functional
+  in `jira.py`; it was only undiscoverable).
+- cli-python pytest 1157/1157 (no test changes); ruff check/format clean;
+  `check-cross-references.py` clean across 6 packs; `test-setup.sh`
+  19/19; `check-migration-parity.py` clean (173 entries).
+
+---
+
 ## [3.7.6] — 2026-09-15 (Fix: the same pre-3.7.1 encoding crash in integrations.yml and ~/.sdd/config.yml)
 
 Reported live, right after v3.7.5 shipped: "getting same error for all
