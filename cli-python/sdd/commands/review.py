@@ -1096,9 +1096,16 @@ def review_submit(doc, profile, feature):
     # Fixed team stamp (base_fields.team), same as every other issue type
     # -- no other custom_fields entries apply here (story_points/
     # acceptance_criteria/etc. have no meaning on a review ticket).
-    from sdd.commands.jira import _apply_team_field
+    from sdd.commands.jira import _apply_team_field, adf_to_wiki_markup
 
     _apply_team_field(fields, cfg.jira, "review")
+    # ADF is Cloud-only -- Server/DC's description field is a plain
+    # string and rejects the ADF object outright (see adf_to_wiki_markup's
+    # docstring). This review-ticket bootstrap builds its own description
+    # directly rather than going through _upsert_issue(), so it needs the
+    # same conversion applied here.
+    if jira_client.deployment == "server":
+        fields["description"] = adf_to_wiki_markup(fields["description"])
 
     if existing:
         # If this ticket started life as an `sdd review push-questions`
@@ -1297,9 +1304,12 @@ def review_push_questions(doc, profile, feature):
     }
     if doc_cfg.reviewer_jira_user:
         fields["assignee"] = {"accountId": doc_cfg.reviewer_jira_user}
-    from sdd.commands.jira import _apply_team_field
+    from sdd.commands.jira import _apply_team_field, adf_to_wiki_markup
 
     _apply_team_field(fields, cfg.jira, "review")
+    # ADF is Cloud-only -- see adf_to_wiki_markup's docstring.
+    if jira_client.deployment == "server":
+        fields["description"] = adf_to_wiki_markup(fields["description"])
 
     if existing:
         jira_client.update_issue(existing["key"], fields)

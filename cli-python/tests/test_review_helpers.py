@@ -423,6 +423,7 @@ class FakeJiraClient:
     no real HTTP. Mirrors the fake used in test_jira_push_content.py."""
 
     def __init__(self):
+        self.deployment = "cloud"
         self.by_label: dict[str, dict] = {}
         self.created: list[dict] = []
         self.updated: list[tuple[str, dict]] = []

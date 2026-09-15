@@ -291,6 +291,18 @@ class TestAddComment:
         result = client.add_comment("PROJ-1", "hello")
         assert result == {"id": "1", "body": "hello"}
 
+    def test_server_deployment_sends_plain_string_body_not_adf(self):
+        """Regression: ADF is Cloud-only -- Server/Data Center has no ADF
+        support at all and rejects the same envelope as a field-type
+        mismatch. Every comment this CLI posted against a Server/DC
+        instance (review status updates, PR-created notifications) was
+        broken until this was caught."""
+        client, session = _client_with_mock_session({"id": "1"})
+        client.deployment = "server"
+        client.add_comment("PROJ-1", "hello world")
+        body = session.post.call_args.kwargs["json"]
+        assert body == {"body": "hello world"}
+
 
 def _client_with_mock_get(json_body: dict) -> tuple[JiraClient, MagicMock]:
     session = MagicMock()

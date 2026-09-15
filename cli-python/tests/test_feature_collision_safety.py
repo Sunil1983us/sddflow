@@ -281,6 +281,7 @@ class FakeJiraClient:
     test_review_helpers.py / test_jira_push_levels.py."""
 
     def __init__(self, session=None, base_url=None):
+        self.deployment = "cloud"
         self.by_label: dict[str, dict] = {}
         self.created: list[dict] = []
         self._next_id = 1

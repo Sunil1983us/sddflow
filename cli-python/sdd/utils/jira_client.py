@@ -23,6 +23,7 @@ class JiraClient:
     ):
         self._s = session
         self._base = base_url.rstrip("/")
+        self.deployment = deployment
         self._api_version = "2" if deployment == "server" else "3"
 
     def _api(self, path: str) -> str:
@@ -161,19 +162,30 @@ class JiraClient:
         return True
 
     def add_comment(self, issue_key: str, text: str) -> dict:
-        """Add a plain-text comment. Uses ADF format for Cloud/Server compatibility."""
-        payload = {
-            "body": {
-                "type": "doc",
-                "version": 1,
-                "content": [
-                    {
-                        "type": "paragraph",
-                        "content": [{"type": "text", "text": text}],
-                    }
-                ],
+        """Add a plain-text comment. Cloud (v3) requires the comment body
+        in Atlassian Document Format (ADF); Server/Data Center (v2) has
+        no ADF support at all and expects `body` as a plain string --
+        sending the ADF wrapper there is a field-type mismatch Jira
+        rejects outright (this method's own prior docstring claimed ADF
+        was fine "for Cloud/Server compatibility", which was simply
+        wrong and shipped as a real bug: every comment this CLI tried to
+        post against a Server/DC instance -- review status updates, PR-
+        created notifications -- failed)."""
+        if self.deployment == "server":
+            payload: dict = {"body": text}
+        else:
+            payload = {
+                "body": {
+                    "type": "doc",
+                    "version": 1,
+                    "content": [
+                        {
+                            "type": "paragraph",
+                            "content": [{"type": "text", "text": text}],
+                        }
+                    ],
+                }
             }
-        }
         r = self._s.post(self._api(f"/issue/{issue_key}/comment"), json=payload)
         raise_for_status_with_body(r)
         return r.json()

@@ -98,6 +98,43 @@ def adf_sections(*sections: tuple[str, str | list[str]]) -> dict:
     return {"type": "doc", "version": 1, "content": content or [_adf_paragraph(" ")]}
 
 
+def adf_to_wiki_markup(doc: dict) -> str:
+    """Render an ADF document (as built by adf_doc()/adf_sections() above)
+    as Jira wiki markup -- the plain-string format Jira Server/Data
+    Center's REST API v2 expects for description/comment-body fields.
+
+    ADF (Atlassian Document Format) is Cloud-only (API v3, and the Cloud
+    editor experience it's tied to); Server/DC has no ADF support at all
+    -- sending the same JSON object as a v2 description is a field-type
+    mismatch Jira rejects outright (its `description` field there is
+    typed as a plain string). Reported live: a user's Jira Epic bootstrap
+    kept failing HTTP 400 against a Server/DC instance; this -- not just
+    the also-real missing custom_fields.epic_name gap -- is the more
+    fundamental reason every Epic/Story/Task/CHG push with a description
+    was broken for every Server/DC user, not just this one field.
+
+    Only handles the node types adf_doc()/adf_sections() actually
+    produce (doc, paragraph, heading, bulletList, listItem, text) -- this
+    is not a general-purpose ADF renderer."""
+    lines: list[str] = []
+    for node in doc.get("content", []):
+        node_type = node.get("type")
+        if node_type == "heading":
+            level = node.get("attrs", {}).get("level", 3)
+            text = "".join(c.get("text", "") for c in node.get("content", []))
+            lines.append(f"h{level}. {text}")
+        elif node_type == "paragraph":
+            text = "".join(c.get("text", "") for c in node.get("content", []))
+            lines.append(text)
+        elif node_type == "bulletList":
+            for item in node.get("content", []):
+                for para in item.get("content", []):
+                    text = "".join(c.get("text", "") for c in para.get("content", []))
+                    lines.append(f"* {text}")
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
 def _extract_heading_section(text: str, heading_re: re.Pattern) -> str:
     """Plain-paragraph content directly under a markdown heading line
     (any '#' level), ending at the next heading of any level. Returns ""
@@ -864,6 +901,9 @@ def _upsert_issue(
         "labels": labels,
         **extra,
     }
+    description = fields.get("description")
+    if client.deployment == "server" and isinstance(description, dict):
+        fields["description"] = adf_to_wiki_markup(description)
     if existing:
         key = existing["key"]
         client.update_issue(key, fields)

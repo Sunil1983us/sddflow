@@ -8039,6 +8039,57 @@ MIGRATIONS: list[Migration] = [
             "optional mmdr import)",
         ],
     },
+    {
+        "from": "3.7.8",
+        "to": "3.7.9",
+        "description": "Fix: every Jira Epic/Story/Task/CHG push (and every comment) with a description sent Cloud-only ADF to Server/Data Center, which rejects it outright -- the real, more fundamental cause behind a user's persistent Jira HTTP 400",
+        "notes": [
+            "The response-body visibility added in 3.7.8 was step one of "
+            "actually diagnosing the user's recurring 'HTTP 400' report "
+            "-- this is what that visibility was for: confirming ADF "
+            "(Atlassian Document Format) is Cloud-only. Server/Data "
+            "Center's REST API v2 has no ADF support at all and expects "
+            "description/comment-body fields as a plain string (Jira "
+            "wiki markup) -- every single Epic/Story/Task/CHG push that "
+            "set a description, and every comment this CLI ever posted, "
+            "was broken for every Server/DC user, not just the specific "
+            "Epic bootstrap that got reported. This is the more "
+            "fundamental bug behind the user's failure -- the also-real "
+            "missing custom_fields.epic_name gap (v3.7.7) may still "
+            "matter separately once this is fixed",
+            "Added commands/jira.py: adf_to_wiki_markup() -- renders the "
+            "minimal ADF subset adf_doc()/adf_sections() actually produce "
+            "(doc/paragraph/heading/bulletList/listItem/text) as Jira "
+            "wiki markup (h3. headings, * bullets). _upsert_issue() -- "
+            "the single choke point every Epic/Story/Task/CHG push "
+            "already funnels through -- now converts fields['description'] "
+            "through it whenever client.deployment == 'server'",
+            "Two more hardcoded ADF description sites in review.py (the "
+            "review-ticket Epic bootstrap and the push-questions ticket) "
+            "don't route through _upsert_issue() and needed the same "
+            "conversion applied directly",
+            "jira_client.py's add_comment() had the identical bug, in "
+            "its own words: a docstring literally claiming ADF was fine "
+            "'for Cloud/Server compatibility', which was simply wrong. "
+            "Now sends {'body': text} for Server/DC, the ADF wrapper "
+            "only for Cloud. JiraClient gained a public .deployment "
+            "attribute (previously only the derived _api_version was "
+            "stored) so both this and commands/jira.py's check can read "
+            "it",
+            "This Node CLI has no Jira integration of its own "
+            "(scaffolding-only by design) and is unaffected by this fix "
+            "beyond the version stamp -- this migration entry exists so "
+            "both CLIs report the same sdd_version chain",
+            "Verified: cli-python pytest 1170/1170 (1163 unchanged + 7 "
+            "new -- confirmed all new tests fail against the pre-fix "
+            "code with the exact ADF-object-instead-of-string mismatch, "
+            "and pass against the fix; also fixed 5 FakeJiraClient test "
+            "doubles across other test files that didn't model the new "
+            ".deployment attribute); ruff check/format clean; mypy clean "
+            "(39 source files, 1 pre-existing unrelated error); bandit "
+            "clean (no new findings)",
+        ],
+    },
 ]
 
 

@@ -4,6 +4,49 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.7.9] — 2026-09-15 (Fix: Jira Server/Data Center rejected every description as Cloud-only ADF)
+
+The response-body visibility added in v3.7.8 was step one of actually
+diagnosing a user's recurring "HTTP 400" report — and it worked: the real
+reason turned out to be that ADF (Atlassian Document Format) is
+Cloud-only. Jira Server/Data Center's REST API v2 has no ADF support at
+all and expects `description`/comment-body fields as a plain string
+(Jira wiki markup). Every single Epic/Story/Task/CHG push that set a
+description, and every comment this CLI ever posted, was broken for
+every Server/DC user — not just the specific Epic bootstrap that got
+reported. This is the more fundamental bug behind the failure; the
+also-real missing `custom_fields.epic_name` gap (v3.7.7) may still matter
+separately once this is fixed.
+
+### Fixed
+
+- Added `adf_to_wiki_markup()` to `commands/jira.py`, rendering the
+  minimal ADF subset this codebase produces as Jira wiki markup.
+  `_upsert_issue()` — the single choke point every Epic/Story/Task/CHG
+  push already funnels through — now converts the description through it
+  whenever `client.deployment == "server"`.
+- Two more hardcoded ADF description sites in `review.py` (the
+  review-ticket Epic bootstrap and the push-questions ticket) needed the
+  same conversion applied directly.
+- `jira_client.py`'s `add_comment()` had the identical bug — its own
+  docstring literally (and wrongly) claimed ADF was fine "for
+  Cloud/Server compatibility." Now sends a plain string body for
+  Server/DC, the ADF wrapper only for Cloud.
+- `JiraClient` gained a public `.deployment` attribute so both fixes
+  above can read it.
+
+### Verified
+
+- cli-python pytest 1170/1170 (1163 unchanged + 7 new — confirmed all new
+  tests fail against the pre-fix code with the exact
+  ADF-object-instead-of-string mismatch, and pass against the fix; also
+  fixed 5 `FakeJiraClient` test doubles elsewhere that didn't model the
+  new `.deployment` attribute).
+- ruff check/format clean; mypy clean; bandit clean (no new findings);
+  `check-migration-parity.py` clean (175 entries).
+
+---
+
 ## [3.7.8] — 2026-09-15 (Fix: Jira/Confluence errors never showed the API's actual response body)
 
 Across three separate reports, a user's Jira Epic bootstrap kept failing

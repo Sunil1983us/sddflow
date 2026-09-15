@@ -28,6 +28,7 @@ class FakeJiraClient:
     to the other test module."""
 
     def __init__(self):
+        self.deployment = "cloud"
         self.by_label: dict[str, dict] = {}
         self.created: list[dict] = []
         self.updated: list[tuple[str, dict]] = []
@@ -221,6 +222,43 @@ class TestLevelScopedPush:
         )
         _push(client, "feat", tmp_path, [story], [task], _cfg(), level="all")
         assert len(client.created) == 3  # Feature + Story + Task
+
+
+class TestServerDeploymentDescriptionFormat:
+    """Regression: ADF (Atlassian Document Format) is Cloud-only -- Jira
+    Server/Data Center's REST API v2 has no ADF support and rejects the
+    same JSON object as a plain-string description field outright (HTTP
+    400). Reported live: a user's Jira Epic bootstrap against a Server/DC
+    instance kept failing 'HTTP 400' -- this, not just the also-real
+    missing custom_fields.epic_name gap, is why every Epic/Story push
+    with a description was broken for every Server/DC user."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_cwd(self, tmp_path, monkeypatch):
+        # Same reason as TestLevelScopedPush above -- _push() writes a
+        # best-effort docs/jira/{feature}/keys.yml summary relative to
+        # cwd; without this it lands in the real repo tree.
+        monkeypatch.chdir(tmp_path)
+
+    def test_server_deployment_sends_plain_string_description(self, tmp_path):
+        client = FakeJiraClient()
+        client.deployment = "server"
+        story = _story()
+        _push(client, "feat", tmp_path, [story], [], _cfg(), level="epic")
+        description = client.created[0]["description"]
+        assert isinstance(description, str)
+        assert (
+            "Details pending" in description
+        )  # placeholder text, plain -- no ADF wrapper
+
+    def test_cloud_deployment_keeps_adf_description(self, tmp_path):
+        """Regression safety: the default (Cloud) path must be unchanged."""
+        client = FakeJiraClient()
+        story = _story()
+        _push(client, "feat", tmp_path, [story], [], _cfg(), level="epic")
+        description = client.created[0]["description"]
+        assert isinstance(description, dict)
+        assert description["type"] == "doc"
 
 
 class RecordingFakeJiraClient(FakeJiraClient):

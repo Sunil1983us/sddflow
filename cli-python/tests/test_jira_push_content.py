@@ -12,6 +12,7 @@ from sdd.commands.jira import (
     _upsert_issue,
     adf_doc,
     adf_sections,
+    adf_to_wiki_markup,
     brd_confluence_link,
     feature_extra_fields,
     parse_brd_business_hypothesis,
@@ -80,6 +81,35 @@ class TestAdfSections:
         assert doc["content"] == [
             {"type": "paragraph", "content": [{"type": "text", "text": " "}]}
         ]
+
+
+class TestAdfToWikiMarkup:
+    """Regression: ADF is Cloud-only -- Jira Server/Data Center's REST
+    API v2 expects description/comment-body fields as a plain string
+    (Jira wiki markup), and rejects the ADF JSON object outright as a
+    field-type mismatch. Reported live: a Server/DC user's Jira Epic
+    bootstrap kept failing HTTP 400."""
+
+    def test_paragraph_renders_as_plain_text(self):
+        doc = adf_doc("Just a line.")
+        assert adf_to_wiki_markup(doc) == "Just a line."
+
+    def test_heading_renders_with_wiki_markup_level_prefix(self):
+        doc = adf_sections(("Problem Statement", "Users churn."))
+        text = adf_to_wiki_markup(doc)
+        assert "h3. Problem Statement" in text
+        assert "Users churn." in text
+
+    def test_bullet_list_renders_with_asterisk_items(self):
+        doc = adf_sections(("Out of Scope", ["A", "B"]))
+        text = adf_to_wiki_markup(doc)
+        assert "* A" in text
+        assert "* B" in text
+
+    def test_multiple_sections_all_present_and_ordered(self):
+        doc = adf_sections(("First", "one"), ("Second", "two"))
+        text = adf_to_wiki_markup(doc)
+        assert text.index("h3. First") < text.index("h3. Second") < text.index("two")
 
 
 # ── brd.md / srd.md section parsers ─────────────────────────────────────────
@@ -390,6 +420,7 @@ class FakeJiraClient:
     parent link set, so tests can assert on them directly."""
 
     def __init__(self):
+        self.deployment = "cloud"
         self.by_label: dict[str, dict] = {}
         self.created: list[dict] = []
         self.updated: list[tuple[str, dict]] = []
