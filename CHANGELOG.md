@@ -4,6 +4,42 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.7.8] — 2026-09-15 (Fix: Jira/Confluence errors never showed the API's actual response body)
+
+Across three separate reports, a user's Jira Epic bootstrap kept failing
+"HTTP 400" and neither the user nor the AI agent driving the CLI on their
+behalf could say more than the status code — because nothing in this
+codebase ever looked at the response body. `requests.HTTPError`'s default
+`str()` is just `"400 Client Error: Bad Request for url: ..."`; Jira and
+Confluence both put the actual reason in the body (Jira's `errors`/
+`errorMessages` JSON — in this case, a required custom field), which
+every `raise_for_status()` call in `jira_client.py` (11 call sites) and
+`confluence_client.py` (9 call sites) silently discarded.
+
+### Fixed
+
+- Added `sdd/utils/http_errors.py`: `raise_for_status_with_body()`, a
+  shared drop-in replacement for `r.raise_for_status()` that folds
+  `r.text` into the raised exception's message while preserving
+  `.response`, so callers that branch on status code (e.g.
+  `ConfluenceClient.upsert_page()`'s 409-conflict retry) keep working
+  unchanged. Applied to all 20 call sites across both clients.
+- `commands/jira.py`'s `jira_push()` now also catches `requests.
+  HTTPError` around the push, printing the now-informative message and
+  exiting cleanly instead of falling through to a raw Python traceback.
+
+### Verified
+
+- cli-python pytest 1163/1163 (1157 unchanged + 6 new — a dedicated unit
+  test suite for the helper, plus an end-to-end test per client
+  confirming `create_issue()`/`create_page()` now surface the actual
+  rejection reason).
+- ruff check/format clean; mypy clean (39 source files, 1 pre-existing
+  unrelated error: optional `mmdr` import); `check-migration-parity.py`
+  clean (174 entries).
+
+---
+
 ## [3.7.7] — 2026-09-15 (Docs: undiscoverable epic_name custom field caused a real Jira HTTP 400)
 
 A user's Jira Epic bootstrap (during `/specify`) failed with HTTP 400

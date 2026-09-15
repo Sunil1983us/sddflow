@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import requests
 
+from sdd.utils.http_errors import raise_for_status_with_body
+
 
 class JiraClient:
     """Thin wrapper around Jira REST API v3 (Cloud) / v2 (Server/DC).
@@ -28,12 +30,12 @@ class JiraClient:
 
     def get_myself(self) -> dict:
         r = self._s.get(self._api("/myself"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def get_fields(self) -> list[dict]:
         r = self._s.get(self._api("/field"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def search(
@@ -57,7 +59,7 @@ class JiraClient:
             payload["fields"] = fields
         path = "/search/jql" if self._api_version == "3" else "/search"
         r = self._s.post(self._api(path), json=payload)
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json().get("issues", [])
 
     def find_by_label(self, project_key: str, label: str) -> dict | None:
@@ -71,7 +73,7 @@ class JiraClient:
 
     def create_issue(self, fields: dict) -> dict:
         r = self._s.post(self._api("/issue"), json={"fields": fields})
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def update_issue(self, issue_key: str, fields: dict) -> None:
@@ -79,7 +81,7 @@ class JiraClient:
             self._api(f"/issue/{issue_key}"),
             json={"fields": fields},
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
 
     def set_parent(
         self, child_key: str, parent_key: str, parent_field: str = "parent"
@@ -107,16 +109,16 @@ class JiraClient:
                 "outwardIssue": {"key": to_key},
             },
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
 
     def get_issue_types(self, project_key: str) -> list[dict]:
         r = self._s.get(self._api(f"/project/{project_key}/statuses"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def get_comments(self, issue_key: str) -> list[dict]:
         r = self._s.get(self._api(f"/issue/{issue_key}/comment"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json().get("comments", [])
 
     def get_transitions(self, issue_key: str) -> list[dict]:
@@ -124,7 +126,7 @@ class JiraClient:
         its current workflow state. Each entry has at least 'id' and
         'to': {'name': ...}."""
         r = self._s.get(self._api(f"/issue/{issue_key}/transitions"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json().get("transitions", [])
 
     def transition_issue(self, issue_key: str, target_status_name: str) -> bool:
@@ -155,7 +157,7 @@ class JiraClient:
             self._api(f"/issue/{issue_key}/transitions"),
             json={"transition": {"id": match["id"]}},
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return True
 
     def add_comment(self, issue_key: str, text: str) -> dict:
@@ -173,5 +175,5 @@ class JiraClient:
             }
         }
         r = self._s.post(self._api(f"/issue/{issue_key}/comment"), json=payload)
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()

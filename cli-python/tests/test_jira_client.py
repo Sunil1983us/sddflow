@@ -6,6 +6,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+import requests
+
 from sdd.utils.jira_client import JiraClient
 
 
@@ -189,6 +192,25 @@ class TestCreateIssue:
         client, _ = _client_with_mock_session({"key": "PROJ-1", "id": "10001"})
         result = client.create_issue({"summary": "Title"})
         assert result == {"key": "PROJ-1", "id": "10001"}
+
+    def test_400_error_surfaces_jira_validation_body(self):
+        """Regression: reported live as a user's Jira Epic bootstrap
+        failing 'HTTP 400' with no further detail visible anywhere --
+        create_issue() must let the actual validation reason (e.g. a
+        required custom field) reach the caller, not just the status
+        code."""
+        client, session = _client_with_mock_session({})
+        response = session.post.return_value
+        response.text = (
+            '{"errorMessages":[],"errors":'
+            '{"customfield_10011":"Epic Name is required."}}'
+        )
+        response.raise_for_status.side_effect = requests.HTTPError(
+            "400 Client Error", response=response
+        )
+        with pytest.raises(requests.HTTPError) as excinfo:
+            client.create_issue({"summary": "Title"})
+        assert "Epic Name is required" in str(excinfo.value)
 
 
 def _client_with_mock_put(

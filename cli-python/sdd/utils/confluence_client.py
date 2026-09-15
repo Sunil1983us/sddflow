@@ -5,6 +5,8 @@ import re
 
 import requests
 
+from sdd.utils.http_errors import raise_for_status_with_body
+
 
 def _strip_html(text: str) -> str:
     """Remove HTML tags and unescape entities (for comment bodies)."""
@@ -36,7 +38,7 @@ class ConfluenceClient:
 
     def get_myself(self) -> dict:
         r = self._s.get(self._api("/user/current"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def get_page_by_title(self, space_key: str, title: str) -> dict | None:
@@ -49,7 +51,7 @@ class ConfluenceClient:
                 "expand": "version",
             },
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         results = r.json().get("results", [])
         return results[0] if results else None
 
@@ -70,7 +72,7 @@ class ConfluenceClient:
         if parent_id:
             payload["ancestors"] = [{"id": parent_id}]
         r = self._s.post(self._api("/content"), json=payload)
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def update_page(
@@ -94,7 +96,7 @@ class ConfluenceClient:
             params={"expand": "_links"},
             json=payload,
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def get_attachment_by_filename(self, page_id: str, filename: str) -> dict | None:
@@ -106,7 +108,7 @@ class ConfluenceClient:
             self._api(f"/content/{page_id}/child/attachment"),
             params={"filename": filename},
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         results = r.json().get("results", [])
         return results[0] if results else None
 
@@ -162,7 +164,7 @@ class ConfluenceClient:
                 headers={"X-Atlassian-Token": "nocheck", "Content-Type": None},
                 files={"file": (filename, content, media_type)},
             )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def get_page_with_body(self, page_id: str) -> dict:
@@ -171,7 +173,7 @@ class ConfluenceClient:
             self._api(f"/content/{page_id}"),
             params={"expand": "body.storage,version,_links"},
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def get_page_comments(self, page_id: str) -> list[dict]:
@@ -184,7 +186,7 @@ class ConfluenceClient:
             self._api(f"/content/{page_id}/child/comment"),
             params={"expand": "body.view,version,ancestors", "limit": "100"},
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         results = r.json().get("results", [])
         comments = []
         for c in results:
@@ -215,7 +217,7 @@ class ConfluenceClient:
         )
         if r.status_code == 400:
             return []
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         results = r.json().get("results", [])
         comments = []
         for c in results:

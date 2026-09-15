@@ -5582,6 +5582,49 @@ export const MIGRATIONS = [
       'clean across 6 packs; test-setup.sh 19/19',
     ],
   },
+  {
+    from: '3.7.7',
+    to:   '3.7.8',
+    description: "Fix: Jira/Confluence 400s (and every other error status) never showed the API's actual response body -- only a bare status code, with no way to see WHY a request was rejected",
+    notes: [
+      'Reported live: across three separate reports, a user\'s Jira ' +
+      'Epic bootstrap kept failing \'HTTP 400\' and neither the user ' +
+      'nor the AI agent driving the CLI on their behalf could say more ' +
+      'than the status code -- because nothing in this codebase ever ' +
+      'looked at the response body. requests.HTTPError\'s default ' +
+      'str() is just \'400 Client Error: Bad Request for url: ...\'; ' +
+      'Jira/Confluence both put the actual reason (e.g. Jira\'s errors/' +
+      'errorMessages JSON -- in this case, a required custom field) in ' +
+      'the body, which every single raise_for_status() call in ' +
+      'jira_client.py (11 call sites) and confluence_client.py (9 call ' +
+      'sites) silently discarded',
+      'Added sdd/utils/http_errors.py: raise_for_status_with_body(), a ' +
+      'shared drop-in replacement for r.raise_for_status() that folds ' +
+      'r.text into the raised exception\'s message while preserving ' +
+      '.response (chained via `from e`) so callers that branch on ' +
+      'status code -- e.g. ConfluenceClient.upsert_page()\'s 409-' +
+      'conflict retry -- keep working unchanged (verified: all pre-' +
+      'existing tests pass with zero changes). Applied to all 20 call ' +
+      'sites across both clients',
+      'commands/jira.py\'s jira_push() now also catches requests.' +
+      'HTTPError (alongside the existing JiraConfigError) around the ' +
+      'actual push, printing the now-informative message and exiting ' +
+      'cleanly instead of letting it fall through to a raw Python ' +
+      'traceback -- which is what the user was actually seeing (their ' +
+      'AI agent\'s own paraphrase of that traceback\'s last line was ' +
+      'the only detail that ever reached them)',
+      'This Node CLI has no Jira/Confluence integration of its own ' +
+      '(scaffolding-only by design) and is unaffected by this fix ' +
+      'beyond the version stamp -- this migration entry exists so both ' +
+      'CLIs report the same sdd_version chain',
+      'Verified: cli-python pytest 1163/1163 (1157 unchanged + 6 new ' +
+      '-- a dedicated test_http_errors.py unit-testing the helper ' +
+      'directly, plus one real end-to-end test per client confirming ' +
+      'create_issue()/create_page() now surface the actual rejection ' +
+      'reason); ruff check/format clean; mypy clean (39 source files, ' +
+      '1 pre-existing unrelated error: optional mmdr import)',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

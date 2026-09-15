@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 import click
+import requests
 import yaml
 from rich.console import Console
 
@@ -727,7 +728,12 @@ def jira_push(profile, feature, level, cr, dry_run):
             cr=cr,
             confluence_base_url=_resolve_confluence_base_url(cfg),
         )
-    except JiraConfigError as e:
+    except (JiraConfigError, requests.HTTPError) as e:
+        # requests.HTTPError's message now includes Jira's actual response
+        # body (see raise_for_status_with_body()) -- printing it here
+        # instead of letting it propagate is what actually gets that body
+        # in front of the user/agent, rather than buried in a raw
+        # traceback's last line.
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
