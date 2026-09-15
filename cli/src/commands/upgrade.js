@@ -5463,6 +5463,46 @@ export const MIGRATIONS = [
       'fix); ruff check/format clean',
     ],
   },
+  {
+    from: '3.7.4',
+    to:   '3.7.5',
+    description: "Fix: sdd upgrade (and every command) crashed with UnicodeDecodeError reading a manifest.yml written by an sdd version older than 3.7.1 on a non-UTF-8 Windows locale",
+    notes: [
+      'Reported live: a Windows user\'s \'sdd upgrade\' crashed with ' +
+      '"UnicodeDecodeError: \'utf-8\' codec can\'t decode byte 0x97 in ' +
+      'position 15: invalid start byte" inside read_manifest(). Root ' +
+      'cause: before v3.7.1, write_manifest()/atomic_write_text() had ' +
+      'no explicit encoding=, so on a non-UTF-8 system locale (cp1252 ' +
+      'is the default on most Windows installs) any non-ASCII ' +
+      'character -- including this file\'s own header em-dash -- got ' +
+      'written as cp1252\'s single byte (0x97) instead of UTF-8\'s ' +
+      'three bytes (E2 80 94). v3.7.1 made read_manifest() strictly ' +
+      'require UTF-8, which is correct for files written by 3.7.1+, ' +
+      'but any manifest.yml written before that fix, on a cp1252-' +
+      'locale system, and never rewritten since, now fails to decode ' +
+      'at all -- a hard crash blocking every command, not just upgrade',
+      'read_manifest() now falls back to cp1252 on a UTF-8 decode ' +
+      'failure (cp1252 decodes every byte 0-255 except 5 undefined ' +
+      'code points, so it\'s a safe, near-total fallback and the ' +
+      'overwhelmingly likely culprit given our own write-side history) ' +
+      '-- and immediately rewrites the file as real UTF-8 via ' +
+      'write_manifest() so every other command reading the same file ' +
+      'self-heals too, not just this one call. If neither UTF-8 nor ' +
+      'cp1252 can decode it, raises ManifestError with a clear, ' +
+      'actionable message instead of a raw traceback -- same pattern ' +
+      'the existing corrupt-YAML branch already used, extended to ' +
+      'cover corrupt-encoding too',
+      'This Node CLI has no manifest.yml encoding logic of its own ' +
+      '(scaffolding-only by design, and its own write path already ' +
+      'defaults to UTF-8 in Node) and is unaffected by this fix beyond ' +
+      'the version stamp -- this migration entry exists so both CLIs ' +
+      'report the same sdd_version chain',
+      'Verified: cli-python pytest 1153/1153 (1151 unchanged + 2 new ' +
+      '-- confirmed both new tests fail against the pre-fix code, ' +
+      'reproducing the exact reported UnicodeDecodeError, and pass ' +
+      'against the fix); ruff check/format clean',
+    ],
+  },
 ];
 
 // Rare migrations that must transform manifest.yml beyond stamping

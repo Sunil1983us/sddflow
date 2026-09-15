@@ -4,6 +4,40 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.7.5] — 2026-09-15 (Fix: sdd upgrade crashed reading a pre-3.7.1 manifest.yml on Windows)
+
+A Windows user reported `sdd upgrade` crashing with `UnicodeDecodeError:
+'utf-8' codec can't decode byte 0x97 in position 15: invalid start byte`
+inside `read_manifest()`. Root cause: before v3.7.1,
+`write_manifest()`/`atomic_write_text()` had no explicit `encoding=`, so
+on a non-UTF-8 system locale (cp1252 is the default on most Windows
+installs) any non-ASCII character — including this file's own header
+em-dash — got written as cp1252's single byte (`0x97`) instead of UTF-8's
+three bytes (`E2 80 94`). v3.7.1 made `read_manifest()` strictly require
+UTF-8, which is correct for files written by 3.7.1+, but any
+`manifest.yml` written before that fix, on a cp1252-locale system, and
+never rewritten since, now fails to decode at all — a hard crash blocking
+every command, not just `upgrade`.
+
+### Fixed
+
+- `read_manifest()` now falls back to cp1252 on a UTF-8 decode failure,
+  and immediately rewrites the file as real UTF-8 so every other command
+  reading the same file self-heals too — this only needs to happen once
+  per file. If neither UTF-8 nor cp1252 can decode it, raises
+  `ManifestError` with a clear, actionable message instead of a raw
+  traceback, matching the existing corrupt-YAML error path.
+
+### Verified
+
+- cli-python pytest 1153/1153 (1151 unchanged + 2 new — confirmed both
+  new tests fail against the pre-fix code, reproducing the exact reported
+  `UnicodeDecodeError`, and pass against the fix).
+- ruff check/format clean; `check-migration-parity.py` clean (171
+  entries).
+
+---
+
 ## [3.7.4] — 2026-08-28 (Fix: sdd jira push 404'd against Jira Server/Data Center)
 
 A user reported `sdd jira push --level epic` failing with HTTP 404 while
