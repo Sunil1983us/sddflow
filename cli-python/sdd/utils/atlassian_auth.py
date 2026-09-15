@@ -11,6 +11,8 @@ import yaml
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from sdd.utils.atomic_write import atomic_write_text, read_text_resilient
+
 # Every Jira/Confluence API call in this codebase goes through a Session
 # built by build_session() below, so configuring resilience once here --
 # rather than passing timeout=/wrapping try/except at each of the ~25
@@ -103,7 +105,23 @@ def load_profile(name: str | None = None) -> Profile:
         raise FileNotFoundError(
             "~/.sdd/config.yml not found. Run 'sdd config init' to create it."
         )
-    data = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+    try:
+        text, repaired = read_text_resilient(CONFIG_PATH)
+    except UnicodeDecodeError as e:
+        raise ValueError(
+            f"{CONFIG_PATH} isn't valid UTF-8, and isn't valid "
+            f"Windows-1252 either: {e}\n"
+            "This usually means the file was written by an sdd version "
+            "older than 3.7.1 on a non-UTF-8 system locale (cp1252 is "
+            "the common Windows default). Fix it by hand, or delete it "
+            "and run 'sdd config init' again."
+        ) from e
+    data = yaml.safe_load(text) or {}
+    if repaired:
+        # Self-heal: rewrite this exact text, just properly UTF-8 encoded
+        # now, so every other command reading this file stops hitting the
+        # same crash too -- this only needs to happen once.
+        atomic_write_text(CONFIG_PATH, text)
     profiles = data.get("profiles", {})
 
     if name is None:

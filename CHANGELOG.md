@@ -4,6 +4,41 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.7.6] — 2026-09-15 (Fix: the same pre-3.7.1 encoding crash in integrations.yml and ~/.sdd/config.yml)
+
+Reported live, right after v3.7.5 shipped: "getting same error for all
+connectivity and others — sdd config test also not working." Same root
+cause as 3.7.5, two more files: `load_integrations()` (`.specify/
+integrations.yml`, read by every Jira/Confluence command including `sdd
+config test`) and `load_profile()` (`~/.sdd/config.yml`, the credential
+store every connectivity check reads) both had the identical gap — a
+strict `encoding="utf-8"` read with no fallback for a file written before
+v3.7.1 on a non-UTF-8 Windows locale.
+
+### Fixed
+
+- Extracted the cp1252-fallback logic from 3.7.5's `read_manifest()` into
+  a shared `read_text_resilient()` helper (`atomic_write.py`) and applied
+  it to `load_integrations()` and `load_profile()` as well — each raises
+  its own existing error type with the same clear, actionable message on
+  a genuine double-decode failure, and self-heals otherwise.
+- Also corrected `read_manifest()`'s own self-heal: it was re-serializing
+  the manifest via `yaml.dump()`, which would have silently discarded any
+  hand-added comments the first time a pre-3.7.1 manifest.yml was
+  repaired. All three self-heals now rewrite the exact original text —
+  just correctly UTF-8 encoded — preserving every comment byte-for-byte.
+
+### Verified
+
+- cli-python pytest 1157/1157 (1153 unchanged + 4 new — confirmed all 4
+  new tests fail against the pre-fix code, reproducing the same
+  `UnicodeDecodeError` class against `integrations.yml` and
+  `~/.sdd/config.yml`, and pass against the fix).
+- ruff check/format clean; `check-migration-parity.py` clean (172
+  entries).
+
+---
+
 ## [3.7.5] — 2026-09-15 (Fix: sdd upgrade crashed reading a pre-3.7.1 manifest.yml on Windows)
 
 A Windows user reported `sdd upgrade` crashing with `UnicodeDecodeError:

@@ -7910,6 +7910,51 @@ MIGRATIONS: list[Migration] = [
             "and pass against the fix); ruff check/format clean",
         ],
     },
+    {
+        "from": "3.7.5",
+        "to": "3.7.6",
+        "description": "Fix: same pre-3.7.1 encoding crash as 3.7.5, but in integrations.yml and ~/.sdd/config.yml -- 'sdd config test' and every Jira/Confluence command crashed the same way",
+        "notes": [
+            "Reported live, right after 3.7.5 shipped: 'getting same "
+            "error for all connectivity and others -- sdd config test "
+            "also not working'. load_integrations() (used by every Jira/"
+            "Confluence command, including 'sdd config test') and "
+            "load_profile() (~/.sdd/config.yml, the credential-store "
+            "loader every connectivity check reads) had the exact same "
+            "gap 3.7.5 just fixed in read_manifest(): a strict "
+            "encoding='utf-8' read with no fallback for a file written "
+            "before v3.7.1 on a non-UTF-8 Windows locale (cp1252)",
+            "Extracted the cp1252-fallback logic from 3.7.5's "
+            "read_manifest() into a shared read_text_resilient() helper "
+            "in atomic_write.py (next to atomic_write_text(), the write-"
+            "side counterpart) and applied it to load_integrations() "
+            "and load_profile() too -- each raises its own existing "
+            "error type (IntegrationsConfigError / ValueError) with the "
+            "same clear, actionable message on a genuine double-decode "
+            "failure, and self-heals by rewriting the file as UTF-8 "
+            "otherwise",
+            "Also corrected read_manifest()'s own self-heal in the same "
+            "pass: it was re-serializing the manifest via write_manifest()/ "
+            "yaml.dump(), which would have silently discarded any "
+            "hand-added comments the very first time a pre-3.7.1 "
+            "manifest.yml was repaired. All three self-heals now "
+            "rewrite the exact original text (just correctly UTF-8 "
+            "encoded), preserving every comment and formatting choice "
+            "byte-for-byte -- this was a latent risk in 3.7.5, not yet "
+            "reported, caught while building the same fix for the other "
+            "two files",
+            "This Node CLI has no integrations.yml/config.yml encoding "
+            "logic of its own (scaffolding-only by design) and is "
+            "unaffected by this fix beyond the version stamp -- this "
+            "migration entry exists so both CLIs report the same "
+            "sdd_version chain",
+            "Verified: cli-python pytest 1157/1157 (1153 unchanged + 4 "
+            "new -- confirmed all 4 new tests fail against the pre-fix "
+            "code, reproducing the same UnicodeDecodeError class against "
+            "integrations.yml and ~/.sdd/config.yml, and pass against "
+            "the fix); ruff check/format clean",
+        ],
+    },
 ]
 
 

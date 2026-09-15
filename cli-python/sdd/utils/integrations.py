@@ -6,6 +6,8 @@ from pathlib import Path
 
 import yaml
 
+from sdd.utils.atomic_write import atomic_write_text, read_text_resilient
+
 INTEGRATIONS_PATH = ".specify/integrations.yml"
 
 
@@ -481,15 +483,34 @@ def load_integrations(path: str = INTEGRATIONS_PATH) -> IntegrationsConfig:
             ".specify/integrations.yml.example to .specify/integrations.yml"
         )
     try:
+        text, repaired = read_text_resilient(p)
+    except UnicodeDecodeError as e:
+        raise IntegrationsConfigError(
+            f"{path} isn't valid UTF-8, and isn't valid Windows-1252 "
+            f"either: {e}\n"
+            "This usually means the file was written by an sdd version "
+            "older than 3.7.1 on a non-UTF-8 system locale (cp1252 is "
+            "the common Windows default). Fix it by hand or restore it "
+            "from git history."
+        ) from e
+    try:
         # bandit's B506 pattern-matches the literal `Loader=` argument and
         # doesn't resolve subclasses -- _DuplicateKeyLoader IS a
         # yaml.SafeLoader subclass (see its definition above), just with an
         # extra duplicate-key check on top; no unsafe tag handlers are
         # added. Equivalent to yaml.safe_load() for anything this constructor
         # can actually parse.
-        raw = yaml.load(p.read_text(encoding="utf-8"), Loader=_DuplicateKeyLoader) or {}  # nosec B506
+        raw = yaml.load(text, Loader=_DuplicateKeyLoader) or {}  # nosec B506
     except yaml.YAMLError as e:
         raise IntegrationsConfigError(str(e)) from None
+    if repaired:
+        # Self-heal: rewrite this exact text, just properly UTF-8 encoded
+        # now, so every other command reading this file (jira.py,
+        # confluence.py, sdd config test, ...) stops hitting the same
+        # crash too -- this only needs to happen once. Writing back the
+        # original text preserves every hand-written comment byte-for-byte
+        # instead of re-serializing the parsed structure.
+        atomic_write_text(path, text)
 
     jira: JiraConfig | None = None
     jira_raw = raw.get("jira")

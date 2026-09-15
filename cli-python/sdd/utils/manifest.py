@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 
 from sdd import __version__ as SDD_VERSION
-from sdd.utils.atomic_write import atomic_write_text
+from sdd.utils.atomic_write import atomic_write_text, read_text_resilient
 
 MANIFEST_PATH = ".specify/manifest.yml"
 # SDD_VERSION is the single source of truth for "what version is this" —
@@ -34,35 +34,17 @@ def read_manifest(path: str = MANIFEST_PATH) -> dict | None:
     p = Path(path)
     if not p.exists():
         return None
-    raw = p.read_bytes()
-    repaired = False
     try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        # Written by an sdd version older than 3.7.1: before that fix,
-        # atomic_write_text()/write_manifest() had no explicit encoding=,
-        # so Path.write_text()/os.fdopen() fell back to
-        # locale.getpreferredencoding() -- cp1252 on most Windows
-        # installs -- for any non-ASCII character (this file's own
-        # header em-dash included). Reported live: a Windows user's
-        # `sdd upgrade` crashed with UnicodeDecodeError on byte 0x97 --
-        # cp1252's single-byte em-dash, where UTF-8 needs three bytes.
-        # cp1252 decodes every byte 0-255 to *something*, so it's a safe
-        # fallback to try (it can only fail on the 5 byte values cp1252
-        # itself leaves undefined) and it's the overwhelmingly likely
-        # culprit given our own write-side history.
-        try:
-            text = raw.decode("cp1252")
-        except UnicodeDecodeError as e:
-            raise ManifestError(
-                f"{path} isn't valid UTF-8, and isn't valid Windows-1252 "
-                f"either: {e}\n"
-                "This usually means the file was written by an sdd "
-                "version older than 3.7.1 on a non-UTF-8 system locale. "
-                "Fix it by hand, restore it from git history, or delete "
-                "it to start over with a fresh `sdd init`."
-            ) from e
-        repaired = True
+        text, repaired = read_text_resilient(p)
+    except UnicodeDecodeError as e:
+        raise ManifestError(
+            f"{path} isn't valid UTF-8, and isn't valid Windows-1252 "
+            f"either: {e}\n"
+            "This usually means the file was written by an sdd "
+            "version older than 3.7.1 on a non-UTF-8 system locale. "
+            "Fix it by hand, restore it from git history, or delete "
+            "it to start over with a fresh `sdd init`."
+        ) from e
     try:
         manifest = yaml.safe_load(text) or {}
     except yaml.YAMLError as e:
@@ -73,10 +55,13 @@ def read_manifest(path: str = MANIFEST_PATH) -> dict | None:
             "you automatically."
         ) from e
     if repaired:
-        # Self-heal: rewrite as real UTF-8 now that we've recovered the
-        # content, so every other command reading this same file stops
-        # hitting the same crash too -- this only needs to happen once.
-        write_manifest(manifest, path)
+        # Self-heal: rewrite this exact text, just properly UTF-8 encoded
+        # now, so every other command reading this file stops hitting the
+        # same crash too -- this only needs to happen once. Writing back
+        # the original text (not write_manifest()'s re-serialized
+        # yaml.dump()) preserves any hand-added comments/formatting
+        # byte-for-byte instead of silently discarding them.
+        atomic_write_text(path, text)
     return manifest
 
 
