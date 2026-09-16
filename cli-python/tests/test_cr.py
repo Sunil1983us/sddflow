@@ -18,6 +18,7 @@ class FakeJiraClient:
     test_review_helpers.py -- records what cr_submit actually sends."""
 
     def __init__(self, session=None, base_url=None):
+        self.deployment = "cloud"
         self.created: list[dict] = []
         self.updated: list[tuple[str, dict]] = []
         self.parents: list[tuple[str, str, str]] = []

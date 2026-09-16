@@ -1,10 +1,19 @@
-"""`sdd doctor` -- reports drift between this project's framework-managed
-files (templates, prompts, commands, instructions, setup scripts, and a
-few IDE-integration files) and the pack content bundled with the
-currently installed `sddflow` CLI.
+"""`sdd doctor` -- two independent, read-only health checks:
 
-Read-only. Changes nothing -- see sdd/utils/managed_files.py's module
-docstring for why this exists and what it's the first piece of.
+1. Drift between this project's framework-managed files (templates,
+   prompts, commands, instructions, setup scripts, and a few
+   IDE-integration files) and the pack content bundled with the
+   currently installed `sddflow` CLI -- see
+   sdd/utils/managed_files.py's module docstring for why this exists.
+2. A live check of the configured Jira Epic/Feature issue type against
+   Jira's own createmeta -- catches "this push will fail" (a missing
+   required custom field, a typo'd issue type name) before it does,
+   using Jira's own field requirements as the source of truth instead of
+   this codebase needing to know about any given organization's
+   customizations in advance. Skipped entirely if Jira isn't configured;
+   see --skip-jira to opt out even when it is.
+
+Changes nothing either way.
 """
 
 from __future__ import annotations
@@ -14,7 +23,11 @@ from pathlib import Path
 import click
 from rich.console import Console
 
+from sdd.commands.jira import check_epic_createmeta
 from sdd.commands.upgrade import _resolve_pack
+from sdd.utils.atlassian_auth import load_jira_session
+from sdd.utils.integrations import IntegrationsConfigError, load_integrations
+from sdd.utils.jira_client import JiraClient
 from sdd.utils.managed_files import (
     STATUS_DIFFERS_UNKNOWN,
     STATUS_MISSING,
@@ -56,7 +69,12 @@ _STATUS_DISPLAY: dict[str, tuple[str, bool]] = {
     is_flag=True,
     help="Only print files that aren't up to date, plus the summary line.",
 )
-def doctor_command(pack_override, quiet):
+@click.option(
+    "--skip-jira",
+    is_flag=True,
+    help="Skip the live Jira field-requirements check (managed-files check only).",
+)
+def doctor_command(pack_override, quiet, skip_jira):
     """Report drift between this project's framework-managed files and
     the currently installed sddflow pack. Read-only -- never writes
     anything; run `sdd upgrade --apply-files` to actually apply pack
@@ -104,49 +122,101 @@ def doctor_command(pack_override, quiet):
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
+    files_ok = True
     if not report:
         console.print(
             f"  [dim]No managed files defined for pack '{pack_name}' "
             "-- nothing to check.[/dim]"
         )
         console.print()
-        raise SystemExit(0)
+    else:
+        counts: dict[str, int] = {}
+        for rel in sorted(report):
+            status = report[rel]["status"]
+            counts[status] = counts.get(status, 0) + 1
+            if quiet and status == STATUS_UP_TO_DATE:
+                continue
+            label, _clean = _STATUS_DISPLAY[status]
+            console.print(f"  {label}   [dim]{rel}[/dim]")
 
-    counts: dict[str, int] = {}
-    for rel in sorted(report):
-        status = report[rel]["status"]
-        counts[status] = counts.get(status, 0) + 1
-        if quiet and status == STATUS_UP_TO_DATE:
-            continue
-        label, _clean = _STATUS_DISPLAY[status]
-        console.print(f"  {label}   [dim]{rel}[/dim]")
-
-    console.print()
-    total = len(report)
-    up_to_date = counts.get(STATUS_UP_TO_DATE, 0)
-    dirty = total - up_to_date
-    if dirty == 0:
-        console.print(f"  [green]✓  All {total} managed file(s) up to date.[/green]")
         console.print()
-        raise SystemExit(0)
+        total = len(report)
+        up_to_date = counts.get(STATUS_UP_TO_DATE, 0)
+        dirty = total - up_to_date
+        if dirty == 0:
+            console.print(
+                f"  [green]✓  All {total} managed file(s) up to date.[/green]"
+            )
+            console.print()
+        else:
+            files_ok = False
+            parts = []
+            if counts.get(STATUS_NEEDS_UPDATE):
+                parts.append(f"{counts[STATUS_NEEDS_UPDATE]} need update")
+            if counts.get(STATUS_USER_MODIFIED):
+                parts.append(f"{counts[STATUS_USER_MODIFIED]} modified locally")
+            if counts.get(STATUS_DIFFERS_UNKNOWN):
+                parts.append(f"{counts[STATUS_DIFFERS_UNKNOWN]} differ (no baseline)")
+            if counts.get(STATUS_MISSING):
+                parts.append(f"{counts[STATUS_MISSING]} missing")
+            console.print(
+                f"  [yellow]{dirty}/{total} managed file(s) need attention[/yellow]: "
+                + ", ".join(parts)
+            )
+            console.print(
+                "  [dim]Run [/dim][bold]sdd upgrade --apply-files[/bold][dim] to apply "
+                "safe updates automatically (locally-modified files are left "
+                "alone unless you also pass --force).[/dim]"
+            )
+            console.print()
 
-    parts = []
-    if counts.get(STATUS_NEEDS_UPDATE):
-        parts.append(f"{counts[STATUS_NEEDS_UPDATE]} need update")
-    if counts.get(STATUS_USER_MODIFIED):
-        parts.append(f"{counts[STATUS_USER_MODIFIED]} modified locally")
-    if counts.get(STATUS_DIFFERS_UNKNOWN):
-        parts.append(f"{counts[STATUS_DIFFERS_UNKNOWN]} differ (no baseline)")
-    if counts.get(STATUS_MISSING):
-        parts.append(f"{counts[STATUS_MISSING]} missing")
+    jira_ok = True
+    if not skip_jira:
+        jira_ok = _check_jira_field_requirements()
+
+    if not files_ok or not jira_ok:
+        raise SystemExit(1)
+
+
+def _check_jira_field_requirements() -> bool:
+    """Live Jira check: validates the configured Epic/Feature issue type
+    against Jira's own createmeta (see check_epic_createmeta()'s
+    docstring) -- catches "this push will fail" locally, using Jira's own
+    field requirements as the source of truth, without this codebase
+    needing to know about any given organization's custom issue types in
+    advance.
+
+    Silently does nothing (returns True) if Jira isn't configured at all
+    -- integrations.yml missing/invalid, or its jira: section absent --
+    since this is an optional adapter, not something every project has
+    configured (see this repo's own product-scope policy: core never
+    depends on Jira/Confluence being present)."""
+    try:
+        cfg = load_integrations()
+    except (FileNotFoundError, IntegrationsConfigError):
+        return True
+    if cfg.jira is None:
+        return True
+
     console.print(
-        f"  [yellow]{dirty}/{total} managed file(s) need attention[/yellow]: "
-        + ", ".join(parts)
-    )
-    console.print(
-        "  [dim]Run [/dim][bold]sdd upgrade --apply-files[/bold][dim] to apply "
-        "safe updates automatically (locally-modified files are left "
-        "alone unless you also pass --force).[/dim]"
+        "  [bold]Jira field requirements[/bold]  "
+        "[dim](live check against createmeta)[/dim]"
     )
     console.print()
-    raise SystemExit(1)
+
+    try:
+        prof, session = load_jira_session(cfg)
+        client = JiraClient(session, prof.base_url, deployment=prof.deployment)
+        findings = check_epic_createmeta(cfg.jira, client)
+    except Exception as e:
+        console.print(f"  [red]✗  Could not complete the Jira check: {e}[/red]")
+        console.print()
+        return False
+
+    ok = True
+    for passed, message in findings:
+        symbol = "[green]✓[/green]" if passed else "[red]✗[/red]"
+        console.print(f"  {symbol}  {message}")
+        ok = ok and passed
+    console.print()
+    return ok

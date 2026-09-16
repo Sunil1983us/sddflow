@@ -6,6 +6,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+import requests
+
 from sdd.utils.jira_client import JiraClient
 
 
@@ -190,6 +193,25 @@ class TestCreateIssue:
         result = client.create_issue({"summary": "Title"})
         assert result == {"key": "PROJ-1", "id": "10001"}
 
+    def test_400_error_surfaces_jira_validation_body(self):
+        """Regression: reported live as a user's Jira Epic bootstrap
+        failing 'HTTP 400' with no further detail visible anywhere --
+        create_issue() must let the actual validation reason (e.g. a
+        required custom field) reach the caller, not just the status
+        code."""
+        client, session = _client_with_mock_session({})
+        response = session.post.return_value
+        response.text = (
+            '{"errorMessages":[],"errors":'
+            '{"customfield_10011":"Epic Name is required."}}'
+        )
+        response.raise_for_status.side_effect = requests.HTTPError(
+            "400 Client Error", response=response
+        )
+        with pytest.raises(requests.HTTPError) as excinfo:
+            client.create_issue({"summary": "Title"})
+        assert "Epic Name is required" in str(excinfo.value)
+
 
 def _client_with_mock_put(
     json_body: dict | None = None,
@@ -268,6 +290,18 @@ class TestAddComment:
         client, _ = _client_with_mock_session({"id": "1", "body": "hello"})
         result = client.add_comment("PROJ-1", "hello")
         assert result == {"id": "1", "body": "hello"}
+
+    def test_server_deployment_sends_plain_string_body_not_adf(self):
+        """Regression: ADF is Cloud-only -- Server/Data Center has no ADF
+        support at all and rejects the same envelope as a field-type
+        mismatch. Every comment this CLI posted against a Server/DC
+        instance (review status updates, PR-created notifications) was
+        broken until this was caught."""
+        client, session = _client_with_mock_session({"id": "1"})
+        client.deployment = "server"
+        client.add_comment("PROJ-1", "hello world")
+        body = session.post.call_args.kwargs["json"]
+        assert body == {"body": "hello world"}
 
 
 def _client_with_mock_get(json_body: dict) -> tuple[JiraClient, MagicMock]:

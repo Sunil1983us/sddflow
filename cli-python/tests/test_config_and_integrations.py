@@ -186,6 +186,47 @@ def test_load_integrations_missing_file_raises(tmp_path, monkeypatch):
         load_integrations()
 
 
+def test_load_integrations_recovers_from_cp1252_em_dash_and_self_heals(
+    tmp_path, monkeypatch
+):
+    """Regression: an integrations.yml written by an sdd version older
+    than 3.7.1, on a Windows box whose system locale is cp1252, encodes an
+    em-dash as the single byte 0x97 instead of UTF-8's three bytes.
+    Reported live: 'sdd config test' (which loads this file for every
+    connectivity check) crashed with UnicodeDecodeError on exactly this
+    byte. load_integrations() must recover via the cp1252 fallback AND
+    rewrite the file as real UTF-8 so every other command reading it
+    afterward doesn't hit the same crash."""
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    p = Path(".specify/integrations.yml")
+    raw = (
+        b"# Integrations \x97 config\nprofile: default\nconfluence:\n  space_key: ENG\n"
+    )
+    p.write_bytes(raw)
+
+    cfg = load_integrations()
+
+    assert cfg.confluence.space_key == "ENG"
+    healed = p.read_text(encoding="utf-8")
+    assert "—" in healed  # em-dash
+    assert b"\x97" not in p.read_bytes()
+
+
+def test_load_integrations_raises_clear_error_when_neither_encoding_valid(
+    tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    Path(".specify").mkdir()
+    p = Path(".specify/integrations.yml")
+    # 0x81 is undefined in cp1252 and is not valid standalone UTF-8 either.
+    p.write_bytes(b"profile: \x81default\n")
+    with pytest.raises(IntegrationsConfigError) as excinfo:
+        load_integrations()
+    msg = str(excinfo.value).lower()
+    assert "utf-8" in msg and "1252" in msg
+
+
 def test_load_integrations_confluence_only(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path(".specify").mkdir()

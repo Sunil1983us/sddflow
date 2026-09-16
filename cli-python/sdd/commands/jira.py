@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 import click
+import requests
 import yaml
 from rich.console import Console
 
@@ -95,6 +96,43 @@ def adf_sections(*sections: tuple[str, str | list[str]]) -> dict:
         else:
             content.append(_adf_paragraph(body))
     return {"type": "doc", "version": 1, "content": content or [_adf_paragraph(" ")]}
+
+
+def adf_to_wiki_markup(doc: dict) -> str:
+    """Render an ADF document (as built by adf_doc()/adf_sections() above)
+    as Jira wiki markup -- the plain-string format Jira Server/Data
+    Center's REST API v2 expects for description/comment-body fields.
+
+    ADF (Atlassian Document Format) is Cloud-only (API v3, and the Cloud
+    editor experience it's tied to); Server/DC has no ADF support at all
+    -- sending the same JSON object as a v2 description is a field-type
+    mismatch Jira rejects outright (its `description` field there is
+    typed as a plain string). Reported live: a user's Jira Epic bootstrap
+    kept failing HTTP 400 against a Server/DC instance; this -- not just
+    the also-real missing custom_fields.epic_name gap -- is the more
+    fundamental reason every Epic/Story/Task/CHG push with a description
+    was broken for every Server/DC user, not just this one field.
+
+    Only handles the node types adf_doc()/adf_sections() actually
+    produce (doc, paragraph, heading, bulletList, listItem, text) -- this
+    is not a general-purpose ADF renderer."""
+    lines: list[str] = []
+    for node in doc.get("content", []):
+        node_type = node.get("type")
+        if node_type == "heading":
+            level = node.get("attrs", {}).get("level", 3)
+            text = "".join(c.get("text", "") for c in node.get("content", []))
+            lines.append(f"h{level}. {text}")
+        elif node_type == "paragraph":
+            text = "".join(c.get("text", "") for c in node.get("content", []))
+            lines.append(text)
+        elif node_type == "bulletList":
+            for item in node.get("content", []):
+                for para in item.get("content", []):
+                    text = "".join(c.get("text", "") for c in para.get("content", []))
+                    lines.append(f"* {text}")
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 def _extract_heading_section(text: str, heading_re: re.Pattern) -> str:
@@ -424,6 +462,107 @@ def feature_extra_fields(
     return extra
 
 
+def check_epic_createmeta(
+    cfg: JiraConfig, client: JiraClient
+) -> list[tuple[bool, str]]:
+    """Validate the configured Epic/Feature-level issue type against
+    Jira's own createmeta for the project -- catches "this push will
+    fail" before it does, using Jira's own field requirements as the
+    source of truth instead of this codebase needing to know about any
+    given organization's custom issue types in advance. Used by
+    `sdd doctor`.
+
+    Read-only -- makes exactly one Jira API call, never writes anything.
+    Phase 1: Epic/Feature level only, matching feature_extra_fields()
+    above; Story/Task/CHG are a planned follow-up using the same
+    mechanism.
+
+    Returns a list of (ok, message) findings -- never raises for a
+    Jira-side validation problem (that's the whole point: report it as a
+    finding), but a connectivity/auth failure calling Jira at all is the
+    caller's problem to handle (matches every other JiraClient method)."""
+    project_key = cfg.key_for("feature")
+    issue_type = cfg.issue_type_for("feature")
+    fields_meta = client.get_createmeta_fields(project_key, issue_type)
+    if fields_meta is None:
+        return [
+            (
+                False,
+                f"issue type '{issue_type}' not found in project "
+                f"'{project_key}' -- check issue_hierarchy.feature in "
+                "integrations.yml against Jira's actual issue type names "
+                "for this project",
+            )
+        ]
+
+    known = cfg.fields_for("feature")
+    # The exact set of field IDs feature_extra_fields() (above) + the
+    # project/issuetype/summary/labels _upsert_issue() always adds could
+    # ever populate for an Epic -- kept in sync with those two functions
+    # by hand, since deriving it automatically would mean actually
+    # running the push. "reporter" is excluded even when Jira marks it
+    # required: Jira auto-fills it from the authenticated API caller in
+    # the common case -- based on standard Jira behavior, not guaranteed
+    # for every instance's workflow/permission scheme.
+    settable = {"summary", "project", "issuetype", "labels", "description", "priority"}
+    if known.get("epic_name"):
+        settable.add(known["epic_name"])
+    if known.get("team") and cfg.team:
+        settable.add(known["team"])
+
+    findings: list[tuple[bool, str]] = []
+    missing = [
+        (field_id, meta.get("name", field_id))
+        for field_id, meta in fields_meta.items()
+        if meta.get("required") and field_id not in settable and field_id != "reporter"
+    ]
+    if missing:
+        for field_id, name in missing:
+            if name.strip().casefold() == "epic name":
+                hint = f" -- add jira.custom_fields.epic_name: {field_id} to integrations.yml"
+            else:
+                hint = (
+                    " -- no integrations.yml field mapping sets this; SDD "
+                    "has no way to populate it. Either ask your Jira admin "
+                    "to make it optional for API-created issues, or this "
+                    "needs a new custom_fields mapping added to the "
+                    "framework"
+                )
+            findings.append(
+                (
+                    False,
+                    f"required field '{name}' ({field_id}) on issue type "
+                    f"'{issue_type}'{hint}",
+                )
+            )
+    else:
+        findings.append(
+            (
+                True,
+                f"issue type '{issue_type}' in project '{project_key}' -- "
+                "every Jira-required field is covered",
+            )
+        )
+
+    description_meta = fields_meta.get("description")
+    if description_meta is not None:
+        schema_type = description_meta.get("schema", {}).get("type")
+        if client.deployment == "server" and schema_type not in (None, "string"):
+            findings.append(
+                (
+                    False,
+                    f"description field's schema type is '{schema_type}', "
+                    "not 'string' -- unexpected for Server/Data Center; "
+                    "the wiki-markup conversion (see adf_to_wiki_markup) "
+                    "may not apply cleanly here",
+                )
+            )
+        else:
+            findings.append((True, "description field format matches this deployment"))
+
+    return findings
+
+
 _CHG_ROW_RE = re.compile(r"^\s*\|\s*CHG-\d+\s*\|")
 
 
@@ -727,7 +866,12 @@ def jira_push(profile, feature, level, cr, dry_run):
             cr=cr,
             confluence_base_url=_resolve_confluence_base_url(cfg),
         )
-    except JiraConfigError as e:
+    except (JiraConfigError, requests.HTTPError) as e:
+        # requests.HTTPError's message now includes Jira's actual response
+        # body (see raise_for_status_with_body()) -- printing it here
+        # instead of letting it propagate is what actually gets that body
+        # in front of the user/agent, rather than buried in a raw
+        # traceback's last line.
         console.print(f"  [red]✗  {e}[/red]")
         raise SystemExit(1)
 
@@ -858,6 +1002,9 @@ def _upsert_issue(
         "labels": labels,
         **extra,
     }
+    description = fields.get("description")
+    if client.deployment == "server" and isinstance(description, dict):
+        fields["description"] = adf_to_wiki_markup(description)
     if existing:
         key = existing["key"]
         client.update_issue(key, fields)

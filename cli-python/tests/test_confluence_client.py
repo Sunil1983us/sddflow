@@ -240,6 +240,22 @@ class TestCreatePage:
         result = client.create_page("ENG", "My Page", "<p>body</p>")
         assert result == {"id": "999", "title": "My Page"}
 
+    def test_400_error_surfaces_confluence_response_body(self):
+        """Regression: raise_for_status()'s default message never showed
+        WHY Confluence rejected a request -- create_page() must let the
+        actual response body reach the caller now."""
+        client, session = self._client({})
+        response = session.post.return_value
+        response.text = '{"message":"Space with key ENG does not exist"}'
+        response.raise_for_status.side_effect = requests.HTTPError(
+            "400 Client Error", response=response
+        )
+        try:
+            client.create_page("ENG", "My Page", "<p>body</p>")
+            assert False, "expected an HTTPError"
+        except requests.HTTPError as e:
+            assert "Space with key ENG does not exist" in str(e)
+
 
 class TestUploadAttachmentUpdatesExisting:
     """Regression coverage for a real, 100%-reproducible user-reported

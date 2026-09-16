@@ -85,6 +85,49 @@ class TestLoadProfileCredentialStore:
         assert p.profile_name == "on-prem"
 
 
+class TestLoadProfileEncodingRecovery:
+    """Regression: a ~/.sdd/config.yml written by an sdd version older
+    than 3.7.1, on a Windows box whose system locale is cp1252, encodes an
+    em-dash as the single byte 0x97 instead of UTF-8's three bytes.
+    Reported live: 'sdd config test' (which loads this file for every
+    connectivity check) crashed with UnicodeDecodeError on exactly this
+    byte. load_profile() must recover via the cp1252 fallback AND rewrite
+    the file as real UTF-8 so every other command reading it afterward
+    doesn't hit the same crash."""
+
+    def test_recovers_from_cp1252_em_dash_and_self_heals(self, config_home):
+        path = auth.CONFIG_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        raw = (
+            b"# SDD Config \x97 profiles\n"
+            b"default_profile: work\n"
+            b"profiles:\n"
+            b"  work:\n"
+            b"    auth_mode: basic\n"
+            b"    base_url: https://x.atlassian.net\n"
+            b"    email: a@b.com\n"
+            b"    api_token_env: JIRA_API_TOKEN\n"
+        )
+        path.write_bytes(raw)
+
+        p = auth.load_profile()
+
+        assert p.profile_name == "work"
+        healed = path.read_text(encoding="utf-8")
+        assert "—" in healed  # em-dash
+        assert b"\x97" not in path.read_bytes()
+
+    def test_raises_clear_error_when_neither_encoding_valid(self, config_home):
+        path = auth.CONFIG_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # 0x81 is undefined in cp1252 and is not valid standalone UTF-8 either.
+        path.write_bytes(b"default_profile: \x81work\n")
+        with pytest.raises(ValueError) as excinfo:
+            auth.load_profile()
+        msg = str(excinfo.value).lower()
+        assert "utf-8" in msg and "1252" in msg
+
+
 class TestProfileDeployment:
     """Profile.deployment -- confirmed against a real Jira/Confluence Data
     Center instance: PAT auth only works there against REST API v2 (Jira)

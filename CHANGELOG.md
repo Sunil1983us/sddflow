@@ -4,6 +4,225 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [3.8.0] — 2026-09-15 (New: sdd doctor validates Jira Epic field requirements against Jira's own createmeta)
+
+Direct follow-up to the string of Jira push fixes (v3.7.5–v3.7.9): those
+were genuine framework bugs, but the underlying question — "Jira/
+Confluence setup is specific to each organization; is there a way they
+can fix it within their own org, without a framework code change every
+time?" — needed an actual mechanism, not just more one-off fixes.
+`createmeta` is Jira's own source of truth for what a project + issue
+type combination requires, so validating against it generalizes to any
+organization's custom issue types (SAFe Enabler and beyond) without this
+codebase needing to know about them in advance.
+
+### Added
+
+- `JiraClient.get_createmeta_fields()` — queries Jira's classic
+  `createmeta` endpoint for a project + issue type's field requirements.
+- `check_epic_createmeta()` — cross-checks every Jira-required field for
+  the configured Epic/Feature issue type against what SDD can actually
+  populate, flagging anything uncovered (naming the exact
+  `integrations.yml` fix when it's the known `epic_name` gap) and any
+  non-string `description` schema on Server/Data Center.
+- `sdd doctor` now runs this automatically whenever Jira is configured
+  (silently skipped otherwise); a new `--skip-jira` flag opts out.
+  Findings factor into `doctor`'s exit code.
+
+Phase 1 scope: Epic/Feature level only — Story/Task/CHG are a natural
+follow-up using the same mechanism, not a redesign. Confluence has no
+equivalent schema-validation API and isn't covered.
+
+### Verified
+
+- cli-python pytest 1191/1191 (1170 unchanged + 21 new — unit tests for
+  every finding type plus CLI-level wiring tests, confirmed to fail
+  against the pre-fix code).
+- ruff check/format clean; mypy clean; bandit clean (no new findings);
+  `check-migration-parity.py` clean (176 entries).
+
+---
+
+## [3.7.9] — 2026-09-15 (Fix: Jira Server/Data Center rejected every description as Cloud-only ADF)
+
+The response-body visibility added in v3.7.8 was step one of actually
+diagnosing a user's recurring "HTTP 400" report — and it worked: the real
+reason turned out to be that ADF (Atlassian Document Format) is
+Cloud-only. Jira Server/Data Center's REST API v2 has no ADF support at
+all and expects `description`/comment-body fields as a plain string
+(Jira wiki markup). Every single Epic/Story/Task/CHG push that set a
+description, and every comment this CLI ever posted, was broken for
+every Server/DC user — not just the specific Epic bootstrap that got
+reported. This is the more fundamental bug behind the failure; the
+also-real missing `custom_fields.epic_name` gap (v3.7.7) may still matter
+separately once this is fixed.
+
+### Fixed
+
+- Added `adf_to_wiki_markup()` to `commands/jira.py`, rendering the
+  minimal ADF subset this codebase produces as Jira wiki markup.
+  `_upsert_issue()` — the single choke point every Epic/Story/Task/CHG
+  push already funnels through — now converts the description through it
+  whenever `client.deployment == "server"`.
+- Two more hardcoded ADF description sites in `review.py` (the
+  review-ticket Epic bootstrap and the push-questions ticket) needed the
+  same conversion applied directly.
+- `jira_client.py`'s `add_comment()` had the identical bug — its own
+  docstring literally (and wrongly) claimed ADF was fine "for
+  Cloud/Server compatibility." Now sends a plain string body for
+  Server/DC, the ADF wrapper only for Cloud.
+- `JiraClient` gained a public `.deployment` attribute so both fixes
+  above can read it.
+
+### Verified
+
+- cli-python pytest 1170/1170 (1163 unchanged + 7 new — confirmed all new
+  tests fail against the pre-fix code with the exact
+  ADF-object-instead-of-string mismatch, and pass against the fix; also
+  fixed 5 `FakeJiraClient` test doubles elsewhere that didn't model the
+  new `.deployment` attribute).
+- ruff check/format clean; mypy clean; bandit clean (no new findings);
+  `check-migration-parity.py` clean (175 entries).
+
+---
+
+## [3.7.8] — 2026-09-15 (Fix: Jira/Confluence errors never showed the API's actual response body)
+
+Across three separate reports, a user's Jira Epic bootstrap kept failing
+"HTTP 400" and neither the user nor the AI agent driving the CLI on their
+behalf could say more than the status code — because nothing in this
+codebase ever looked at the response body. `requests.HTTPError`'s default
+`str()` is just `"400 Client Error: Bad Request for url: ..."`; Jira and
+Confluence both put the actual reason in the body (Jira's `errors`/
+`errorMessages` JSON — in this case, a required custom field), which
+every `raise_for_status()` call in `jira_client.py` (11 call sites) and
+`confluence_client.py` (9 call sites) silently discarded.
+
+### Fixed
+
+- Added `sdd/utils/http_errors.py`: `raise_for_status_with_body()`, a
+  shared drop-in replacement for `r.raise_for_status()` that folds
+  `r.text` into the raised exception's message while preserving
+  `.response`, so callers that branch on status code (e.g.
+  `ConfluenceClient.upsert_page()`'s 409-conflict retry) keep working
+  unchanged. Applied to all 20 call sites across both clients.
+- `commands/jira.py`'s `jira_push()` now also catches `requests.
+  HTTPError` around the push, printing the now-informative message and
+  exiting cleanly instead of falling through to a raw Python traceback.
+
+### Verified
+
+- cli-python pytest 1163/1163 (1157 unchanged + 6 new — a dedicated unit
+  test suite for the helper, plus an end-to-end test per client
+  confirming `create_issue()`/`create_page()` now surface the actual
+  rejection reason).
+- ruff check/format clean; mypy clean (39 source files, 1 pre-existing
+  unrelated error: optional `mmdr` import); `check-migration-parity.py`
+  clean (174 entries).
+
+---
+
+## [3.7.7] — 2026-09-15 (Docs: undiscoverable epic_name custom field caused a real Jira HTTP 400)
+
+A user's Jira Epic bootstrap (during `/specify`) failed with HTTP 400
+creating the issue, on a project using a SAFe "Enabler" issue type — an
+Epic subtype common on Advanced Roadmaps/Portfolio-for-Jira orgs. Classic/
+company-managed Jira projects require the special "Epic Name" field on
+any Epic-type issue (team-managed projects don't). `jira.py`'s
+`feature_extra_fields()` already supports setting it via
+`custom_fields.epic_name` — but the shipped `integrations.yml.example`
+never showed that key at all, not even as a commented-out example line,
+despite all 5 packs' `HOW-TO-USE.md` field-mapping table already listing
+`epic_name` as a supported `custom_fields` entry.
+
+### Added
+
+- A commented `# epic_name: customfield_10011` line under
+  `jira.custom_fields` in `integrations.yml.example` (all 5 non-micro
+  packs), explaining exactly when it's required and pointing at `sdd
+  config fields --project KEY` to find the real field ID for a given
+  Jira instance.
+
+### Verified
+
+- Docs-only change to an example/comment — no manifest schema or CLI
+  behavior change (`custom_fields.epic_name` was already fully functional
+  in `jira.py`; it was only undiscoverable).
+- cli-python pytest 1157/1157 (no test changes); ruff check/format clean;
+  `check-cross-references.py` clean across 6 packs; `test-setup.sh`
+  19/19; `check-migration-parity.py` clean (173 entries).
+
+---
+
+## [3.7.6] — 2026-09-15 (Fix: the same pre-3.7.1 encoding crash in integrations.yml and ~/.sdd/config.yml)
+
+Reported live, right after v3.7.5 shipped: "getting same error for all
+connectivity and others — sdd config test also not working." Same root
+cause as 3.7.5, two more files: `load_integrations()` (`.specify/
+integrations.yml`, read by every Jira/Confluence command including `sdd
+config test`) and `load_profile()` (`~/.sdd/config.yml`, the credential
+store every connectivity check reads) both had the identical gap — a
+strict `encoding="utf-8"` read with no fallback for a file written before
+v3.7.1 on a non-UTF-8 Windows locale.
+
+### Fixed
+
+- Extracted the cp1252-fallback logic from 3.7.5's `read_manifest()` into
+  a shared `read_text_resilient()` helper (`atomic_write.py`) and applied
+  it to `load_integrations()` and `load_profile()` as well — each raises
+  its own existing error type with the same clear, actionable message on
+  a genuine double-decode failure, and self-heals otherwise.
+- Also corrected `read_manifest()`'s own self-heal: it was re-serializing
+  the manifest via `yaml.dump()`, which would have silently discarded any
+  hand-added comments the first time a pre-3.7.1 manifest.yml was
+  repaired. All three self-heals now rewrite the exact original text —
+  just correctly UTF-8 encoded — preserving every comment byte-for-byte.
+
+### Verified
+
+- cli-python pytest 1157/1157 (1153 unchanged + 4 new — confirmed all 4
+  new tests fail against the pre-fix code, reproducing the same
+  `UnicodeDecodeError` class against `integrations.yml` and
+  `~/.sdd/config.yml`, and pass against the fix).
+- ruff check/format clean; `check-migration-parity.py` clean (172
+  entries).
+
+---
+
+## [3.7.5] — 2026-09-15 (Fix: sdd upgrade crashed reading a pre-3.7.1 manifest.yml on Windows)
+
+A Windows user reported `sdd upgrade` crashing with `UnicodeDecodeError:
+'utf-8' codec can't decode byte 0x97 in position 15: invalid start byte`
+inside `read_manifest()`. Root cause: before v3.7.1,
+`write_manifest()`/`atomic_write_text()` had no explicit `encoding=`, so
+on a non-UTF-8 system locale (cp1252 is the default on most Windows
+installs) any non-ASCII character — including this file's own header
+em-dash — got written as cp1252's single byte (`0x97`) instead of UTF-8's
+three bytes (`E2 80 94`). v3.7.1 made `read_manifest()` strictly require
+UTF-8, which is correct for files written by 3.7.1+, but any
+`manifest.yml` written before that fix, on a cp1252-locale system, and
+never rewritten since, now fails to decode at all — a hard crash blocking
+every command, not just `upgrade`.
+
+### Fixed
+
+- `read_manifest()` now falls back to cp1252 on a UTF-8 decode failure,
+  and immediately rewrites the file as real UTF-8 so every other command
+  reading the same file self-heals too — this only needs to happen once
+  per file. If neither UTF-8 nor cp1252 can decode it, raises
+  `ManifestError` with a clear, actionable message instead of a raw
+  traceback, matching the existing corrupt-YAML error path.
+
+### Verified
+
+- cli-python pytest 1153/1153 (1151 unchanged + 2 new — confirmed both
+  new tests fail against the pre-fix code, reproducing the exact reported
+  `UnicodeDecodeError`, and pass against the fix).
+- ruff check/format clean; `check-migration-parity.py` clean (171
+  entries).
+
+---
+
 ## [3.7.4] — 2026-08-28 (Fix: sdd jira push 404'd against Jira Server/Data Center)
 
 A user reported `sdd jira push --level epic` failing with HTTP 404 while

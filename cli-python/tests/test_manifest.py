@@ -46,6 +46,41 @@ def test_read_manifest_error_message_mentions_recovery_options(tmp_path):
     )  # points at a way out, not just "it's broken"
 
 
+def test_read_manifest_recovers_from_cp1252_em_dash_and_self_heals(tmp_path):
+    """Regression: a manifest.yml written by an sdd version older than
+    3.7.1, on a Windows box whose system locale is cp1252, encodes an
+    em-dash as the single byte 0x97 instead of UTF-8's three bytes (E2 80
+    94). Reported live: `sdd upgrade` crashed with UnicodeDecodeError on
+    exactly this byte. read_manifest() must recover the content via the
+    cp1252 fallback AND rewrite the file as real UTF-8 so every other
+    command reading the same file afterward doesn't hit the same crash."""
+    p = tmp_path / "manifest.yml"
+    # Raw byte 0x97 -- cp1252's single-byte em-dash, where UTF-8 needs
+    # three bytes (E2 80 94). A bytes literal, not a str.encode(), so this
+    # is exactly the on-disk byte an old sdd version would have written.
+    raw = b"# SDD Manifest \x97 schema\nproject:\n  name: Demo\n"
+    p.write_bytes(raw)
+
+    manifest = read_manifest(str(p))
+
+    assert manifest == {"project": {"name": "Demo"}}
+    # Self-healed: the file on disk is now valid UTF-8 with the real em-dash.
+    healed = p.read_text(encoding="utf-8")
+    assert "—" in healed  # em-dash
+    assert b"\x97" not in p.read_bytes()
+
+
+def test_read_manifest_raises_clear_error_when_neither_utf8_nor_cp1252_valid(tmp_path):
+    p = tmp_path / "manifest.yml"
+    # 0x81 is undefined in cp1252 and is not valid standalone UTF-8 either.
+    p.write_bytes(b"project:\n  name: \x81Demo\n")
+    with pytest.raises(ManifestError) as excinfo:
+        read_manifest(str(p))
+    msg = str(excinfo.value).lower()
+    assert "utf-8" in msg and "1252" in msg
+    assert "sdd init" in msg or "git" in msg
+
+
 def test_write_manifest_creates_parent_directories(tmp_path):
     p = tmp_path / "nested" / "dir" / "manifest.yml"
     write_manifest({"project": {"name": "Demo"}}, str(p))

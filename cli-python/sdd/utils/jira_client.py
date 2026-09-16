@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import requests
 
+from sdd.utils.http_errors import raise_for_status_with_body
+
 
 class JiraClient:
     """Thin wrapper around Jira REST API v3 (Cloud) / v2 (Server/DC).
@@ -21,6 +23,7 @@ class JiraClient:
     ):
         self._s = session
         self._base = base_url.rstrip("/")
+        self.deployment = deployment
         self._api_version = "2" if deployment == "server" else "3"
 
     def _api(self, path: str) -> str:
@@ -28,12 +31,12 @@ class JiraClient:
 
     def get_myself(self) -> dict:
         r = self._s.get(self._api("/myself"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def get_fields(self) -> list[dict]:
         r = self._s.get(self._api("/field"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def search(
@@ -57,7 +60,7 @@ class JiraClient:
             payload["fields"] = fields
         path = "/search/jql" if self._api_version == "3" else "/search"
         r = self._s.post(self._api(path), json=payload)
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json().get("issues", [])
 
     def find_by_label(self, project_key: str, label: str) -> dict | None:
@@ -71,7 +74,7 @@ class JiraClient:
 
     def create_issue(self, fields: dict) -> dict:
         r = self._s.post(self._api("/issue"), json={"fields": fields})
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
 
     def update_issue(self, issue_key: str, fields: dict) -> None:
@@ -79,7 +82,7 @@ class JiraClient:
             self._api(f"/issue/{issue_key}"),
             json={"fields": fields},
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
 
     def set_parent(
         self, child_key: str, parent_key: str, parent_field: str = "parent"
@@ -107,16 +110,56 @@ class JiraClient:
                 "outwardIssue": {"key": to_key},
             },
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
 
     def get_issue_types(self, project_key: str) -> list[dict]:
         r = self._s.get(self._api(f"/project/{project_key}/statuses"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()
+
+    def get_createmeta_fields(
+        self, project_key: str, issue_type_name: str
+    ) -> dict | None:
+        """Fetch Jira's own field metadata (required/optional, schema
+        type) for a given project + issue type, via the classic
+        createmeta endpoint. This is Jira's own source of truth for what
+        a create-issue request needs -- letting `sdd doctor` validate any
+        organization's custom issue types and required fields generically,
+        without this codebase needing to know about them in advance.
+
+        Still the only createmeta option on Server/Data Center (API v2 --
+        confirmed, see this class's own docstring on v2/v3). Cloud has
+        since introduced a newer two-step per-issue-type endpoint and
+        Atlassian's docs mark this classic one deprecated there, though it
+        remains functional as of writing; if Atlassian removes it from
+        Cloud entirely, this is the call site that would need a
+        Cloud-specific fallback.
+
+        Returns None if the project or issue type wasn't found (empty
+        "projects" or "issuetypes" in the response) -- a genuinely
+        different finding from "found but has zero fields", so callers
+        can tell "typo'd issue type name" apart from "issue type has no
+        custom fields configured at all"."""
+        r = self._s.get(
+            self._api("/issue/createmeta"),
+            params={
+                "projectKeys": project_key,
+                "issuetypeNames": issue_type_name,
+                "expand": "projects.issuetypes.fields",
+            },
+        )
+        raise_for_status_with_body(r)
+        projects = r.json().get("projects", [])
+        if not projects:
+            return None
+        issuetypes = projects[0].get("issuetypes", [])
+        if not issuetypes:
+            return None
+        return issuetypes[0].get("fields", {})
 
     def get_comments(self, issue_key: str) -> list[dict]:
         r = self._s.get(self._api(f"/issue/{issue_key}/comment"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json().get("comments", [])
 
     def get_transitions(self, issue_key: str) -> list[dict]:
@@ -124,7 +167,7 @@ class JiraClient:
         its current workflow state. Each entry has at least 'id' and
         'to': {'name': ...}."""
         r = self._s.get(self._api(f"/issue/{issue_key}/transitions"))
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json().get("transitions", [])
 
     def transition_issue(self, issue_key: str, target_status_name: str) -> bool:
@@ -155,23 +198,34 @@ class JiraClient:
             self._api(f"/issue/{issue_key}/transitions"),
             json={"transition": {"id": match["id"]}},
         )
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return True
 
     def add_comment(self, issue_key: str, text: str) -> dict:
-        """Add a plain-text comment. Uses ADF format for Cloud/Server compatibility."""
-        payload = {
-            "body": {
-                "type": "doc",
-                "version": 1,
-                "content": [
-                    {
-                        "type": "paragraph",
-                        "content": [{"type": "text", "text": text}],
-                    }
-                ],
+        """Add a plain-text comment. Cloud (v3) requires the comment body
+        in Atlassian Document Format (ADF); Server/Data Center (v2) has
+        no ADF support at all and expects `body` as a plain string --
+        sending the ADF wrapper there is a field-type mismatch Jira
+        rejects outright (this method's own prior docstring claimed ADF
+        was fine "for Cloud/Server compatibility", which was simply
+        wrong and shipped as a real bug: every comment this CLI tried to
+        post against a Server/DC instance -- review status updates, PR-
+        created notifications -- failed)."""
+        if self.deployment == "server":
+            payload: dict = {"body": text}
+        else:
+            payload = {
+                "body": {
+                    "type": "doc",
+                    "version": 1,
+                    "content": [
+                        {
+                            "type": "paragraph",
+                            "content": [{"type": "text", "text": text}],
+                        }
+                    ],
+                }
             }
-        }
         r = self._s.post(self._api(f"/issue/{issue_key}/comment"), json=payload)
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         return r.json()

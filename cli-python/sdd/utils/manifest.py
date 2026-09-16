@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 
 from sdd import __version__ as SDD_VERSION
-from sdd.utils.atomic_write import atomic_write_text
+from sdd.utils.atomic_write import atomic_write_text, read_text_resilient
 
 MANIFEST_PATH = ".specify/manifest.yml"
 # SDD_VERSION is the single source of truth for "what version is this" —
@@ -35,7 +35,18 @@ def read_manifest(path: str = MANIFEST_PATH) -> dict | None:
     if not p.exists():
         return None
     try:
-        return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        text, repaired = read_text_resilient(p)
+    except UnicodeDecodeError as e:
+        raise ManifestError(
+            f"{path} isn't valid UTF-8, and isn't valid Windows-1252 "
+            f"either: {e}\n"
+            "This usually means the file was written by an sdd "
+            "version older than 3.7.1 on a non-UTF-8 system locale. "
+            "Fix it by hand, restore it from git history, or delete "
+            "it to start over with a fresh `sdd init`."
+        ) from e
+    try:
+        manifest = yaml.safe_load(text) or {}
     except yaml.YAMLError as e:
         raise ManifestError(
             f"{path} exists but isn't valid YAML: {e}\n"
@@ -43,6 +54,15 @@ def read_manifest(path: str = MANIFEST_PATH) -> dict | None:
             "start over with a fresh `sdd init` -- nothing does that for "
             "you automatically."
         ) from e
+    if repaired:
+        # Self-heal: rewrite this exact text, just properly UTF-8 encoded
+        # now, so every other command reading this file stops hitting the
+        # same crash too -- this only needs to happen once. Writing back
+        # the original text (not write_manifest()'s re-serialized
+        # yaml.dump()) preserves any hand-added comments/formatting
+        # byte-for-byte instead of silently discarding them.
+        atomic_write_text(path, text)
+    return manifest
 
 
 def write_manifest(manifest: dict, path: str = MANIFEST_PATH) -> None:
