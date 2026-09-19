@@ -1,6 +1,7 @@
 # User Stories
-## Feature: Task Management
-## Project: Todo API | Run by: /task
+# Feature: Task Management
+> Version: 1.0 | Status: Approved | Date: 2026-05-17 | Author: Kai (Engineering Manager)
+> Project: Todo API | Run by: /task
 
 ---
 

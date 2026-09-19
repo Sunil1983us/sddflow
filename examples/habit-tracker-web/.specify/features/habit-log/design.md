@@ -1,6 +1,7 @@
 # Design — Habit Log (unified)
-## Feature: habit-log | plan_mode: unified
+# Feature: habit-log
 > Version: 1.0 | Status: Approved | Date: 2026-06-30 | Author: Ava (Architect) | Scope: pilot
+> plan_mode: unified
 
 ---
 

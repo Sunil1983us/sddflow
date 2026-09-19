@@ -1,7 +1,7 @@
 # Business Requirements Document
-## Feature: Habit Log
-## Project: Habit Tracker Web | Scope: Pilot | Version: 1.0
+# Feature: Habit Log
 > Version: 1.0 | Status: Approved | Date: 2026-06-28 | Author: Maya (BA)
+> Project: Habit Tracker Web | Scope: Pilot
 
 ---
 

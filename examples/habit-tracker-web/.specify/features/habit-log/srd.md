@@ -1,7 +1,7 @@
 # Software Requirements Document
-## Feature: Habit Log
-## Project: Habit Tracker Web | Version: 1.0
+# Feature: Habit Log
 > Version: 1.0 | Status: Approved | Date: 2026-06-29 | Author: Rex (Requirements)
+> Project: Habit Tracker Web
 
 ---
 

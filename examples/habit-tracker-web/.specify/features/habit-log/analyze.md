@@ -1,5 +1,7 @@
 # Analysis Report
-## Feature: Habit Log | Run by: /analyze
+# Feature: Habit Log
+> Version: 1.0 | Status: Approved | Date: 2026-06-30 | Author: Ava (Architect)
+> Run by: /analyze
 
 ---
 

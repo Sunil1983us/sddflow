@@ -1,6 +1,7 @@
 # Business Validation — Sign-off
-## Feature: Habit Log | Run by: /validate
+# Feature: Habit Log
 > Version: 1.0 | Status: Approved | Date: 2026-06-29
+> Run by: /validate
 
 ---
 

@@ -1,6 +1,7 @@
 # Architecture & Plan
-## Feature: Task Management
-## Project: Todo API | Run by: /plan-arch
+# Feature: Task Management
+> Version: 1.0 | Status: Approved | Date: 2026-05-16 | Author: Ava (Architect)
+> Project: Todo API | Run by: /plan-arch
 
 ---
 

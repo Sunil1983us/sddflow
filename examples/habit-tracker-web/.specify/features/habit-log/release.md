@@ -1,6 +1,7 @@
 # Release Plan — Habit Log
-## Feature: habit-log | Run by: /release
+# Feature: habit-log
 > Version: 1.0 | Status: Approved | Date: 2026-07-01
+> Run by: /release
 
 ---
 
