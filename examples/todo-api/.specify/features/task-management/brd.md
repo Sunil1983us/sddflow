@@ -1,6 +1,7 @@
 # Business Requirements Document
-## Feature: Task Management
-## Project: Todo API | Scope: Pilot | Version: 1.0
+# Feature: Task Management
+> Version: 1.0 | Status: Approved | Date: 2026-05-11 | Author: Maya (Business Analyst)
+> Project: Todo API | Scope: Pilot
 
 ---
 

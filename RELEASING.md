@@ -54,11 +54,8 @@ was introduced (v3.4.0) — the 159 versions before that were never
 tagged and are not being retroactively tagged; their history lives in
 `CHANGELOG.md` and commit history instead.
 
-Node CLI (`cli/`) publishing is **not** part of this automation — it
-stays a manual `npm publish` from a maintainer's machine (see
-`cli/README.md`), deliberately: the Node CLI is frozen at
-scaffolding-only, maintenance-mode, and publishes rarely enough that
-building OIDC automation for it isn't worth it right now.
+The Node CLI has been removed (see `CHANGELOG.md`) — this automation
+only ever covered the Python CLI's PyPI publishing.
 
 ---
 

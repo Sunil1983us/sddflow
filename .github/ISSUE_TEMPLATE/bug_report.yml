@@ -10,8 +10,7 @@ body:
           for private disclosure instead.
         - This repo hosts several things: the `sdd-*` packs (templates/prompts you
           copy into your own project), the `sddflow` Python CLI (`pip install sddflow`),
-          the (maintenance-mode) Node CLI, and the dashboard. Telling us which one is
-          affected saves a round-trip.
+          and the dashboard. Telling us which one is affected saves a round-trip.
 
   - type: dropdown
     id: area
@@ -21,7 +20,6 @@ body:
         - Python CLI (sddflow / sdd command)
         - A pack's prompt/command (specify, plan, task, implement, etc.)
         - Dashboard (sdd dashboard)
-        - Node CLI (sddflow npm package)
         - Jira / Confluence integration
         - Setup script (setup.sh / setup.ps1)
         - Documentation

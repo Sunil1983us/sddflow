@@ -4,6 +4,63 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [4.0.0] — 2026-09-20 (Removed: the Node.js CLI)
+
+The Node CLI (`cli/`, published to npm as `@sunil1983us/sddflow`) has
+been removed from this repo. It covered only `init`/`upgrade`
+scaffolding — no Jira, Confluence, review gates, PR automation, or
+dashboard — and had been in maintenance-mode (bug fixes only, no new
+functionality) for a long time. Every capability it had is a strict
+subset of the Python CLI's, so keeping both around was pure maintenance
+cost (a second CI job, a cross-CLI migration-parity check, duplicated
+npm vs. PyPI install docs) with no corresponding benefit.
+
+### Removed
+
+- `cli/` — the Node CLI's source, tests, and `package.json`, entirely.
+- `node-cli-sanity` and `migration-parity-check` CI jobs from
+  `.github/workflows/ci.yml`.
+- `packs/_shared/tests/check-migration-parity.py` — existed solely to
+  keep `cli/`'s and `cli-python`'s `MIGRATIONS` chains in sync; nothing
+  left to compare once `cli/` is gone.
+- The `cli/package.json` lockstep-version check in
+  `cli-python/tests/test_version_scheme.py`.
+
+### Changed
+
+- Docs updated to drop references to the Node CLI as a currently
+  available option: `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`,
+  `RELEASING.md`, `SECURITY.md`, `SPEC-KIT-COMPARISON.md`,
+  `cli-python/README.md`, `.github` issue/PR templates, all 5 packs'
+  `HOW-TO-USE.md`, and the `version-bump` skill (its migration-entry
+  step no longer mirrors into a second upgrade script; its lockstep
+  file count drops from 9 to 8 — 7 checked in CI + `sdd-micro`'s
+  deliberate exclusion).
+- Historical migration notes elsewhere in `upgrade.py` that mention the
+  Node CLI are left untouched — they're an accurate record of what
+  shipped in past releases, not something to retcon now.
+
+**If you're on the Node CLI:** `npm install -g @sunil1983us/sddflow`
+receives no further updates. Switch to `pip install sddflow` — a fully
+featured, actively maintained CLI built from the same pack sources. A
+project the Node CLI already scaffolded is unaffected on disk and works
+fine with the Python CLI's `sdd upgrade` going forward.
+
+This is a **major** version bump, not a patch/minor one: it removes an
+entire published, documented CLI product, which is breaking for anyone
+depending on that npm package continuing to receive updates — it is
+*not* a change to what `sdd upgrade` writes into an existing project's
+files.
+
+### Verified
+
+- cli-python pytest 1190/1190 (removed the now-obsolete
+  `cli/package.json` lockstep test; a removal needs no new tests).
+- `check-cross-references.py` clean across all 6 packs.
+- `assert-output.sh` clean against both worked examples (33/33 each).
+
+---
+
 ## [3.8.0] — 2026-09-15 (New: sdd doctor validates Jira Epic field requirements against Jira's own createmeta)
 
 Direct follow-up to the string of Jira push fixes (v3.7.5–v3.7.9): those

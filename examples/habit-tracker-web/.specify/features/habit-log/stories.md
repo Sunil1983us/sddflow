@@ -1,5 +1,7 @@
 # User Stories
-## Feature: Habit Log | Run by: /task
+# Feature: Habit Log
+> Version: 1.0 | Status: Approved | Date: 2026-07-01 | Author: Kai (Engineering Manager)
+> Run by: /task
 
 ---
 

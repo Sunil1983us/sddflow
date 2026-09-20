@@ -42,14 +42,7 @@ Not sure which to use? See [`packs/CATALOG.md`](packs/CATALOG.md) for a decision
 
 ---
 
-## CLI Tools
-
-Two CLIs are provided, both built around the same `sdd init` / `sdd upgrade`
-core — but they are **not at feature parity**. The Python CLI is the
-full-featured implementation (Jira, Confluence, review gates, PR automation);
-the Node.js CLI currently covers scaffolding only (`init` / `upgrade`). Pick
-Python if you need Jira/Confluence integration; either works for basic
-pack scaffolding.
+## CLI
 
 ### Python CLI — `sddflow`
 
@@ -80,30 +73,12 @@ Agent commands (Claude Code / Copilot):
 
 → Full reference: [`cli-python/README.md`](cli-python/README.md)
 
-### Node.js CLI (Deprecated)
-
-> ⚠️ **Deprecated.** This Node CLI only receives fixes, not new features, and
-> covers scaffolding only (`init`/`upgrade` — no Jira, Confluence, review
-> gates, or PR automation, and none planned). **Use the Python CLI
-> (`pip install sddflow`) instead** unless you specifically need a
-> Node-only environment with no Python available. Do NOT
-> `npm install -g sdd-init` — that name on npm belongs to an unrelated
-> third-party package, not this project. This Node CLI publishes to npm as
-> the **scoped** package `@sunil1983us/sddflow` (npm's anti-squatting
-> policy blocks the unscoped name `sddflow` as too similar to an
-> unrelated existing package). Either CLI installs the same `sdd` binary
-> name, so they collide if both are installed globally; prefer the
-> Python one:
-
-```bash
-npm install -g @sunil1983us/sddflow
-sdd init
-```
-
-Includes:
-- `sdd init` / `sdd upgrade`
-
-→ Full reference: [`cli/README.md`](cli/README.md)
+> **Node.js CLI removed.** The Node CLI (`@sunil1983us/sddflow` on npm) was
+> scaffolding-only (`init`/`upgrade`, no Jira/Confluence/review-gate/PR
+> support) and has been removed from this repo — it received no new
+> features for a long time before removal and offered nothing the Python
+> CLI doesn't already cover. Use the Python CLI (`pip install sddflow`)
+> instead. See `CHANGELOG.md` for the removal notice.
 
 ### Alternative: setup scripts (no install needed)
 
@@ -149,7 +124,6 @@ packs/
   sdd-mobile/
   sdd-fullstack/
   sdd-micro/          # Tiny/personal projects — no BRD/UC/SRD, 3 commands
-cli/                  # Node.js CLI (from source; maintenance mode)
 cli-python/           # Python CLI (pip install sddflow)
 examples/
   todo-api/             # Worked example — backend, separate plan mode

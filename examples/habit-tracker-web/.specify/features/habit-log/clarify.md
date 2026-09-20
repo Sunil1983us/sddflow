@@ -1,5 +1,7 @@
 # Clarification Log
-## Feature: Habit Log | Run by: /clarify
+# Feature: Habit Log
+> Version: 1.0 | Status: Approved | Date: 2026-06-30 | Author: Rex (Requirements)
+> Run by: /clarify
 
 | ID | Question | Answer | Status |
 |---|---|---|---|

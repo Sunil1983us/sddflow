@@ -8152,6 +8152,53 @@ MIGRATIONS: list[Migration] = [
             "new findings)",
         ],
     },
+    {
+        "from": "3.8.0",
+        "to": "4.0.0",
+        "description": "Removed: the Node.js CLI (cli/, published to npm as @sunil1983us/sddflow) -- scaffolding-only, no new features for a long time, superseded entirely by this Python CLI",
+        "notes": [
+            "The Node CLI covered only `init`/`upgrade` scaffolding -- no "
+            "Jira, Confluence, review gates, PR automation, or dashboard "
+            "-- and had been in maintenance-mode (bug fixes only, no new "
+            "functionality) for a long time. Every capability it had is a "
+            "strict subset of this Python CLI's, so keeping both around "
+            "was pure maintenance cost (a second CI job, the now-removed "
+            "check-migration-parity.py cross-check, duplicated npm vs. "
+            "PyPI install docs) with no corresponding benefit",
+            "Removed cli/ entirely (source, tests, package.json) and the "
+            "node-cli-sanity + migration-parity-check CI jobs. Removed "
+            "packs/_shared/tests/check-migration-parity.py -- it existed "
+            "solely to keep cli/'s and this file's MIGRATIONS chains in "
+            "sync, and has nothing left to compare",
+            "Users on the Node CLI (`npm install -g @sunil1983us/sddflow`) "
+            "have no further updates from that package -- switch to "
+            "`pip install sddflow` for a fully-featured, actively "
+            "maintained CLI against the same pack sources; a project the "
+            "Node CLI scaffolded is unaffected on disk and works fine "
+            "with the Python CLI's `sdd upgrade` going forward",
+            "This is a MAJOR bump, not a patch/minor: it removes an "
+            "entire published, documented CLI product, which is breaking "
+            "for anyone depending on that npm package continuing to "
+            "receive updates -- not a change to what `sdd upgrade` writes "
+            "into an existing project's files",
+            "Docs updated to match: README.md, CLAUDE.md, CONTRIBUTING.md, "
+            "RELEASING.md, SECURITY.md, SPEC-KIT-COMPARISON.md, "
+            "cli-python/README.md, .github issue/PR templates, all 5 "
+            "packs' HOW-TO-USE.md, and the version-bump skill itself (its "
+            "step 3 no longer mirrors migration entries into a second "
+            "upgrade script, and its lockstep-file count drops from 9 to "
+            "8, i.e. 7 checked + sdd-micro's deliberate exclusion). "
+            "Historical migration notes elsewhere in this file that "
+            "mention the Node CLI are left untouched -- they're an "
+            "accurate record of what shipped in past releases, not "
+            "something to retcon",
+            "Verified: cli-python pytest 1190/1190 (removed the now-"
+            "obsolete cli/package.json lockstep check from "
+            "test_version_scheme.py, no new tests needed -- this is a "
+            "removal, not new functionality); check-cross-references.py "
+            "clean",
+        ],
+    },
 ]
 
 

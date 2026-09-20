@@ -187,9 +187,8 @@ Before drafting, a **Feature Size Check** (Step 1.5) looks for signs your notes 
 Install the CLI once:
 ```bash
 pip install sddflow          # Python (any platform)
-# OR
-# (Node.js CLI: from source only — see the framework repo's cli/README.md;
-#  the sdd-init package on npm is an unrelated third-party project)
+# (the Node.js CLI has been removed; the sdd-init package on npm is an
+#  unrelated third-party project — do not install that instead)
 ```
 
 Then run in your project folder:

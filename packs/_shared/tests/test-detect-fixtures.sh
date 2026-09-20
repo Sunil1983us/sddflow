@@ -3,9 +3,10 @@
 #
 # Run from the repo root:  bash packs/_shared/tests/test-detect-fixtures.sh
 #
-# The same ~20 fixtures are mirrored in cli-python/tests/test_detect.py and
-# cli/tests/detect.test.js, so all three implementations are asserted
-# against identical inputs. detect_project_type() is extracted from
+# The same ~20 fixtures are mirrored in cli-python/tests/test_detect.py, so
+# both implementations are asserted against identical inputs (the Node CLI's
+# equivalent, cli/tests/detect.test.js, was removed along with the Node CLI
+# itself). detect_project_type() is extracted from
 # setup.sh via sed (function body only) rather than sourcing the whole
 # script, since the rest of setup.sh has side effects (arg parsing,
 # prompts) this suite doesn't want to trigger.

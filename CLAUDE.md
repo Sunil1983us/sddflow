@@ -18,7 +18,7 @@ A standing filter for what belongs in this project, so feature requests get eval
 
 - **Core** — the SDD packs (document templates + AI prompts + workflow), the Python CLI (`sddflow`), the review-gate system (chat/local/jira modes), and the dashboard. This is what the project fundamentally is, and it must work completely on its own with none of the items below configured.
 - **Optional adapters, not core** — Jira, Confluence, PR automation (GitHub/GitLab/Bitbucket/Azure DevOps), and diagram rendering. These integrate with core when configured; core never depends on any of them being present (e.g. chat-mode review gates need no Jira, a local `sdd dashboard` needs no network sharing).
-- **Node CLI** — frozen at scaffolding-only (`init`/`upgrade`), maintenance-mode, no new features. See the deprecation notice in `README.md` and `cli/README.md`.
+- **Node CLI** — removed (see `CHANGELOG.md`). It was frozen at scaffolding-only (`init`/`upgrade`), maintenance-mode, no new features, and offered nothing the Python CLI doesn't already cover.
 
 Before building something new, place it in one of the three buckets above (or decide it doesn't belong in the project at all) rather than defaulting to "add it."
 
@@ -38,7 +38,6 @@ packs/
                      # Intentionally diverges from PACK-SPEC.md — see its
                      # own CLAUDE.md and WHY-SDD.md. Not part of the
                      # shared-block sync system (no _shared/blocks/ markers).
-cli/                # Node.js CLI (npm: @sunil1983us/sddflow) — init/upgrade scaffolding only
 cli-python/         # Python CLI (pip: sddflow) — full-featured (Jira, Confluence, reviews, PRs)
 examples/
   todo-api/         # Complete worked example of SDD outputs
@@ -226,19 +225,6 @@ sense — only that the pointer resolves to something real. `*.summary.md §N`
 references are deliberately skipped (AI-2 summaries aren't guaranteed to
 preserve source section numbers); a `.md` reference to a doc key with no
 matching `*-template.md` is reported as a note, not a failure.
-
-A fourth harness, `packs/_shared/tests/check-migration-parity.py`, checks
-that `cli-python/sdd/commands/upgrade.py` and `cli/src/commands/upgrade.js`
-agree on the `MIGRATIONS` version chain (every `from`/`to` hop, in order).
-The two lists' `description`/`notes` prose is expected to differ in
-places — each CLI's notes sometimes call out CLI-specific detail — only
-the version chain itself is load-bearing (it drives which migrations a
-project sees applied). CI runs it on every PR (`migration-parity-check`
-job). Run it locally after adding a migration entry to either file:
-
-```bash
-python3 packs/_shared/tests/check-migration-parity.py --verbose
-```
 
 ---
 

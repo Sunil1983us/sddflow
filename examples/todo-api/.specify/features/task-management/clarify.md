@@ -1,6 +1,7 @@
 # Clarification Report
-## Feature: Task Management
-## Project: Todo API | Run by: /clarify
+# Feature: Task Management
+> Version: 1.0 | Status: Approved | Date: 2026-05-15 | Author: Rex (Requirements Engineer)
+> Project: Todo API | Run by: /clarify
 
 ---
 
