@@ -1,4 +1,6 @@
-# Project type detection — Python port of cli/src/utils/detect.js
+# Project type detection — originally ported from the Node CLI's
+# cli/src/utils/detect.js (the Node CLI itself has since been removed;
+# see CHANGELOG.md)
 #
 # Detection order must match setup.sh detect_project_type() and specify.prompt.md
 # Step 0 table. Update all three together when adding a new type.

@@ -7,7 +7,7 @@
 Instead, use GitHub's private vulnerability reporting:
 
 1. Go to [Security → Advisories → Report a vulnerability](https://github.com/sunil1983us/sddflow/security/advisories/new).
-2. Describe the issue, affected component (Python CLI, Node CLI, dashboard,
+2. Describe the issue, affected component (Python CLI, dashboard,
    or a specific pack), affected version(s), and reproduction steps.
 
 This opens a private discussion visible only to you and the maintainer until
@@ -20,11 +20,11 @@ line.
 
 ## What's in scope
 
-- `cli-python/` (the `sddflow` PyPI package) and `cli/` (the Node CLI,
-  maintenance mode) — credential handling (`keyring`, `.specify/auth.yml`),
-  the dashboard's write-endpoint auth (session token, CSRF, Origin
-  checking — see `cli-python/README.md` → "Dashboard security"), and
-  request handling for the Jira/Confluence integrations.
+- `cli-python/` (the `sddflow` PyPI package) — credential handling
+  (`keyring`, `.specify/auth.yml`), the dashboard's write-endpoint auth
+  (session token, CSRF, Origin checking — see `cli-python/README.md` →
+  "Dashboard security"), and request handling for the Jira/Confluence
+  integrations. The Node CLI has been removed (see `CHANGELOG.md`).
 - The `sdd-*` packs' `setup.sh`/`setup.ps1` scripts — these run
   non-interactively in CI and take user-supplied strings (project name,
   feature name), so injection-class issues there are in scope.

@@ -370,7 +370,7 @@ All items selectively borrowed into SDD packs — now fully implemented:
 - ✅ Per-type doc-set table (pilot/mvp/full × 10 types)
 
 **Phase 3 — CLI, AI tool selection & enterprise integration (now implemented):**
-- ✅ `sdd init` Python CLI (`pip install sddflow`) + Node.js CLI (from source, maintenance mode)
+- ✅ `sdd init` Python CLI (`pip install sddflow`)
 - ✅ AI tool selection in `sdd init` (claude-code / copilot / cursor / windsurf / other); stored as `ai_tool` in `manifest.yml`; personalized Done message per tool
 - ✅ `sdd config init` / `sdd config test` / `sdd config fields` — Jira + Confluence connection wizard, connectivity test (✓/✗ per service), custom field discovery
 - ✅ `sdd jira push` — push stories + tasks → Jira issues (with `--dry-run` and `--feature` flags)

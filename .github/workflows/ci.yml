@@ -1,5 +1,5 @@
 name: Maintainer Repo CI
-# Tests this repo's own tooling (cli-python, cli, the _shared sync system) —
+# Tests this repo's own tooling (cli-python, the _shared sync system) —
 # NOT a quality gate for end-user projects. That lives at
 # packs/{pack}/.github/workflows/quality-gate.yml and is copied into a
 # user's project by `sdd init` (see scaffold.py — full pack tree, no
@@ -45,14 +45,6 @@ jobs:
       - uses: actions/checkout@v7
       - name: Run check-cross-references.py
         run: python3 packs/_shared/tests/check-cross-references.py
-
-  migration-parity-check:
-    name: Python and Node CLI migration chains match (from/to hops)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Run check-migration-parity.py
-        run: python3 packs/_shared/tests/check-migration-parity.py --verbose
 
   output-assertions:
     name: Worked example passes output assertions
@@ -406,23 +398,3 @@ jobs:
           if [ -f dashboard.pid ]; then
             kill "$(cat dashboard.pid)" 2>/dev/null || true
           fi
-
-  node-cli-sanity:
-    name: Node CLI installs and runs cleanly
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: cli/package-lock.json
-      - name: Install dependencies
-        working-directory: cli
-        run: npm ci
-      - name: Run tests
-        working-directory: cli
-        run: npm test
-      - name: Smoke test the entry point
-        working-directory: cli
-        run: node bin/sdd.js --help

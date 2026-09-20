@@ -175,9 +175,8 @@ saved to `.specify/contexts/{slug}.raw.md` for a later `/create-context` run.
 Install the CLI once:
 ```bash
 pip install sddflow          # Python (any platform)
-# OR
-# (Node.js CLI: from source only — see the framework repo's cli/README.md;
-#  the sdd-init package on npm is an unrelated third-party project)
+# (the Node.js CLI has been removed; the sdd-init package on npm is an
+#  unrelated third-party project — do not install that instead)
 ```
 
 Then run in your project folder:

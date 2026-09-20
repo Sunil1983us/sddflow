@@ -12,9 +12,9 @@ save a round-trip:
 - **Security vulnerability?** Don't use a public issue — see
   [SECURITY.md](SECURITY.md) for private disclosure instead.
 - Say **which part** is affected: a specific `sdd-*` pack (and which
-  command/prompt), the Python CLI (`sddflow`), the Node CLI (maintenance
-  mode only — see below), or the dashboard. This repo hosts several
-  distinct things in one place, so this narrows it down fast.
+  command/prompt), the Python CLI (`sddflow`), or the dashboard. This
+  repo hosts several distinct things in one place, so this narrows it
+  down fast.
 - Include your `sdd_version` (from `.specify/manifest.yml`, or
   `sdd --version`) and, for a pack issue, the `project_type` and `scope`.
 
@@ -36,10 +36,9 @@ in this repo — worth double-checking before filing.
 - **Optional adapters** (integrate with core, never required by it):
   Jira, Confluence, PR automation (GitHub/GitLab/Bitbucket/Azure DevOps),
   diagram rendering.
-- **Node CLI** (`cli/`): frozen at scaffolding-only (`init`/`upgrade`),
-  maintenance mode, no new features — see its own
-  [README](cli/README.md) for why. Bug fixes are still welcome there;
-  new functionality should go in the Python CLI instead.
+- **Node CLI**: removed — see `CHANGELOG.md`. It was frozen at
+  scaffolding-only (`init`/`upgrade`), maintenance mode, no new
+  features. Any new CLI functionality goes in the Python CLI.
 
 A feature request that adds a new required dependency to core is unlikely
 to be accepted as-is; the same idea as an *optional* adapter usually is.

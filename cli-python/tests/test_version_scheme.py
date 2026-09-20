@@ -81,17 +81,13 @@ class TestSemVerScheme:
 
 
 class TestVersionLockstep:
-    """The version-bump skill's step 2 lists 8 files (9 counting
+    """The version-bump skill's step 2 lists 7 files (8 counting
     sdd-micro's deliberate exclusion) that must always carry the same
     sdd_version. This was previously only checked by hand (`grep -rn` per
     the skill's own instructions) -- automating it here so a partial bump
-    (one file edited, another missed) fails CI instead of shipping."""
-
-    def test_package_json_matches(self):
-        text = (_REPO_ROOT / "cli" / "package.json").read_text()
-        m = re.search(r'"version"\s*:\s*"([^"]+)"', text)
-        assert m, 'cli/package.json has no "version" field'
-        assert m.group(1) == SDD_VERSION
+    (one file edited, another missed) fails CI instead of shipping.
+    (cli/package.json was an 8th lockstep file before the Node CLI was
+    removed -- see CHANGELOG.md.)"""
 
     def test_pyproject_toml_matches(self):
         text = (_REPO_ROOT / "cli-python" / "pyproject.toml").read_text()

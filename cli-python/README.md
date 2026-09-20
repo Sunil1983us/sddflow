@@ -7,7 +7,9 @@
 [![CI](https://github.com/sunil1983us/sddflow/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil1983us/sddflow/actions/workflows/ci.yml)
 
 Python CLI for the SDD (Spec-Driven Development) Framework.  
-Mirrors the Node.js CLI exactly and adds Jira + Confluence integration.
+Full-featured: scaffolding plus Jira + Confluence integration, review
+gates, and PR automation. (The framework's earlier Node.js CLI has been
+removed — see the root `CHANGELOG.md`.)
 
 > The **Python versions** badge above is generated live from this package's
 > published PyPI metadata — it always reflects exactly what's actually

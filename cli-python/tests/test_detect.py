@@ -2,9 +2,10 @@
 #
 # detect_project_type() had no dedicated test coverage at all before this --
 # only ever mocked out in test_init.py. This exercises it directly against
-# ~20 synthetic project fixtures, the same set mirrored in cli/tests/
-# detect.test.js and packs/_shared/tests/test-detect-fixtures.sh, so all
-# three implementations are asserted against identical inputs. Building
+# ~20 synthetic project fixtures, the same set mirrored in
+# packs/_shared/tests/test-detect-fixtures.sh, so both implementations are
+# asserted against identical inputs (the Node CLI's equivalent,
+# cli/tests/detect.test.js, was removed along with the Node CLI itself). Building
 # these fixtures surfaced two real, previously-unnoticed bugs (both fixed
 # alongside this test): "react-native-web" was misclassified as mobile
 # (setup.sh/setup.ps1 only), and modern Angular projects (scoped

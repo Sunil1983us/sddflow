@@ -11,7 +11,7 @@ This repo keeps one version number (`sdd_version`) in lockstep across 9 files, a
 
 `sdd_version` exists so `sdd upgrade` can tell an existing user's project it's behind and walk it forward through migrations. Only bump it for changes that `sdd upgrade` actually carries to a user's project:
 
-- **Bump**: CLI command code (`cli-python/sdd/**`, `cli/src/**`), anything under a pack's `.specify/templates/**`, `.claude/commands/**`, `.github/prompts/**`, `.github/instructions/**`, `setup.sh`/`setup.ps1`, `_shared/blocks/**`, `_shared/full/**` — anything a real `sdd upgrade` migration would touch or that changes CLI-observable behavior.
+- **Bump**: CLI command code (`cli-python/sdd/**`), anything under a pack's `.specify/templates/**`, `.claude/commands/**`, `.github/prompts/**`, `.github/instructions/**`, `setup.sh`/`setup.ps1`, `_shared/blocks/**`, `_shared/full/**` — anything a real `sdd upgrade` migration would touch or that changes CLI-observable behavior.
 - **Don't bump**: prose-only documentation that `sdd upgrade` never reads or writes — root `README.md`, `CHANGELOG.md`, `CLAUDE.md`, `SPEC-KIT-COMPARISON.md`, `PACK-SPEC.md`, a pack's own `README.md`/`WHY-SDD.md` prose, code comments, this skill file. Commit these directly with a normal descriptive message — no version bump, no migration entry, no MIGRATIONS-list touch. Their history is tracked by git commit SHA/date, not by a version number.
 - **Mixed commit** (touches both): bump for the functional part — don't let doc edits riding alongside a real change suppress the bump, and don't let a functional change hide behind a "docs" label to avoid one.
 - **Grey area**: default to *not* bumping unless you can point at the specific thing `sdd upgrade` would carry forward. It's cheaper to be wrong by under-bumping (a maintainer notices and bumps later) than by over-bumping (another entry in a 9-file lockstep and two migration scripts for something no user's project ever needed to know about).
@@ -40,10 +40,9 @@ Read the *current* version straight from `cli-python/sdd/__init__.py` (`__versio
 
 Look at what's actually shipping (the diff, not just the description) and classify it PATCH / MINOR / MAJOR per the rule above. State the classification and the one-sentence reason before computing the number — this is the step worth getting right; the arithmetic after it is trivial (`X.Y.Z` → bump the classified field by 1, zero every field to its right). If the change's nature is ambiguous, ask the user rather than silently picking the smaller bump.
 
-### 2. Update all 9 lockstep files
+### 2. Update all 7 lockstep files
 
 ```
-cli/package.json                                  "version": "X.Y.Z"
 cli-python/pyproject.toml                          version = "X.Y.Z"
 cli-python/sdd/__init__.py                         __version__ = "X.Y.Z"
 packs/sdd-backend-service/.specify/manifest.yml     sdd_version: "X.Y.Z"
@@ -55,17 +54,15 @@ packs/sdd-universal/.specify/manifest.yml           sdd_version: "X.Y.Z"
 
 `packs/sdd-micro` is deliberately excluded — it's frozen outside this lockstep (see the repo's `CLAUDE.md`). Don't touch it.
 
-A single `sed -i 's/OLD_VERSION/NEW_VERSION/'` across all 8 (non-`__init__.py`... actually including it) works cleanly since the old version string is otherwise unique in each file — verify with a `grep -rn NEW_VERSION` pass afterward rather than trusting the sed silently.
+A single `sed -i 's/OLD_VERSION/NEW_VERSION/'` across all 7 works cleanly since the old version string is otherwise unique in each file — verify with a `grep -rn NEW_VERSION` pass afterward rather than trusting the sed silently.
 
-### 3. Append a migration entry to both upgrade scripts
+### 3. Append a migration entry to the upgrade script
 
-Every version bump gets a matching entry at the **end** of the `MIGRATIONS` list in both:
-- `cli-python/sdd/commands/upgrade.py` (Python dict)
-- `cli/src/commands/upgrade.js` (JS object, same content in JS syntax)
+Every version bump gets a matching entry at the **end** of the `MIGRATIONS` list in `cli-python/sdd/commands/upgrade.py` (Python dict). (Before the Node CLI was removed, the same entry also went into `cli/src/commands/upgrade.js` in JS syntax, kept in parity by `check-migration-parity.py` — both are gone now. Historical entries already in `upgrade.py` still carry "This Node CLI ships from the same pack sources..."-style notes; leave those as-is, they're an accurate record of what shipped at the time.)
 
 Write the actual `description`/`notes` to explain *this specific change* — what shipped, why, and what a user upgrading from the old version needs to know. If this bump is purely packaging/versioning housekeeping with no functional change (nothing in a user's `manifest.yml` or generated files differs), say so explicitly in the notes rather than inventing user-facing impact that doesn't exist — several past entries in this chain do exactly that (e.g. the packaging-metadata-only bump), and it's more honest than padding.
 
-Python template (`upgrade.py`):
+Template (`upgrade.py`):
 ```python
     {
         "from":        "OLD_VERSION",
@@ -76,31 +73,12 @@ Python template (`upgrade.py`):
             "reading this months later understands the change without "
             "re-reading the diff",
             "Second note -- why, e.g. what user request or bug prompted it",
-            "This Node CLI ships from the same pack sources -- this "
-            "migration entry exists so both CLIs report the same "
-            "sdd_version chain",
             "Verified: cli-python pytest N/N (M pre-existing + K new)",
         ],
     },
 ```
 
-Do **not** add a `"migrate"` key to the dict literal. Both `upgrade.py` and `upgrade.js` document (see the comment above their `MIGRATIONS`/`Migration` definitions) that every entry only ever stamps `sdd_version` — `_migrate_fn()` / `migrateFn()` supplies that lambda automatically for every entry, and the actual apply code never reads a per-entry `"migrate"` key at all. An explicit `"migrate": lambda ...` here is dead code that mypy's `Migration` TypedDict also rejects as an unknown key (`typeddict-unknown-key`) — this exact mistake shipped across 6 entries in one session before being caught by a red CI badge. Only touch `_CUSTOM_MIGRATE`/`CUSTOM_MIGRATE` directly in `upgrade.py`/`upgrade.js` for the rare entry that truly needs to transform manifest content beyond stamping the version.
-
-JS template (`upgrade.js`) — same content, JS object syntax, string concatenation instead of adjacent-literal concatenation for the notes:
-```javascript
-  {
-    from: 'OLD_VERSION',
-    to:   'NEW_VERSION',
-    description: "One-line summary of what changed and why",
-    notes: [
-      "First note -- ..." +
-      "continued on the next line if long",
-      "Second note -- ...",
-    ],
-  },
-```
-
-Keep the two entries' `notes` substantively the same — a maintainer or user should get the same story from either CLI's `sdd upgrade` output.
+Do **not** add a `"migrate"` key to the dict literal. `upgrade.py` documents (see the comment above its `MIGRATIONS` definition) that every entry only ever stamps `sdd_version` — `_migrate_fn()` supplies that lambda automatically for every entry, and the actual apply code never reads a per-entry `"migrate"` key at all. An explicit `"migrate": lambda ...` here is dead code that mypy's `Migration` TypedDict also rejects as an unknown key (`typeddict-unknown-key`) — this exact mistake shipped across 6 entries in one session before being caught by a red CI badge. Only touch `_CUSTOM_MIGRATE` directly in `upgrade.py` for the rare entry that truly needs to transform manifest content beyond stamping the version.
 
 ### 4. Add a CHANGELOG.md entry
 
@@ -129,16 +107,8 @@ Run, in order, and don't proceed to commit if any fail:
 
 ```bash
 python3 -c "import ast; ast.parse(open('cli-python/sdd/commands/upgrade.py').read())"
-node --check cli/src/commands/upgrade.js
-python3 packs/_shared/tests/check-migration-parity.py --verbose
 cd cli-python && python3 -m pytest tests -q
 ```
-
-`check-migration-parity.py` catches a migration entry added to only one of
-the two `MIGRATIONS` lists (step 3 above) — a missing/mismatched `from`/`to`
-hop, not prose differences. The two lists' `description`/`notes` text is
-expected to differ in places (each CLI's notes sometimes call out
-CLI-specific detail) — only the version chain itself needs to match.
 
 If pack-level files (templates, prompts, `_shared/blocks/`) were touched as part of the change being shipped — not just the version bump itself — also run:
 

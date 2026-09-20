@@ -4,7 +4,7 @@
 
 ## Where does it apply?
 
-<!-- Which pack(s), the Python CLI, the Node CLI, the dashboard, or docs-only. -->
+<!-- Which pack(s), the Python CLI, the dashboard, or docs-only. -->
 
 ## Checklist
 
