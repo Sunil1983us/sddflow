@@ -375,6 +375,7 @@ jobs:
         working-directory: ${{ env.WORK }}
         env:
           STATUS_JSON_FILE: /tmp/core-standalone-status.json
+          HOME_PAGE_FILE: /tmp/core-standalone-home.html
         run: |
           set -euo pipefail
           curl -sf "http://127.0.0.1:4747/api/status" -o "$STATUS_JSON_FILE"
@@ -390,7 +391,7 @@ jobs:
               sys.exit(f"::error::dashboard status payload looks like a crash: {text}")
           PYEOF
           for i in $(seq 1 5); do
-            if home_page=$(curl -sf "http://127.0.0.1:4747/") && echo "$home_page" | grep -qi "dashboard"; then
+            if curl -sf "http://127.0.0.1:4747/" -o "$HOME_PAGE_FILE" && grep -qi "dashboard" "$HOME_PAGE_FILE"; then
               echo "Dashboard home page rendered correctly"
               exit 0
             fi
