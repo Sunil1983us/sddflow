@@ -373,24 +373,32 @@ jobs:
           exit 1
       - name: Assert the dashboard renders this project's status with no adapters
         working-directory: ${{ env.WORK }}
+        env:
+          STATUS_JSON_FILE: /tmp/core-standalone-status.json
+          HOME_PAGE_FILE: /tmp/core-standalone-home.html
         run: |
           set -euo pipefail
-          status=$(curl -sf "http://127.0.0.1:4747/api/status")
-          echo "$status"
+          curl -sf "http://127.0.0.1:4747/api/status" -o "$STATUS_JSON_FILE"
+          wc -c "$STATUS_JSON_FILE"
           python3 - <<'PYEOF'
           import json, os, sys
-          status = json.loads(os.popen('curl -sf "http://127.0.0.1:4747/api/status"').read())
+          with open(os.environ["STATUS_JSON_FILE"]) as f:
+              status = json.load(f)
           text = json.dumps(status)
           if "task-management" not in text and "Todo" not in text:
               sys.exit("::error::dashboard status payload doesn't mention the project/feature")
           if "Traceback" in text or "Exception" in text:
               sys.exit(f"::error::dashboard status payload looks like a crash: {text}")
           PYEOF
-          home_page=$(curl -sf "http://127.0.0.1:4747/")
-          if ! echo "$home_page" | grep -qi "dashboard"; then
-            echo "::error::dashboard home page did not render"
-            exit 1
-          fi
+          for i in $(seq 1 5); do
+            if curl -sf "http://127.0.0.1:4747/" -o "$HOME_PAGE_FILE" && grep -qi "dashboard" "$HOME_PAGE_FILE"; then
+              echo "Dashboard home page rendered correctly"
+              exit 0
+            fi
+            sleep 0.5
+          done
+          echo "::error::dashboard home page did not render"
+          exit 1
       - name: Stop the dashboard
         if: always()
         working-directory: ${{ env.WORK }}
