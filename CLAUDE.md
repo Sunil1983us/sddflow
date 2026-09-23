@@ -226,6 +226,32 @@ references are deliberately skipped (AI-2 summaries aren't guaranteed to
 preserve source section numbers); a `.md` reference to a doc key with no
 matching `*-template.md` is reported as a note, not a failure.
 
+A fourth harness, `packs/_shared/tests/check-manifest-schema.py`, validates
+every `.specify/manifest.yml` in the repo (packs and examples) against the
+canonical schema. `yaml-validate` only proves a manifest *parses*; it
+cannot catch one that is valid YAML but structurally wrong. That is exactly
+how the `examples/todo-api` bug shipped: `project_type` sat nested under
+`project:` instead of at the top level, so the CLI and dashboard read it as
+absent and rendered `Type: —`. The same example declared no `plan_mode`, so
+it defaulted to `unified` while shipping `arch.md` + `hld.md`, and the
+dashboard struck Architecture and HLD through as "skipped" while listing
+them as Approved one table below. CI runs it on every PR
+(`manifest-schema-check` job). Run it locally after editing any
+`manifest.yml`, or after adding/removing a plan-mode document in an
+example:
+
+```bash
+python3 packs/_shared/tests/check-manifest-schema.py --verbose
+```
+
+It checks three things: keys sit at the right nesting level (the
+`project_type` bug), every enum value is legal, and `plan_mode` agrees with
+the documents actually on disk (`separate` ⇒ `arch.md` + `hld.md`,
+`unified` ⇒ `design.md`) — the last one only for real feature directories,
+never for an unfilled pack template. A pack whose `sdd_version` trails the
+newest is reported as a note, never a failure: changing a version is the
+`version-bump` skill's job, not this checker's.
+
 ---
 
 ## Versioning Policy
