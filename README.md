@@ -10,6 +10,34 @@ A collection of self-contained packs that bring a structured, AI-assisted SDLC
 into any project. Copy one pack, run one command, get a full specification
 pipeline from business requirements through to release notes.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/dashboard-dark.png">
+    <img src="docs/assets/dashboard-light.png" alt="sdd dashboard showing the Todo API worked example: project and GATE-1 status, a business-objective rollup with per-objective progress, and the full pipeline with completed, current, and skipped steps" width="100%">
+  </picture>
+</p>
+
+<p align="center"><em><code>sdd dashboard</code> running against <a href="examples/todo-api/"><code>examples/todo-api</code></a> — every number is read from the Markdown in <code>.specify/</code>, nothing is stored separately.</em></p>
+
+---
+
+## See it in 60 seconds
+
+No AI tool, no API key, no pack to copy. This opens the dashboard above
+against the worked example that ships in this repo:
+
+```bash
+pip install sddflow
+git clone https://github.com/sunil1983us/sddflow.git
+cd sddflow/examples/todo-api && sdd dashboard
+```
+
+You get the real pipeline state for a complete `pilot`-scope run: which
+documents are approved, which business objectives the finished work
+actually serves, and what the next command would be. Browse the documents
+it is reading in
+[`examples/todo-api/.specify/`](examples/todo-api/.specify/features/task-management/).
+
 ---
 
 ## 60-Second Overview
@@ -73,6 +101,29 @@ Agent commands (Claude Code / Copilot):
 
 → Full reference: [`cli-python/README.md`](cli-python/README.md)
 
+### The virtual team
+
+Every pipeline step is owned by a named persona, which is why the dashboard
+pipeline above is labelled `Maya`, `Ava`, `Kai` and so on. Each name is a
+slash command in its own right: address it in chat and the agent runs the
+matching command for you. `Maya, create the BRD` does what `/specify-brd`
+does.
+
+| Persona | Role | Owns |
+|---|---|---|
+| **Maya** | Senior Business Analyst | `/create-context` · `/specify-brd` · `/specify-uc` · `/validate` · `/change` |
+| **Rex** | Senior Requirements Engineer | `/specify-srd` · `/clarify` |
+| **Ava** | Principal Software Architect | `/analyze` · `/plan-design` · `/specify-doc` |
+| **Leo** | Lead Developer | `/plan-lld` · `/implement` · `/pre-review` · `/address-review` · `/bug-assess` · `/bug-fix` |
+| **Kai** | Engineering Manager | `/task` · `/taskstoissues` |
+| **Quinn** | QA Lead | `/checklist` |
+| **Riley** | Release Manager | `/release` |
+| **Morgan** | Delivery Manager | `/orchestrate` |
+
+These are AI personas, not people. They are distinct from
+`.specify/memory/roles.yml`, which records the real humans who sign off at
+each gate. A pack's `FLOW-ROLES-GATES.md` explains the split.
+
 > **Node.js CLI removed.** The Node CLI (`@sunil1983us/sddflow` on npm) was
 > scaffolding-only (`init`/`upgrade`, no Jira/Confluence/review-gate/PR
 > support) and has been removed from this repo — it received no new
@@ -125,6 +176,7 @@ packs/
   sdd-fullstack/
   sdd-micro/          # Tiny/personal projects — no BRD/UC/SRD, 3 commands
 cli-python/           # Python CLI (pip install sddflow)
+docs/assets/          # Screenshots used by this README
 examples/
   todo-api/             # Worked example — backend, separate plan mode
   habit-tracker-web/    # Worked example — frontend, unified plan mode

@@ -1,12 +1,27 @@
+# SDD Manifest — worked example (backend-service, pilot, separate plan mode)
 project:
   name: "Todo API"
   scope: "pilot"
   feature: "task-management"
   context_file: "task-management.md"
-  project_type: "backend-service"
+
+# Top-level, matching the canonical pack manifest — the CLI and dashboard
+# read project_type from here, not from inside project:.
+project_type: "backend-service"
 
 pr_rules:
   max_lines_per_pr: 400
   max_files_per_pr: 5
 
 workflow_mode: "github"
+reading_mode: "auto"
+
+# separate — this example ships arch.md + hld.md (not a unified design.md),
+# produced by /plan-arch and /plan-hld.
+plan_mode: "separate"
+
+testing_style: "paired"
+
+sdd_version: "4.0.0"
+pack: "sdd-universal"
+ai_tool: "claude-code"

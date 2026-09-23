@@ -11,5 +11,6 @@ pr_rules:
 reading_mode: "auto"
 plan_mode: "unified"
 testing_style: "paired"
-sdd_version: "2.7.0"
+sdd_version: "4.0.0"
+pack: "sdd-universal"
 ai_tool: "claude-code"

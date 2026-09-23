@@ -46,6 +46,19 @@ jobs:
       - name: Run check-cross-references.py
         run: python3 packs/_shared/tests/check-cross-references.py
 
+  manifest-schema-check:
+    name: Manifests match the canonical schema (key placement, enums, plan_mode)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PyYAML
+        run: pip install pyyaml
+      - name: Run check-manifest-schema.py
+        run: python3 packs/_shared/tests/check-manifest-schema.py --verbose
+
   output-assertions:
     name: Worked example passes output assertions
     runs-on: ubuntu-latest
