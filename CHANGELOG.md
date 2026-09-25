@@ -4,6 +4,314 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [4.1.5] — 2026-09-25 (Jira ticket creation survives a bad reviewer)
+
+Follow-up to 4.1.4. That release made the assignee value correct per
+deployment (`name` vs `accountId`), but a still-wrong value — a typo, a
+reviewer who left the org, a stale entry in `integrations.yml` with
+nothing to validate it at config time — still failed the entire review
+or CR ticket, because Jira's create-issue endpoint validates the whole
+request atomically. The assignee has no bearing on whether the document
+itself is trackable, so losing the whole ticket over it was
+disproportionate.
+
+### Fixed
+
+- `JiraClient.create_issue()` now inspects a `400` response for Jira's
+  own `{"errors": {"assignee": "..."}}` signal and, if present, retries
+  once with `assignee` stripped instead of failing outright. A
+  successful retry means the ticket was created unassigned, reported to
+  the caller via a new `_assignee_dropped_reason` key rather than
+  swallowed silently.
+- If some *other* field is also invalid, the retry's own error
+  propagates normally, naming only the real remaining problem. A
+  malformed or non-JSON `400` body (a reverse proxy can return HTML) is
+  treated as no signal — no retry, the original error surfaces exactly
+  as before.
+- The three ticket-creation paths that set an assignee now print a
+  yellow warning naming Jira's reason right after the green "created"
+  confirmation, so a dropped assignee is visible immediately rather than
+  only discovered by opening Jira later.
+
+### Verified
+
+- `cli-python` pytest 1221/1221 — 17 new tests: 13 covering the retry
+  logic directly (assignee-only errors retry and succeed; unrelated
+  errors never retry; a failing retry surfaces its own error; malformed
+  bodies are treated as no signal; normal success carries no extra key),
+  4 confirming the console warning at the two call sites.
+- One test-fragility issue found and fixed: an assertion on raw CLI
+  output broke under Rich's line-wrapping, which can split a phrase
+  across a literal newline. Fixed by whitespace-normalizing before
+  asserting.
+- ruff clean; mypy identical before and after.
+
+---
+
+## [4.1.4] — 2026-09-25 (Jira assignee dropped on Server/Data Center)
+
+Reported by a user on a real Data Center instance: review and CR tickets
+were created successfully but always came back unassigned, with no
+error anywhere in the output. They confirmed via `GET
+/rest/api/2/myself` that their user has no `accountId` at all — only
+`name` and `key` (e.g. `JIRAUSER10100`).
+
+### Fixed
+
+- **Every Jira ticket this CLI assigns hardcoded `{"accountId": ...}`,
+  which is a Cloud-only construct.** Server/Data Center identifies users
+  by `name` instead and never adopted `accountId`. Sending `accountId`
+  to Data Center doesn't error — the create-issue call comes back `2xx`
+  with the issue simply left unassigned, which is exactly how this went
+  unnoticed.
+
+  Added `JiraClient.assignee_field(user)`, returning `{"name": user}` on
+  Server/Data Center and `{"accountId": user}` on Cloud. `JiraClient`
+  already tracks its deployment, so this needed one new method and three
+  call sites routed through it: the two review-Story creation paths in
+  `review.py` and the CR review-task creation path in `cr.py`.
+
+- Two help/hint strings that only mentioned `accountId` — `sdd cr
+  submit --reviewer`'s help text and `sdd config init`'s
+  `integrations.yml` scaffold warning — now name both forms, so a Data
+  Center user isn't misled into thinking they need a Cloud-style
+  `accountId`.
+
+### Verified
+
+- `cli-python` pytest 1204/1204 — 8 new tests covering
+  `assignee_field()` in both deployments, and both the review-submit and
+  CR-submit ticket paths in both deployments (plus a no-reviewer case).
+- Two hand-written `FakeJiraClient` test doubles needed a matching
+  `assignee_field()` added, since they don't inherit from the real
+  client.
+- ruff clean; mypy identical before and after this change.
+
+---
+
+## [4.1.3] — 2026-09-25 (Jira 9.0+ removed the createmeta endpoint)
+
+Reported from a real Data Center instance: `sdd doctor` failed its Jira
+field check with a 404, while `sdd config test` passed against the same
+instance.
+
+### Fixed
+
+- **`sdd doctor`'s Jira field check did not work on Jira 9.0 or later
+  (Server / Data Center).** Atlassian removed the classic query-param
+  `createmeta` endpoint outright in Jira 9.0, for performance reasons.
+
+  `get_createmeta_fields()` now tries the modern two-call endpoint first
+  (`/issue/createmeta/{key}/issuetypes`, then `…/issuetypes/{id}`), added
+  in Jira 8.4 and the only option from 9.0, and falls back to the classic
+  single call for pre-8.4 Server and for Cloud. Both are normalised to
+  the same mapping, so the caller is unchanged. Issue-type matching is
+  case-insensitive, and pagination is followed on both endpoints.
+
+  The method's own docstring had this backwards. It claimed the classic
+  endpoint was "still the only createmeta option on Server/Data Center"
+  and anticipated Cloud as the eventual risk. The reverse is true: Cloud
+  kept it, Server removed it.
+
+- **The 404 was actively misleading.** It came back as
+  `{"errorMessages":["Issue Does Not Exist"]}`, which reads like a bad
+  issue key. With no createmeta route registered, Jira falls through to
+  `GET /issue/{issueIdOrKey}` and reads the literal path segment
+  `createmeta` as an issue key. `sdd doctor` now says so when it sees
+  that combination, instead of printing a bare URL.
+
+### Scope
+
+`createmeta` is called only by this doctor pre-flight check. `sdd jira
+push` builds issues through a different path and never touched it, so
+pushes on affected instances were never broken — what was lost was the
+validation.
+
+### Verified
+
+- `cli-python` pytest 1196/1196. Six new tests cover the modern path,
+  case-insensitive matching, pagination, the classic fallback and a
+  defensive dict shape; two existing tests that encoded the
+  single-endpoint behaviour were rewritten as fallback tests.
+- Driven end to end against a local server mimicking Jira 9, with the
+  classic route returning the `Issue Does Not Exist` body and the modern
+  routes serving a paginated issue-type and field payload. The check
+  resolved an issue type by name to its id and correctly reported a
+  required custom field.
+- Test fixtures use a fictional project key and issue types. The
+  reporting organization's own project key and issue-type names are
+  deliberately not recorded anywhere in this repository.
+- ruff clean; mypy unchanged at 13 pre-existing errors.
+
+---
+
+## [4.1.2] — 2026-09-25 (Dashboard: feature tabs with no tasks)
+
+Found by testing the dashboard against a project with more than one
+feature, which nothing in the 4.1.0 or 4.1.1 verification had done.
+
+### Fixed
+
+- A feature tab whose feature has no `tasks.md` displayed "no tasks.md"
+  in the accent colour and bold, which is how a real completion figure
+  like "30% tasks" is rendered. Every feature that had not yet reached
+  `/task` therefore showed its absence with the visual weight of a
+  positive number.
+
+  `renderFeatureTabs()` puts both kinds of value in the same span, so
+  CSS alone could not tell them apart. It now adds a
+  `feature-tab-pct-none` modifier when the percentage is null, and the
+  stylesheet renders that muted at normal weight.
+
+  This is only observable on a project with two or more features —
+  `renderFeatureTabs()` returns nothing below that, so the tab strip
+  never renders on a single-feature project such as `examples/todo-api`,
+  which is what both previous releases were verified against. It
+  predates 4.1.0; the base stylesheet coloured that span the same way.
+
+### Noted, no change
+
+- The Business Objectives table rendering twice is correct rather than
+  redundant. On a multi-feature project the project-wide card carries a
+  Feature column and every feature's rows, while the per-feature card
+  carries only the active feature's. They collapse to identical content
+  only when a project has exactly one feature.
+
+### Verified
+
+- On a purpose-built three-feature project as well as the single-feature
+  example: computed colour and weight confirmed muted on the two absence
+  tabs and accent/bold on the one real figure, in both themes.
+- Tab switching across all three features re-renders the heading, stat
+  tiles and pipeline correctly.
+- The single-feature project still renders no tab strip at all.
+- `cli-python` pytest 1190/1190; no horizontal overflow at 600, 768,
+  1024, 1440 or 1920px on either project shape.
+
+---
+
+## [4.1.1] — 2026-09-25 (Dashboard follow-up: fixes and polish)
+
+A second pass over the dashboard after 4.1.0. Measuring it rather than
+just looking at it turned up two defects in what 4.1.0 shipped, both
+fixed here, along with a round of polish.
+
+### Fixed
+
+- **Stat tiles were 48% empty** — 141px tall holding 73px of content.
+  `.sub` is the page subtitle once (`#generated-at`) and a small caption
+  33 times in `app.js`, and 4.1.0 raised its bottom margin to 2rem, which
+  then applied inside every tile. Several `app.js` call sites already
+  worked around it with an inline `style="margin:…"`, which was the tell
+  that the margin sat on the wrong element. It now lives on the page
+  subtitle alone and tiles measure 118px.
+- **No `prefers-reduced-motion` handling.** 4.1.0 introduced 7
+  transitions and 2 hover lifts with no guard. Every one is now disabled
+  when the setting is on.
+- **No focus styles.** 4.1.0 restyled every button but left them on the
+  browser default outline, which is near invisible against a card.
+  `:focus-visible` rings added on all 7 interactive selectors, so a
+  keyboard user sees them and a mouse click does not.
+- **Status badges wrapped.** "In Progress" ran to two lines at 41px
+  against 24px for every single-word badge, leaving the Business
+  Objectives rows uneven.
+
+### Changed
+
+- A colour rail per stat tile, so the row reads as three distinct
+  measures rather than three grey boxes.
+- Status badges carry a leading dot in the status colour.
+- Sticky topbar with backdrop blur, behind an `@supports` guard so
+  browsers without it get a solid background instead of a washed-out one.
+- A rule separating the project-wide cards from the per-feature block,
+  which previously ran together.
+- Quieter pipeline arrows, a lighter info box, a heavier left edge on the
+  next-action callout, underlined table links, and faded placeholder
+  cells.
+
+### Verified
+
+- `cli-python` pytest 1190/1190.
+- Light, Dark and Auto, with Auto checked against both a light and a dark
+  OS preference.
+- All 16 probed components at non-zero size in both themes; 8 of 8 tabbed
+  controls show a focus ring; transition duration collapses under
+  `prefers-reduced-motion: reduce`.
+- No horizontal overflow at 600, 768, 1024, 1440 or 1920px. 390px is
+  unchanged from 4.1.0 at 569px.
+
+  A first cut of the sticky topbar left its negative margin hardcoded
+  while the narrow-width block drops body padding, producing a 620px
+  document at a 600px viewport where nothing had overflowed. Caught by
+  the width sweep and fixed before this shipped.
+
+---
+
+## [4.1.0] — 2026-09-25 (Dashboard visual refresh)
+
+`sdd dashboard` is the most demonstrable thing this project has — the
+README now opens with a screenshot of it — but it looked dated next to
+what it actually does. This release restyles it. Only the stylesheet
+changed: `page.html`, `app.js`, `theme.js` and every `/api/*` endpoint
+are untouched, so nothing about what the dashboard reports can have
+moved, only how it looks.
+
+Most of the change rides on the design tokens `style.css` already
+threaded through every rule with `var()`, which is why the diff stays
+small relative to the visual difference.
+
+### Changed
+
+- Refreshed colour tokens — slate and indigo in place of the previous
+  grey and blue — across all four theme blocks (light default, OS-dark,
+  and the two explicit toggle picks).
+- New presentation-only tokens: `--radius`, `--radius-sm`, `--shadow-sm`,
+  `--shadow-md` and `--ring`. Only the shadows vary by theme.
+- Cards, stat tiles, feature tabs and the info box now carry elevation
+  rather than a flat 1px border.
+- Clearer type scale: a larger page title, and `h2` demoted to a small
+  uppercase section label so it stops competing with the feature
+  heading. `.card.collapsible > summary` mirrors it.
+- Roomier table rows with a hover cue, and tabular figures on numeric
+  cells so values stop jittering across the 5-second poll.
+- Squarer badges, rounder progress bars, and a focus ring on the comment
+  form inputs replacing the removed UA outline.
+
+### Added
+
+- A `max-width: 720px` block that rolls the roomier padding back on a
+  phone. Measured on `examples/todo-api` at a 390px viewport, document
+  `scrollWidth` is 569px after this change against 601px before it.
+
+### Fixed
+
+- A maintainer comment above the token block contained a star-slash pair
+  inside prose, which closed the CSS comment early and dropped the whole
+  `:root` rule, leaving every colour token undefined. Invisible under an
+  explicit Light or Dark pick; it only surfaced in Auto mode on a light
+  OS. Found by the verification pass during this change, and the comment
+  now warns against writing that sequence there.
+
+### Known, unchanged
+
+- Tables still overrun a 390px viewport. They did before this release
+  too. Fixing it is a layout change rather than a visual one, so it is
+  documented in a comment at the foot of the stylesheet instead of being
+  folded into a restyle.
+
+### Verified
+
+- `cli-python` pytest 1190/1190.
+- Rendered against `examples/todo-api` in Light, Dark and Auto, with
+  Auto checked against both a light and a dark OS preference — that is
+  what caught the comment bug above.
+- Every card, stat tile, pipeline step, badge, button, table, progress
+  bar, doc-detail tab strip, comment form, info box, theme toggle and
+  footer confirmed rendering at non-zero size in both themes.
+- No horizontal overflow at 600, 768, 1024, 1440 or 1920px.
+
+---
+
 ## [4.0.0] — 2026-09-20 (Removed: the Node.js CLI)
 
 The Node CLI (`cli/`, published to npm as `@sunil1983us/sddflow`) has

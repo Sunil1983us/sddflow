@@ -8199,6 +8199,325 @@ MIGRATIONS: list[Migration] = [
             "clean",
         ],
     },
+    {
+        "from": "4.0.0",
+        "to": "4.1.0",
+        "description": "Dashboard visual refresh -- new palette, elevation and spacing in the dashboard stylesheet; no markup, JavaScript or API change",
+        "notes": [
+            "`sdd dashboard` looked dated next to what it actually does, "
+            "and it is the project's most demonstrable feature -- the "
+            "README now leads with a screenshot of it. Restyled "
+            "cli-python/sdd/commands/dashboard_static/style.css only: "
+            "refreshed colour tokens (slate/indigo in place of the old "
+            "grey/blue), new --radius/--shadow/--ring presentation "
+            "tokens, card elevation, a clearer type scale, roomier table "
+            "rows with a hover cue, tabular figures on numeric cells, and "
+            "squarer badges",
+            "Nothing else changed: page.html, app.js, theme.js and every "
+            "/api/* endpoint are untouched, so this cannot alter what the "
+            "dashboard reports, only how it looks. Most of the change "
+            "rides on the design tokens style.css already threaded "
+            "through every rule via var(), which is why the diff is "
+            "small relative to the visual difference",
+            "Added a max-width:720px block so the roomier padding rolls "
+            "back on a phone. Measured on examples/todo-api at a 390px "
+            "viewport: document scrollWidth is 569px after this change "
+            "against 601px before it. Those tables still overrun a 390px "
+            "viewport -- they did before this change too, and fixing that "
+            "is a layout change rather than a visual one, so it is left "
+            "alone and documented in a comment at the foot of the "
+            "stylesheet rather than smuggled in here",
+            "MINOR, not PATCH: a restyle is not a bug fix, so PATCH's "
+            "'bug fixes only' does not fit. It is backward-compatible "
+            "with nothing to migrate -- a project that ignores this "
+            "release loses nothing, one that upgrades gets a refreshed "
+            "dashboard -- which is the MINOR case",
+            "One bug was found and fixed during the change by the "
+            "verification pass: a maintainer comment above the token "
+            "block contained a star-slash pair inside prose, which "
+            "closed the CSS comment early and dropped the whole :root "
+            "block, leaving every colour token undefined. It was "
+            "invisible under an explicit Light or Dark pick and only "
+            "surfaced in Auto mode on a light OS. The comment now warns "
+            "against writing that sequence there",
+            "Verified: cli-python pytest 1190/1190; dashboard rendered "
+            "against examples/todo-api in Light, Dark and Auto (Auto "
+            "checked against both a light and a dark OS preference, "
+            "which is what caught the comment bug); every card, stat "
+            "tile, pipeline step, badge, button, table, progress bar, "
+            "doc-detail tab strip, comment form, info box, theme toggle "
+            "and footer confirmed rendering at non-zero size in both "
+            "themes; no horizontal overflow at 600/768/1024/1440/1920px",
+        ],
+    },
+    {
+        "from": "4.1.0",
+        "to": "4.1.1",
+        "description": "Dashboard follow-up: fixes 4.1.0's stat-tile dead space, adds the reduced-motion and focus-visible handling 4.1.0's animations needed, plus visual polish",
+        "notes": [
+            "Stat tiles were 141px tall holding 73px of content, i.e. 48% "
+            "empty. Cause: .sub is the page subtitle once (#generated-at "
+            "in page.html) and a small caption 33 times in app.js, and "
+            "4.1.0 raised its bottom margin to 2rem, which then applied "
+            "inside every tile. Several app.js call sites already worked "
+            "around it with an inline style='margin:...', which was the "
+            "tell that the margin sat on the wrong element. It now lives "
+            "on #generated-at alone; tiles measure 118px",
+            "4.1.0 introduced 7 transitions and 2 hover lifts with no "
+            "prefers-reduced-motion guard, and restyled every button "
+            "while leaving them on the browser default focus outline "
+            "(near-invisible against a card). Both are accessibility "
+            "defects in what 4.1.0 shipped, so this release adds a "
+            "reduced-motion block covering every animation and transform, "
+            "and :focus-visible rings on all 7 interactive selectors",
+            "Polish: a colour rail per stat tile so the row reads as "
+            "three measures rather than three grey boxes; nowrap status "
+            "badges with a leading status dot (In Progress was wrapping "
+            "to 41px against 24px for single-word badges, leaving the "
+            "Business Objectives rows uneven); a sticky topbar with "
+            "backdrop blur behind an @supports guard; a rule separating "
+            "the project-wide cards from the per-feature block; quieter "
+            "pipeline arrows; a lighter info box; a heavier left edge on "
+            "the next-action callout; faded placeholder cells",
+            "The sticky topbar cancels body's side padding with a "
+            "negative margin, and the two must move together. The first "
+            "cut left the margin hardcoded while the existing narrow-"
+            "width block drops body padding, which produced a 620px "
+            "document at a 600px viewport where nothing had overflowed. "
+            "The narrow-width block now restates both, and also relaxes "
+            "the nowrap badge and its dot, which cost 30px at 390px. Net "
+            "result is identical to 4.1.0 at every width measured",
+            "PATCH, not MINOR: every substantive item repairs something "
+            "4.1.0 shipped rather than adding capability -- no new "
+            "command, template, manifest field or CLI flag",
+            "Verified: cli-python pytest 1190/1190; Light, Dark and Auto "
+            "(Auto against both a light and a dark OS preference); all 16 "
+            "probed components at non-zero size in both themes; 8 of 8 "
+            "tabbed controls show a focus ring; transition-duration "
+            "collapses under prefers-reduced-motion:reduce; no horizontal "
+            "overflow at 600/768/1024/1440/1920px and 390px unchanged "
+            "from 4.1.0 at 569px",
+        ],
+    },
+    {
+        "from": "4.1.1",
+        "to": "4.1.2",
+        "description": "Dashboard: a feature tab with no tasks.md no longer styles that absence as if it were a completion metric",
+        "notes": [
+            "renderFeatureTabs() puts two different kinds of value in one "
+            "span: a real completion figure ('30% tasks') or the note that "
+            "there is nothing to measure yet ('no tasks.md'). style.css "
+            "renders .feature-tab-pct as an accent-coloured bold metric, so "
+            "every feature that had not reached /task displayed its "
+            "absence with the visual weight of a positive number",
+            "Fix is a modifier class: renderFeatureTabs() now adds "
+            "feature-tab-pct-none when the percentage is null, and "
+            "style.css renders that in --dim at normal weight. CSS alone "
+            "could not do this -- nothing in the markup distinguished the "
+            "two cases",
+            "Only observable on a project with 2 or more features: "
+            "renderFeatureTabs() returns '' below that, so the tab strip "
+            "never renders on a single-feature project. That is why this "
+            "survived the 4.1.0 and 4.1.1 verification passes, both of "
+            "which ran against examples/todo-api, which has one feature. "
+            "It predates 4.1.0 -- the base stylesheet coloured that span "
+            "the same way -- but 4.1.0's more saturated accent made it "
+            "more prominent",
+            "Verified on a purpose-built 3-feature project (task-"
+            "management with tasks, notifications and user-profiles "
+            "without) as well as the single-feature example: computed "
+            "colour and weight confirmed muted for the two absence tabs "
+            "and accent/bold for the one real figure, in both themes; tab "
+            "switching across all 3 features re-renders heading, stat "
+            "tiles and pipeline correctly; single-feature project still "
+            "renders no tab strip at all; cli-python pytest 1190/1190; no "
+            "horizontal overflow at 600/768/1024/1440/1920px on either "
+            "project shape",
+            "Also recorded while testing: the Business Objectives table "
+            "rendering twice is correct, not redundant. On a multi-feature "
+            "project the project-wide card carries a Feature column and "
+            "every feature's rows, while the per-feature card carries only "
+            "the active feature's. They collapse to identical content only "
+            "when a project has exactly one feature. No change made",
+        ],
+    },
+    {
+        "from": "4.1.2",
+        "to": "4.1.3",
+        "description": "sdd doctor's Jira field check now works on Jira 9.0+ Server/Data Center, which removed the createmeta endpoint the check was calling",
+        "notes": [
+            "Reported from a real Data Center instance: `sdd doctor` "
+            "failed with 404 on GET /rest/api/2/issue/createmeta?"
+            "projectKeys=...&issuetypeNames=..., body "
+            "{'errorMessages':['Issue Does Not Exist']}. Auth and "
+            "connectivity were fine -- `sdd config test` passed against "
+            "the same instance",
+            "That error is not what it looks like. With no createmeta "
+            "route registered, Jira falls through to GET "
+            "/issue/{issueIdOrKey} and reads the literal path segment "
+            "'createmeta' as an issue key, which is why it reports a "
+            "missing issue rather than a missing endpoint. It is the "
+            "signature of this specific problem",
+            "Root cause: Atlassian removed the classic query-param "
+            "createmeta outright in Jira 9.0 for Server/Data Center, for "
+            "performance reasons. get_createmeta_fields()'s docstring had "
+            "this backwards -- it claimed the classic endpoint was 'still "
+            "the only createmeta option on Server/Data Center' and "
+            "anticipated Cloud as the eventual risk. The reverse is true: "
+            "Cloud kept it, Server removed it",
+            "get_createmeta_fields() now tries the modern two-call "
+            "endpoint first (/issue/createmeta/{key}/issuetypes, then "
+            ".../issuetypes/{id}), added in Jira 8.4 and the only option "
+            "from 9.0, and falls back to the classic single call for "
+            "pre-8.4 Server and for Cloud. Both are normalised to the "
+            "same {field_id: {...}} mapping, so check_epic_createmeta() "
+            "is unchanged. Issue-type matching is case-insensitive and "
+            "both endpoints' pagination is followed, bounded at 20 pages "
+            "so a server that mis-reports isLast cannot spin",
+            "The modern per-issue-type response is a paginated LIST of "
+            "field objects keyed by 'fieldId', not the classic dict keyed "
+            "by field id. Both shapes are accepted, because this could "
+            "not be verified against every Jira version",
+            "sdd doctor also now annotates that 404: seeing 'Issue Does "
+            "Not Exist' on a createmeta URL otherwise sends people "
+            "hunting for an issue that never existed",
+            "Scope: createmeta is used only by this doctor pre-flight "
+            "check. `sdd jira push` builds issues through _upsert_issue() "
+            "and never called it, so pushes were unaffected -- what was "
+            "broken was the validation, not the ability to push",
+            "Verified: cli-python pytest 1196/1196 (1190 + 6 new covering "
+            "the modern path, case-insensitive matching, pagination, the "
+            "classic fallback and the defensive dict shape; two existing "
+            "tests that encoded the single-endpoint behaviour were "
+            "rewritten as fallback tests). Also driven end to end against "
+            "a local server mimicking Jira 9 -- classic route 404ing with "
+            "the 'Issue Does Not Exist' body, modern routes serving a "
+            "paginated issue-type and field payload -- where the check "
+            "correctly resolved an issue type by name to its id and "
+            "reported a required custom field. Test fixtures use a "
+            "fictional project and issue types; the reporting "
+            "organization's project key and issue-type names are "
+            "deliberately not recorded anywhere in this repo. ruff clean; "
+            "mypy unchanged at 13 pre-existing errors",
+        ],
+    },
+    {
+        "from": "4.1.3",
+        "to": "4.1.4",
+        "description": "Jira review/CR tickets are now assigned correctly on Server/Data Center, which hardcoded a Cloud-only assignee field shape",
+        "notes": [
+            "Reported by a user on a real Data Center instance: review "
+            "and CR tickets were created but always left unassigned, "
+            "with no error. They confirmed via GET /rest/api/2/myself "
+            "that their user has no accountId at all -- only name and "
+            "key, e.g. JIRAUSER10100",
+            "Root cause: every call site that sets fields['assignee'] "
+            "hardcoded {'accountId': ...}. accountId is a Cloud-only "
+            "construct (Atlassian's GDPR-era user-identification "
+            "change); Server/Data Center identifies users by 'name' "
+            "instead and never adopted accountId. Sending accountId to "
+            "Data Center doesn't error -- Jira's create-issue call can "
+            "come back 2xx with the issue simply left unassigned -- "
+            "which is exactly how this went unnoticed: nothing in the "
+            "CLI's own output pointed at the assignee field at all",
+            "Added JiraClient.assignee_field(user), which returns "
+            "{'name': user} when self.deployment == 'server' and "
+            "{'accountId': user} otherwise. JiraClient already carries "
+            "deployment (derived from Profile.deployment, itself "
+            "derived from auth_mode == 'pat' -- PAT auth is a Server/DC-"
+            "only mechanism, see that property's own docstring), so no "
+            "new plumbing was needed, only a single method and three "
+            "call sites routed through it: review.py's two review-Story "
+            "creation paths (submit and push-questions-with-reuse) and "
+            "cr.py's CR review-task creation",
+            "Also reworded two help/hint strings that only mentioned "
+            "accountId -- cr.py's --reviewer flag help and config.py's "
+            "integrations.yml scaffold warning -- to name both forms, "
+            "so a Data Center user isn't misled into thinking they need "
+            "a Cloud-style accountId",
+            "PATCH, not MINOR: pure bug fix, no new flag, config field, "
+            "or command. A project that upgrades just gets correct "
+            "assignee behaviour on Server/Data Center; nothing changes "
+            "for a Cloud project",
+            "Verified: cli-python pytest 1204/1204 (1196 + 8 new -- "
+            "assignee_field() itself in both deployments and the Cloud "
+            "default; review_submit's Story ticket in both deployments; "
+            "cr_submit's CR ticket in both deployments plus a no-"
+            "reviewer-means-no-assignee-field case). Two hand-written "
+            "FakeJiraClient test doubles (test_review_helpers.py, "
+            "test_cr.py) needed a matching assignee_field() added, since "
+            "they don't inherit from the real JiraClient and the new "
+            "method had no default on them; a third FakeJiraClient in "
+            "test_jira_push_content.py was left alone, since jira.py's "
+            "_upsert_issue() path (Epic/Story/Task creation) never sets "
+            "an assignee. ruff clean; mypy identical before/after this "
+            "change at 16 pre-existing 'library stubs not installed' "
+            "import errors, none newly introduced",
+        ],
+    },
+    {
+        "from": "4.1.4",
+        "to": "4.1.5",
+        "description": "A stale or invalid reviewer_jira_user no longer fails the whole Jira review/CR ticket -- it's created unassigned instead, with a warning",
+        "notes": [
+            "4.1.4 made the assignee VALUE correct per deployment "
+            "(name vs accountId), but a still-wrong value -- a typo, a "
+            "reviewer who left the org, a stale entry in "
+            "integrations.yml with nothing to validate it at config "
+            "time -- still failed the entire ticket, since Jira's "
+            "create-issue endpoint validates the whole fields payload "
+            "atomically. The assignee has no bearing on whether the "
+            "document itself is trackable, so failing the whole ticket "
+            "over it was disproportionate. This closes that gap",
+            "JiraClient.create_issue() now inspects a 400 response body "
+            "for Jira's own {'errors': {'assignee': \"...\"}} signal "
+            "(new module-level helper _assignee_creation_error()) and, "
+            "if present, retries once with 'assignee' stripped rather "
+            "than failing outright. A successful retry means the ticket "
+            "was created unassigned; this is signalled to the caller "
+            "via a new '_assignee_dropped_reason' key on the returned "
+            "dict (Jira's own error text) rather than swallowed. If "
+            "some OTHER field is also invalid, the retry's own error "
+            "propagates normally, naming only the real remaining "
+            "problem since assignee is no longer part of the request. "
+            "A malformed/non-JSON 400 body (e.g. HTML from a reverse "
+            "proxy) is treated as no signal -- no retry, the original "
+            "error surfaces exactly as before this change",
+            "All three call sites that set assignee (review.py's two "
+            "review-Story creation paths, cr.py's CR review-task "
+            "creation) now check the result for "
+            "'_assignee_dropped_reason' and print a yellow warning "
+            "naming Jira's reason right after the green 'created' "
+            "confirmation, so the user learns the ticket succeeded AND "
+            "why it's unassigned in the same breath, rather than only "
+            "by opening Jira later. jira.py's _upsert_issue() "
+            "(Epic/Story/Task creation) is unaffected -- it never sets "
+            "an assignee, and the retry gate is "
+            "'\"assignee\" in fields'",
+            "PATCH, not MINOR: pure bug-fix hardening of 4.1.4's "
+            "change, no new flag, config field, or command",
+            "Verified: cli-python pytest 1221/1221 (1204 + 17 new -- 13 "
+            "in test_jira_client.py covering the retry logic directly "
+            "against a mocked session [assignee-only error retries and "
+            "succeeds; no-assignee-in-fields never retries; non-"
+            "assignee 400 doesn't retry; the retry itself failing "
+            "surfaces its own error; malformed/non-JSON body doesn't "
+            "retry; normal success carries no dropped-reason key; plus "
+            "7 standalone tests for the parsing helper's edge cases], 2 "
+            "in test_review_helpers.py and 2 in test_cr.py confirming "
+            "the console warning fires/doesn't fire at the review_submit "
+            "and cr_submit call sites via a simulate_assignee_dropped "
+            "flag added to both files' hand-written FakeJiraClient test "
+            "doubles). One test-fragility issue found and fixed along "
+            "the way: an assertion checking for 'does not exist' in raw "
+            "CLI output failed under Rich's Console line-wrapping, which "
+            "split the phrase across a literal newline mid-word under "
+            "CliRunner's narrow/undetected terminal width -- fixed by "
+            "whitespace-normalizing before asserting. ruff clean; mypy "
+            "identical before/after via git-stash comparison (14/14, "
+            "zero new errors)",
+        ],
+    },
 ]
 
 

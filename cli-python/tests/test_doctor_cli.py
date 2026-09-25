@@ -180,7 +180,7 @@ class TestJiraFieldRequirementsCheck:
     def test_skip_jira_flag_skips_even_when_configured(self, tmp_path, monkeypatch):
         project = _setup_clean_project(tmp_path, monkeypatch)
         (project / ".specify" / "integrations.yml").write_text(
-            yaml.dump({"profile": "default", "jira": {"project_key": "FRAML"}})
+            yaml.dump({"profile": "default", "jira": {"project_key": "DEMO"}})
         )
         result = CliRunner().invoke(doctor_command, ["--skip-jira"])
         assert result.exit_code == 0
@@ -189,7 +189,7 @@ class TestJiraFieldRequirementsCheck:
     def test_jira_configured_all_ok_stays_exit_zero(self, tmp_path, monkeypatch):
         project = _setup_clean_project(tmp_path, monkeypatch)
         (project / ".specify" / "integrations.yml").write_text(
-            yaml.dump({"profile": "default", "jira": {"project_key": "FRAML"}})
+            yaml.dump({"profile": "default", "jira": {"project_key": "DEMO"}})
         )
         monkeypatch.setattr(
             doctor_mod,
@@ -218,7 +218,7 @@ class TestJiraFieldRequirementsCheck:
     ):
         project = _setup_clean_project(tmp_path, monkeypatch)
         (project / ".specify" / "integrations.yml").write_text(
-            yaml.dump({"profile": "default", "jira": {"project_key": "FRAML"}})
+            yaml.dump({"profile": "default", "jira": {"project_key": "DEMO"}})
         )
         monkeypatch.setattr(
             doctor_mod,
@@ -248,7 +248,7 @@ class TestJiraFieldRequirementsCheck:
     ):
         project = _setup_clean_project(tmp_path, monkeypatch)
         (project / ".specify" / "integrations.yml").write_text(
-            yaml.dump({"profile": "default", "jira": {"project_key": "FRAML"}})
+            yaml.dump({"profile": "default", "jira": {"project_key": "DEMO"}})
         )
 
         def _raise_auth_error(cfg):

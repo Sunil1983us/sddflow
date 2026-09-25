@@ -442,3 +442,247 @@ class TestTransitionIssue:
         client, session = self._client_with_transitions([])
         assert client.transition_issue("PROJ-1", "In Review") is False
         session.post.assert_not_called()
+
+
+class TestAssigneeField:
+    """Regression coverage for a bug where every assignee call site
+    hardcoded {"accountId": ...} regardless of deployment. accountId is
+    a Cloud-only construct (introduced with Atlassian's GDPR changes);
+    Server/Data Center identifies users by `name` instead. Sending
+    accountId to Data Center doesn't error -- the create call can come
+    back 2xx with the issue simply left unassigned -- which is how this
+    went unnoticed until a real Data Center push was checked."""
+
+    def test_server_deployment_uses_name(self):
+        client = JiraClient(
+            MagicMock(), "https://jira.example.net", deployment="server"
+        )
+        assert client.assignee_field("JIRAUSER10100") == {"name": "JIRAUSER10100"}
+
+    def test_cloud_deployment_uses_account_id(self):
+        client = JiraClient(MagicMock(), "https://x.atlassian.net", deployment="cloud")
+        assert client.assignee_field("5c7b8a2d0f3e1a4b9d6c8f21") == {
+            "accountId": "5c7b8a2d0f3e1a4b9d6c8f21"
+        }
+
+    def test_default_deployment_is_cloud(self):
+        client = JiraClient(MagicMock(), "https://x.atlassian.net")
+        assert client.assignee_field("someuser") == {"accountId": "someuser"}
+
+
+def _mock_response(*, status_code: int, json_body, raises: bool = False):
+    """A MagicMock standing in for a requests.Response, wired the way
+    create_issue()'s retry logic actually reads a response: .status_code
+    for the retry gate, .json() for _assignee_creation_error(), and
+    .raise_for_status()/.text for raise_for_status_with_body()."""
+    response = MagicMock()
+    response.status_code = status_code
+    response.json.return_value = json_body
+    response.text = str(json_body)
+    if raises:
+        response.raise_for_status.side_effect = requests.HTTPError(
+            f"{status_code} Client Error", response=response
+        )
+    else:
+        response.raise_for_status.return_value = None
+    return response
+
+
+class TestCreateIssueAssigneeFallback:
+    """Reported live: reviewer_jira_user in integrations.yml is hand-
+    typed with nothing to validate it against at config time. Jira's
+    create-issue endpoint validates the whole fields payload atomically
+    -- before this fix, a typo'd username, a reviewer who left the org,
+    or a Cloud/Server accountId-vs-name mismatch (see TestAssigneeField
+    above) failed the ENTIRE review/CR ticket, over a field that has no
+    bearing on whether the document itself is trackable. create_issue()
+    now retries once without "assignee" when Jira's own error body
+    blames that field specifically, and reports it via a
+    "_assignee_dropped_reason" key on the returned dict rather than
+    failing."""
+
+    def test_assignee_rejected_retries_without_it_and_succeeds(self):
+        session = MagicMock()
+        first = _mock_response(
+            status_code=400,
+            json_body={
+                "errorMessages": [],
+                "errors": {"assignee": "User 'baduser' does not exist."},
+            },
+            raises=True,
+        )
+        second = _mock_response(status_code=201, json_body={"key": "PROJ-1"})
+        session.post.side_effect = [first, second]
+        client = JiraClient(session, "https://x.atlassian.net")
+
+        result = client.create_issue(
+            {"summary": "Title", "assignee": {"accountId": "baduser"}}
+        )
+
+        assert session.post.call_count == 2
+        # The retry must not carry the field that got it rejected.
+        retry_fields = session.post.call_args_list[1].kwargs["json"]["fields"]
+        assert "assignee" not in retry_fields
+        assert result["key"] == "PROJ-1"
+        assert result["_assignee_dropped_reason"] == "User 'baduser' does not exist."
+
+    def test_no_assignee_in_fields_never_retries(self):
+        """The retry gate is `"assignee" in fields`, not just status_code
+        == 400 -- an unrelated 400 (e.g. a missing required custom
+        field) on a request that never had an assignee must not trigger
+        a pointless second call."""
+        session = MagicMock()
+        session.post.return_value = _mock_response(
+            status_code=400,
+            json_body={"errors": {"customfield_10011": "Epic Name is required."}},
+            raises=True,
+        )
+        client = JiraClient(session, "https://x.atlassian.net")
+
+        with pytest.raises(requests.HTTPError):
+            client.create_issue({"summary": "Title"})
+        assert session.post.call_count == 1
+
+    def test_non_assignee_400_error_does_not_retry(self):
+        """assignee IS in fields, but Jira's error blames a different
+        field -- retrying would just waste a call and still fail; the
+        original error (naming the real problem) must surface as-is."""
+        session = MagicMock()
+        session.post.return_value = _mock_response(
+            status_code=400,
+            json_body={"errors": {"customfield_10011": "Epic Name is required."}},
+            raises=True,
+        )
+        client = JiraClient(session, "https://x.atlassian.net")
+
+        with pytest.raises(requests.HTTPError) as excinfo:
+            client.create_issue(
+                {"summary": "Title", "assignee": {"accountId": "someuser"}}
+            )
+        assert session.post.call_count == 1
+        assert "Epic Name is required" in str(excinfo.value)
+
+    def test_retry_also_fails_surfaces_the_retrys_own_error(self):
+        """assignee wasn't the only problem: the retry (now without
+        assignee) still fails, this time over a genuinely blocking
+        field. That error -- not the original assignee complaint --
+        must be what reaches the caller, since assignee is no longer
+        part of the request they'd need to fix."""
+        session = MagicMock()
+        first = _mock_response(
+            status_code=400,
+            json_body={"errors": {"assignee": "User 'baduser' does not exist."}},
+            raises=True,
+        )
+        second = _mock_response(
+            status_code=400,
+            json_body={"errors": {"customfield_10011": "Epic Name is required."}},
+            raises=True,
+        )
+        session.post.side_effect = [first, second]
+        client = JiraClient(session, "https://x.atlassian.net")
+
+        with pytest.raises(requests.HTTPError) as excinfo:
+            client.create_issue(
+                {"summary": "Title", "assignee": {"accountId": "baduser"}}
+            )
+        assert session.post.call_count == 2
+        assert "Epic Name is required" in str(excinfo.value)
+
+    def test_malformed_400_body_does_not_retry(self):
+        """A reverse proxy in front of Jira can return HTML for a 400
+        rather than Jira's own JSON error shape -- _assignee_creation_
+        error() must treat that as no signal, not license to guess and
+        retry regardless."""
+        session = MagicMock()
+        response = MagicMock()
+        response.status_code = 400
+        response.json.side_effect = ValueError("not JSON")
+        response.text = "<html>Bad Request</html>"
+        response.raise_for_status.side_effect = requests.HTTPError(
+            "400 Client Error", response=response
+        )
+        session.post.return_value = response
+        client = JiraClient(session, "https://x.atlassian.net")
+
+        with pytest.raises(requests.HTTPError):
+            client.create_issue(
+                {"summary": "Title", "assignee": {"accountId": "someuser"}}
+            )
+        assert session.post.call_count == 1
+
+    def test_normal_success_has_no_dropped_reason_key(self):
+        """The common case -- nothing rejected, no retry -- must not
+        grow a spurious "_assignee_dropped_reason" key that callers
+        would then misread as a warning to print."""
+        session = MagicMock()
+        session.post.return_value = _mock_response(
+            status_code=201, json_body={"key": "PROJ-9"}
+        )
+        client = JiraClient(session, "https://x.atlassian.net")
+
+        result = client.create_issue(
+            {"summary": "Title", "assignee": {"accountId": "gooduser"}}
+        )
+
+        assert session.post.call_count == 1
+        assert result == {"key": "PROJ-9"}
+        assert "_assignee_dropped_reason" not in result
+
+
+class TestAssigneeCreationErrorParsing:
+    """Direct coverage for _assignee_creation_error()'s body parsing,
+    independent of create_issue()'s retry orchestration above."""
+
+    def _response(self, json_body):
+        response = MagicMock()
+        response.json.return_value = json_body
+        return response
+
+    def test_extracts_the_assignee_specific_message(self):
+        from sdd.utils.jira_client import _assignee_creation_error
+
+        response = self._response(
+            {"errorMessages": [], "errors": {"assignee": "User 'x' does not exist."}}
+        )
+        assert _assignee_creation_error(response) == "User 'x' does not exist."
+
+    def test_none_when_errors_has_no_assignee_key(self):
+        from sdd.utils.jira_client import _assignee_creation_error
+
+        response = self._response({"errors": {"customfield_10011": "required"}})
+        assert _assignee_creation_error(response) is None
+
+    def test_none_when_errors_key_missing_entirely(self):
+        from sdd.utils.jira_client import _assignee_creation_error
+
+        response = self._response({"errorMessages": ["Something else broke"]})
+        assert _assignee_creation_error(response) is None
+
+    def test_none_when_errors_is_not_a_dict(self):
+        from sdd.utils.jira_client import _assignee_creation_error
+
+        response = self._response({"errors": "not a dict"})
+        assert _assignee_creation_error(response) is None
+
+    def test_none_when_body_is_not_a_dict(self):
+        from sdd.utils.jira_client import _assignee_creation_error
+
+        response = self._response(["not", "a", "dict"])
+        assert _assignee_creation_error(response) is None
+
+    def test_none_when_assignee_value_is_not_a_string(self):
+        """Defensive: Jira's documented shape is field -> string reason,
+        but don't crash (or wrongly signal a fallback) on a value that
+        isn't one."""
+        from sdd.utils.jira_client import _assignee_creation_error
+
+        response = self._response({"errors": {"assignee": {"nested": "object"}}})
+        assert _assignee_creation_error(response) is None
+
+    def test_none_when_body_is_not_json(self):
+        from sdd.utils.jira_client import _assignee_creation_error
+
+        response = MagicMock()
+        response.json.side_effect = ValueError("not JSON")
+        assert _assignee_creation_error(response) is None

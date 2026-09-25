@@ -210,6 +210,21 @@ def _check_jira_field_requirements() -> bool:
         findings = check_epic_createmeta(cfg.jira, client)
     except Exception as e:
         console.print(f"  [red]✗  Could not complete the Jira check: {e}[/red]")
+        # "Issue Does Not Exist" on a createmeta URL is not what it looks
+        # like: with no createmeta route registered, Jira falls through to
+        # GET /issue/{issueIdOrKey} and reads the literal path segment
+        # "createmeta" as an issue key. Without this note the message
+        # sends people hunting for a missing issue that never existed.
+        text = str(e)
+        if "createmeta" in text and "Issue Does Not Exist" in text:
+            console.print(
+                "     [dim]That error is Jira's 'get issue' handler, not "
+                "createmeta: this instance has no createmeta route, so the "
+                "path fell through and 'createmeta' was read as an issue "
+                "key. Both createmeta endpoints failed for this project -- "
+                "check that the project key in integrations.yml is "
+                "correct.[/dim]"
+            )
         console.print()
         return False
 

@@ -731,12 +731,18 @@ function renderFeatureTabs(features, activeName) {
     const pct = featureTaskPct(f);
     const pctLabel = pct === null ? 'no tasks.md' : `${pct}% tasks`;
     const active = f.name === activeName;
+    // This one span carries two different kinds of value: a real
+    // completion figure, or the note that there is nothing to measure yet.
+    // style.css renders .feature-tab-pct as an accent-coloured metric, so
+    // without this modifier "no tasks.md" gets the visual weight of a
+    // positive number on every feature that has not reached /task.
+    const pctClass = pct === null ? 'feature-tab-pct feature-tab-pct-none' : 'feature-tab-pct';
     return `
       <button type="button" class="feature-tab${active ? ' active' : ''}" data-action="switch-feature"
         data-feature="${escapeHtml(f.name)}" aria-selected="${active}">
         <span class="feature-tab-name">${escapeHtml(f.name)}</span>
         <span class="feature-tab-stage sub">${escapeHtml(featureStageLabel(f))}</span>
-        <span class="feature-tab-pct">${escapeHtml(pctLabel)}</span>
+        <span class="${pctClass}">${escapeHtml(pctLabel)}</span>
       </button>`;
   }).join('');
   return `<div class="feature-tab-strip" role="tablist" aria-label="Features" style="margin-bottom:1.5rem">${tabs}</div>`;
