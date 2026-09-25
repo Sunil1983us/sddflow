@@ -49,9 +49,13 @@ validation.
   defensive dict shape; two existing tests that encoded the
   single-endpoint behaviour were rewritten as fallback tests.
 - Driven end to end against a local server mimicking Jira 9, with the
-  classic route returning the exact `Issue Does Not Exist` body and the
-  modern routes serving the reporter's real payload. The check resolved
-  `Story` to its id and correctly reported a required custom field.
+  classic route returning the `Issue Does Not Exist` body and the modern
+  routes serving a paginated issue-type and field payload. The check
+  resolved an issue type by name to its id and correctly reported a
+  required custom field.
+- Test fixtures use a fictional project key and issue types. The
+  reporting organization's own project key and issue-type names are
+  deliberately not recorded anywhere in this repository.
 - ruff clean; mypy unchanged at 13 pre-existing errors.
 
 ---

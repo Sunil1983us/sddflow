@@ -8391,10 +8391,14 @@ MIGRATIONS: list[Migration] = [
             "tests that encoded the single-endpoint behaviour were "
             "rewritten as fallback tests). Also driven end to end against "
             "a local server mimicking Jira 9 -- classic route 404ing with "
-            "the exact 'Issue Does Not Exist' body, modern routes serving "
-            "the reporter's real payload -- where the check correctly "
-            "resolved 'Story' to its id and reported a required custom "
-            "field. ruff clean; mypy unchanged at 13 pre-existing errors",
+            "the 'Issue Does Not Exist' body, modern routes serving a "
+            "paginated issue-type and field payload -- where the check "
+            "correctly resolved an issue type by name to its id and "
+            "reported a required custom field. Test fixtures use a "
+            "fictional project and issue types; the reporting "
+            "organization's project key and issue-type names are "
+            "deliberately not recorded anywhere in this repo. ruff clean; "
+            "mypy unchanged at 13 pre-existing errors",
         ],
     },
 ]

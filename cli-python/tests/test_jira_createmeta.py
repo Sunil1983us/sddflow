@@ -14,7 +14,7 @@ from sdd.utils.jira_client import JiraClient
 
 
 def _cfg(**kw) -> JiraConfig:
-    return JiraConfig(project_key="FRAML", **kw)
+    return JiraConfig(project_key="DEMO", **kw)
 
 
 class FakeCreatemetaClient:
@@ -251,22 +251,24 @@ def _routed_session(routes: list[tuple[str, int, dict]]) -> MagicMock:
     return session
 
 
-# The modern endpoint's real response envelope, transcribed from a live
-# Jira Data Center instance (project AIPLAY). Kept verbatim because the
-# shape is the whole point: rows live under "values", not at the top
-# level, and issue type ids are strings.
-_LIVE_ISSUETYPES_PAGE = {
+# The modern endpoint's response envelope. The shape is the point, and
+# it is what the classic endpoint did not do: rows live under "values"
+# rather than at the top level, issue type ids are strings not ints, and
+# the payload is paginated. A custom issue type sits alongside the stock
+# ones because resolving a name that this codebase cannot know about in
+# advance is the whole reason the lookup exists.
+_ISSUETYPES_PAGE = {
     "maxResults": 50,
     "startAt": 0,
     "total": 6,
     "isLast": True,
     "values": [
-        {"id": "1", "name": "Bug", "subtask": False},
-        {"id": "13307", "name": "SAFe Enabler Story", "subtask": False},
-        {"id": "15601", "name": "SAFe Risk", "subtask": False},
-        {"id": "48", "name": "Sub-task", "subtask": True},
-        {"id": "57", "name": "Story", "subtask": False},
-        {"id": "7", "name": "Task", "subtask": False},
+        {"id": "10001", "name": "Bug", "subtask": False},
+        {"id": "10002", "name": "Story", "subtask": False},
+        {"id": "10003", "name": "Task", "subtask": False},
+        {"id": "10004", "name": "Sub-task", "subtask": True},
+        {"id": "10005", "name": "Spike", "subtask": False},
+        {"id": "10006", "name": "Change Request", "subtask": False},
     ],
 }
 
@@ -279,7 +281,7 @@ class TestGetCreatemetaFieldsModern:
         session = _routed_session(
             [
                 (
-                    "/issue/createmeta/AIPLAY/issuetypes/57",
+                    "/issue/createmeta/DEMO/issuetypes/10002",
                     200,
                     {
                         "isLast": True,
@@ -297,11 +299,11 @@ class TestGetCreatemetaFieldsModern:
                         ],
                     },
                 ),
-                ("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE),
+                ("/issue/createmeta/DEMO/issuetypes", 200, _ISSUETYPES_PAGE),
             ]
         )
         client = JiraClient(session, "https://jira.example.net", deployment="server")
-        result = client.get_createmeta_fields("AIPLAY", "Story")
+        result = client.get_createmeta_fields("DEMO", "Story")
         assert result == {
             "summary": {"fieldId": "summary", "name": "Summary", "required": True},
             "customfield_10001": {
@@ -315,36 +317,36 @@ class TestGetCreatemetaFieldsModern:
         session = _routed_session(
             [
                 (
-                    "/issue/createmeta/AIPLAY/issuetypes/57",
+                    "/issue/createmeta/DEMO/issuetypes/10002",
                     200,
                     {"isLast": True, "values": []},
                 ),
-                ("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE),
+                ("/issue/createmeta/DEMO/issuetypes", 200, _ISSUETYPES_PAGE),
             ]
         )
         client = JiraClient(session, "https://jira.example.net", deployment="server")
-        assert client.get_createmeta_fields("AIPLAY", "story") == {}
+        assert client.get_createmeta_fields("DEMO", "story") == {}
 
     def test_returns_none_when_issue_type_name_is_not_in_the_project(self):
         session = _routed_session(
-            [("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE)]
+            [("/issue/createmeta/DEMO/issuetypes", 200, _ISSUETYPES_PAGE)]
         )
         client = JiraClient(session, "https://jira.example.net", deployment="server")
-        assert client.get_createmeta_fields("AIPLAY", "NotARealType") is None
+        assert client.get_createmeta_fields("DEMO", "NotARealType") is None
 
     def test_never_calls_the_removed_classic_endpoint_when_modern_answers(self):
         session = _routed_session(
             [
                 (
-                    "/issue/createmeta/AIPLAY/issuetypes/57",
+                    "/issue/createmeta/DEMO/issuetypes/10002",
                     200,
                     {"isLast": True, "values": []},
                 ),
-                ("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE),
+                ("/issue/createmeta/DEMO/issuetypes", 200, _ISSUETYPES_PAGE),
             ]
         )
         client = JiraClient(session, "https://jira.example.net", deployment="server")
-        client.get_createmeta_fields("AIPLAY", "Story")
+        client.get_createmeta_fields("DEMO", "Story")
         for call in session.get.call_args_list:
             assert "projectKeys" not in (call.kwargs.get("params") or {})
 
@@ -359,12 +361,12 @@ class TestGetCreatemetaFieldsModern:
             response = MagicMock()
             response.status_code = 200
             response.raise_for_status.return_value = None
-            if "/issuetypes/57" in url:
+            if "/issuetypes/10002" in url:
                 response.json.return_value = {"isLast": True, "values": []}
             elif "/issuetypes" in url:
                 calls["n"] += 1
                 response.json.return_value = (
-                    page_one if calls["n"] == 1 else _LIVE_ISSUETYPES_PAGE
+                    page_one if calls["n"] == 1 else _ISSUETYPES_PAGE
                 )
             return response
 
@@ -373,7 +375,7 @@ class TestGetCreatemetaFieldsModern:
         client = JiraClient(session, "https://jira.example.net", deployment="server")
         # "Story" is only on the second page -- a non-paging implementation
         # would return None here.
-        assert client.get_createmeta_fields("AIPLAY", "Story") == {}
+        assert client.get_createmeta_fields("DEMO", "Story") == {}
         assert calls["n"] == 2
 
     def test_accepts_a_classic_shaped_fields_dict_from_the_modern_url(self):
@@ -383,15 +385,15 @@ class TestGetCreatemetaFieldsModern:
         session = _routed_session(
             [
                 (
-                    "/issue/createmeta/AIPLAY/issuetypes/57",
+                    "/issue/createmeta/DEMO/issuetypes/10002",
                     200,
                     {"fields": {"summary": {"required": True}}},
                 ),
-                ("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE),
+                ("/issue/createmeta/DEMO/issuetypes", 200, _ISSUETYPES_PAGE),
             ]
         )
         client = JiraClient(session, "https://jira.example.net", deployment="server")
-        assert client.get_createmeta_fields("AIPLAY", "Story") == {
+        assert client.get_createmeta_fields("DEMO", "Story") == {
             "summary": {"required": True}
         }
 
@@ -424,7 +426,7 @@ class TestGetCreatemetaFieldsClassicFallback:
 
     def test_falls_back_with_project_and_issuetype_params(self):
         client, session = self._client({"projects": [{"issuetypes": [{"fields": {}}]}]})
-        client.get_createmeta_fields("FRAML", "SAFe Enabler")
+        client.get_createmeta_fields("DEMO", "Change Request")
         classic = [
             c
             for c in session.get.call_args_list
@@ -432,8 +434,8 @@ class TestGetCreatemetaFieldsClassicFallback:
         ]
         assert len(classic) == 1
         assert classic[0].kwargs["params"] == {
-            "projectKeys": "FRAML",
-            "issuetypeNames": "SAFe Enabler",
+            "projectKeys": "DEMO",
+            "issuetypeNames": "Change Request",
             "expand": "projects.issuetypes.fields",
         }
 
@@ -445,7 +447,7 @@ class TestGetCreatemetaFieldsClassicFallback:
                 ]
             }
         )
-        assert client.get_createmeta_fields("FRAML", "Epic") == {
+        assert client.get_createmeta_fields("DEMO", "Epic") == {
             "summary": {"required": True}
         }
 
@@ -455,4 +457,4 @@ class TestGetCreatemetaFieldsClassicFallback:
 
     def test_returns_none_when_project_has_no_matching_issuetype(self):
         client, _session = self._client({"projects": [{"issuetypes": []}]})
-        assert client.get_createmeta_fields("FRAML", "NotARealType") is None
+        assert client.get_createmeta_fields("DEMO", "NotARealType") is None
