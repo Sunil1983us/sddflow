@@ -4,6 +4,63 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [4.1.1] — 2026-09-25 (Dashboard follow-up: fixes and polish)
+
+A second pass over the dashboard after 4.1.0. Measuring it rather than
+just looking at it turned up two defects in what 4.1.0 shipped, both
+fixed here, along with a round of polish.
+
+### Fixed
+
+- **Stat tiles were 48% empty** — 141px tall holding 73px of content.
+  `.sub` is the page subtitle once (`#generated-at`) and a small caption
+  33 times in `app.js`, and 4.1.0 raised its bottom margin to 2rem, which
+  then applied inside every tile. Several `app.js` call sites already
+  worked around it with an inline `style="margin:…"`, which was the tell
+  that the margin sat on the wrong element. It now lives on the page
+  subtitle alone and tiles measure 118px.
+- **No `prefers-reduced-motion` handling.** 4.1.0 introduced 7
+  transitions and 2 hover lifts with no guard. Every one is now disabled
+  when the setting is on.
+- **No focus styles.** 4.1.0 restyled every button but left them on the
+  browser default outline, which is near invisible against a card.
+  `:focus-visible` rings added on all 7 interactive selectors, so a
+  keyboard user sees them and a mouse click does not.
+- **Status badges wrapped.** "In Progress" ran to two lines at 41px
+  against 24px for every single-word badge, leaving the Business
+  Objectives rows uneven.
+
+### Changed
+
+- A colour rail per stat tile, so the row reads as three distinct
+  measures rather than three grey boxes.
+- Status badges carry a leading dot in the status colour.
+- Sticky topbar with backdrop blur, behind an `@supports` guard so
+  browsers without it get a solid background instead of a washed-out one.
+- A rule separating the project-wide cards from the per-feature block,
+  which previously ran together.
+- Quieter pipeline arrows, a lighter info box, a heavier left edge on the
+  next-action callout, underlined table links, and faded placeholder
+  cells.
+
+### Verified
+
+- `cli-python` pytest 1190/1190.
+- Light, Dark and Auto, with Auto checked against both a light and a dark
+  OS preference.
+- All 16 probed components at non-zero size in both themes; 8 of 8 tabbed
+  controls show a focus ring; transition duration collapses under
+  `prefers-reduced-motion: reduce`.
+- No horizontal overflow at 600, 768, 1024, 1440 or 1920px. 390px is
+  unchanged from 4.1.0 at 569px.
+
+  A first cut of the sticky topbar left its negative margin hardcoded
+  while the narrow-width block drops body padding, producing a 620px
+  document at a 600px viewport where nothing had overflowed. Caught by
+  the width sweep and fixed before this shipped.
+
+---
+
 ## [4.1.0] — 2026-09-25 (Dashboard visual refresh)
 
 `sdd dashboard` is the most demonstrable thing this project has — the

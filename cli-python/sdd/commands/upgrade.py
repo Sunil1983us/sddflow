@@ -8250,6 +8250,55 @@ MIGRATIONS: list[Migration] = [
             "themes; no horizontal overflow at 600/768/1024/1440/1920px",
         ],
     },
+    {
+        "from": "4.1.0",
+        "to": "4.1.1",
+        "description": "Dashboard follow-up: fixes 4.1.0's stat-tile dead space, adds the reduced-motion and focus-visible handling 4.1.0's animations needed, plus visual polish",
+        "notes": [
+            "Stat tiles were 141px tall holding 73px of content, i.e. 48% "
+            "empty. Cause: .sub is the page subtitle once (#generated-at "
+            "in page.html) and a small caption 33 times in app.js, and "
+            "4.1.0 raised its bottom margin to 2rem, which then applied "
+            "inside every tile. Several app.js call sites already worked "
+            "around it with an inline style='margin:...', which was the "
+            "tell that the margin sat on the wrong element. It now lives "
+            "on #generated-at alone; tiles measure 118px",
+            "4.1.0 introduced 7 transitions and 2 hover lifts with no "
+            "prefers-reduced-motion guard, and restyled every button "
+            "while leaving them on the browser default focus outline "
+            "(near-invisible against a card). Both are accessibility "
+            "defects in what 4.1.0 shipped, so this release adds a "
+            "reduced-motion block covering every animation and transform, "
+            "and :focus-visible rings on all 7 interactive selectors",
+            "Polish: a colour rail per stat tile so the row reads as "
+            "three measures rather than three grey boxes; nowrap status "
+            "badges with a leading status dot (In Progress was wrapping "
+            "to 41px against 24px for single-word badges, leaving the "
+            "Business Objectives rows uneven); a sticky topbar with "
+            "backdrop blur behind an @supports guard; a rule separating "
+            "the project-wide cards from the per-feature block; quieter "
+            "pipeline arrows; a lighter info box; a heavier left edge on "
+            "the next-action callout; faded placeholder cells",
+            "The sticky topbar cancels body's side padding with a "
+            "negative margin, and the two must move together. The first "
+            "cut left the margin hardcoded while the existing narrow-"
+            "width block drops body padding, which produced a 620px "
+            "document at a 600px viewport where nothing had overflowed. "
+            "The narrow-width block now restates both, and also relaxes "
+            "the nowrap badge and its dot, which cost 30px at 390px. Net "
+            "result is identical to 4.1.0 at every width measured",
+            "PATCH, not MINOR: every substantive item repairs something "
+            "4.1.0 shipped rather than adding capability -- no new "
+            "command, template, manifest field or CLI flag",
+            "Verified: cli-python pytest 1190/1190; Light, Dark and Auto "
+            "(Auto against both a light and a dark OS preference); all 16 "
+            "probed components at non-zero size in both themes; 8 of 8 "
+            "tabbed controls show a focus ring; transition-duration "
+            "collapses under prefers-reduced-motion:reduce; no horizontal "
+            "overflow at 600/768/1024/1440/1920px and 390px unchanged "
+            "from 4.1.0 at 569px",
+        ],
+    },
 ]
 
 

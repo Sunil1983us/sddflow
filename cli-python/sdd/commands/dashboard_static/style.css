@@ -62,6 +62,37 @@
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
+  /* This stylesheet animates card elevation and lifts buttons, pipeline
+     steps and feature tabs on hover. Motion sensitivity is a real
+     accessibility setting and a dashboard that moves under the cursor is
+     exactly what it exists for, so every one of those is disabled when it
+     is set. Keep this in step with any new transition or transform. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+      scroll-behavior: auto !important;
+    }
+    .link-btn:hover:not(:disabled),
+    .pstep:hover,
+    .feature-tab:hover { transform: none; }
+  }
+  /* :focus-visible, not :focus -- a keyboard user gets a ring, a mouse
+     click does not. Every interactive control here is a button, a
+     summary or an anchor; the comment inputs carry their own ring where
+     they replace the UA outline further down. */
+  .link-btn:focus-visible,
+  .tab-btn:focus-visible,
+  .feature-tab:focus-visible,
+  .theme-toggle button:focus-visible,
+  .info-box summary:focus-visible,
+  .card.collapsible > summary:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
   body {
     margin: 0 auto; padding: 2.5rem 2.25rem 0; max-width: 1440px;
     background: var(--bg); color: var(--fg);
@@ -78,7 +109,19 @@
     font-size: .72rem; margin: 0 0 1rem; color: var(--muted); font-weight: 700;
     text-transform: uppercase; letter-spacing: .085em;
   }
-  .sub { color: var(--muted); font-size: .85rem; margin-bottom: 2rem; }
+  /* .sub is overloaded: it is the page subtitle exactly once
+     (#generated-at in page.html) and a small caption 33 times in app.js.
+     A page-level bottom margin only makes sense for the first -- inside a
+     stat tile it was adding 32px of dead space to every tile (measured
+     141px tall against 73px of content, i.e. 48% empty), and several
+     app.js call sites already worked around it with an inline
+     style="margin:...". So the margin lives on the page subtitle, not on
+     the shared class. Inline overrides in app.js still win either way. */
+  .sub { color: var(--muted); font-size: .85rem; }
+  #generated-at { margin-bottom: 2rem; }
+  /* A cell holding nothing but a placeholder em dash should not compete
+     with real content beside it. */
+  .sub:only-child { opacity: .55; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
   .feature-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
   .feature-grid .card-wide { grid-column: 1 / -1; }
@@ -104,9 +147,21 @@
      amber) to plain gray. Hit the Constitution card's gate-1 badge and
      the Token Usage "Source mix" badges. */
   .kv > span:first-child { color: var(--muted); font-weight: 500; }
+  /* nowrap: "In Progress" was wrapping to two lines, making it 41px tall
+     against 24px for every single-word badge, which left the Business
+     Objectives rows visibly uneven. Relaxed again below 720px, where
+     horizontal room matters more than row rhythm. */
   .badge {
     display: inline-block; padding: .2rem .55rem; border-radius: 7px;
-    font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .045em;
+    font-size: .68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .045em; white-space: nowrap;
+  }
+  /* currentColor, so the dot picks up whichever .b-* class is applied and
+     reads as a status light rather than more label text. */
+  .badge::before {
+    content: ""; display: inline-block; width: 5px; height: 5px;
+    border-radius: 50%; background: currentColor;
+    margin-right: .4rem; vertical-align: .08em;
   }
   .b-ok   { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
   .b-warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
@@ -123,7 +178,14 @@
   tbody tr:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
   tr:last-child td { border-bottom: none; }
   .feature-block { margin-bottom: 2rem; }
-  .feature-title { font-size: 1.3rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: 1rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+  /* The rule and the top margin separate the project-wide cards above
+     from the per-feature block below, which previously ran together. */
+  .feature-title {
+    font-size: 1.3rem; font-weight: 700; letter-spacing: -.02em;
+    margin: 2.75rem 0 1rem; padding-top: 1.75rem;
+    border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  }
   .bar { display: flex; height: 6px; border-radius: 99px; overflow: hidden; background: var(--border); margin: .6rem 0 .9rem; }
   .bar span { display: block; }
   .empty { color: var(--muted); font-style: italic; padding: 1rem 0; }
@@ -148,6 +210,17 @@
   .pill-bad  { color: var(--bad); border-color: var(--bad); }
   .pill-ok   { color: var(--ok); border-color: var(--ok); }
   .links-cell { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+  /* Table links were plain browser-underlined text. A faint rule that
+     firms up on hover reads better against dense rows. Scoped to table
+     cells so it never touches .pill (which draws its own border) or the
+     footer links. */
+  td a {
+    color: var(--accent); text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    transition: border-color .14s ease;
+  }
+  td a:hover { border-bottom-color: var(--accent); }
+  td a.pill { border-bottom: 1px solid; }
   .doc-detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
   .doc-detail {
     margin: 0; font-size: .8rem; white-space: pre-wrap;
@@ -199,12 +272,17 @@
     font-size: .68rem; font-weight: 700; opacity: .75; border-right: 1px solid currentColor;
     padding-right: .3rem; margin-right: -.05rem;
   }
-  .pipeline-arrow { color: var(--dim); font-size: .8rem; }
+  /* Quieter arrows: with 23 steps on a pilot-scope project the
+     connectors were competing with the steps themselves. */
+  .pipeline-arrow { color: var(--dim); font-size: .7rem; opacity: .45; margin: 0 .05rem; }
   .pipeline-legend { color: var(--dim); font-size: .74rem; margin-bottom: .75rem; }
+  /* The one element telling you what to do next -- the heavier left edge
+     marks it as the page's call to action. */
   .next-action-box {
     display: flex; flex-direction: column; gap: .35rem; padding: .9rem 1.1rem;
     border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 7%, var(--card));
-    border: 1px solid var(--accent); font-size: .88rem; box-shadow: var(--shadow-sm);
+    border: 1px solid var(--accent); border-left-width: 3px;
+    font-size: .88rem; box-shadow: var(--shadow-sm);
   }
   .next-action-main { display: flex; gap: .5rem; align-items: baseline; }
   .next-action-main strong { color: var(--accent); white-space: nowrap; }
@@ -220,7 +298,28 @@
   .doc-approval-line { font-size: .74rem; color: var(--muted); margin-top: .25rem; }
   .doc-approval-pending strong { color: var(--fg); }
   .doc-timing-line { font-size: .74rem; color: var(--muted); margin-top: .1rem; }
-  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  /* Sticky: the page runs long and the theme toggle is worth keeping in
+     reach. The negative margin cancels body's side padding so the
+     background runs edge to edge -- the two MUST move together, which is
+     why the narrow-width block at the foot of this file restates both.
+     A topbar still pulling -2.25rem while body padding drops to 1rem
+     hangs off each edge and pushes the document wider than the viewport. */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 1rem; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 20;
+    margin: -2.5rem -2.25rem 0; padding: 1.5rem 2.25rem 1rem;
+    background: var(--bg);
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  }
+  /* Guarded: without backdrop-filter the translucent background would
+     just look washed out, so only opt in where it actually blurs. */
+  @supports (backdrop-filter: blur(8px)) {
+    .topbar {
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: blur(12px) saturate(140%);
+    }
+  }
   .theme-toggle {
     display: inline-flex; gap: .15rem; background: var(--card); border: 1px solid var(--border);
     border-radius: 999px; padding: .2rem; flex-shrink: 0; box-shadow: var(--shadow-sm);
@@ -232,13 +331,16 @@
   }
   .theme-toggle button:hover { color: var(--fg); }
   .theme-toggle button.active { background: var(--accent); color: #fff; }
+  /* Collapsed most of the time, so it should not carry a content card's
+     weight -- no shadow, and a background that sits between the page and
+     a real card. */
   .info-box {
     margin: .5rem 0 1.5rem; border: 1px solid var(--border); border-radius: var(--radius);
-    background: var(--card); font-size: .82rem; color: var(--muted);
-    box-shadow: var(--shadow-sm);
+    background: color-mix(in srgb, var(--card) 60%, transparent);
+    font-size: .82rem; color: var(--muted);
   }
   .info-box summary {
-    cursor: pointer; padding: .6rem .9rem; font-weight: 600; color: var(--fg);
+    cursor: pointer; padding: .6rem .9rem; font-size: .8rem; font-weight: 600; color: var(--fg);
     list-style: none; display: flex; align-items: center; gap: .4rem;
   }
   .info-box summary::-webkit-details-marker { display: none; }
@@ -286,16 +388,29 @@
   /* Stat-tile widget row — shown at the top of the active feature's block
      (renderFeatureStats()), the same three numbers that used to require
      scanning three separate cards further down the page. */
-  .stat-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .stat-row { display: flex; gap: .9rem; flex-wrap: wrap; align-items: stretch; margin-bottom: 1.25rem; }
   .stat-tile {
+    position: relative; overflow: hidden;
     flex: 1; min-width: 140px; background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 1rem 1.15rem; box-shadow: var(--shadow-sm);
+    border-radius: var(--radius); padding: 1.1rem 1.15rem 1.15rem 1.35rem;
+    box-shadow: var(--shadow-sm);
   }
+  /* A colour rail per tile, so the row reads as three distinct measures
+     rather than three identical grey boxes. Positional, not semantic --
+     renderFeatureStats() always emits these three in this order
+     (tasks, business objectives, documents). */
+  .stat-tile::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--accent); opacity: .85;
+  }
+  .stat-tile:nth-child(2)::before { background: var(--warn); }
+  .stat-tile:nth-child(3)::before { background: var(--ok); }
   .stat-value {
-    font-size: 1.75rem; font-weight: 700; line-height: 1.2;
+    font-size: 1.9rem; font-weight: 700; line-height: 1.1;
     letter-spacing: -.02em; font-variant-numeric: tabular-nums;
   }
-  .stat-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .075em; font-weight: 600; margin-top: .15rem; }
+  .stat-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .075em; font-weight: 600; margin-top: .3rem; }
+  .stat-tile .sub { margin-top: .15rem; }
 
   /* Thin inline progress bar for a single Business Objective row's Progress
      cell — same visual language as .bar (the Tasks card's segmented bar)
@@ -355,6 +470,20 @@
     .card { padding: 1rem 1.05rem; }
     th { padding: .5rem .35rem; font-size: .64rem; letter-spacing: .05em; }
     td { padding: .55rem .35rem; }
-    .stat-value { font-size: 1.5rem; }
+    .stat-value { font-size: 1.6rem; }
+    .stat-tile { padding: .9rem 1rem .9rem 1.15rem; }
     .pstep { padding: .3rem .6rem; font-size: .74rem; }
+    .feature-title { margin-top: 2rem; padding-top: 1.25rem; }
+
+    /* Must track body's padding above -- see the .topbar rule. A topbar
+       still cancelling 2.25rem while body only has 1rem hangs 1.25rem
+       off each edge: measured as a 620px document at a 600px viewport
+       before this was added, where nothing overflowed before. */
+    .topbar { margin: -1.5rem -1rem 0; padding: 1rem 1rem .75rem; }
+
+    /* The nowrap badge and its dot keep table rows even on a desktop but
+       both cost width, and at 390px the tables are already the tightest
+       thing here. Measured 599px with them on against 569px without. */
+    .badge { white-space: normal; }
+    .badge::before { display: none; }
   }
