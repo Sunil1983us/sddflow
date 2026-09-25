@@ -8199,6 +8199,57 @@ MIGRATIONS: list[Migration] = [
             "clean",
         ],
     },
+    {
+        "from": "4.0.0",
+        "to": "4.1.0",
+        "description": "Dashboard visual refresh -- new palette, elevation and spacing in the dashboard stylesheet; no markup, JavaScript or API change",
+        "notes": [
+            "`sdd dashboard` looked dated next to what it actually does, "
+            "and it is the project's most demonstrable feature -- the "
+            "README now leads with a screenshot of it. Restyled "
+            "cli-python/sdd/commands/dashboard_static/style.css only: "
+            "refreshed colour tokens (slate/indigo in place of the old "
+            "grey/blue), new --radius/--shadow/--ring presentation "
+            "tokens, card elevation, a clearer type scale, roomier table "
+            "rows with a hover cue, tabular figures on numeric cells, and "
+            "squarer badges",
+            "Nothing else changed: page.html, app.js, theme.js and every "
+            "/api/* endpoint are untouched, so this cannot alter what the "
+            "dashboard reports, only how it looks. Most of the change "
+            "rides on the design tokens style.css already threaded "
+            "through every rule via var(), which is why the diff is "
+            "small relative to the visual difference",
+            "Added a max-width:720px block so the roomier padding rolls "
+            "back on a phone. Measured on examples/todo-api at a 390px "
+            "viewport: document scrollWidth is 569px after this change "
+            "against 601px before it. Those tables still overrun a 390px "
+            "viewport -- they did before this change too, and fixing that "
+            "is a layout change rather than a visual one, so it is left "
+            "alone and documented in a comment at the foot of the "
+            "stylesheet rather than smuggled in here",
+            "MINOR, not PATCH: a restyle is not a bug fix, so PATCH's "
+            "'bug fixes only' does not fit. It is backward-compatible "
+            "with nothing to migrate -- a project that ignores this "
+            "release loses nothing, one that upgrades gets a refreshed "
+            "dashboard -- which is the MINOR case",
+            "One bug was found and fixed during the change by the "
+            "verification pass: a maintainer comment above the token "
+            "block contained a star-slash pair inside prose, which "
+            "closed the CSS comment early and dropped the whole :root "
+            "block, leaving every colour token undefined. It was "
+            "invisible under an explicit Light or Dark pick and only "
+            "surfaced in Auto mode on a light OS. The comment now warns "
+            "against writing that sequence there",
+            "Verified: cli-python pytest 1190/1190; dashboard rendered "
+            "against examples/todo-api in Light, Dark and Auto (Auto "
+            "checked against both a light and a dark OS preference, "
+            "which is what caught the comment bug); every card, stat "
+            "tile, pipeline step, badge, button, table, progress bar, "
+            "doc-detail tab strip, comment form, info box, theme toggle "
+            "and footer confirmed rendering at non-zero size in both "
+            "themes; no horizontal overflow at 600/768/1024/1440/1920px",
+        ],
+    },
 ]
 
 

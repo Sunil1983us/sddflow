@@ -4,6 +4,71 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [4.1.0] — 2026-09-25 (Dashboard visual refresh)
+
+`sdd dashboard` is the most demonstrable thing this project has — the
+README now opens with a screenshot of it — but it looked dated next to
+what it actually does. This release restyles it. Only the stylesheet
+changed: `page.html`, `app.js`, `theme.js` and every `/api/*` endpoint
+are untouched, so nothing about what the dashboard reports can have
+moved, only how it looks.
+
+Most of the change rides on the design tokens `style.css` already
+threaded through every rule with `var()`, which is why the diff stays
+small relative to the visual difference.
+
+### Changed
+
+- Refreshed colour tokens — slate and indigo in place of the previous
+  grey and blue — across all four theme blocks (light default, OS-dark,
+  and the two explicit toggle picks).
+- New presentation-only tokens: `--radius`, `--radius-sm`, `--shadow-sm`,
+  `--shadow-md` and `--ring`. Only the shadows vary by theme.
+- Cards, stat tiles, feature tabs and the info box now carry elevation
+  rather than a flat 1px border.
+- Clearer type scale: a larger page title, and `h2` demoted to a small
+  uppercase section label so it stops competing with the feature
+  heading. `.card.collapsible > summary` mirrors it.
+- Roomier table rows with a hover cue, and tabular figures on numeric
+  cells so values stop jittering across the 5-second poll.
+- Squarer badges, rounder progress bars, and a focus ring on the comment
+  form inputs replacing the removed UA outline.
+
+### Added
+
+- A `max-width: 720px` block that rolls the roomier padding back on a
+  phone. Measured on `examples/todo-api` at a 390px viewport, document
+  `scrollWidth` is 569px after this change against 601px before it.
+
+### Fixed
+
+- A maintainer comment above the token block contained a star-slash pair
+  inside prose, which closed the CSS comment early and dropped the whole
+  `:root` rule, leaving every colour token undefined. Invisible under an
+  explicit Light or Dark pick; it only surfaced in Auto mode on a light
+  OS. Found by the verification pass during this change, and the comment
+  now warns against writing that sequence there.
+
+### Known, unchanged
+
+- Tables still overrun a 390px viewport. They did before this release
+  too. Fixing it is a layout change rather than a visual one, so it is
+  documented in a comment at the foot of the stylesheet instead of being
+  folded into a restyle.
+
+### Verified
+
+- `cli-python` pytest 1190/1190.
+- Rendered against `examples/todo-api` in Light, Dark and Auto, with
+  Auto checked against both a light and a dark OS preference — that is
+  what caught the comment bug above.
+- Every card, stat tile, pipeline step, badge, button, table, progress
+  bar, doc-detail tab strip, comment form, info box, theme toggle and
+  footer confirmed rendering at non-zero size in both themes.
+- No horizontal overflow at 600, 768, 1024, 1440 or 1920px.
+
+---
+
 ## [4.0.0] — 2026-09-20 (Removed: the Node.js CLI)
 
 The Node CLI (`cli/`, published to npm as `@sunil1983us/sddflow`) has

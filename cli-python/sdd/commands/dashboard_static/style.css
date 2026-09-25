@@ -1,15 +1,41 @@
+  /* Theme tokens are defined in FOUR places and every one of them has to
+     agree: the light default, the OS-dark signal (scoped to
+     :root:not([data-theme]) INSIDE the media query), and the two explicit
+     toggle picks. Writing the dark block as a bare :root:not([data-theme])
+     without the media query wrapper is the classic way to break "Auto" --
+     it forces dark on every Auto user including those on a light OS. Keep
+     the shape below when changing any colour.
+
+     The radius, shadow and ring tokens are presentation-only, used by the
+     card, button and pipeline rules further down. Only the shadows change
+     between themes (a light-mode shadow is invisible on a dark canvas), so
+     the radius and ring tokens are declared once on :root.
+
+     Do not write a "shadow-<star>" style wildcard anywhere in a comment
+     here: the star-slash pair closes the comment early, which drops the
+     :root block below on the floor and leaves every colour token
+     undefined. That regression is silent in an explicit Light/Dark pick
+     and only shows up in Auto mode on a light OS. */
   :root {
     color-scheme: light dark;
-    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --card: #f5f5f7;
-    --border: #e2e2e6; --accent: #2563eb;
-    --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --dim: #9ca3af;
+    --bg: #f6f7f9; --fg: #0f172a; --muted: #64748b; --card: #ffffff;
+    --border: #e4e8ef; --accent: #4f46e5;
+    --ok: #059669; --warn: #d97706; --bad: #dc2626; --dim: #94a3b8;
+
+    --radius: 14px; --radius-sm: 9px;
+    --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .06);
+    --shadow-md: 0 2px 4px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .06);
   }
   /* Auto (default): follows the OS/browser signal. */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
-      --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa0a6; --card: #1a1d24;
-      --border: #2a2d35; --accent: #60a5fa;
-      --ok: #4ade80; --warn: #facc15; --bad: #f87171; --dim: #6b7280;
+      --bg: #0b0e14; --fg: #e8ecf3; --muted: #8b95a7; --card: #141922;
+      --border: #232a36; --accent: #818cf8;
+      --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --dim: #5d6878;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, .28);
+      --shadow-md: 0 2px 6px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .34);
     }
   }
   /* Explicit Light/Dark picks from the toggle below always win over the
@@ -18,63 +44,101 @@
      nicety. Persisted to localStorage by the script at the bottom. */
   :root[data-theme="light"] {
     color-scheme: light;
-    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --card: #f5f5f7;
-    --border: #e2e2e6; --accent: #2563eb;
-    --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --dim: #9ca3af;
+    --bg: #f6f7f9; --fg: #0f172a; --muted: #64748b; --card: #ffffff;
+    --border: #e4e8ef; --accent: #4f46e5;
+    --ok: #059669; --warn: #d97706; --bad: #dc2626; --dim: #94a3b8;
+
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .06);
+    --shadow-md: 0 2px 4px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .06);
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa0a6; --card: #1a1d24;
-    --border: #2a2d35; --accent: #60a5fa;
-    --ok: #4ade80; --warn: #facc15; --bad: #f87171; --dim: #6b7280;
+    --bg: #0b0e14; --fg: #e8ecf3; --muted: #8b95a7; --card: #141922;
+    --border: #232a36; --accent: #818cf8;
+    --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --dim: #5d6878;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .28);
+    --shadow-md: 0 2px 6px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .34);
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
-    margin: 0; padding: 2rem; background: var(--bg); color: var(--fg);
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0 auto; padding: 2.5rem 2.25rem 0; max-width: 1440px;
+    background: var(--bg); color: var(--fg);
+    font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    letter-spacing: -.006em; -webkit-font-smoothing: antialiased;
   }
-  h1 { font-size: 1.3rem; margin: 0 0 .25rem; }
-  h2 { font-size: 1rem; margin: 0 0 .75rem; color: var(--muted); font-weight: 600; }
-  .sub { color: var(--muted); font-size: .85rem; margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: -.024em; margin: 0 0 .35rem; }
+  /* h2 is a section label, not a heading in the page's type scale -- small
+     and uppercase so it never competes with .feature-title. The
+     .card.collapsible > summary rule near the bottom mirrors this, since
+     that summary replaces an h2. */
+  h2 {
+    font-size: .72rem; margin: 0 0 1rem; color: var(--muted); font-weight: 700;
+    text-transform: uppercase; letter-spacing: .085em;
+  }
+  .sub { color: var(--muted); font-size: .85rem; margin-bottom: 2rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
   .feature-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
   .feature-grid .card-wide { grid-column: 1 / -1; }
   .card {
-    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-    padding: 1rem 1.2rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.35rem 1.45rem; box-shadow: var(--shadow-sm);
+    transition: box-shadow .18s ease, border-color .18s ease;
   }
-  .kv { display: flex; justify-content: space-between; padding: .3rem 0; font-size: .9rem; }
+  .card:hover { box-shadow: var(--shadow-md); }
+  /* Hairline separators make a long key/value card scannable; tabular
+     figures stop version numbers and percentages jittering between polls
+     (the page rebuilds #root every 5s). */
+  .kv {
+    display: flex; justify-content: space-between; padding: .5rem 0; font-size: .9rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  }
+  .kv:last-child { border-bottom: none; }
+  .kv > span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
   /* Child combinator, not descendant -- ".kv span:first-child" (space)
      also matched a badge/pill nested inside the value span whenever it
      was that span's only child (a badge IS ":first-child" of ITS own
      parent), silently overriding the badge's semantic color (green/red/
      amber) to plain gray. Hit the Constitution card's gate-1 badge and
      the Token Usage "Source mix" badges. */
-  .kv > span:first-child { color: var(--muted); }
+  .kv > span:first-child { color: var(--muted); font-weight: 500; }
   .badge {
-    display: inline-block; padding: .1rem .55rem; border-radius: 999px;
-    font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .02em;
+    display: inline-block; padding: .2rem .55rem; border-radius: 7px;
+    font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .045em;
   }
   .b-ok   { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
   .b-warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
   .b-bad  { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
   .b-dim  { background: color-mix(in srgb, var(--dim) 25%, transparent); color: var(--muted); }
   table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-  th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--border); }
-  th { color: var(--muted); font-weight: 600; font-size: .75rem; text-transform: uppercase; }
+  th, td { text-align: left; border-bottom: 1px solid var(--border); }
+  th {
+    color: var(--muted); font-weight: 700; font-size: .68rem; text-transform: uppercase;
+    letter-spacing: .08em; padding: .7rem .6rem;
+  }
+  td { padding: .8rem .6rem; vertical-align: middle; }
+  tbody tr { transition: background .14s ease; }
+  tbody tr:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
   tr:last-child td { border-bottom: none; }
   .feature-block { margin-bottom: 2rem; }
-  .feature-title { font-size: 1.05rem; font-weight: 600; margin-bottom: .75rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
-  .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--border); margin: .5rem 0 .75rem; }
+  .feature-title { font-size: 1.3rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: 1rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+  .bar { display: flex; height: 6px; border-radius: 99px; overflow: hidden; background: var(--border); margin: .6rem 0 .9rem; }
   .bar span { display: block; }
   .empty { color: var(--muted); font-style: italic; padding: 1rem 0; }
   .refresh-note { color: var(--dim); font-size: .78rem; margin-top: 2rem; }
   .link-btn {
-    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
-    padding: .15rem .55rem; font-size: .76rem; cursor: pointer; color: var(--fg); font: inherit;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: .35rem .75rem; font-size: .78rem; font-weight: 600; cursor: pointer;
+    color: var(--fg); font-family: inherit; box-shadow: var(--shadow-sm);
+    transition: border-color .14s ease, color .14s ease, transform .14s ease;
   }
-  .link-btn:hover { border-color: var(--accent); }
+  /* :not(:disabled) -- a disabled button must not lift or recolour on
+     hover, or a pending Approve looks clickable while it is mid-request. */
+  .link-btn:hover:not(:disabled) {
+    border-color: var(--accent); color: var(--accent); transform: translateY(-1px);
+  }
   .pill {
     display: inline-block; padding: .05rem .5rem; border-radius: 999px; font-size: .72rem;
     border: 1px solid var(--border); text-decoration: none; margin-left: .3rem; white-space: nowrap;
@@ -93,30 +157,43 @@
   .tab-strip { display: flex; gap: .1rem; padding: .4rem 1rem 0; border-bottom: 1px solid var(--border); }
   .tab-btn {
     background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted);
-    font: inherit; font-size: .78rem; padding: .4rem .7rem; cursor: pointer; white-space: nowrap;
+    font: inherit; font-size: .79rem; font-weight: 600; padding: .5rem .8rem;
+    cursor: pointer; white-space: nowrap;
   }
   .tab-btn:hover { color: var(--fg); }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-  .tab-body { padding: .75rem 1rem; max-height: 420px; overflow: auto; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+  .tab-body { padding: .9rem 1.1rem; max-height: 420px; overflow: auto; }
   .check-links-row { display: flex; align-items: center; gap: .6rem; margin: .5rem 0 1rem; }
   .comment { padding: .4rem 0; border-bottom: 1px dashed var(--border); font-size: .85rem; }
   .comment:last-of-type { border-bottom: none; }
   .comment-form { display: flex; flex-direction: column; gap: .4rem; margin-top: .6rem; max-width: 420px; }
   .comment-form input, .comment-form textarea {
-    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
-    padding: .4rem .6rem; color: var(--fg); font: inherit; font-size: .85rem; resize: vertical;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: .5rem .7rem; color: var(--fg); font: inherit; font-size: .85rem; resize: vertical;
   }
-  .link-btn:disabled { opacity: .5; cursor: default; }
+  /* Replacing the UA outline, so the focus ring has to be re-supplied
+     here -- removing outline without a visible substitute is a keyboard
+     accessibility regression. */
+  .comment-form input:focus, .comment-form textarea:focus {
+    outline: none; border-color: var(--accent); box-shadow: var(--ring);
+  }
+  .link-btn:disabled { opacity: .5; cursor: default; box-shadow: none; }
   .pipeline-caption { color: var(--muted); font-size: .8rem; margin: -.4rem 0 .75rem; }
-  .pipeline-flow { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .1rem; margin-bottom: .9rem; }
+  .pipeline-flow { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .2rem; margin-bottom: 1.1rem; }
   .pstep {
-    display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .6rem;
-    border-radius: 999px; font-size: .78rem; border: 1px solid var(--border); white-space: nowrap;
+    display: inline-flex; align-items: center; gap: .3rem; padding: .36rem .75rem;
+    border-radius: var(--radius-sm); font-size: .78rem; border: 1px solid var(--border);
+    white-space: nowrap; box-shadow: var(--shadow-sm); transition: transform .14s ease;
   }
-  .pstep-done    { color: var(--ok);   border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
-  .pstep-current { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); font-weight: 600; }
-  .pstep-upcoming { color: var(--muted); }
-  .pstep-skipped { color: var(--dim); text-decoration: line-through; border-style: dashed; }
+  /* Step backgrounds mix into var(--card), not transparent: these sit on
+     the page background, and mixing into transparent lets --bg show
+     through, which washes the tint out to near-invisible in dark mode. */
+  .pstep-done    { color: var(--ok);   border-color: var(--ok); background: color-mix(in srgb, var(--ok) 9%, var(--card)); }
+  .pstep-current { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); font-weight: 700; box-shadow: var(--ring); }
+  .pstep-upcoming { color: var(--muted); background: var(--card); }
+  /* No shadow and no fill on a skipped step -- it should recede, and an
+     elevated line-through step reads as interactive when it is not. */
+  .pstep-skipped { color: var(--dim); text-decoration: line-through; border-style: dashed; opacity: .5; box-shadow: none; background: transparent; }
   .pstep-optional { font-size: .68rem; color: var(--dim); font-weight: 400; }
   .pstep-persona {
     font-size: .68rem; font-weight: 700; opacity: .75; border-right: 1px solid currentColor;
@@ -125,9 +202,9 @@
   .pipeline-arrow { color: var(--dim); font-size: .8rem; }
   .pipeline-legend { color: var(--dim); font-size: .74rem; margin-bottom: .75rem; }
   .next-action-box {
-    display: flex; flex-direction: column; gap: .35rem; padding: .6rem .8rem;
-    border-radius: 8px; background: color-mix(in srgb, var(--accent) 10%, transparent);
-    border: 1px solid var(--accent); font-size: .88rem;
+    display: flex; flex-direction: column; gap: .35rem; padding: .9rem 1.1rem;
+    border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 7%, var(--card));
+    border: 1px solid var(--accent); font-size: .88rem; box-shadow: var(--shadow-sm);
   }
   .next-action-main { display: flex; gap: .5rem; align-items: baseline; }
   .next-action-main strong { color: var(--accent); white-space: nowrap; }
@@ -146,29 +223,32 @@
   .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
   .theme-toggle {
     display: inline-flex; gap: .15rem; background: var(--card); border: 1px solid var(--border);
-    border-radius: 999px; padding: .2rem; flex-shrink: 0;
+    border-radius: 999px; padding: .2rem; flex-shrink: 0; box-shadow: var(--shadow-sm);
   }
   .theme-toggle button {
     background: transparent; border: none; color: var(--muted); font: inherit; font-size: .78rem;
-    padding: .3rem .65rem; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    font-weight: 600; padding: .3rem .65rem; border-radius: 999px; cursor: pointer;
+    white-space: nowrap;
   }
   .theme-toggle button:hover { color: var(--fg); }
   .theme-toggle button.active { background: var(--accent); color: #fff; }
   .info-box {
-    margin: .5rem 0 1.5rem; border: 1px solid var(--border); border-radius: 8px;
+    margin: .5rem 0 1.5rem; border: 1px solid var(--border); border-radius: var(--radius);
     background: var(--card); font-size: .82rem; color: var(--muted);
+    box-shadow: var(--shadow-sm);
   }
   .info-box summary {
-    cursor: pointer; padding: .5rem .8rem; font-weight: 600; color: var(--fg);
+    cursor: pointer; padding: .6rem .9rem; font-weight: 600; color: var(--fg);
     list-style: none; display: flex; align-items: center; gap: .4rem;
   }
   .info-box summary::-webkit-details-marker { display: none; }
   .info-box summary::before { content: "▸"; color: var(--dim); transition: transform .15s; }
   .info-box[open] summary::before { transform: rotate(90deg); }
-  .info-box .info-content { padding: 0 .8rem .8rem; line-height: 1.6; }
+  .info-box .info-content { padding: 0 .9rem .9rem; line-height: 1.6; }
   .info-box code { background: var(--bg); border-radius: 4px; padding: .05rem .35rem; font-size: .9em; }
   .network-banner {
-    margin: 0 0 1rem; padding: .6rem .9rem; border-radius: 8px; font-size: .85rem; font-weight: 600;
+    margin: 0 0 1rem; padding: .6rem .9rem; border-radius: var(--radius-sm);
+    font-size: .85rem; font-weight: 600; box-shadow: var(--shadow-sm);
   }
   .network-banner-write {
     background: color-mix(in srgb, var(--bad) 12%, transparent); border: 1px solid var(--bad); color: var(--bad);
@@ -188,13 +268,15 @@
   }
   .feature-tab {
     display: flex; flex-direction: column; align-items: flex-start; gap: .1rem;
-    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-    padding: .5rem .9rem; cursor: pointer; font: inherit; color: var(--fg);
-    min-width: 150px; text-align: left;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: .6rem 1rem; cursor: pointer; font: inherit; color: var(--fg);
+    min-width: 150px; text-align: left; box-shadow: var(--shadow-sm);
+    transition: box-shadow .18s ease, border-color .18s ease, transform .14s ease;
   }
-  .feature-tab:hover { border-color: var(--accent); }
+  .feature-tab:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-1px); }
   .feature-tab.active {
-    border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--card));
+    box-shadow: var(--ring); transform: none;
   }
   .feature-tab-name { font-weight: 600; font-size: .92rem; }
   .feature-tab-stage { font-size: .74rem; }
@@ -207,15 +289,18 @@
   .stat-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
   .stat-tile {
     flex: 1; min-width: 140px; background: var(--card); border: 1px solid var(--border);
-    border-radius: 10px; padding: .75rem 1rem;
+    border-radius: var(--radius); padding: 1rem 1.15rem; box-shadow: var(--shadow-sm);
   }
-  .stat-value { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
-  .stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-top: .1rem; }
+  .stat-value {
+    font-size: 1.75rem; font-weight: 700; line-height: 1.2;
+    letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+  }
+  .stat-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .075em; font-weight: 600; margin-top: .15rem; }
 
   /* Thin inline progress bar for a single Business Objective row's Progress
      cell — same visual language as .bar (the Tasks card's segmented bar)
      but sized for a table cell rather than a full card. */
-  .bo-bar { display: block; height: 5px; border-radius: 3px; overflow: hidden; background: var(--border); margin: .3rem 0 .2rem; max-width: 140px; }
+  .bo-bar { display: block; height: 5px; border-radius: 99px; overflow: hidden; background: var(--border); margin: .3rem 0 .2rem; max-width: 140px; }
   .bo-bar span { display: block; height: 100%; background: var(--accent); }
 
   /* Collapsible section cards (Living Documents, Business Objectives
@@ -223,9 +308,12 @@
      for a <summary>, so the same project-wide sections that get long on a
      multi-feature/multi-BO project can be tucked away without losing them
      entirely. Open by default; mirrors .info-box's chevron treatment. */
+  /* Mirrors the h2 rule above -- this summary replaces an h2, so if one
+     changes the other has to follow or the two section labels diverge. */
   .card.collapsible > summary {
-    cursor: pointer; font-size: 1rem; font-weight: 600; color: var(--muted);
-    list-style: none; display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem;
+    cursor: pointer; font-size: .72rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .085em;
+    list-style: none; display: flex; align-items: center; gap: .4rem; margin-bottom: 1rem;
   }
   .card.collapsible > summary::-webkit-details-marker { display: none; }
   .card.collapsible > summary::before { content: "▸"; color: var(--dim); transition: transform .15s; flex-shrink: 0; }
@@ -240,9 +328,33 @@
   }
 
   /* Static -- lives in page.html outside #root, so it survives every 5s
-     poll's innerHTML rebuild without needing any JS of its own. */
+     poll's innerHTML rebuild without needing any JS of its own.
+     Carries the page's bottom margin, since body's padding is now
+     0 on the bottom edge. */
   .dashboard-footer {
-    text-align: center; padding: 1.5rem 1rem 2rem; font-size: .8rem;
+    text-align: center; padding: 2rem 1rem 2.5rem; font-size: .8rem;
   }
   .dashboard-footer a { color: var(--muted); text-decoration: none; }
   .dashboard-footer a:hover { color: var(--accent); text-decoration: underline; }
+
+  /* Narrow widths ------------------------------------------------------
+     The roomier card/cell padding above costs horizontal room that a
+     phone does not have, so it is rolled back below 720px. Measured on
+     examples/todo-api at 390px: document scrollWidth is 569px here
+     against 601px before this restyle, i.e. tighter than it used to be.
+
+     Those tables still overrun a 390px viewport -- they did before this
+     restyle too (the widest is the Documents table) and fixing that is a
+     layout change, not a visual one, so it is deliberately left alone
+     rather than smuggled in here. Letting a table scroll inside its own
+     card (`.card > table { display:block; overflow-x:auto }`) is the
+     usual fix when someone wants to take it on. */
+  @media (max-width: 720px) {
+    body { padding: 1.5rem 1rem 0; }
+    h1 { font-size: 1.4rem; }
+    .card { padding: 1rem 1.05rem; }
+    th { padding: .5rem .35rem; font-size: .64rem; letter-spacing: .05em; }
+    td { padding: .55rem .35rem; }
+    .stat-value { font-size: 1.5rem; }
+    .pstep { padding: .3rem .6rem; font-size: .74rem; }
+  }
