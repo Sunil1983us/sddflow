@@ -384,6 +384,12 @@
   .feature-tab-stage { font-size: .74rem; }
   .feature-tab-pct { font-size: .74rem; color: var(--accent); font-weight: 600; }
   .feature-tab.active .feature-tab-pct { color: var(--accent); }
+  /* Same span, but holding "no tasks.md" rather than a completion figure
+     (see renderFeatureTabs()). An absence should not read as a metric, so
+     it drops the accent colour and the bold. Only visible on a project
+     with 2+ features, since the tab strip is suppressed below that. */
+  .feature-tab-pct-none,
+  .feature-tab.active .feature-tab-pct-none { color: var(--dim); font-weight: 400; }
 
   /* Stat-tile widget row — shown at the top of the active feature's block
      (renderFeatureStats()), the same three numbers that used to require

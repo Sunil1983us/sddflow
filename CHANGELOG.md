@@ -4,6 +4,51 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [4.1.2] — 2026-09-25 (Dashboard: feature tabs with no tasks)
+
+Found by testing the dashboard against a project with more than one
+feature, which nothing in the 4.1.0 or 4.1.1 verification had done.
+
+### Fixed
+
+- A feature tab whose feature has no `tasks.md` displayed "no tasks.md"
+  in the accent colour and bold, which is how a real completion figure
+  like "30% tasks" is rendered. Every feature that had not yet reached
+  `/task` therefore showed its absence with the visual weight of a
+  positive number.
+
+  `renderFeatureTabs()` puts both kinds of value in the same span, so
+  CSS alone could not tell them apart. It now adds a
+  `feature-tab-pct-none` modifier when the percentage is null, and the
+  stylesheet renders that muted at normal weight.
+
+  This is only observable on a project with two or more features —
+  `renderFeatureTabs()` returns nothing below that, so the tab strip
+  never renders on a single-feature project such as `examples/todo-api`,
+  which is what both previous releases were verified against. It
+  predates 4.1.0; the base stylesheet coloured that span the same way.
+
+### Noted, no change
+
+- The Business Objectives table rendering twice is correct rather than
+  redundant. On a multi-feature project the project-wide card carries a
+  Feature column and every feature's rows, while the per-feature card
+  carries only the active feature's. They collapse to identical content
+  only when a project has exactly one feature.
+
+### Verified
+
+- On a purpose-built three-feature project as well as the single-feature
+  example: computed colour and weight confirmed muted on the two absence
+  tabs and accent/bold on the one real figure, in both themes.
+- Tab switching across all three features re-renders the heading, stat
+  tiles and pipeline correctly.
+- The single-feature project still renders no tab strip at all.
+- `cli-python` pytest 1190/1190; no horizontal overflow at 600, 768,
+  1024, 1440 or 1920px on either project shape.
+
+---
+
 ## [4.1.1] — 2026-09-25 (Dashboard follow-up: fixes and polish)
 
 A second pass over the dashboard after 4.1.0. Measuring it rather than

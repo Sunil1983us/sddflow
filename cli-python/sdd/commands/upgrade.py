@@ -8299,6 +8299,48 @@ MIGRATIONS: list[Migration] = [
             "from 4.1.0 at 569px",
         ],
     },
+    {
+        "from": "4.1.1",
+        "to": "4.1.2",
+        "description": "Dashboard: a feature tab with no tasks.md no longer styles that absence as if it were a completion metric",
+        "notes": [
+            "renderFeatureTabs() puts two different kinds of value in one "
+            "span: a real completion figure ('30% tasks') or the note that "
+            "there is nothing to measure yet ('no tasks.md'). style.css "
+            "renders .feature-tab-pct as an accent-coloured bold metric, so "
+            "every feature that had not reached /task displayed its "
+            "absence with the visual weight of a positive number",
+            "Fix is a modifier class: renderFeatureTabs() now adds "
+            "feature-tab-pct-none when the percentage is null, and "
+            "style.css renders that in --dim at normal weight. CSS alone "
+            "could not do this -- nothing in the markup distinguished the "
+            "two cases",
+            "Only observable on a project with 2 or more features: "
+            "renderFeatureTabs() returns '' below that, so the tab strip "
+            "never renders on a single-feature project. That is why this "
+            "survived the 4.1.0 and 4.1.1 verification passes, both of "
+            "which ran against examples/todo-api, which has one feature. "
+            "It predates 4.1.0 -- the base stylesheet coloured that span "
+            "the same way -- but 4.1.0's more saturated accent made it "
+            "more prominent",
+            "Verified on a purpose-built 3-feature project (task-"
+            "management with tasks, notifications and user-profiles "
+            "without) as well as the single-feature example: computed "
+            "colour and weight confirmed muted for the two absence tabs "
+            "and accent/bold for the one real figure, in both themes; tab "
+            "switching across all 3 features re-renders heading, stat "
+            "tiles and pipeline correctly; single-feature project still "
+            "renders no tab strip at all; cli-python pytest 1190/1190; no "
+            "horizontal overflow at 600/768/1024/1440/1920px on either "
+            "project shape",
+            "Also recorded while testing: the Business Objectives table "
+            "rendering twice is correct, not redundant. On a multi-feature "
+            "project the project-wide card carries a Feature column and "
+            "every feature's rows, while the per-feature card carries only "
+            "the active feature's. They collapse to identical content only "
+            "when a project has exactly one feature. No change made",
+        ],
+    },
 ]
 
 
