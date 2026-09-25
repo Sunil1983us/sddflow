@@ -223,47 +223,236 @@ class TestDescriptionSchemaCheck:
         assert all(ok for ok, _ in findings)
 
 
-class TestGetCreatemetaFields:
-    def _client_with_mock_session(
-        self, json_body: dict
-    ) -> tuple[JiraClient, MagicMock]:
-        session = MagicMock()
+def _routed_session(routes: list[tuple[str, int, dict]]) -> MagicMock:
+    """A session whose GET picks its response by matching a substring of
+    the requested URL, so a two-call flow can be scripted.
+
+    routes: (url_substring, status_code, json_body), first match wins.
+    An unmatched URL is a 404 with an empty body, which is what a Jira
+    that doesn't serve that route effectively does."""
+    session = MagicMock()
+
+    def _get(url, **kwargs):
         response = MagicMock()
-        response.json.return_value = json_body
+        for needle, status, body in routes:
+            if needle in url:
+                response.status_code = status
+                response.json.return_value = body
+                response.text = str(body)
+                response.raise_for_status.return_value = None
+                return response
+        response.status_code = 404
+        response.json.return_value = {}
+        response.text = ""
         response.raise_for_status.return_value = None
-        session.get.return_value = response
+        return response
+
+    session.get.side_effect = _get
+    return session
+
+
+# The modern endpoint's real response envelope, transcribed from a live
+# Jira Data Center instance (project AIPLAY). Kept verbatim because the
+# shape is the whole point: rows live under "values", not at the top
+# level, and issue type ids are strings.
+_LIVE_ISSUETYPES_PAGE = {
+    "maxResults": 50,
+    "startAt": 0,
+    "total": 6,
+    "isLast": True,
+    "values": [
+        {"id": "1", "name": "Bug", "subtask": False},
+        {"id": "13307", "name": "SAFe Enabler Story", "subtask": False},
+        {"id": "15601", "name": "SAFe Risk", "subtask": False},
+        {"id": "48", "name": "Sub-task", "subtask": True},
+        {"id": "57", "name": "Story", "subtask": False},
+        {"id": "7", "name": "Task", "subtask": False},
+    ],
+}
+
+
+class TestGetCreatemetaFieldsModern:
+    """Jira 8.4+ / 9.0+ two-call path. From 9.0 this is the ONLY path --
+    the classic query-param endpoint was removed outright."""
+
+    def test_resolves_issue_type_by_name_then_fetches_that_type_fields(self):
+        session = _routed_session(
+            [
+                (
+                    "/issue/createmeta/AIPLAY/issuetypes/57",
+                    200,
+                    {
+                        "isLast": True,
+                        "values": [
+                            {
+                                "fieldId": "summary",
+                                "name": "Summary",
+                                "required": True,
+                            },
+                            {
+                                "fieldId": "customfield_10001",
+                                "name": "Epic Name",
+                                "required": True,
+                            },
+                        ],
+                    },
+                ),
+                ("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE),
+            ]
+        )
+        client = JiraClient(session, "https://jira.example.net", deployment="server")
+        result = client.get_createmeta_fields("AIPLAY", "Story")
+        assert result == {
+            "summary": {"fieldId": "summary", "name": "Summary", "required": True},
+            "customfield_10001": {
+                "fieldId": "customfield_10001",
+                "name": "Epic Name",
+                "required": True,
+            },
+        }
+
+    def test_issue_type_match_is_case_insensitive(self):
+        session = _routed_session(
+            [
+                (
+                    "/issue/createmeta/AIPLAY/issuetypes/57",
+                    200,
+                    {"isLast": True, "values": []},
+                ),
+                ("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE),
+            ]
+        )
+        client = JiraClient(session, "https://jira.example.net", deployment="server")
+        assert client.get_createmeta_fields("AIPLAY", "story") == {}
+
+    def test_returns_none_when_issue_type_name_is_not_in_the_project(self):
+        session = _routed_session(
+            [("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE)]
+        )
+        client = JiraClient(session, "https://jira.example.net", deployment="server")
+        assert client.get_createmeta_fields("AIPLAY", "NotARealType") is None
+
+    def test_never_calls_the_removed_classic_endpoint_when_modern_answers(self):
+        session = _routed_session(
+            [
+                (
+                    "/issue/createmeta/AIPLAY/issuetypes/57",
+                    200,
+                    {"isLast": True, "values": []},
+                ),
+                ("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE),
+            ]
+        )
+        client = JiraClient(session, "https://jira.example.net", deployment="server")
+        client.get_createmeta_fields("AIPLAY", "Story")
+        for call in session.get.call_args_list:
+            assert "projectKeys" not in (call.kwargs.get("params") or {})
+
+    def test_follows_pagination_when_isLast_is_false(self):
+        page_one = {
+            "isLast": False,
+            "values": [{"id": "9", "name": "Other", "subtask": False}],
+        }
+        calls = {"n": 0}
+
+        def _get(url, **kwargs):
+            response = MagicMock()
+            response.status_code = 200
+            response.raise_for_status.return_value = None
+            if "/issuetypes/57" in url:
+                response.json.return_value = {"isLast": True, "values": []}
+            elif "/issuetypes" in url:
+                calls["n"] += 1
+                response.json.return_value = (
+                    page_one if calls["n"] == 1 else _LIVE_ISSUETYPES_PAGE
+                )
+            return response
+
+        session = MagicMock()
+        session.get.side_effect = _get
+        client = JiraClient(session, "https://jira.example.net", deployment="server")
+        # "Story" is only on the second page -- a non-paging implementation
+        # would return None here.
+        assert client.get_createmeta_fields("AIPLAY", "Story") == {}
+        assert calls["n"] == 2
+
+    def test_accepts_a_classic_shaped_fields_dict_from_the_modern_url(self):
+        """Defensive: not every Jira version was verifiable, so a server
+        answering the per-issue-type URL with the old {'fields': {...}}
+        dict is passed straight through rather than read as empty."""
+        session = _routed_session(
+            [
+                (
+                    "/issue/createmeta/AIPLAY/issuetypes/57",
+                    200,
+                    {"fields": {"summary": {"required": True}}},
+                ),
+                ("/issue/createmeta/AIPLAY/issuetypes", 200, _LIVE_ISSUETYPES_PAGE),
+            ]
+        )
+        client = JiraClient(session, "https://jira.example.net", deployment="server")
+        assert client.get_createmeta_fields("AIPLAY", "Story") == {
+            "summary": {"required": True}
+        }
+
+
+class TestGetCreatemetaFieldsClassicFallback:
+    """Pre-8.4 Server and Cloud, where the modern per-project endpoint is
+    absent (404) and the classic query-param one still answers."""
+
+    def _client(self, classic_body: dict) -> tuple[JiraClient, MagicMock]:
+        # Routed on the URL's tail rather than via _routed_session: requests
+        # puts query params in kwargs, so the classic call arrives as a bare
+        # "/issue/createmeta" and would otherwise also match the modern
+        # "/issue/createmeta/{key}/issuetypes" substring.
+        session = MagicMock()
+
+        def _get(url, **kwargs):
+            response = MagicMock()
+            response.raise_for_status.return_value = None
+            if url.endswith("/issue/createmeta"):
+                response.status_code = 200
+                response.json.return_value = classic_body
+            else:
+                response.status_code = 404
+                response.json.return_value = {}
+            return response
+
+        session.get.side_effect = _get
         client = JiraClient(session, "https://example.atlassian.net")
         return client, session
 
-    def test_queries_createmeta_with_project_and_issuetype_params(self):
-        client, session = self._client_with_mock_session(
-            {"projects": [{"issuetypes": [{"fields": {}}]}]}
-        )
+    def test_falls_back_with_project_and_issuetype_params(self):
+        client, session = self._client({"projects": [{"issuetypes": [{"fields": {}}]}]})
         client.get_createmeta_fields("FRAML", "SAFe Enabler")
-        params = session.get.call_args.kwargs["params"]
-        assert params == {
+        classic = [
+            c
+            for c in session.get.call_args_list
+            if c.args[0].endswith("/issue/createmeta")
+        ]
+        assert len(classic) == 1
+        assert classic[0].kwargs["params"] == {
             "projectKeys": "FRAML",
             "issuetypeNames": "SAFe Enabler",
             "expand": "projects.issuetypes.fields",
         }
 
     def test_returns_fields_dict_when_found(self):
-        client, _session = self._client_with_mock_session(
+        client, _session = self._client(
             {
                 "projects": [
                     {"issuetypes": [{"fields": {"summary": {"required": True}}}]}
                 ]
             }
         )
-        result = client.get_createmeta_fields("FRAML", "Epic")
-        assert result == {"summary": {"required": True}}
+        assert client.get_createmeta_fields("FRAML", "Epic") == {
+            "summary": {"required": True}
+        }
 
     def test_returns_none_when_no_projects_match(self):
-        client, _session = self._client_with_mock_session({"projects": []})
+        client, _session = self._client({"projects": []})
         assert client.get_createmeta_fields("NOPE", "Epic") is None
 
     def test_returns_none_when_project_has_no_matching_issuetype(self):
-        client, _session = self._client_with_mock_session(
-            {"projects": [{"issuetypes": []}]}
-        )
+        client, _session = self._client({"projects": [{"issuetypes": []}]})
         assert client.get_createmeta_fields("FRAML", "NotARealType") is None

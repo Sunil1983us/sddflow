@@ -4,6 +4,58 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [4.1.3] — 2026-09-25 (Jira 9.0+ removed the createmeta endpoint)
+
+Reported from a real Data Center instance: `sdd doctor` failed its Jira
+field check with a 404, while `sdd config test` passed against the same
+instance.
+
+### Fixed
+
+- **`sdd doctor`'s Jira field check did not work on Jira 9.0 or later
+  (Server / Data Center).** Atlassian removed the classic query-param
+  `createmeta` endpoint outright in Jira 9.0, for performance reasons.
+
+  `get_createmeta_fields()` now tries the modern two-call endpoint first
+  (`/issue/createmeta/{key}/issuetypes`, then `…/issuetypes/{id}`), added
+  in Jira 8.4 and the only option from 9.0, and falls back to the classic
+  single call for pre-8.4 Server and for Cloud. Both are normalised to
+  the same mapping, so the caller is unchanged. Issue-type matching is
+  case-insensitive, and pagination is followed on both endpoints.
+
+  The method's own docstring had this backwards. It claimed the classic
+  endpoint was "still the only createmeta option on Server/Data Center"
+  and anticipated Cloud as the eventual risk. The reverse is true: Cloud
+  kept it, Server removed it.
+
+- **The 404 was actively misleading.** It came back as
+  `{"errorMessages":["Issue Does Not Exist"]}`, which reads like a bad
+  issue key. With no createmeta route registered, Jira falls through to
+  `GET /issue/{issueIdOrKey}` and reads the literal path segment
+  `createmeta` as an issue key. `sdd doctor` now says so when it sees
+  that combination, instead of printing a bare URL.
+
+### Scope
+
+`createmeta` is called only by this doctor pre-flight check. `sdd jira
+push` builds issues through a different path and never touched it, so
+pushes on affected instances were never broken — what was lost was the
+validation.
+
+### Verified
+
+- `cli-python` pytest 1196/1196. Six new tests cover the modern path,
+  case-insensitive matching, pagination, the classic fallback and a
+  defensive dict shape; two existing tests that encoded the
+  single-endpoint behaviour were rewritten as fallback tests.
+- Driven end to end against a local server mimicking Jira 9, with the
+  classic route returning the exact `Issue Does Not Exist` body and the
+  modern routes serving the reporter's real payload. The check resolved
+  `Story` to its id and correctly reported a required custom field.
+- ruff clean; mypy unchanged at 13 pre-existing errors.
+
+---
+
 ## [4.1.2] — 2026-09-25 (Dashboard: feature tabs with no tasks)
 
 Found by testing the dashboard against a project with more than one

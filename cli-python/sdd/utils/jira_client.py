@@ -117,29 +117,129 @@ class JiraClient:
         raise_for_status_with_body(r)
         return r.json()
 
+    @staticmethod
+    def _paged_values(payload: dict) -> list[dict]:
+        """Pull the rows out of one of Jira's paginated envelopes
+        ({startAt, maxResults, total, isLast, values}). Returns [] for a
+        payload that isn't one, so callers can probe a shape safely."""
+        values = payload.get("values")
+        return values if isinstance(values, list) else []
+
+    def _createmeta_issue_types(self, project_key: str) -> list[dict] | None:
+        """Issue types for a project via the modern per-project endpoint.
+
+        Returns None when the endpoint itself isn't on this instance, so
+        the caller can fall back; [] means it answered and the project
+        genuinely has no issue types."""
+        out: list[dict] = []
+        start = 0
+        # Bounded rather than while-True: a server that ignores startAt
+        # (or mis-reports isLast) would otherwise spin forever. 20 pages
+        # at the default 50/page is far more issue types than any real
+        # project has.
+        for _ in range(20):
+            r = self._s.get(
+                self._api(f"/issue/createmeta/{project_key}/issuetypes"),
+                params={"startAt": start, "maxResults": 50},
+            )
+            if r.status_code == 404:
+                return None
+            raise_for_status_with_body(r)
+            payload = r.json()
+            page = self._paged_values(payload)
+            out.extend(page)
+            if payload.get("isLast", True) or not page:
+                break
+            start += len(page)
+        return out
+
+    def _createmeta_field_map(self, project_key: str, issue_type_id: str) -> dict:
+        """Field metadata for one issue type, normalised to the same
+        {field_id: {...}} mapping the classic endpoint returned, so
+        callers don't need to know which endpoint answered.
+
+        The modern endpoint returns a paginated LIST of field objects
+        keyed by 'fieldId' rather than a dict keyed by field id. Both
+        shapes are accepted here because this could not be verified
+        against every Jira version -- a server that returns the classic
+        {'fields': {...}} dict is passed straight through."""
+        out: dict = {}
+        start = 0
+        for _ in range(20):
+            r = self._s.get(
+                self._api(
+                    f"/issue/createmeta/{project_key}/issuetypes/{issue_type_id}"
+                ),
+                params={"startAt": start, "maxResults": 50},
+            )
+            raise_for_status_with_body(r)
+            payload = r.json()
+            classic = payload.get("fields")
+            if isinstance(classic, dict):
+                return classic
+            page = self._paged_values(payload)
+            for field in page:
+                field_id = field.get("fieldId") or field.get("key") or field.get("id")
+                if field_id:
+                    out[field_id] = field
+            if payload.get("isLast", True) or not page:
+                break
+            start += len(page)
+        return out
+
     def get_createmeta_fields(
         self, project_key: str, issue_type_name: str
     ) -> dict | None:
         """Fetch Jira's own field metadata (required/optional, schema
-        type) for a given project + issue type, via the classic
-        createmeta endpoint. This is Jira's own source of truth for what
-        a create-issue request needs -- letting `sdd doctor` validate any
-        organization's custom issue types and required fields generically,
-        without this codebase needing to know about them in advance.
+        type) for a given project + issue type. This is Jira's source of
+        truth for what a create-issue request needs -- letting
+        `sdd doctor` validate any organization's custom issue types and
+        required fields generically, without this codebase needing to
+        know about them in advance.
 
-        Still the only createmeta option on Server/Data Center (API v2 --
-        confirmed, see this class's own docstring on v2/v3). Cloud has
-        since introduced a newer two-step per-issue-type endpoint and
-        Atlassian's docs mark this classic one deprecated there, though it
-        remains functional as of writing; if Atlassian removes it from
-        Cloud entirely, this is the call site that would need a
-        Cloud-specific fallback.
+        Two endpoints exist and which one an instance serves depends on
+        its version:
 
-        Returns None if the project or issue type wasn't found (empty
-        "projects" or "issuetypes" in the response) -- a genuinely
-        different finding from "found but has zero fields", so callers
-        can tell "typo'd issue type name" apart from "issue type has no
-        custom fields configured at all"."""
+        - Modern, two calls: /issue/createmeta/{key}/issuetypes then
+          .../issuetypes/{id}. Added in Jira 8.4 (Server/DC) and the ONLY
+          option from Jira 9.0, which removed the classic one outright
+          for performance reasons.
+        - Classic, one call with projectKeys/issuetypeNames query params.
+          Gone on Server/DC 9.0+; still served by Cloud.
+
+        An earlier version of this method called the classic endpoint
+        only, on the stated assumption that it was "still the only
+        createmeta option on Server/Data Center". That was backwards --
+        Cloud kept it, Server removed it -- and on a 9.0+ instance the
+        request 404s with {"errorMessages":["Issue Does Not Exist"]},
+        because with no createmeta route registered Jira falls through to
+        GET /issue/{issueIdOrKey} and reads the literal path segment
+        "createmeta" as an issue key. That confusing error is the
+        signature of this specific problem.
+
+        So: try modern first (works on 8.4+ and is the only thing that
+        works on 9.0+), fall back to classic for older Server and Cloud.
+
+        Returns None if the project or issue type wasn't found -- a
+        genuinely different finding from "found but has zero fields", so
+        callers can tell "typo'd issue type name" apart from "issue type
+        has no custom fields configured at all"."""
+        issue_types = self._createmeta_issue_types(project_key)
+        if issue_types is not None:
+            match = next(
+                (
+                    it
+                    for it in issue_types
+                    if str(it.get("name", "")).strip().casefold()
+                    == issue_type_name.strip().casefold()
+                ),
+                None,
+            )
+            if match is None or not match.get("id"):
+                return None
+            return self._createmeta_field_map(project_key, str(match["id"]))
+
+        # Pre-8.4 Server, or Cloud: the classic single-call endpoint.
         r = self._s.get(
             self._api("/issue/createmeta"),
             params={

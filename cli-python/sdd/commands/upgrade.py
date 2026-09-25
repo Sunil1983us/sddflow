@@ -8341,6 +8341,62 @@ MIGRATIONS: list[Migration] = [
             "when a project has exactly one feature. No change made",
         ],
     },
+    {
+        "from": "4.1.2",
+        "to": "4.1.3",
+        "description": "sdd doctor's Jira field check now works on Jira 9.0+ Server/Data Center, which removed the createmeta endpoint the check was calling",
+        "notes": [
+            "Reported from a real Data Center instance: `sdd doctor` "
+            "failed with 404 on GET /rest/api/2/issue/createmeta?"
+            "projectKeys=...&issuetypeNames=..., body "
+            "{'errorMessages':['Issue Does Not Exist']}. Auth and "
+            "connectivity were fine -- `sdd config test` passed against "
+            "the same instance",
+            "That error is not what it looks like. With no createmeta "
+            "route registered, Jira falls through to GET "
+            "/issue/{issueIdOrKey} and reads the literal path segment "
+            "'createmeta' as an issue key, which is why it reports a "
+            "missing issue rather than a missing endpoint. It is the "
+            "signature of this specific problem",
+            "Root cause: Atlassian removed the classic query-param "
+            "createmeta outright in Jira 9.0 for Server/Data Center, for "
+            "performance reasons. get_createmeta_fields()'s docstring had "
+            "this backwards -- it claimed the classic endpoint was 'still "
+            "the only createmeta option on Server/Data Center' and "
+            "anticipated Cloud as the eventual risk. The reverse is true: "
+            "Cloud kept it, Server removed it",
+            "get_createmeta_fields() now tries the modern two-call "
+            "endpoint first (/issue/createmeta/{key}/issuetypes, then "
+            ".../issuetypes/{id}), added in Jira 8.4 and the only option "
+            "from 9.0, and falls back to the classic single call for "
+            "pre-8.4 Server and for Cloud. Both are normalised to the "
+            "same {field_id: {...}} mapping, so check_epic_createmeta() "
+            "is unchanged. Issue-type matching is case-insensitive and "
+            "both endpoints' pagination is followed, bounded at 20 pages "
+            "so a server that mis-reports isLast cannot spin",
+            "The modern per-issue-type response is a paginated LIST of "
+            "field objects keyed by 'fieldId', not the classic dict keyed "
+            "by field id. Both shapes are accepted, because this could "
+            "not be verified against every Jira version",
+            "sdd doctor also now annotates that 404: seeing 'Issue Does "
+            "Not Exist' on a createmeta URL otherwise sends people "
+            "hunting for an issue that never existed",
+            "Scope: createmeta is used only by this doctor pre-flight "
+            "check. `sdd jira push` builds issues through _upsert_issue() "
+            "and never called it, so pushes were unaffected -- what was "
+            "broken was the validation, not the ability to push",
+            "Verified: cli-python pytest 1196/1196 (1190 + 6 new covering "
+            "the modern path, case-insensitive matching, pagination, the "
+            "classic fallback and the defensive dict shape; two existing "
+            "tests that encoded the single-endpoint behaviour were "
+            "rewritten as fallback tests). Also driven end to end against "
+            "a local server mimicking Jira 9 -- classic route 404ing with "
+            "the exact 'Issue Does Not Exist' body, modern routes serving "
+            "the reporter's real payload -- where the check correctly "
+            "resolved 'Story' to its id and reported a required custom "
+            "field. ruff clean; mypy unchanged at 13 pre-existing errors",
+        ],
+    },
 ]
 
 
