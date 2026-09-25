@@ -442,3 +442,29 @@ class TestTransitionIssue:
         client, session = self._client_with_transitions([])
         assert client.transition_issue("PROJ-1", "In Review") is False
         session.post.assert_not_called()
+
+
+class TestAssigneeField:
+    """Regression coverage for a bug where every assignee call site
+    hardcoded {"accountId": ...} regardless of deployment. accountId is
+    a Cloud-only construct (introduced with Atlassian's GDPR changes);
+    Server/Data Center identifies users by `name` instead. Sending
+    accountId to Data Center doesn't error -- the create call can come
+    back 2xx with the issue simply left unassigned -- which is how this
+    went unnoticed until a real Data Center push was checked."""
+
+    def test_server_deployment_uses_name(self):
+        client = JiraClient(
+            MagicMock(), "https://jira.example.net", deployment="server"
+        )
+        assert client.assignee_field("JIRAUSER10100") == {"name": "JIRAUSER10100"}
+
+    def test_cloud_deployment_uses_account_id(self):
+        client = JiraClient(MagicMock(), "https://x.atlassian.net", deployment="cloud")
+        assert client.assignee_field("5c7b8a2d0f3e1a4b9d6c8f21") == {
+            "accountId": "5c7b8a2d0f3e1a4b9d6c8f21"
+        }
+
+    def test_default_deployment_is_cloud(self):
+        client = JiraClient(MagicMock(), "https://x.atlassian.net")
+        assert client.assignee_field("someuser") == {"accountId": "someuser"}

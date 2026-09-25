@@ -29,6 +29,24 @@ class JiraClient:
     def _api(self, path: str) -> str:
         return f"{self._base}/rest/api/{self._api_version}{path}"
 
+    def assignee_field(self, user: str) -> dict:
+        """Build an `assignee` field value for this deployment.
+
+        The two are not interchangeable. `accountId` is a Cloud construct
+        introduced with Atlassian's GDPR changes; Server/Data Center never
+        adopted it and identifies users by `name` instead. Sending an
+        accountId to Data Center does not error loudly -- the create call
+        can come back 2xx with the issue simply left unassigned -- which
+        is exactly how this went unnoticed: every call site hardcoded
+        {"accountId": ...} regardless of deployment.
+
+        `user` is whatever GET /rest/api/2/myself reports as `name` on
+        Server/DC (on 8.x+ that is often a synthetic id such as
+        JIRAUSER10100, not a human-readable login -- pass it through as
+        given, do not try to prettify it), or the accountId on Cloud.
+        """
+        return {"name": user} if self.deployment == "server" else {"accountId": user}
+
     def get_myself(self) -> dict:
         r = self._s.get(self._api("/myself"))
         raise_for_status_with_body(r)

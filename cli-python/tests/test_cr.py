@@ -27,6 +27,11 @@ class FakeJiraClient:
     def find_by_label(self, project_key, label):
         return None  # always "not yet submitted" -- exercises the create path
 
+    def assignee_field(self, user):
+        """Mirrors the real JiraClient.assignee_field() -- see its
+        docstring for why the shape depends on deployment."""
+        return {"name": user} if self.deployment == "server" else {"accountId": user}
+
     def create_issue(self, fields):
         self.created.append(fields)
         key = f"PROJ-{self._next_id}"
@@ -96,6 +101,81 @@ class TestCrSubmitFieldWiring:
         assert "sdd-cr" in sent["labels"]
         # base_fields.team + custom_fields.team must stamp the team field
         assert sent["customfield_20000"] == "Team Phoenix"
+
+
+class TestCrSubmitAssignee:
+    """Regression coverage for a bug where the assignee field hardcoded
+    {"accountId": ...} regardless of deployment -- silently dropping the
+    assignee on Server/Data Center, which uses {"name": ...} instead. See
+    JiraClient.assignee_field()."""
+
+    @pytest.fixture()
+    def runner(self):
+        return CliRunner()
+
+    def test_cloud_reviewer_uses_account_id(self, project, runner):
+        fake = FakeJiraClient()  # deployment="cloud" by default
+        with (
+            patch(
+                "sdd.commands.cr.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.cr.JiraClient", return_value=fake),
+        ):
+            result = runner.invoke(
+                cr_command,
+                ["submit", "--cr", "CR-001", "--reviewer", "5c7b8a2d0f3e1a4b9d6c8f21"],
+            )
+
+        assert result.exit_code == 0, result.output
+        sent = next(f for f in fake.created if f["summary"].startswith("Review:"))
+        assert sent["assignee"] == {"accountId": "5c7b8a2d0f3e1a4b9d6c8f21"}
+
+    def test_server_reviewer_uses_name(self, project, runner):
+        fake = FakeJiraClient()
+        fake.deployment = "server"
+        with (
+            patch(
+                "sdd.commands.cr.load_jira_session",
+                return_value=(
+                    # auth_mode="pat" -> Profile.deployment == "server" (PAT
+                    # auth is a Server/Data Center-only mechanism, see
+                    # Profile.deployment's own docstring).
+                    Profile(auth_mode="pat", base_url="https://jira.example.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.cr.JiraClient", return_value=fake),
+        ):
+            result = runner.invoke(
+                cr_command,
+                ["submit", "--cr", "CR-001", "--reviewer", "JIRAUSER10100"],
+            )
+
+        assert result.exit_code == 0, result.output
+        sent = next(f for f in fake.created if f["summary"].startswith("Review:"))
+        assert sent["assignee"] == {"name": "JIRAUSER10100"}
+
+    def test_no_reviewer_means_no_assignee_field(self, project, runner):
+        fake = FakeJiraClient()
+        with (
+            patch(
+                "sdd.commands.cr.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.cr.JiraClient", return_value=fake),
+        ):
+            result = runner.invoke(cr_command, ["submit", "--cr", "CR-001"])
+
+        assert result.exit_code == 0, result.output
+        sent = next(f for f in fake.created if f["summary"].startswith("Review:"))
+        assert "assignee" not in sent
 
 
 class TestCrSubmitParentLink:

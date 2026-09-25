@@ -8401,6 +8401,60 @@ MIGRATIONS: list[Migration] = [
             "mypy unchanged at 13 pre-existing errors",
         ],
     },
+    {
+        "from": "4.1.3",
+        "to": "4.1.4",
+        "description": "Jira review/CR tickets are now assigned correctly on Server/Data Center, which hardcoded a Cloud-only assignee field shape",
+        "notes": [
+            "Reported by a user on a real Data Center instance: review "
+            "and CR tickets were created but always left unassigned, "
+            "with no error. They confirmed via GET /rest/api/2/myself "
+            "that their user has no accountId at all -- only name and "
+            "key, e.g. JIRAUSER10100",
+            "Root cause: every call site that sets fields['assignee'] "
+            "hardcoded {'accountId': ...}. accountId is a Cloud-only "
+            "construct (Atlassian's GDPR-era user-identification "
+            "change); Server/Data Center identifies users by 'name' "
+            "instead and never adopted accountId. Sending accountId to "
+            "Data Center doesn't error -- Jira's create-issue call can "
+            "come back 2xx with the issue simply left unassigned -- "
+            "which is exactly how this went unnoticed: nothing in the "
+            "CLI's own output pointed at the assignee field at all",
+            "Added JiraClient.assignee_field(user), which returns "
+            "{'name': user} when self.deployment == 'server' and "
+            "{'accountId': user} otherwise. JiraClient already carries "
+            "deployment (derived from Profile.deployment, itself "
+            "derived from auth_mode == 'pat' -- PAT auth is a Server/DC-"
+            "only mechanism, see that property's own docstring), so no "
+            "new plumbing was needed, only a single method and three "
+            "call sites routed through it: review.py's two review-Story "
+            "creation paths (submit and push-questions-with-reuse) and "
+            "cr.py's CR review-task creation",
+            "Also reworded two help/hint strings that only mentioned "
+            "accountId -- cr.py's --reviewer flag help and config.py's "
+            "integrations.yml scaffold warning -- to name both forms, "
+            "so a Data Center user isn't misled into thinking they need "
+            "a Cloud-style accountId",
+            "PATCH, not MINOR: pure bug fix, no new flag, config field, "
+            "or command. A project that upgrades just gets correct "
+            "assignee behaviour on Server/Data Center; nothing changes "
+            "for a Cloud project",
+            "Verified: cli-python pytest 1204/1204 (1196 + 8 new -- "
+            "assignee_field() itself in both deployments and the Cloud "
+            "default; review_submit's Story ticket in both deployments; "
+            "cr_submit's CR ticket in both deployments plus a no-"
+            "reviewer-means-no-assignee-field case). Two hand-written "
+            "FakeJiraClient test doubles (test_review_helpers.py, "
+            "test_cr.py) needed a matching assignee_field() added, since "
+            "they don't inherit from the real JiraClient and the new "
+            "method had no default on them; a third FakeJiraClient in "
+            "test_jira_push_content.py was left alone, since jira.py's "
+            "_upsert_issue() path (Epic/Story/Task creation) never sets "
+            "an assignee. ruff clean; mypy identical before/after this "
+            "change at 16 pre-existing 'library stubs not installed' "
+            "import errors, none newly introduced",
+        ],
+    },
 ]
 
 

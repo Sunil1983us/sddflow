@@ -52,7 +52,9 @@ def cr_command():
 @click.option(
     "--reviewer",
     default=None,
-    help="Jira accountId of the reviewer (overrides integrations.yml cr_reviewer)",
+    help="Reviewer's Jira user -- accountId on Cloud, the `name` from "
+    "/rest/api/2/myself on Server/Data Center (overrides integrations.yml "
+    "cr_reviewer)",
 )
 @click.option("--dry-run", is_flag=True)
 def cr_submit(cr, profile, feature, reviewer, dry_run):
@@ -218,7 +220,8 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
             },
         }
         if reviewer_id:
-            fields["assignee"] = {"accountId": reviewer_id}
+            # Shape depends on deployment -- see JiraClient.assignee_field().
+            fields["assignee"] = jira_client.assignee_field(reviewer_id)
         # Fixed team stamp (base_fields.team), same as every other issue
         # type -- no other custom_fields entries apply here.
         from sdd.commands.jira import _apply_team_field

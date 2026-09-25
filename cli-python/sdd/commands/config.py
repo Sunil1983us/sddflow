@@ -328,9 +328,11 @@ def _scaffold_integrations(
         )
         console.print(
             "  [yellow]![/yellow]  [dim]document_reviews: below has placeholder Jira "
-            "accountIds (from the example) — replace them with real reviewers, "
+            "users (from the example) — replace them with real reviewers, "
             "or delete entries you don't want routed through Jira, before "
-            "running [cyan]sdd review submit[/cyan].[/dim]"
+            "running [cyan]sdd review submit[/cyan]. On Cloud that value is "
+            "an accountId; on Server/Data Center it's the `name` from "
+            "/rest/api/2/myself.[/dim]"
         )
     else:
         # No .example shipped in this project (very old init, or a pack

@@ -440,6 +440,11 @@ class FakeJiraClient:
     def find_by_label(self, project_key, label):
         return self.by_label.get(label)
 
+    def assignee_field(self, user):
+        """Mirrors the real JiraClient.assignee_field() -- see its
+        docstring for why the shape depends on deployment."""
+        return {"name": user} if self.deployment == "server" else {"accountId": user}
+
     def add_comment(self, issue_key, text):
         self.added_comments.append((issue_key, text))
 
@@ -949,6 +954,114 @@ class TestReviewSubmitFieldWiring:
         assert result.exit_code == 0, result.output
         links = review._load_review_links()
         assert links["brd"]["key"].startswith("PROJ-")
+
+
+class TestReviewSubmitAssignee:
+    """Regression coverage for a bug where the review Story's assignee
+    field hardcoded {"accountId": ...} regardless of deployment --
+    silently dropping the assignee on Server/Data Center, which uses
+    {"name": ...} instead. See JiraClient.assignee_field()."""
+
+    @pytest.fixture()
+    def runner(self):
+        from click.testing import CliRunner
+
+        return CliRunner()
+
+    @pytest.fixture()
+    def review_project_with_reviewer(self, project):
+        (project / ".specify" / "features" / "auth" / "brd.md").write_text(
+            "# BRD\n\nBO-001 Reduce login friction.\n"
+        )
+        (project / ".specify" / "integrations.yml").write_text(
+            "profile: default\n"
+            "jira:\n"
+            "  project_key: MYPROJ\n"
+            "confluence:\n"
+            "  space_key: ENG\n"
+            "document_reviews:\n"
+            "  brd:\n"
+            "    reviewer_jira_user: 'JIRAUSER10100'\n"
+            "    reviewer_role: 'Product Owner'\n"
+            "    phase: specify\n"
+            "    sequence: 1\n"
+            "    confluence_page: '{project} — BRD'\n"
+        )
+        return project
+
+    def test_server_deployment_assigns_by_name(
+        self, review_project_with_reviewer, runner
+    ):
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        fake_jira.deployment = "server"
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    # auth_mode="pat" -> Profile.deployment == "server" (PAT
+                    # auth is a Server/Data Center-only mechanism, see
+                    # Profile.deployment's own docstring).
+                    Profile(auth_mode="pat", base_url="https://jira.example.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://jira.example.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        review_issue = next(
+            f for f in fake_jira.created if "sdd-review" in f.get("labels", [])
+        )
+        assert review_issue["assignee"] == {"name": "JIRAUSER10100"}
+
+    def test_cloud_deployment_assigns_by_account_id(
+        self, review_project_with_reviewer, runner
+    ):
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()  # deployment="cloud" by default
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        review_issue = next(
+            f for f in fake_jira.created if "sdd-review" in f.get("labels", [])
+        )
+        assert review_issue["assignee"] == {"accountId": "JIRAUSER10100"}
 
 
 class TestReviewApplyRecordsLink:

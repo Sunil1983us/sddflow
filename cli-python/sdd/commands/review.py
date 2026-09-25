@@ -1091,8 +1091,8 @@ def review_submit(doc, profile, feature):
         },
     }
     if doc_cfg.reviewer_jira_user:
-        # accountId for Cloud; use {"name": ...} for Server/DC if needed
-        fields["assignee"] = {"accountId": doc_cfg.reviewer_jira_user}
+        # Shape depends on deployment -- see JiraClient.assignee_field().
+        fields["assignee"] = jira_client.assignee_field(doc_cfg.reviewer_jira_user)
     # Fixed team stamp (base_fields.team), same as every other issue type
     # -- no other custom_fields entries apply here (story_points/
     # acceptance_criteria/etc. have no meaning on a review ticket).
@@ -1303,7 +1303,8 @@ def review_push_questions(doc, profile, feature):
         },
     }
     if doc_cfg.reviewer_jira_user:
-        fields["assignee"] = {"accountId": doc_cfg.reviewer_jira_user}
+        # Shape depends on deployment -- see JiraClient.assignee_field().
+        fields["assignee"] = jira_client.assignee_field(doc_cfg.reviewer_jira_user)
     from sdd.commands.jira import _apply_team_field, adf_to_wiki_markup
 
     _apply_team_field(fields, cfg.jira, "review")

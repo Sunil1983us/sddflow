@@ -4,6 +4,47 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [4.1.4] — 2026-09-25 (Jira assignee dropped on Server/Data Center)
+
+Reported by a user on a real Data Center instance: review and CR tickets
+were created successfully but always came back unassigned, with no
+error anywhere in the output. They confirmed via `GET
+/rest/api/2/myself` that their user has no `accountId` at all — only
+`name` and `key` (e.g. `JIRAUSER10100`).
+
+### Fixed
+
+- **Every Jira ticket this CLI assigns hardcoded `{"accountId": ...}`,
+  which is a Cloud-only construct.** Server/Data Center identifies users
+  by `name` instead and never adopted `accountId`. Sending `accountId`
+  to Data Center doesn't error — the create-issue call comes back `2xx`
+  with the issue simply left unassigned, which is exactly how this went
+  unnoticed.
+
+  Added `JiraClient.assignee_field(user)`, returning `{"name": user}` on
+  Server/Data Center and `{"accountId": user}` on Cloud. `JiraClient`
+  already tracks its deployment, so this needed one new method and three
+  call sites routed through it: the two review-Story creation paths in
+  `review.py` and the CR review-task creation path in `cr.py`.
+
+- Two help/hint strings that only mentioned `accountId` — `sdd cr
+  submit --reviewer`'s help text and `sdd config init`'s
+  `integrations.yml` scaffold warning — now name both forms, so a Data
+  Center user isn't misled into thinking they need a Cloud-style
+  `accountId`.
+
+### Verified
+
+- `cli-python` pytest 1204/1204 — 8 new tests covering
+  `assignee_field()` in both deployments, and both the review-submit and
+  CR-submit ticket paths in both deployments (plus a no-reviewer case).
+- Two hand-written `FakeJiraClient` test doubles needed a matching
+  `assignee_field()` added, since they don't inherit from the real
+  client.
+- ruff clean; mypy identical before and after this change.
+
+---
+
 ## [4.1.3] — 2026-09-25 (Jira 9.0+ removed the createmeta endpoint)
 
 Reported from a real Data Center instance: `sdd doctor` failed its Jira
