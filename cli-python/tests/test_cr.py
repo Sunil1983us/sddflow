@@ -23,6 +23,11 @@ class FakeJiraClient:
         self.updated: list[tuple[str, dict]] = []
         self.parents: list[tuple[str, str, str]] = []
         self._next_id = 1
+        # Set to a string before submitting to simulate the real
+        # JiraClient.create_issue()'s assignee-fallback retry (see
+        # TestCreateIssueAssigneeFallback in test_jira_client.py for the
+        # actual HTTP-level retry logic).
+        self.simulate_assignee_dropped: str | None = None
 
     def find_by_label(self, project_key, label):
         return None  # always "not yet submitted" -- exercises the create path
@@ -36,7 +41,10 @@ class FakeJiraClient:
         self.created.append(fields)
         key = f"PROJ-{self._next_id}"
         self._next_id += 1
-        return {"key": key}
+        result = {"key": key}
+        if self.simulate_assignee_dropped:
+            result["_assignee_dropped_reason"] = self.simulate_assignee_dropped
+        return result
 
     def update_issue(self, key, fields):
         self.updated.append((key, fields))
@@ -176,6 +184,61 @@ class TestCrSubmitAssignee:
         assert result.exit_code == 0, result.output
         sent = next(f for f in fake.created if f["summary"].startswith("Review:"))
         assert "assignee" not in sent
+
+    def test_dropped_assignee_prints_a_warning_but_still_succeeds(
+        self, project, runner
+    ):
+        """The real JiraClient.create_issue() retries without assignee
+        and signals the drop via a "_assignee_dropped_reason" key (see
+        TestCreateIssueAssigneeFallback in test_jira_client.py) -- submit
+        must still exit 0, and must surface Jira's reason rather than
+        staying silent about an unassigned ticket."""
+        fake = FakeJiraClient()
+        fake.simulate_assignee_dropped = "User 'baduser' does not exist."
+        with (
+            patch(
+                "sdd.commands.cr.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.cr.JiraClient", return_value=fake),
+        ):
+            result = runner.invoke(
+                cr_command,
+                ["submit", "--cr", "CR-001", "--reviewer", "baduser"],
+            )
+
+        assert result.exit_code == 0, result.output
+        # Whitespace-normalized: Rich's Console wraps long lines at the
+        # terminal width it detects (narrow/undetected under CliRunner),
+        # which can split "does not exist" across a literal newline mid-
+        # phrase -- collapsing whitespace makes the assertion immune to
+        # exactly where that wrap lands.
+        normalized = " ".join(result.output.split())
+        assert "Left unassigned" in normalized
+        assert "does not exist" in normalized
+
+    def test_no_drop_means_no_warning(self, project, runner):
+        fake = FakeJiraClient()  # simulate_assignee_dropped left None
+        with (
+            patch(
+                "sdd.commands.cr.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.cr.JiraClient", return_value=fake),
+        ):
+            result = runner.invoke(
+                cr_command,
+                ["submit", "--cr", "CR-001", "--reviewer", "gooduser"],
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "Left unassigned" not in result.output
 
 
 class TestCrSubmitParentLink:

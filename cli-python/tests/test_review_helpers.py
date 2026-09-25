@@ -436,6 +436,12 @@ class FakeJiraClient:
         # transitions "exist" for a given ticket; defaults to none.
         self.available_transitions: list[str] = []
         self.transitioned: list[tuple[str, str]] = []
+        # Set to a string before calling submit to simulate the real
+        # JiraClient.create_issue()'s assignee-fallback retry (see
+        # TestCreateIssueAssigneeFallback in test_jira_client.py for the
+        # actual HTTP-level retry logic) -- lets call-site tests here
+        # check the console warning without going through real HTTP.
+        self.simulate_assignee_dropped: str | None = None
 
     def find_by_label(self, project_key, label):
         return self.by_label.get(label)
@@ -463,7 +469,10 @@ class FakeJiraClient:
         for label in fields.get("labels", []):
             if label.startswith("sdd"):
                 self.by_label[label] = {"key": key, "fields": fields}
-        return {"key": key}
+        result = {"key": key}
+        if self.simulate_assignee_dropped:
+            result["_assignee_dropped_reason"] = self.simulate_assignee_dropped
+        return result
 
     def update_issue(self, key, fields):
         self.updated.append((key, fields))
@@ -1062,6 +1071,86 @@ class TestReviewSubmitAssignee:
             f for f in fake_jira.created if "sdd-review" in f.get("labels", [])
         )
         assert review_issue["assignee"] == {"accountId": "JIRAUSER10100"}
+
+    def test_dropped_assignee_prints_a_warning_but_still_succeeds(
+        self, review_project_with_reviewer, runner
+    ):
+        """The real JiraClient.create_issue() retries without assignee
+        and signals the drop via a "_assignee_dropped_reason" key (see
+        TestCreateIssueAssigneeFallback in test_jira_client.py) --
+        submit must still exit 0 (the ticket WAS created), and must
+        surface Jira's reason to the user rather than staying silent
+        about an unassigned ticket."""
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()
+        fake_jira.simulate_assignee_dropped = "User 'JIRAUSER10100' does not exist."
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        # Whitespace-normalized: Rich's Console wraps long lines at the
+        # terminal width it detects (narrow/undetected under CliRunner),
+        # which can split "does not exist" across a literal newline mid-
+        # phrase -- collapsing whitespace makes the assertion immune to
+        # exactly where that wrap lands.
+        normalized = " ".join(result.output.split())
+        assert "Left unassigned" in normalized
+        assert "does not exist" in normalized
+        # The ticket still exists and is tracked -- a dropped assignee is
+        # a warning, never a reason to treat submission as failed.
+        links = review._load_review_links()
+        assert links["brd"]["key"].startswith("PROJ-")
+
+    def test_no_drop_means_no_warning(self, review_project_with_reviewer, runner):
+        from sdd.utils.atlassian_auth import Profile
+
+        fake_jira = FakeJiraClient()  # simulate_assignee_dropped left None
+        with (
+            patch(
+                "sdd.commands.review.load_jira_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch(
+                "sdd.commands.review.load_confluence_session",
+                return_value=(
+                    Profile(auth_mode="basic", base_url="https://x.atlassian.net"),
+                    object(),
+                ),
+            ),
+            patch("sdd.commands.review.JiraClient", return_value=fake_jira),
+            patch(
+                "sdd.commands.review.ConfluenceClient",
+                return_value=FakeConfluenceClient(),
+            ),
+        ):
+            result = runner.invoke(review.review_command, ["submit", "--doc", "brd"])
+
+        assert result.exit_code == 0, result.output
+        assert "Left unassigned" not in result.output
 
 
 class TestReviewApplyRecordsLink:

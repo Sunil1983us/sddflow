@@ -4,6 +4,50 @@ All notable changes to the SDD Framework are documented here.
 
 ---
 
+## [4.1.5] — 2026-09-25 (Jira ticket creation survives a bad reviewer)
+
+Follow-up to 4.1.4. That release made the assignee value correct per
+deployment (`name` vs `accountId`), but a still-wrong value — a typo, a
+reviewer who left the org, a stale entry in `integrations.yml` with
+nothing to validate it at config time — still failed the entire review
+or CR ticket, because Jira's create-issue endpoint validates the whole
+request atomically. The assignee has no bearing on whether the document
+itself is trackable, so losing the whole ticket over it was
+disproportionate.
+
+### Fixed
+
+- `JiraClient.create_issue()` now inspects a `400` response for Jira's
+  own `{"errors": {"assignee": "..."}}` signal and, if present, retries
+  once with `assignee` stripped instead of failing outright. A
+  successful retry means the ticket was created unassigned, reported to
+  the caller via a new `_assignee_dropped_reason` key rather than
+  swallowed silently.
+- If some *other* field is also invalid, the retry's own error
+  propagates normally, naming only the real remaining problem. A
+  malformed or non-JSON `400` body (a reverse proxy can return HTML) is
+  treated as no signal — no retry, the original error surfaces exactly
+  as before.
+- The three ticket-creation paths that set an assignee now print a
+  yellow warning naming Jira's reason right after the green "created"
+  confirmation, so a dropped assignee is visible immediately rather than
+  only discovered by opening Jira later.
+
+### Verified
+
+- `cli-python` pytest 1221/1221 — 17 new tests: 13 covering the retry
+  logic directly (assignee-only errors retry and succeed; unrelated
+  errors never retry; a failing retry surfaces its own error; malformed
+  bodies are treated as no signal; normal success carries no extra key),
+  4 confirming the console warning at the two call sites.
+- One test-fragility issue found and fixed: an assertion on raw CLI
+  output broke under Rich's line-wrapping, which can split a phrase
+  across a literal newline. Fixed by whitespace-normalizing before
+  asserting.
+- ruff clean; mypy identical before and after.
+
+---
+
 ## [4.1.4] — 2026-09-25 (Jira assignee dropped on Server/Data Center)
 
 Reported by a user on a real Data Center instance: review and CR tickets

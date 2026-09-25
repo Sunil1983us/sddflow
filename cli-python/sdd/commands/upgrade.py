@@ -8455,6 +8455,69 @@ MIGRATIONS: list[Migration] = [
             "import errors, none newly introduced",
         ],
     },
+    {
+        "from": "4.1.4",
+        "to": "4.1.5",
+        "description": "A stale or invalid reviewer_jira_user no longer fails the whole Jira review/CR ticket -- it's created unassigned instead, with a warning",
+        "notes": [
+            "4.1.4 made the assignee VALUE correct per deployment "
+            "(name vs accountId), but a still-wrong value -- a typo, a "
+            "reviewer who left the org, a stale entry in "
+            "integrations.yml with nothing to validate it at config "
+            "time -- still failed the entire ticket, since Jira's "
+            "create-issue endpoint validates the whole fields payload "
+            "atomically. The assignee has no bearing on whether the "
+            "document itself is trackable, so failing the whole ticket "
+            "over it was disproportionate. This closes that gap",
+            "JiraClient.create_issue() now inspects a 400 response body "
+            "for Jira's own {'errors': {'assignee': \"...\"}} signal "
+            "(new module-level helper _assignee_creation_error()) and, "
+            "if present, retries once with 'assignee' stripped rather "
+            "than failing outright. A successful retry means the ticket "
+            "was created unassigned; this is signalled to the caller "
+            "via a new '_assignee_dropped_reason' key on the returned "
+            "dict (Jira's own error text) rather than swallowed. If "
+            "some OTHER field is also invalid, the retry's own error "
+            "propagates normally, naming only the real remaining "
+            "problem since assignee is no longer part of the request. "
+            "A malformed/non-JSON 400 body (e.g. HTML from a reverse "
+            "proxy) is treated as no signal -- no retry, the original "
+            "error surfaces exactly as before this change",
+            "All three call sites that set assignee (review.py's two "
+            "review-Story creation paths, cr.py's CR review-task "
+            "creation) now check the result for "
+            "'_assignee_dropped_reason' and print a yellow warning "
+            "naming Jira's reason right after the green 'created' "
+            "confirmation, so the user learns the ticket succeeded AND "
+            "why it's unassigned in the same breath, rather than only "
+            "by opening Jira later. jira.py's _upsert_issue() "
+            "(Epic/Story/Task creation) is unaffected -- it never sets "
+            "an assignee, and the retry gate is "
+            "'\"assignee\" in fields'",
+            "PATCH, not MINOR: pure bug-fix hardening of 4.1.4's "
+            "change, no new flag, config field, or command",
+            "Verified: cli-python pytest 1221/1221 (1204 + 17 new -- 13 "
+            "in test_jira_client.py covering the retry logic directly "
+            "against a mocked session [assignee-only error retries and "
+            "succeeds; no-assignee-in-fields never retries; non-"
+            "assignee 400 doesn't retry; the retry itself failing "
+            "surfaces its own error; malformed/non-JSON body doesn't "
+            "retry; normal success carries no dropped-reason key; plus "
+            "7 standalone tests for the parsing helper's edge cases], 2 "
+            "in test_review_helpers.py and 2 in test_cr.py confirming "
+            "the console warning fires/doesn't fire at the review_submit "
+            "and cr_submit call sites via a simulate_assignee_dropped "
+            "flag added to both files' hand-written FakeJiraClient test "
+            "doubles). One test-fragility issue found and fixed along "
+            "the way: an assertion checking for 'does not exist' in raw "
+            "CLI output failed under Rich's Console line-wrapping, which "
+            "split the phrase across a literal newline mid-word under "
+            "CliRunner's narrow/undetected terminal width -- fixed by "
+            "whitespace-normalizing before asserting. ruff clean; mypy "
+            "identical before/after via git-stash comparison (14/14, "
+            "zero new errors)",
+        ],
+    },
 ]
 
 

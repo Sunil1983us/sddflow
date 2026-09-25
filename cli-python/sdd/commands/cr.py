@@ -241,6 +241,12 @@ def cr_submit(cr, profile, feature, reviewer, dry_run):
                 console.print(
                     f"  [green]✓[/green]  Jira task created: [cyan]{task_key}[/cyan]"
                 )
+                assignee_dropped = result.get("_assignee_dropped_reason")
+                if assignee_dropped:
+                    console.print(
+                        f"  [yellow]![/yellow]  Left unassigned -- Jira rejected "
+                        f"the reviewer: {assignee_dropped}"
+                    )
             if epic_key:
                 from sdd.commands.jira import _warn_parent_link_failed
 

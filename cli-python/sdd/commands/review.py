@@ -1139,6 +1139,12 @@ def review_submit(doc, profile, feature):
         console.print(
             f"  [green]✓[/green]  Jira review story created: [cyan]{story_key}[/cyan]"
         )
+        assignee_dropped = result.get("_assignee_dropped_reason")
+        if assignee_dropped:
+            console.print(
+                f"  [yellow]![/yellow]  Left unassigned -- Jira rejected "
+                f"reviewer_jira_user: {assignee_dropped}"
+            )
 
     _record_review_link(doc, story_key)
 
@@ -1322,6 +1328,12 @@ def review_push_questions(doc, profile, feature):
         console.print(
             f"  [green]✓[/green]  Jira ticket created: [cyan]{issue_key}[/cyan]"
         )
+        assignee_dropped = result.get("_assignee_dropped_reason")
+        if assignee_dropped:
+            console.print(
+                f"  [yellow]![/yellow]  Left unassigned -- Jira rejected "
+                f"reviewer_jira_user: {assignee_dropped}"
+            )
 
     _record_review_link(doc, issue_key)
     if epic_key:

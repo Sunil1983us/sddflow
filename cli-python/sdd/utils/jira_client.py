@@ -5,6 +5,31 @@ import requests
 from sdd.utils.http_errors import raise_for_status_with_body
 
 
+def _assignee_creation_error(response: requests.Response) -> str | None:
+    """If a failed create-issue response's body blames the assignee
+    field specifically, return Jira's own message for it; otherwise
+    None.
+
+    Jira's create-issue validation returns a body shaped like
+    {"errorMessages": [...], "errors": {"<field-id>": "<reason>"}} --
+    "errors" is keyed by field id, so an "assignee" key there is Jira's
+    own signal that this field, and only this field, needs dropping to
+    retry. A malformed/non-JSON body (a reverse proxy can return HTML
+    for a 400) is treated as "no assignee-specific signal", not as
+    license to guess and retry anyway."""
+    try:
+        body = response.json()
+    except ValueError:
+        return None
+    if not isinstance(body, dict):
+        return None
+    errors = body.get("errors")
+    if not isinstance(errors, dict):
+        return None
+    reason = errors.get("assignee")
+    return reason if isinstance(reason, str) else None
+
+
 class JiraClient:
     """Thin wrapper around Jira REST API v3 (Cloud) / v2 (Server/DC).
 
@@ -91,7 +116,38 @@ class JiraClient:
         return issues[0] if issues else None
 
     def create_issue(self, fields: dict) -> dict:
+        """Create a Jira issue.
+
+        If `fields` includes "assignee" and Jira's validation rejects
+        specifically that field (unrecognised/deactivated/mistyped user
+        -- see _assignee_creation_error()), this retries once with
+        "assignee" stripped rather than failing the whole ticket. A
+        ticket created this way is unassigned, and the returned dict
+        carries an extra "_assignee_dropped_reason" key (Jira's own
+        error text for the field) so the caller can warn about it. This
+        only fires when the retry itself succeeds -- if some OTHER
+        field is also invalid, the retry's own error propagates
+        normally and names only that field, since assignee is no longer
+        part of the request by then.
+
+        Reported live: `reviewer_jira_user` in integrations.yml is a
+        hand-typed value (a username or accountId, see
+        assignee_field()) with nothing to validate it against at config
+        time. A typo, a reviewer who left the org, or a Cloud/Server
+        accountId-vs-name mismatch would otherwise fail the ENTIRE
+        review/CR ticket over a field that has no bearing on whether
+        the document itself is trackable -- the whole point of the
+        ticket."""
         r = self._s.post(self._api("/issue"), json={"fields": fields})
+        if r.status_code == 400 and "assignee" in fields:
+            reason = _assignee_creation_error(r)
+            if reason is not None:
+                retry_fields = {k: v for k, v in fields.items() if k != "assignee"}
+                r2 = self._s.post(self._api("/issue"), json={"fields": retry_fields})
+                raise_for_status_with_body(r2)
+                result = r2.json()
+                result["_assignee_dropped_reason"] = reason
+                return result
         raise_for_status_with_body(r)
         return r.json()
 
